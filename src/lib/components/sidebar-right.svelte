@@ -1,15 +1,11 @@
 <script>
-  import Calendars from "./calendars.svelte";
-  import DatePicker from "./date-picker.svelte";
   import NavUser from "./nav-user.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import PlusIcon from "@lucide/svelte/icons/plus";
   // This is sample data.
   const data = {
     user: {
       name: "shadcn",
       email: "m@example.com",
-      avatar: "/avatars/shadcn.jpg",
     },
     calendars: [
       {
