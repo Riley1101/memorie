@@ -3,11 +3,14 @@ mod config;
 mod error;
 mod fs;
 mod store;
+mod undotree;
 
 use config::AppConfig;
 use std::sync::Mutex;
 
-pub struct AppState(pub Mutex<AppConfig>);
+pub struct AppState {
+    config: Mutex<AppConfig>,
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,9 +27,12 @@ pub fn run() {
     }
 
     let db_path = app_config.database_path.clone();
+    let app_state = AppState {
+        config: Mutex::new(app_config),
+    };
 
     builder
-        .manage(AppState(Mutex::new(app_config)))
+        .manage(app_state)
         .plugin(tauri_plugin_opener::init())
         .plugin(store::init(&db_path).build())
         .invoke_handler(tauri::generate_handler![
