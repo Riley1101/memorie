@@ -1,5 +1,7 @@
-mod command;
+mod commands;
 mod config;
+mod error;
+mod fs;
 
 use config::AppConfig;
 use std::sync::Mutex;
@@ -23,11 +25,7 @@ pub fn run() {
     builder
         .manage(AppState(Mutex::new(app_config)))
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
-            command::discover_files,
-            command::read_file,
-            command::save_file,
-        ])
+        .invoke_handler(tauri::generate_handler![commands::discover_files,])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -9,16 +9,25 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    /// Loads configuration from the "config.yaml" file.
     pub fn load(path: &str) -> anyhow::Result<Self> {
         let config_str = fs::read_to_string(path)?;
         let config: AppConfig = serde_yaml::from_str(&config_str)?;
 
-        // Ensure the content directory exists, creating it if it doesn't.
         if !config.content_directory.exists() {
             fs::create_dir_all(&config.content_directory)?;
         }
 
         Ok(config)
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::AppConfig;
+
+    #[test]
+    fn test_load_config() {
+        let config = AppConfig::load("config.yaml").unwrap();
+        assert!(config.content_directory.exists());
     }
 }

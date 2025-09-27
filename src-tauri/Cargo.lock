@@ -2480,6 +2480,8 @@ dependencies = [
  "tauri-plugin-devtools",
  "tauri-plugin-log",
  "tauri-plugin-opener",
+ "tempfile",
+ "thiserror 2.0.16",
  "walkdir",
 ]
 
