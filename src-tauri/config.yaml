@@ -1,5 +1,7 @@
-# The root directory containing your Markdown files.
+# The root directory containing your Lexical files.
 # You can use an absolute path or a relative path.
 # Example: "C:/Users/YourUser/Documents/Notes"
 # Example: "/home/youruser/notes"
 content_directory: "./notes"
+
+database_path: "./memorie.db"

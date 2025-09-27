@@ -26,12 +26,10 @@ serde_yaml = "0.9.34"
 serde_json = "1"
 
 walkdir = "2"
-
-anyhow = "1.0.82"
-
 indextree = "4.6.1"
 tauri-plugin-devtools = "2.0.0"
 tauri-plugin-log = "2"
+    tauri-plugin-sql = { version = "2.0.0-rc", features = ["sqlite"] }
 thiserror = "2.0.16"
 
 [dev-dependencies]

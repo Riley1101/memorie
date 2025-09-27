@@ -8,63 +8,58 @@ const DEFAULT_EXTENSION: &str = "lexical";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct File {
-    path: PathBuf,
-    name: String,
+    pub path: PathBuf,
+    pub name: String,
 }
 
-/// Discovers files with the default extension in a given directory.
+impl File {
+    pub fn new(path: PathBuf) -> Self {
+        let name = path
+            .file_name()
+            .and_then(OsStr::to_str)
+            .unwrap_or("")
+            .to_string();
+        File { path, name }
+    }
+
+    pub fn read_content(&self) -> Result<String, FileError> {
+        let content = fs::read_to_string(&self.path)?;
+        Ok(content)
+    }
+
+    pub fn extension(&self) -> Option<&str> {
+        self.path.extension().and_then(OsStr::to_str)
+    }
+}
+
 pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
     let mut files = Vec::new();
 
     for entry in fs::read_dir(directory)? {
         let entry = entry?;
         let path = entry.path();
-        let name = path
-            .file_name()
-            .and_then(OsStr::to_str)
-            .unwrap_or("")
-            .to_string();
 
-        if path.is_file() && name.ends_with(DEFAULT_EXTENSION) {
-            files.push(File { path, name });
+        if path.is_file() && path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION) {
+            files.push(File::new(path));
         }
     }
 
-    // Sort files for consistent test results
     files.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(files)
 }
 
-/// Creates a new file with the given content.
 pub fn create_file(path: &Path, content: &str) -> Result<File, FileError> {
-    let name = path
-        .file_name()
-        .and_then(OsStr::to_str)
-        .unwrap_or("")
-        .to_string();
-
     fs::write(path, content)?;
-
-    Ok(File {
-        path: path.to_path_buf(),
-        name,
-    })
+    Ok(File::new(path.to_path_buf()))
 }
 
-/// Updates the content of an existing file.
 pub fn update_file(file: &File, content: &str) -> Result<File, FileError> {
     fs::write(&file.path, content)?;
-
-    Ok(File {
-        path: file.path.clone(),
-        name: file.name.clone(),
-    })
+    Ok(file.clone())
 }
 
-/// Deletes a file.
 pub fn delete_file(file: &File) -> Result<(), FileError> {
     fs::remove_file(&file.path)?;
-
     Ok(())
 }
 
@@ -72,6 +67,29 @@ pub fn delete_file(file: &File) -> Result<(), FileError> {
 mod fs_tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn test_file_new_and_read_content() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_read.lexical");
+        let content = "You should be able to read this.";
+        fs::write(&file_path, content).unwrap();
+
+        let file = File::new(file_path);
+        assert_eq!(file.name, "test_read.lexical");
+        assert_eq!(file.read_content().unwrap(), content);
+    }
+    
+    #[test]
+    fn test_file_extension() {
+        let file_path = PathBuf::from("/tmp/test.lexical");
+        let file = File::new(file_path);
+        assert_eq!(file.extension(), Some("lexical"));
+
+        let no_ext_path = PathBuf::from("/tmp/test");
+        let no_ext_file = File::new(no_ext_path);
+        assert_eq!(no_ext_file.extension(), None);
+    }
 
     #[test]
     fn test_create_file() {
@@ -85,7 +103,7 @@ mod fs_tests {
         assert_eq!(file.path, file_path);
         assert!(file_path.exists());
 
-        let read_content = fs::read_to_string(&file_path).unwrap();
+        let read_content = file.read_content().unwrap();
         assert_eq!(read_content, content);
     }
 
@@ -93,11 +111,9 @@ mod fs_tests {
     fn test_discover_files() {
         let dir = tempdir().unwrap();
 
-        // Create some files to be discovered
         create_file(&dir.path().join("a.lexical"), "content a").unwrap();
         create_file(&dir.path().join("b.lexical"), "content b").unwrap();
 
-        // Create some files that should NOT be discovered
         create_file(&dir.path().join("c.txt"), "content c").unwrap();
         fs::create_dir(dir.path().join("subfolder")).unwrap();
 
@@ -127,7 +143,7 @@ mod fs_tests {
 
         assert_eq!(file, updated_file);
 
-        let read_content = fs::read_to_string(&file_path).unwrap();
+        let read_content = updated_file.read_content().unwrap();
         assert_eq!(read_content, updated_content);
     }
 
@@ -137,9 +153,10 @@ mod fs_tests {
         let file_path = dir.path().join("delete_me.lexical");
 
         let file = create_file(&file_path, "I am temporary.").unwrap();
-        assert!(file_path.exists());
+        assert!(file.path.exists());
 
         delete_file(&file).unwrap();
-        assert!(!file_path.exists());
+        assert!(!file.path.exists());
     }
 }
+
