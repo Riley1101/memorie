@@ -6,7 +6,7 @@ use std::path::PathBuf;
 #[derive(Debug, Deserialize)]
 pub struct AppConfig {
     pub content_directory: PathBuf,
-    pub database_path: PathBuf,
+    pub undotree_dir: PathBuf,
 }
 
 impl AppConfig {
@@ -18,7 +18,7 @@ impl AppConfig {
             fs::create_dir_all(&config.content_directory)?;
         }
 
-        if let Some(parent) = config.database_path.parent() {
+        if let Some(parent) = config.undotree_dir.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent)?;
             }
@@ -39,17 +39,17 @@ mod config_tests {
         let dir = tempdir().unwrap();
         let config_path = dir.path().join("config.yaml");
         let content_dir = dir.path().join("content");
-        let db_path = dir.path().join("db/test.db");
+        let undotree_path = dir.path().join("history");
 
         let yaml_content = format!(
-            "content_directory: {:?}\ndatabase_path: {:?}",
-            content_dir, db_path
+            "content_directory: {:?}\nundotree_dir: {:?}",
+            content_dir, undotree_path
         );
 
         fs::write(&config_path, yaml_content).unwrap();
         let config = AppConfig::load(config_path.to_str().unwrap()).unwrap();
 
         assert!(config.content_directory.exists());
-        assert!(config.database_path.parent().unwrap().exists());
+        assert!(config.undotree_dir.parent().unwrap().exists());
     }
 }

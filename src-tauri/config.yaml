@@ -4,4 +4,4 @@
 # Example: "/home/youruser/notes"
 content_directory: "./notes"
 
-database_path: "./memorie.db"
+undotree_dir: "./history"

@@ -29,7 +29,6 @@ walkdir = "2"
 indextree = "4.6.1"
 tauri-plugin-devtools = "2.0.0"
 tauri-plugin-log = "2"
-    tauri-plugin-sql = { version = "2.0.0-rc", features = ["sqlite"] }
 thiserror = "2.0.16"
 
 [dev-dependencies]

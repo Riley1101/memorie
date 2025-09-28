@@ -2,7 +2,6 @@ mod commands;
 mod config;
 mod error;
 mod fs;
-mod store;
 mod undotree;
 
 use config::AppConfig;
@@ -26,7 +25,6 @@ pub fn run() {
         builder = builder.plugin(devtools);
     }
 
-    let db_path = app_config.database_path.clone();
     let app_state = AppState {
         config: Mutex::new(app_config),
     };
@@ -34,7 +32,6 @@ pub fn run() {
     builder
         .manage(app_state)
         .plugin(tauri_plugin_opener::init())
-        .plugin(store::init(&db_path).build())
         .invoke_handler(tauri::generate_handler![
             commands::discover_files,
             commands::create_file,

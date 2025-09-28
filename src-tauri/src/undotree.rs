@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Default)]
-struct History {
+pub struct History {
     snapshots: Vec<String>,
     current_index: usize,
 }

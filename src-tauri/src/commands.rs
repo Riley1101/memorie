@@ -1,6 +1,5 @@
 use tauri::State;
 
-/// Reads the content of a specified file.
 use crate::fs::{self, File};
 use crate::AppState;
 
