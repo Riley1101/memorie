@@ -15,11 +15,11 @@ const rs_commands = {
     return await invoke("discover_files");
   },
   /**
-   * @param {string} path - The path of the file to read.
+   * @param {string} name - The name of the file to read.
    * @returns {Promise<string>}
    */
-  readFile: async (path) => {
-    return await invoke("read_file", { path });
+  readFile: async (name) => {
+    return await invoke("read_file", { name });
   },
   /**
    * @param {string} path - The path of the file to save.
@@ -102,25 +102,27 @@ class FileManager {
       return;
     }
 
-    // this.isLoading = true;
-    // this.errorMessage = "";
+    this.isLoading = true;
+    this.errorMessage = "";
     try {
-      const content = await rs_commands.readFile(file.path);
+      const content = await rs_commands.readFile(file.name);
       this.currentFile = file;
       this.currentContent = content;
     } catch (err) {
       this.errorMessage = `Failed to read file "${file.name}": ${err}`;
     } finally {
-      // this.isLoading = false;
+      this.isLoading = false;
     }
   }
 
   /**
    * Saves the content of the currently selected file to the backend.
    * @async
+   * @param {string} name - The name of the file to save.
+   * @param {string} content - The content to save.
    * @returns {Promise<void>}
    */
-  async saveCurrentFile() {
+  async saveCurrentFile(name, content) {
     if (!this.currentFile) {
       this.errorMessage = "No file is selected to save.";
       return;
@@ -129,9 +131,9 @@ class FileManager {
     this.isLoading = true;
     this.errorMessage = "";
     try {
-      await invoke("save_file", {
-        path: this.currentFile.path,
-        content: this.currentContent,
+      await invoke("update_file", {
+        name: name,
+        content: content,
       });
     } catch (err) {
       this.errorMessage = `Failed to save file "${this.currentFile.name}": ${err}`;

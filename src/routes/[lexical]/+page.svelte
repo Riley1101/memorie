@@ -1,16 +1,25 @@
 <script>
-    import { core } from "@tauri-apps/api";
-    import { page } from "$app/stores";
-    import { fileManager } from "$lib/runes/fs.svelte";
-    const { lexical } = $page.params;
-    const { readFile } = fileManager;
-    readFile({
-        path: "./welcome.lexical",
-        name: "lexical",
+  import LexicalEditor from "$lib/components/lexical-editor.svelte";
+  import { fileManager } from "$lib/runes/fs.svelte";
+  import { page } from "$app/state";
+
+  const fileName = $derived(page.params.lexical);
+
+  $effect(() => {
+    if (!fileName) return;
+    fileManager.readFile({
+      name: fileName,
+      path: fileName,
     });
-    $inspect(fileManager);
+  });
 </script>
 
-<main class="container">
-    <code class="border p-4 rounded-md"> Detail Lexical Note </code>
+<main>
+  {#if fileManager.isLoading}
+    <p>Loading document...</p>
+  {:else if fileManager.currentContent}
+    <LexicalEditor nodes={fileManager.currentContent} />
+  {:else}
+    <p>No content to display. Select a file to get started.</p>
+  {/if}
 </main>

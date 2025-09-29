@@ -49,7 +49,7 @@
             },
             {
                 title: "Home",
-                url: "#",
+                url: "/",
                 icon: HouseIcon,
                 isActive: true,
             },
