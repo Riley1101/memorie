@@ -6,9 +6,11 @@ mod undotree;
 
 use config::AppConfig;
 use std::sync::Mutex;
+use undotree::UndoTree;
 
 pub struct AppState {
     config: Mutex<AppConfig>,
+    undotree: Mutex<UndoTree>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -25,8 +27,14 @@ pub fn run() {
         builder = builder.plugin(devtools);
     }
 
+    let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|e| {
+        eprintln!("Failed to load history, starting fresh: {}", e);
+        UndoTree::new()
+    });
+
     let app_state = AppState {
         config: Mutex::new(app_config),
+        undotree: Mutex::new(undo_tree),
     };
 
     builder

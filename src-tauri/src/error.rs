@@ -14,3 +14,4 @@ pub enum ConfigurationError {
     #[error("YAML parsing error")]
     Yaml(#[from] serde_yaml::Error),
 }
+

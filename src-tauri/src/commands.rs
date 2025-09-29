@@ -7,14 +7,23 @@ use crate::AppState;
 pub fn discover_files(state: State<AppState>) -> Result<Vec<File>, String> {
     let config = state.config.lock().unwrap();
     let content_dir = &config.content_directory;
-    fs::discover_files(content_dir).map_err(|e| e.to_string())
+    let result = fs::discover_files(content_dir).map_err(|e| e.to_string())?;
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn create_file(name: String, content: &str, state: State<AppState>) -> Result<File, String> {
     let config = state.config.lock().unwrap();
     let path = config.content_directory.join(&name);
-    fs::create_file(&path, content).map_err(|e| e.to_string())
+    let result = fs::create_file(&path, content).map_err(|e| e.to_string())?;
+
+    let mut undo_tree = state.undotree.lock().unwrap();
+    undo_tree.add_change(&name, content);
+    undo_tree
+        .save(&config.undotree_dir)
+        .map_err(|e| e.to_string())?;
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -24,7 +33,15 @@ pub fn update_file(name: String, content: &str, state: State<AppState>) -> Resul
 
     let file_to_update = File { path, name };
 
-    fs::update_file(&file_to_update, content).map_err(|e| e.to_string())
+    let result = fs::update_file(&file_to_update, content).map_err(|e| e.to_string());
+
+    let mut undo_tree = state.undotree.lock().unwrap();
+    undo_tree.add_change(&file_to_update.name, content);
+    undo_tree
+        .save(&config.undotree_dir)
+        .map_err(|e| e.to_string())
+        .unwrap_or_else(|e| eprintln!("Failed to save undo tree: {}", e));
+    result
 }
 
 #[tauri::command]
