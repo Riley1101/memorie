@@ -4,6 +4,7 @@
   import { theme } from "svelte-lexical/dist/themes/system-light-dark";
   import { Button } from "$lib/components/ui/button/index.js";
   import { fileManager } from "$lib/runes/fs.svelte";
+  import ToolBar from "$lib/components/lexical-toolbar.svelte";
 
   /**
    * @type {string | null}

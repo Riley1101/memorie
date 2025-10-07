@@ -28,7 +28,6 @@ pub fn run() {
     }
 
     let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|e| {
-        eprintln!("Failed to load history, starting fresh: {}", e);
         UndoTree::new()
     });
 

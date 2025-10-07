@@ -31,7 +31,6 @@ pub fn create_file(name: String, content: &str, state: State<AppState>) -> Resul
 pub fn update_file(name: String, content: &str, state: State<AppState>) -> Result<File, String> {
     let config = state.config.lock().unwrap();
     let path = config.content_directory.join(&name);
-    println!("Updating file at path: {:?}", path);
 
     let file_to_update = File { path, name };
 
