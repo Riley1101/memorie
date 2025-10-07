@@ -5,12 +5,18 @@
   import { Separator } from "$lib/components/ui/separator/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { fileManager } from "$lib/runes/fs.svelte";
+  import { Button } from "@/components/ui/button";
   import "../app.css";
+  import { invoke } from "@tauri-apps/api/core";
 
-  /**
-   * Initializes the file manager and retrieves the list of files.
-   */
-  fileManager.getFiles();
+  // /**
+  //  * Initializes the file manager and retrieves the list of files.
+  //  */
+  // fileManager.getFiles();
+
+  invoke("load_files").then(res=>{
+    console.log(res)
+  })
 
   let { children } = $props();
 </script>
@@ -30,7 +36,9 @@
         <Breadcrumb.Root>
           <Breadcrumb.List>
             <Breadcrumb.Item>
-              <Breadcrumb.Page class="line-clamp-1">Welcome</Breadcrumb.Page>
+              <Breadcrumb.Page class="line-clamp-1 w-full">
+                Welcome
+              </Breadcrumb.Page>
             </Breadcrumb.Item>
           </Breadcrumb.List>
         </Breadcrumb.Root>

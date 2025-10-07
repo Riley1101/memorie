@@ -83,6 +83,7 @@ class FileManager {
     try {
       this.files = await rs_commands.getFiles();
     } catch (err) {
+      console.error(err);
       this.errorMessage = `Failed to discover files: ${err}`;
     } finally {
       this.isLoading = false;
@@ -149,6 +150,7 @@ class FileManager {
    * @returns {Promise<void>}
    */
   async createNewFile(fileName) {
+    console.log("Creating new file:", fileName);
     if (!fileName || !fileName.trim()) {
       this.errorMessage = "File name cannot be empty.";
       return;
@@ -160,16 +162,15 @@ class FileManager {
 
     this.isLoading = true;
     this.errorMessage = "";
-    try {
-      const contentDir = await invoke("get_content_directory");
-      const newFilePath = await join(contentDir, finalFileName);
 
-      await invoke("save_file", { path: newFilePath, content: "" });
+    try {
+      await invoke("create_file", { name: fileName, content: "" });
 
       // Refresh the file list to show the new file
       await this.getFiles();
     } catch (err) {
       this.errorMessage = `Failed to create file "${finalFileName}": ${err}`;
+      console.error(err);
     } finally {
       this.isLoading = false;
     }

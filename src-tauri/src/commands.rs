@@ -4,7 +4,7 @@ use crate::fs::{self, File};
 use crate::AppState;
 
 #[tauri::command]
-pub fn discover_files(state: State<AppState>) -> Result<Vec<File>, String> {
+pub fn load_files(state: State<AppState>) -> Result<Vec<File>, String> {
     let config = state.config.lock().unwrap();
     let content_dir = &config.content_directory;
     let result = fs::discover_files(content_dir).map_err(|e| e.to_string())?;

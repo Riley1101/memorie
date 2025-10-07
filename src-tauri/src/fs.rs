@@ -79,7 +79,7 @@ mod fs_tests {
         assert_eq!(file.name, "test_read.lexical");
         assert_eq!(file.read_content().unwrap(), content);
     }
-    
+
     #[test]
     fn test_file_extension() {
         let file_path = PathBuf::from("/tmp/test.lexical");
@@ -159,4 +159,3 @@ mod fs_tests {
         assert!(!file.path.exists());
     }
 }
-
