@@ -3,5 +3,6 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default", "log:default", "scope-user"]
+  "permissions": ["core:default", "opener:default", "log:default", 
+    "fs:default"]
 }

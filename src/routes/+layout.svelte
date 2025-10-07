@@ -9,14 +9,10 @@
   import "../app.css";
   import { invoke } from "@tauri-apps/api/core";
 
-  // /**
-  //  * Initializes the file manager and retrieves the list of files.
-  //  */
-  // fileManager.getFiles();
-
-  invoke("load_files").then(res=>{
-    console.log(res)
-  })
+  /**
+   * Initializes the file manager and retrieves the list of files.
+   */
+  fileManager.getFiles();
 
   let { children } = $props();
 </script>

@@ -12,7 +12,7 @@ const rs_commands = {
    * @returns {Promise<FileEntry[]>}
    */
   getFiles: async () => {
-    return await invoke("discover_files");
+    return await invoke("list_files");
   },
   /**
    * @param {string} name - The name of the file to read.

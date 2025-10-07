@@ -4,7 +4,7 @@ use crate::fs::{self, File};
 use crate::AppState;
 
 #[tauri::command]
-pub fn load_files(state: State<AppState>) -> Result<Vec<File>, String> {
+pub fn list_files(state: State<AppState>) -> Result<Vec<File>, String> {
     let config = state.config.lock().unwrap();
     let content_dir = &config.content_directory;
     let result = fs::discover_files(content_dir).map_err(|e| e.to_string())?;
@@ -18,6 +18,7 @@ pub fn create_file(name: String, content: &str, state: State<AppState>) -> Resul
     let result = fs::create_file(&path, content).map_err(|e| e.to_string())?;
 
     let mut undo_tree = state.undotree.lock().unwrap();
+
     undo_tree.add_change(&name, content);
     undo_tree
         .save(&config.undotree_dir)

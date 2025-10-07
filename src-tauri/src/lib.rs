@@ -39,9 +39,10 @@ pub fn run() {
 
     builder
         .manage(app_state)
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            commands::load_files,
+            commands::list_files,
             commands::create_file,
             commands::update_file,
             commands::delete_file,

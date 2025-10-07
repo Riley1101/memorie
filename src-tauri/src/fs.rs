@@ -27,6 +27,7 @@ impl File {
         Ok(content)
     }
 
+    #[allow(dead_code)]
     pub fn extension(&self) -> Option<&str> {
         self.path.extension().and_then(OsStr::to_str)
     }

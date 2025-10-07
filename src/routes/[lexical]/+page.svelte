@@ -17,9 +17,7 @@
 <main>
   {#if fileManager.isLoading}
     <p>Loading document...</p>
-  {:else if fileManager.currentContent}
-    <LexicalEditor nodes={fileManager.currentContent} />
   {:else}
-    <p>No content to display. Select a file to get started.</p>
+    <LexicalEditor nodes={fileManager.currentContent} />
   {/if}
 </main>
