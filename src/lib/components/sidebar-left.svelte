@@ -44,7 +44,7 @@
             },
             {
                 title: "Ask AI",
-                url: "#",
+                url: "/chat",
                 icon: SparklesIcon,
             },
             {
