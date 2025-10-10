@@ -3843,6 +3843,9 @@ dependencies = [
 name = "memoire"
 version = "0.1.0"
 dependencies = [
+ "dirs 6.0.0",
+ "futures",
+ "futures-util",
  "indextree",
  "kalosm",
  "kalosm-common",

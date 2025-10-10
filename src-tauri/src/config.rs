@@ -1,7 +1,7 @@
 use super::error::ConfigurationError;
 use serde::Deserialize;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Deserialize)]
 pub struct AppConfig {

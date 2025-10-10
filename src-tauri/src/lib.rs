@@ -4,19 +4,29 @@ mod error;
 mod fs;
 mod llm;
 mod undotree;
+mod utils;
 
 use config::AppConfig;
-use std::sync::Mutex;
+use dirs;
+use tokio::sync::Mutex;
 use undotree::UndoTree;
+
+use crate::llm::Model;
 
 pub struct AppState {
     config: Mutex<AppConfig>,
     undotree: Mutex<UndoTree>,
+    model: Mutex<Model>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app_config = AppConfig::load("config.yaml").expect("Failed to load config");
+    let home_dir = utils::get_app_dir()
+        .expect("Failed to get home directory")
+        .join("config.yaml");
+
+    let app_config = AppConfig::load(home_dir.to_str().expect("Failed to get home directory"))
+        .expect("Failed to load config");
 
     #[cfg(debug_assertions)]
     let devtools = tauri_plugin_devtools::init();
@@ -30,9 +40,13 @@ pub fn run() {
 
     let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|_| UndoTree::new());
 
+    let default_model_path = app_config.default_llm_model.clone();
+    let model = Model::new(default_model_path);
+
     let app_state = AppState {
         config: Mutex::new(app_config),
         undotree: Mutex::new(undo_tree),
+        model: Mutex::new(model),
     };
 
     builder
@@ -45,6 +59,7 @@ pub fn run() {
             commands::update_file,
             commands::delete_file,
             commands::load_model,
+            commands::run_chat,
             commands::read_file
         ])
         .run(tauri::generate_context!())

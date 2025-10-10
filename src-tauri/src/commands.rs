@@ -1,26 +1,27 @@
-use std::path::PathBuf;
-
 use tauri::State;
 
-use super::llm::Model;
 use crate::fs::{self, File};
 use crate::AppState;
 
 #[tauri::command]
-pub fn list_files(state: State<AppState>) -> Result<Vec<File>, String> {
-    let config = state.config.lock().unwrap();
+pub async fn list_files(state: State<'_, AppState>) -> Result<Vec<File>, String> {
+    let config = state.config.lock().await;
     let content_dir = &config.content_directory;
     let result = fs::discover_files(content_dir).map_err(|e| e.to_string())?;
     Ok(result)
 }
 
 #[tauri::command]
-pub fn create_file(name: String, content: &str, state: State<AppState>) -> Result<File, String> {
-    let config = state.config.lock().unwrap();
+pub async fn create_file(
+    name: String,
+    content: &str,
+    state: State<'_, AppState>,
+) -> Result<File, String> {
+    let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
     let result = fs::create_file(&path, content).map_err(|e| e.to_string())?;
 
-    let mut undo_tree = state.undotree.lock().unwrap();
+    let mut undo_tree = state.undotree.lock().await;
 
     undo_tree.add_change(&name, content);
     undo_tree
@@ -31,15 +32,19 @@ pub fn create_file(name: String, content: &str, state: State<AppState>) -> Resul
 }
 
 #[tauri::command]
-pub fn update_file(name: String, content: &str, state: State<AppState>) -> Result<File, String> {
-    let config = state.config.lock().unwrap();
+pub async fn update_file(
+    name: String,
+    content: &str,
+    state: State<'_, AppState>,
+) -> Result<File, String> {
+    let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
 
     let file_to_update = File { path, name };
 
     let result = fs::update_file(&file_to_update, content).map_err(|e| e.to_string());
 
-    let mut undo_tree = state.undotree.lock().unwrap();
+    let mut undo_tree = state.undotree.lock().await;
     undo_tree.add_change(&file_to_update.name, content);
     undo_tree
         .save(&config.undotree_dir)
@@ -49,8 +54,8 @@ pub fn update_file(name: String, content: &str, state: State<AppState>) -> Resul
 }
 
 #[tauri::command]
-pub fn delete_file(name: String, state: State<AppState>) -> Result<(), String> {
-    let config = state.config.lock().unwrap();
+pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
 
     let file_to_delete = File { path, name };
@@ -59,8 +64,8 @@ pub fn delete_file(name: String, state: State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn read_file(name: String, state: State<AppState>) -> Result<String, String> {
-    let config = state.config.lock().unwrap();
+pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<String, String> {
+    let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
     let file = File { path, name };
     file.read_content().map_err(|e| e.to_string())
@@ -68,14 +73,14 @@ pub fn read_file(name: String, state: State<AppState>) -> Result<String, String>
 
 #[tauri::command]
 pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
-    let default_model = {
-        let config = state.config.lock().unwrap();
-        config.default_llm_model.clone()
-    };
+    let mut model = state.model.lock().await;
+    let llama = model.load_model().await.map_err(|e| e.to_string())?;
+    model.set_loaded_model(llama);
+    Ok("Model loaded successfully.".to_string())
+}
 
-    let model = Model::new(default_model);
-
-    let response = model.load().await.map_err(|e| e.to_string())?;
-
-    Ok(response)
+#[tauri::command]
+pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<String, String> {
+    let model = state.model.lock().await;
+    model.run_chat(&message).await.map_err(|e| e.to_string())
 }
