@@ -4,13 +4,18 @@
   import { theme } from "svelte-lexical/dist/themes/system-light-dark";
   import { Button } from "$lib/components/ui/button/index.js";
   import { fileManager } from "$lib/runes/fs.svelte";
-  import ToolBar from "$lib/components/lexical-toolbar.svelte";
 
   /**
    * @type {string | null}
    * Serialized Lexical editor state (JSON string).
    */
   export let nodes = null;
+
+  /**
+   * @type {string | null}
+   * Name of the file being edited.
+   */
+  export let name = "";
 
   const initialConfig = {
     theme,
@@ -42,11 +47,12 @@
   }
 
   function saveContent() {
-    const editor = composer.getEditor();
-    const editorState = editor.getEditorState();
+    const editor = composer?.getEditor();
+    const editorState = editor?.getEditorState();
     const serialized = JSON.stringify(editorState);
-    console.log("Saving content:", serialized);
-    fileManager.saveCurrentFile("welcome.lexical", serialized);
+    if(name){
+      fileManager.saveCurrentFile(name || '', serialized);
+    }
   }
 
   onMount(() => setEditorState());

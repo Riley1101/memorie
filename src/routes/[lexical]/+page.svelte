@@ -1,4 +1,5 @@
 <script>
+  export const prerender = false;
   import LexicalEditor from "$lib/components/lexical-editor.svelte";
   import { fileManager } from "$lib/runes/fs.svelte";
   import { page } from "$app/state";
@@ -18,6 +19,6 @@
   {#if fileManager.isLoading}
     <p>Loading document...</p>
   {:else}
-    <LexicalEditor nodes={fileManager.currentContent} />
+    <LexicalEditor name={fileName} nodes={fileManager.currentContent} />
   {/if}
 </main>

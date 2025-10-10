@@ -2,6 +2,7 @@ mod commands;
 mod config;
 mod error;
 mod fs;
+mod llm;
 mod undotree;
 
 use config::AppConfig;
@@ -27,9 +28,7 @@ pub fn run() {
         builder = builder.plugin(devtools);
     }
 
-    let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|e| {
-        UndoTree::new()
-    });
+    let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|_| UndoTree::new());
 
     let app_state = AppState {
         config: Mutex::new(app_config),
@@ -45,6 +44,7 @@ pub fn run() {
             commands::create_file,
             commands::update_file,
             commands::delete_file,
+            commands::load_model,
             commands::read_file
         ])
         .run(tauri::generate_context!())

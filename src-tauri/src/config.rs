@@ -1,12 +1,14 @@
 use super::error::ConfigurationError;
 use serde::Deserialize;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize)]
 pub struct AppConfig {
     pub content_directory: PathBuf,
     pub undotree_dir: PathBuf,
+
+    pub default_llm_model: PathBuf,
 }
 
 impl AppConfig {
@@ -40,10 +42,11 @@ mod config_tests {
         let config_path = dir.path().join("config.yaml");
         let content_dir = dir.path().join("content");
         let undotree_path = dir.path().join("history");
+        let default_llm_model = dir.path().join("default_llm_model");
 
         let yaml_content = format!(
-            "content_directory: {:?}\nundotree_dir: {:?}",
-            content_dir, undotree_path
+            "content_directory: {:?}\nundotree_dir: {:?}\ndefault_llm_model: {:?}",
+            content_dir, undotree_path, default_llm_model
         );
 
         fs::write(&config_path, yaml_content).unwrap();

@@ -1,5 +1,8 @@
+use std::path::PathBuf;
+
 use tauri::State;
 
+use super::llm::Model;
 use crate::fs::{self, File};
 use crate::AppState;
 
@@ -59,9 +62,20 @@ pub fn delete_file(name: String, state: State<AppState>) -> Result<(), String> {
 pub fn read_file(name: String, state: State<AppState>) -> Result<String, String> {
     let config = state.config.lock().unwrap();
     let path = config.content_directory.join(&name);
-    let mut undo_tree = state.undotree.lock().unwrap();
-
     let file = File { path, name };
-
     file.read_content().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
+    let default_model = {
+        let config = state.config.lock().unwrap();
+        config.default_llm_model.clone()
+    };
+
+    let model = Model::new(default_model);
+
+    let response = model.load().await.map_err(|e| e.to_string())?;
+
+    Ok(response)
 }

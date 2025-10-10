@@ -5,3 +5,5 @@
 content_directory: "/home/arkar/notes"
 
 undotree_dir: "/home/arkar/notes/.history"
+
+default_llm_model: "qwen_2_5_0_5b_instruct"
