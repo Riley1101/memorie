@@ -13,7 +13,9 @@ pub struct Model {
 
 impl Model {
     pub fn new(name: PathBuf) -> Self {
-        Model { name, llma: None }
+        Model { name,
+            llma: None
+        }
     }
 
     // !TODO use this.error  handling
@@ -63,7 +65,6 @@ impl Model {
             println!("{:?}",token);
             full_response.push_str(&token);
         }
-
         Ok(full_response)
     }
 }

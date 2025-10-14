@@ -7,7 +7,6 @@ use std::path::PathBuf;
 pub struct AppConfig {
     pub content_directory: PathBuf,
     pub undotree_dir: PathBuf,
-
     pub default_llm_model: PathBuf,
 }
 

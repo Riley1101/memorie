@@ -1,3 +1,4 @@
+use kalosm::language::{Document, Url};
 use tauri::State;
 
 use crate::fs::{self, File};
@@ -83,4 +84,19 @@ pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
 pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<String, String> {
     let model = state.model.lock().await;
     model.run_chat(&message).await.map_err(|e| e.to_string())
+}
+#[tauri::command]
+pub async fn create_embeddings(
+    name: String,
+    content: String,
+    state: State<'_, AppState>,
+    ) -> Result<String, String> {
+
+    let memory = state.memory.lock().await;
+
+    let table = &memory.document_table;
+    let document = Document::from_parts(name, content);
+    table.insert(document).await.map_err(|e| e.to_string())?;
+
+    Ok("Hello".to_string())
 }
