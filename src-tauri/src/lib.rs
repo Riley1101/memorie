@@ -70,7 +70,8 @@ pub async fn run() {
             commands::load_model,
             commands::run_chat,
             commands::read_file,
-            commands::create_embeddings
+            commands::create_embeddings,
+            commands::search_embeddings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

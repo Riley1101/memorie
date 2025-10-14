@@ -4,6 +4,7 @@
   import {Button} from "@/components/ui/button/index.js";
   import { fileManager } from "$lib/runes/fs.svelte";
   import {invoke} from "@tauri-apps/api/core";
+  import {Input} from "@/components/ui/input/index.js";
   // This is sample data.
   const data = {
     user: {
@@ -26,37 +27,23 @@
     ],
   };
 
+  let query = $state("");
+
   let { ref = $bindable(null), ...restProps } = $props();
+
+  function handleSearchEmbeddings(){
+    invoke("search_embeddings", { query }).then((res) => {
+      console.log("Search results:", res);
+    }).catch((err) => {
+      console.error("Error searching embeddings:", err);
+    });
+  }
 
   function handleCreateEmbeddings (){
     const currentContent = fileManager.currentContent;
     const currentFile = fileManager.currentFile;
 
-    let content = `
-Ode to React
-
-In the DOM’s vast, tangled sea,
-A library came to set us free.
-Components small, yet mighty in might,
-Bringing UIs to glorious light.
-
-JSX, a syntax of wonder and grace,
-Merging logic with a visual space.
-Props pass data, state holds the key,
-To dynamic pages, swift and free.
-
-Hooks appear, a modern delight,
-useState, useEffect—coding takes flight.
-Virtual DOM, so clever and fast,
-Ensuring updates never last.
-
-From simple buttons to complex app,
-React builds worlds with each small map.
-A declarative promise, elegant and true,
-In the web we craft, it sees us through.
-    `
-
-    invoke("create_embeddings", { name: "welcome.lexical" , content: content  }).then((res) => {
+    invoke("create_embeddings", { name: currentFile , content: currentContent  }).then((res) => {
       console.log("Embeddings created:", res);
     }).catch((err) => {
       console.error("Error creating embeddings:", err);
@@ -75,9 +62,14 @@ In the web we craft, it sees us through.
     <NavUser user={data.user} />
   </Sidebar.Header>
   <Sidebar.Content>
-    <div class="p-2">
+    <div class="p-2 flex flex-col gap-2 max-w-max">
+      <Input bind:value={query}/>
+
       <Button onclick={handleCreateEmbeddings}>
         Create Embeddings
+      </Button>
+      <Button onclick={handleSearchEmbeddings}>
+        Search Embeddings
       </Button>
     </div>
   </Sidebar.Content>

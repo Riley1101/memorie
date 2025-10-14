@@ -100,3 +100,31 @@ pub async fn create_embeddings(
 
     Ok("Hello".to_string())
 }
+
+#[tauri::command]
+pub async fn search_embeddings(
+    query: String,
+    state: State<'_, AppState>,
+    ) -> Result<String, String> {
+
+    let memory = state.memory.lock().await;
+
+    let table = &memory.document_table;
+    let context = table
+        .search(&query)
+        .with_results(1)
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|document| {
+            format!(
+                "Title: {}\nBody: {}\n",
+                document.record.title(),
+                document.record.body()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    Ok(context)
+}
