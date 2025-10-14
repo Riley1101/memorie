@@ -52,12 +52,14 @@
     const serialized = JSON.stringify(editorState);
     if(name){
       fileManager.saveCurrentFile(name || '', serialized);
+      setEditorState()
     }
   }
 
   onMount(() => setEditorState());
 
   $: if (nodes) setEditorState();
+
 </script>
 
 <Button onclick={saveContent} class="mb-2">Save</Button>

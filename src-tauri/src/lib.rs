@@ -64,6 +64,7 @@ pub async fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_files,
+            commands::list_recents,
             commands::create_file,
             commands::update_file,
             commands::delete_file,

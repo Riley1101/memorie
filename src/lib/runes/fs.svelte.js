@@ -14,6 +14,13 @@ const rs_commands = {
   getFiles: async () => {
     return await invoke("list_files");
   },
+
+  /**
+   * @returns {Promise<FileEntry[]>}
+   */
+  getRecents: async () => {
+    return await invoke("list_recents");
+  },
   /**
    * @param {string} name - The name of the file to read.
    * @returns {Promise<string>}
@@ -86,6 +93,24 @@ class FileManager {
       console.error(err);
       this.errorMessage = `Failed to discover files: ${err}`;
     } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Fetches the list of recent files from the backend.
+   * @async
+   * @returns {Promise<void>}
+   */
+  async getRecents() {
+    this.isLoading = true;
+    this.errorMessage = "";
+    try {
+        this.files = await rs_commands.getRecents();
+    } catch (err) {
+      console.error(err);
+      this.errorMessage = `Failed to discover recent files: ${err}`;
+    }finally {
       this.isLoading = false;
     }
   }

@@ -12,6 +12,15 @@ pub async fn list_files(state: State<'_, AppState>) -> Result<Vec<File>, String>
     Ok(result)
 }
 
+
+#[tauri::command]
+pub async fn list_recents(state: State<'_, AppState>) -> Result<Vec<File>, String> {
+    let config = state.config.lock().await;
+    let content_dir = &config.content_directory;
+    let result = fs::get_recent(content_dir).map_err(|e| e.to_string())?;
+    Ok(result)
+}
+
 #[tauri::command]
 pub async fn create_file(
     name: String,

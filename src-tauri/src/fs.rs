@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 const DEFAULT_EXTENSION: &str = "lexical";
 
@@ -31,6 +32,31 @@ impl File {
     pub fn extension(&self) -> Option<&str> {
         self.path.extension().and_then(OsStr::to_str)
     }
+}
+
+pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
+    let mut files_with_mod_time: Vec<(PathBuf, SystemTime)> = Vec::new();
+
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() && path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION) {
+            let metadata = entry.metadata()?;
+            let modified_time = metadata.modified()?;
+            files_with_mod_time.push((path, modified_time));
+        }
+    }
+
+    // Sort files by modification time in descending order
+    files_with_mod_time.sort_by(|a, b| b.1.cmp(&a.1));
+
+    let files = files_with_mod_time
+        .into_iter()
+        .map(|(path, _)| File::new(path))
+        .collect();
+
+    Ok(files)
 }
 
 pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
@@ -158,5 +184,26 @@ mod fs_tests {
 
         delete_file(&file).unwrap();
         assert!(!file.path.exists());
+    }
+    #[test]
+    fn test_get_recent_files() {
+        let dir = tempdir().unwrap();
+        let file_path1 = dir.path().join("a.lexical");
+        let file_path2 = dir.path().join("b.lexical");
+        let file_path3 = dir.path().join("c.lexical");
+
+        // Create files with a small delay to ensure different modification times
+        create_file(&file_path1, "content a").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        create_file(&file_path2, "content b").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        create_file(&file_path3, "content c").unwrap();
+
+        let recent_files = get_recent(dir.path()).unwrap();
+
+        assert_eq!(recent_files.len(), 3);
+        assert_eq!(recent_files[0].name, "c.lexical");
+        assert_eq!(recent_files[1].name, "b.lexical");
+        assert_eq!(recent_files[2].name, "a.lexical");
     }
 }

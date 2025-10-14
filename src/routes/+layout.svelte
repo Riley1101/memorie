@@ -12,7 +12,7 @@
   /**
    * Initializes the file manager and retrieves the list of files.
    */
-  fileManager.getFiles();
+  fileManager.getRecents();
 
   let { children } = $props();
 </script>
