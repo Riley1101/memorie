@@ -80,7 +80,7 @@ class FileManager {
   // --- METHODS ---
 
   /**
-   * Fetches the list of all .lexical files from the backend.
+   * Fetches the list of all .md files from the backend.
    * @async
    * @returns {Promise<void>}
    */
@@ -169,7 +169,7 @@ class FileManager {
   }
 
   /**
-   * Creates a new, empty .lexical file and refreshes the file list.
+   * Creates a new, empty .md file and refreshes the file list.
    * @async
    * @param {string} fileName - The name for the new file (without extension).
    * @returns {Promise<void>}
@@ -181,9 +181,9 @@ class FileManager {
       return;
     }
 
-    const finalFileName = fileName.endsWith(".lexical")
+    const finalFileName = fileName.endsWith(".md")
       ? fileName
-      : `${fileName}.lexical`;
+      : `${fileName}.md`;
 
     this.isLoading = true;
     this.errorMessage = "";

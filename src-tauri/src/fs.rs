@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-const DEFAULT_EXTENSION: &str = "lexical";
+const DEFAULT_EXTENSION: &str = "md";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct File {
@@ -98,20 +98,20 @@ mod fs_tests {
     #[test]
     fn test_file_new_and_read_content() {
         let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_read.lexical");
+        let file_path = dir.path().join("test_read.md");
         let content = "You should be able to read this.";
         fs::write(&file_path, content).unwrap();
 
         let file = File::new(file_path);
-        assert_eq!(file.name, "test_read.lexical");
+        assert_eq!(file.name, "test_read.md");
         assert_eq!(file.read_content().unwrap(), content);
     }
 
     #[test]
     fn test_file_extension() {
-        let file_path = PathBuf::from("/tmp/test.lexical");
+        let file_path = PathBuf::from("/tmp/test.md");
         let file = File::new(file_path);
-        assert_eq!(file.extension(), Some("lexical"));
+        assert_eq!(file.extension(), Some("md"));
 
         let no_ext_path = PathBuf::from("/tmp/test");
         let no_ext_file = File::new(no_ext_path);
@@ -121,12 +121,12 @@ mod fs_tests {
     #[test]
     fn test_create_file() {
         let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test.lexical");
+        let file_path = dir.path().join("test.md");
         let content = "Hello, World!";
 
         let file = create_file(&file_path, content).unwrap();
 
-        assert_eq!(file.name, "test.lexical");
+        assert_eq!(file.name, "test.md");
         assert_eq!(file.path, file_path);
         assert!(file_path.exists());
 
@@ -138,8 +138,8 @@ mod fs_tests {
     fn test_discover_files() {
         let dir = tempdir().unwrap();
 
-        create_file(&dir.path().join("a.lexical"), "content a").unwrap();
-        create_file(&dir.path().join("b.lexical"), "content b").unwrap();
+        create_file(&dir.path().join("a.md"), "content a").unwrap();
+        create_file(&dir.path().join("b.md"), "content b").unwrap();
 
         create_file(&dir.path().join("c.txt"), "content c").unwrap();
         fs::create_dir(dir.path().join("subfolder")).unwrap();
@@ -147,8 +147,8 @@ mod fs_tests {
         let discovered = discover_files(dir.path()).unwrap();
 
         assert_eq!(discovered.len(), 2);
-        assert_eq!(discovered[0].name, "a.lexical");
-        assert_eq!(discovered[1].name, "b.lexical");
+        assert_eq!(discovered[0].name, "a.md");
+        assert_eq!(discovered[1].name, "b.md");
     }
 
     #[test]
@@ -161,7 +161,7 @@ mod fs_tests {
     #[test]
     fn test_update_file() {
         let dir = tempdir().unwrap();
-        let file_path = dir.path().join("update_me.lexical");
+        let file_path = dir.path().join("update_me.md");
         let initial_content = "Initial content.";
         let updated_content = "This content has been updated.";
 
@@ -177,7 +177,7 @@ mod fs_tests {
     #[test]
     fn test_delete_file() {
         let dir = tempdir().unwrap();
-        let file_path = dir.path().join("delete_me.lexical");
+        let file_path = dir.path().join("delete_me.md");
 
         let file = create_file(&file_path, "I am temporary.").unwrap();
         assert!(file.path.exists());
@@ -188,9 +188,9 @@ mod fs_tests {
     #[test]
     fn test_get_recent_files() {
         let dir = tempdir().unwrap();
-        let file_path1 = dir.path().join("a.lexical");
-        let file_path2 = dir.path().join("b.lexical");
-        let file_path3 = dir.path().join("c.lexical");
+        let file_path1 = dir.path().join("a.md");
+        let file_path2 = dir.path().join("b.md");
+        let file_path3 = dir.path().join("c.md");
 
         // Create files with a small delay to ensure different modification times
         create_file(&file_path1, "content a").unwrap();
@@ -202,8 +202,8 @@ mod fs_tests {
         let recent_files = get_recent(dir.path()).unwrap();
 
         assert_eq!(recent_files.len(), 3);
-        assert_eq!(recent_files[0].name, "c.lexical");
-        assert_eq!(recent_files[1].name, "b.lexical");
-        assert_eq!(recent_files[2].name, "a.lexical");
+        assert_eq!(recent_files[0].name, "c.md");
+        assert_eq!(recent_files[1].name, "b.md");
+        assert_eq!(recent_files[2].name, "a.md");
     }
 }

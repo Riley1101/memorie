@@ -17,7 +17,13 @@
     "@tauri-apps/plugin-fs": "^2.4.2",
     "@tauri-apps/plugin-log": "~2",
     "@tauri-apps/plugin-opener": "^2",
-    "svelte-lexical": "^0.6.2"
+    "@tiptap/core": "^3.7.0",
+    "@tiptap/extension-bubble-menu": "^3.7.0",
+    "@tiptap/extension-list": "^3.7.0",
+    "@tiptap/extension-text-style": "^3.7.0",
+    "@tiptap/markdown": "^3.7.0",
+    "@tiptap/pm": "^3.7.0",
+    "@tiptap/starter-kit": "^3.7.0"
   },
   "devDependencies": {
     "@internationalized/date": "^3.8.1",
@@ -25,7 +31,7 @@
     "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.9.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
-    "@tailwindcss/typography": "^0.5.15",
+    "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.0.0",
     "@tauri-apps/cli": "^2",
     "bits-ui": "^2.11.0",

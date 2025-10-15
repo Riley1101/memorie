@@ -1,7 +1,7 @@
 <script>
   export const prerender = false;
-  import LexicalEditor from "$lib/components/lexical-editor.svelte";
   import { fileManager } from "$lib/runes/fs.svelte";
+  import MarkdownEditor from "$lib/components/md-editor.svelte";
   import { page } from "$app/state";
 
   const fileName = $derived(page.params.lexical);
@@ -13,12 +13,24 @@
       path: fileName,
     });
   });
+
+  /**
+   * Handle save event from the editor
+   * @param {string} content
+   */
+  function handleSave(content) {
+      if (fileName){
+          fileManager.saveCurrentFile(fileName, content)
+      }
+  }
 </script>
 
 <main>
   {#if fileManager.isLoading}
     <p>Loading document...</p>
   {:else}
-    <LexicalEditor name={fileName} nodes={fileManager.currentContent} />
+      <div>
+          <MarkdownEditor content={fileManager.currentContent} onSave={handleSave}/>
+      </div>
   {/if}
 </main>
