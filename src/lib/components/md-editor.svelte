@@ -15,12 +15,16 @@
 
     /** @type {Editor} */
     let editor;
-    let bubbleMenu = $state()
+
+    /** @type {{editor: Editor | null}} */
     let editorState = $state({editor: null})
 
     $inspect(editorState);
 
-    let { content, onSave } = $props();
+    /**
+     * @type {{content: string | [], onSave: (content: string) => void}}
+     */
+    let { content = [], onSave } = $props();
 
     onMount(() => {
         editor = new Editor({
@@ -29,12 +33,9 @@
                 Color.configure({ types: [TextStyle.name, ListItem.name] }),
                 TextStyle.configure({ types: [ListItem.name] }),
                 StarterKit,
-                BubbleMenu.configure({
-                    element: bubbleMenu,
-                }),
                 Markdown,
             ],
-            content,
+            content: content || [],
             contentType:"markdown",
             onTransaction: ({editor}) => {
                 editorState = { editor }
@@ -43,13 +44,14 @@
     });
 </script>
 
-<Button onclick={()=>{
+<Button class="mb-2" onclick={()=>{
     const content =editor.getMarkdown();
     onSave(content);
 }}> Save </Button>
 
 <MdToolbar editor={editor} />
-<div bind:this={element} class="border pl-4 pt-4 rounded-lg prose max-w-none min-h-[40vh] border-t-none prose-headings:first:mt-0"></div>
+
+<div bind:this={element} class="border pl-4 pt-4 rounded-lg  max-w-none h-[40vh] border-t-none w-full"></div>
 
 
 <style>

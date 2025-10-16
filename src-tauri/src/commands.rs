@@ -12,7 +12,6 @@ pub async fn list_files(state: State<'_, AppState>) -> Result<Vec<File>, String>
     Ok(result)
 }
 
-
 #[tauri::command]
 pub async fn list_recents(state: State<'_, AppState>) -> Result<Vec<File>, String> {
     let config = state.config.lock().await;
@@ -99,8 +98,7 @@ pub async fn create_embeddings(
     name: String,
     content: String,
     state: State<'_, AppState>,
-    ) -> Result<String, String> {
-
+) -> Result<String, String> {
     let memory = state.memory.lock().await;
 
     let table = &memory.document_table;
@@ -114,8 +112,7 @@ pub async fn create_embeddings(
 pub async fn search_embeddings(
     query: String,
     state: State<'_, AppState>,
-    ) -> Result<String, String> {
-
+) -> Result<String, String> {
     let memory = state.memory.lock().await;
 
     let table = &memory.document_table;

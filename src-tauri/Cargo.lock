@@ -4970,6 +4970,7 @@ dependencies = [
  "indextree",
  "kalosm",
  "kalosm-common",
+ "kalosm-llama",
  "serde",
  "serde_json",
  "serde_yaml",

@@ -38,6 +38,7 @@ dirs = "6.0.0"
 futures-util = "0.3.31"
 futures = "0.3.31"
 surrealdb = { version = "2.3.10", features = ["kv-mem", "kv-surrealkv"] }
+kalosm-llama = "0.4.3"
 
 [dev-dependencies]
 tempfile = "3.23.0"

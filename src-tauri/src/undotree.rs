@@ -144,7 +144,7 @@ mod undotree_tests {
     fn test_undo_past_beginning_returns_none() {
         let mut tree = UndoTree::new();
         tree.add_change("file1.txt", "first");
-        tree.undo("file1.txt"); 
+        tree.undo("file1.txt");
 
         assert!(tree.undo("file1.txt").is_none());
     }

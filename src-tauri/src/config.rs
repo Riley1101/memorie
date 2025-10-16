@@ -49,6 +49,7 @@ mod config_tests {
         );
 
         fs::write(&config_path, yaml_content).unwrap();
+
         let config = AppConfig::load(config_path.to_str().unwrap()).unwrap();
 
         assert!(config.content_directory.exists());

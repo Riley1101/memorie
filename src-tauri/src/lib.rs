@@ -3,9 +3,9 @@ mod config;
 mod error;
 mod fs;
 mod llm;
+mod memory;
 mod undotree;
 mod utils;
-mod memory;
 
 use config::AppConfig;
 use dirs;
@@ -55,7 +55,7 @@ pub async fn run() {
         config: Mutex::new(app_config),
         undotree: Mutex::new(undo_tree),
         model: Mutex::new(model),
-        memory:Mutex::new(memory_instance),
+        memory: Mutex::new(memory_instance),
     };
 
     builder

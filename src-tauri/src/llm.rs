@@ -1,10 +1,10 @@
+use super::error::LlamaError;
+use futures::StreamExt;
 use kalosm::language::*;
 use kalosm_common::Cache;
 use std::path::PathBuf;
-use futures::StreamExt;
 
-
-const MODAL_CACHE_PATH: &str = "/home/arkar/.memorie/models/";
+const MODAL_CACHE_PATH: &str = "/Users/arkar/.memorie/models/";
 
 pub struct Model {
     name: PathBuf,
@@ -13,13 +13,11 @@ pub struct Model {
 
 impl Model {
     pub fn new(name: PathBuf) -> Self {
-        Model { name,
-            llma: None
-        }
+        Model { name, llma: None }
     }
 
     // !TODO use this.error  handling
-    pub async fn load_model(&self) -> Result<Llama, Box<dyn std::error::Error>> {
+    pub async fn load_model(&self) -> Result<Llama, LlamaError> {
         let modal_path = PathBuf::from(MODAL_CACHE_PATH);
 
         let cache = Cache::new(modal_path);
@@ -47,11 +45,11 @@ impl Model {
     ///
     /// # Returns
     /// A `Result` containing the model's string response or an error.
-    pub async fn run_chat(&self, user_message: &str) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn run_chat(&self, user_message: &str) -> Result<String, LlamaError> {
         let model = self
             .llma
             .as_ref()
-            .ok_or("Model not loaded. Please load the model first.")?;
+            .ok_or(LlamaError::LlamaChat("Error running chat".to_string()))?;
 
         let mut chat = model
             .chat()
@@ -61,8 +59,8 @@ impl Model {
 
         let mut full_response = String::new();
 
-        while let Some(token) = response_stream.next().await{
-            println!("{:?}",token);
+        while let Some(token) = response_stream.next().await {
+            println!("{:?}", token);
             full_response.push_str(&token);
         }
         Ok(full_response)

@@ -1,7 +1,8 @@
+use super::error::MemoryError;
 use kalosm::language::{Document, DocumentTable, DocumentTableSurrealExt, SemanticChunker};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
-use surrealdb::{Surreal};
+use surrealdb::Surreal;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LexicalDoc {
@@ -12,7 +13,7 @@ pub struct LexicalDoc {
 const MEMORY_DB_PATH: &str = "/Users/arkar/.memorie/db/memory/";
 const MEMORY_DB_VECTOR_STORE: &str = "/Users/arkar/.memorie/db/memory/embeddings.db";
 
-const TABLE :&str= "documents";
+const TABLE: &str = "documents";
 
 // A wrapper around the document table for managing RAG memory.
 pub struct Memory {
@@ -25,7 +26,7 @@ impl Memory {
     ///
     /// This function initializes a local SurrealDB instance, sets the namespace,
     /// and builds a document table configured to store embeddings in a separate file.
-    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new() -> Result<Self, MemoryError> {
         let db = Surreal::new::<SurrealKv>(MEMORY_DB_PATH).await?;
 
         db.use_ns("lexical_ns").use_db("files_db").await?;
@@ -39,9 +40,6 @@ impl Memory {
             .build::<Document>()
             .await?;
 
-        Ok(Memory {
-           db,
-           document_table
-        })
+        Ok(Memory { db, document_table })
     }
 }
