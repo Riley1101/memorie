@@ -1,10 +1,10 @@
 use super::error::LlamaError;
-use futures::StreamExt;
 use kalosm::language::*;
 use kalosm_common::Cache;
 use std::path::PathBuf;
 
 const MODAL_CACHE_PATH: &str = "/Users/arkar/.memorie/models/";
+const CHAT_SESSION_CACHE: &str = "/Users/arkar/.memorie/chat_sessions/";
 
 pub struct Model {
     name: PathBuf,
@@ -24,7 +24,20 @@ impl Model {
 
         let local_source = LlamaSource::qwen_2_5_0_5b_instruct().with_cache(cache);
 
-        let loaded_model = Llama::builder().with_source(local_source).build().await?;
+        let loaded_model = Llama::builder()
+            .with_source(local_source)
+            .build_with_loading_handler(|progress| match progress {
+                ModelLoadingProgress::Downloading { source, progress } => {
+                    let progress_percent = (progress.progress * 100) as u32;
+                    let elapsed = progress.start_time.elapsed().as_secs_f32();
+                    println!("Downloading file {source} {progress_percent}% ({elapsed}s)");
+                }
+                ModelLoadingProgress::Loading { progress } => {
+                    let progress = (progress * 100.0) as u32;
+                    println!("Loading model {progress}%");
+                }
+            })
+            .await?;
 
         Ok(loaded_model)
     }
@@ -38,31 +51,24 @@ impl Model {
         self.llma = Some(model);
     }
 
-    /// Runs a chat session with the provided model and user message.
+    /// Runs a chat session with the provided model.
+    /// And load previous session if exists.
     ///
-    /// # Arguments
-    /// * `user_message` - The message from the user to send to the model.
-    ///
-    /// # Returns
-    /// A `Result` containing the model's string response or an error.
-    pub async fn run_chat(&self, user_message: &str) -> Result<String, LlamaError> {
-        let model = self
-            .llma
-            .as_ref()
-            .ok_or(LlamaError::LlamaChat("Error running chat".to_string()))?;
+    /// Returns a Chat instance.
+    pub async fn run_chat(&self) -> Result<Chat<Llama>, LlamaError> {
+        let session_cache_path = PathBuf::from(CHAT_SESSION_CACHE);
 
-        let mut chat = model
-            .chat()
-            .with_system_prompt("You are an helpful assistant.");
+        let model = Llama::new_chat().await?;
 
-        let mut response_stream = chat.add_message(user_message);
+        let mut chat = model.chat();
 
-        let mut full_response = String::new();
+        //        if let Some(old_session) = std::fs::read(&session_cache_path)
+        //            .ok()
+        //            .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
+        //        {
+        //            chat = chat.with_session(old_session);
+        //        }
 
-        while let Some(token) = response_stream.next().await {
-            println!("{:?}", token);
-            full_response.push_str(&token);
-        }
-        Ok(full_response)
+        Ok(chat)
     }
 }

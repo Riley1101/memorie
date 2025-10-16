@@ -2,14 +2,16 @@
   import { Button } from "$lib/components/ui/button";
   import { ScrollArea } from "$lib/components/ui/scroll-area";
   import { Textarea } from "$lib/components/ui/textarea";
-  import ModalSelect from "@/components/modal-select.svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from '@tauri-apps/api/event';
+
+  listen('chat-in-progress', (event) => {
+    console.log(event.payload)
+  });
 
   let load_status = $state("");
   let response = $state("");
-
   let prompt = $state("Hi, How are you?");
-
 
   function handleLoadModel() {
     invoke("load_model")

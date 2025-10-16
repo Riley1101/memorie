@@ -36,3 +36,9 @@ pub enum MemoryError {
     #[error("Document table creation error")]
     DocumentCreation(#[from] kalosm::language::DocumentTableCreationError),
 }
+
+#[derive(Error, Debug)]
+pub enum ChatError {
+    #[error("Chat error: {0}")]
+    Chat(#[from] LlamaError),
+}

@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod error;
+mod events;
 mod fs;
 mod llm;
 mod memory;

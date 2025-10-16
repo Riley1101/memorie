@@ -1,5 +1,8 @@
-use kalosm::language::{Document, Url};
+use super::events::{ChatEvents, ChatStreamInProgress};
+use futures::StreamExt;
+use kalosm::language::Document;
 use tauri::State;
+use tauri::{AppHandle, Emitter, Window};
 
 use crate::fs::{self, File};
 use crate::AppState;
@@ -89,10 +92,30 @@ pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<String, String> {
+pub async fn run_chat(
+    window: Window,
+    message: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
     let model = state.model.lock().await;
-    model.run_chat(&message).await.map_err(|e| e.to_string())
+
+    let mut chat_session = model.run_chat().await.map_err(|e| e.to_string())?;
+
+    let mut stream = chat_session.add_message(message);
+
+    while let Some(token) = stream.next().await {
+        println!("{:?}", token);
+        window
+            .emit(
+                ChatEvents::InProgress.as_str(),
+                ChatStreamInProgress { content: &token },
+            )
+            .unwrap();
+    }
+
+    Ok(ChatEvents::Completed.as_str().to_string())
 }
+
 #[tauri::command]
 pub async fn create_embeddings(
     name: String,
