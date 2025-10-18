@@ -39,6 +39,10 @@ futures-util = "0.3.31"
 futures = "0.3.31"
 surrealdb = { version = "2.3.10", features = ["kv-mem", "kv-surrealkv"] }
 kalosm-llama = "0.4.3"
+uuid = { version = "1", features = ["v4", "serde"] }
+tokio-util = { version = "0.7.16" }
+dashmap = "6.1.0"
+chrono = "0.4.42"
 
 [dev-dependencies]
 tempfile = "3.23.0"

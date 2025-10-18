@@ -1,17 +1,19 @@
 mod commands;
 mod config;
 mod error;
-mod events;
 mod fs;
 mod llm;
 mod memory;
 mod undotree;
 mod utils;
+mod workers;
 
 use config::AppConfig;
 use dirs;
+use tauri::Manager;
 use tokio::sync::Mutex;
 use undotree::UndoTree;
+use workers::LlmEventService;
 
 use crate::llm::Model;
 use crate::memory::Memory;
@@ -21,6 +23,7 @@ pub struct AppState {
     undotree: Mutex<UndoTree>,
     model: Mutex<Model>,
     memory: Mutex<Memory>,
+    workers: LlmEventService,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -39,28 +42,31 @@ pub async fn run() {
     #[cfg(debug_assertions)]
     let devtools = tauri_plugin_devtools::init();
 
-    let mut builder = tauri::Builder::default();
-
-    #[cfg(debug_assertions)]
-    {
-        builder = builder.plugin(devtools);
-    }
-
     let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|_| UndoTree::new());
 
     let default_model_path = app_config.default_llm_model.clone();
 
     let model = Model::new(default_model_path);
 
-    let app_state = AppState {
-        config: Mutex::new(app_config),
-        undotree: Mutex::new(undo_tree),
-        model: Mutex::new(model),
-        memory: Mutex::new(memory_instance),
-    };
+    let mut builder = tauri::Builder::default().setup(|app| {
+        let app_handle = app.handle().clone();
+        let app_state = AppState {
+            config: Mutex::new(app_config),
+            undotree: Mutex::new(undo_tree),
+            model: Mutex::new(model),
+            memory: Mutex::new(memory_instance),
+            workers: LlmEventService::new(app_handle),
+        };
+        app.manage(app_state);
+        Ok(())
+    });
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(devtools);
+    }
 
     builder
-        .manage(app_state)
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
@@ -73,7 +79,8 @@ pub async fn run() {
             commands::run_chat,
             commands::read_file,
             commands::create_embeddings,
-            commands::search_embeddings
+            commands::search_embeddings,
+            commands::get_chat_sessions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -172,9 +172,10 @@ class FileManager {
    * Creates a new, empty .md file and refreshes the file list.
    * @async
    * @param {string} fileName - The name for the new file (without extension).
+   * @param {string} [content=""] - Optional initial content for the new file.
    * @returns {Promise<void>}
    */
-  async createNewFile(fileName) {
+  async createNewFile(fileName, content = "") {
     console.log("Creating new file:", fileName);
     if (!fileName || !fileName.trim()) {
       this.errorMessage = "File name cannot be empty.";
@@ -189,7 +190,7 @@ class FileManager {
     this.errorMessage = "";
 
     try {
-      await invoke("create_file", { name: fileName, content: "" });
+      await invoke("create_file", { name : finalFileName, content });
 
       // Refresh the file list to show the new file
       await this.getFiles();

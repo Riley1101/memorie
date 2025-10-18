@@ -1,57 +1,71 @@
 <script>
-    import { Color } from '@tiptap/extension-text-style'
-    import { ListItem } from '@tiptap/extension-list'
-    import { TextStyle } from '@tiptap/extension-text-style'
+    import {Color} from '@tiptap/extension-text-style'
+    import {ListItem} from '@tiptap/extension-list'
+    import {TextStyle} from '@tiptap/extension-text-style'
     import StarterKit from "@tiptap/starter-kit";
-    import { Editor } from "@tiptap/core";
-    import { onMount } from "svelte";
-    import { Markdown } from '@tiptap/markdown'
+    import {Editor} from "@tiptap/core";
+    import {onMount, onDestroy} from "svelte";
+    import {Markdown} from '@tiptap/markdown'
     import MdToolbar from './md-toolbar.svelte';
-    import BubbleMenu from '@tiptap/extension-bubble-menu';
-    import {Button} from "@/components/ui/button/index.js";
+    import {Input} from "@/components/ui/input/index.js";
+    import {fileManager} from "@/runes/fs.svelte.js";
 
     /** @type {HTMLDivElement | undefined} */
     let element = $state()
 
-    /** @type {Editor} */
-    let editor;
-
-    /** @type {{editor: Editor | null}} */
-    let editorState = $state({editor: null})
-
-    $inspect(editorState);
+    /** @type {Editor | undefined } */
+    let editor = $state();
 
     /**
-     * @type {{content: string | [], onSave: (content: string) => void}}
+     * @type {{fileName?:string ,content?: string }}
      */
-    let { content = [], onSave } = $props();
+    let {content, fileName} = $props();
+
+    /**
+     * Create or save the file with the given content
+     * @param {string} content - The content to save in the file
+     */
+    function createOrSave(content) {
+        if (fileName) {
+            fileManager.createNewFile(fileName, content);
+        }
+    }
 
     onMount(() => {
         editor = new Editor({
             element: element,
             extensions: [
-                Color.configure({ types: [TextStyle.name, ListItem.name] }),
-                TextStyle.configure({ types: [ListItem.name] }),
+                Color.configure({types: [TextStyle.name, ListItem.name]}),
+                TextStyle.configure({types: [ListItem.name]}),
                 StarterKit,
                 Markdown,
             ],
             content: content || [],
-            contentType:"markdown",
+            contentType: "markdown",
             onTransaction: ({editor}) => {
-                editorState = { editor }
+                editor = editor
             },
         });
     });
+
+    onDestroy(() => {
+        editor?.destroy();
+    })
+
 </script>
 
-<Button class="mb-2" onclick={()=>{
-    const content =editor.getMarkdown();
-    onSave(content);
-}}> Save </Button>
 
-<MdToolbar editor={editor} />
+<MdToolbar editor={editor} onSave={()=>{
+    if (editor){
+        let content = editor.getMarkdown();
+        createOrSave(content);
+    }
+}}/>
 
-<div bind:this={element} class="border pl-4 pt-4 rounded-lg  max-w-none h-[40vh] border-t-none w-full"></div>
+<div>
+    <Input placeholder="File Name" bind:value={fileName} class="h-auto border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none text-3xl mb-4" />
+    <div bind:this={element} class="rounded-lg  max-w-none h-[40vh] border-t-none w-full"></div>
+</div>
 
 
 <style>

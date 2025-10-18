@@ -10,3 +10,18 @@ export function cn(...inputs) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+
+/**
+ * Trim and uppercase a file with .md extension
+ *
+ * @param name - string
+ * @returns string
+ */
+export function formatFileName(name) {
+    const ext = name.split(".").pop();
+    if (ext === "md") {
+        return name.replace(".md", "").trim();
+    }
+    return name.trim();
+}

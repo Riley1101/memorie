@@ -1,11 +1,16 @@
-use super::events::{ChatEvents, ChatStreamInProgress};
-use futures::StreamExt;
 use kalosm::language::Document;
 use tauri::State;
-use tauri::{AppHandle, Emitter, Window};
+use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
-use crate::fs::{self, File};
-use crate::AppState;
+use super::fs::{self, File};
+use super::memory::UserMemory;
+use super::workers::{Job, JobStatus};
+use super::AppState;
+
+/**
+ *  FS Commands
+ */
 
 #[tauri::command]
 pub async fn list_files(state: State<'_, AppState>) -> Result<Vec<File>, String> {
@@ -83,6 +88,9 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     file.read_content().map_err(|e| e.to_string())
 }
 
+/**
+ *  LLM Commands
+ */
 #[tauri::command]
 pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
     let mut model = state.model.lock().await;
@@ -90,32 +98,60 @@ pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
     model.set_loaded_model(llama);
     Ok("Model loaded successfully.".to_string())
 }
-
 #[tauri::command]
-pub async fn run_chat(
-    window: Window,
-    message: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
-    let model = state.model.lock().await;
+pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<Uuid, String> {
+    let job_id = Uuid::new_v4();
+    let cancellation_token = CancellationToken::new();
+    let memory = state.memory.lock().await;
 
-    let mut chat_session = model.run_chat().await.map_err(|e| e.to_string())?;
+    memory
+        .save_chat_session(&job_id.to_string())
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let mut stream = chat_session.add_message(message);
+    let job = Job {
+        id: job_id,
+        message,
+        cancellation_token: cancellation_token.clone(),
+    };
 
-    while let Some(token) = stream.next().await {
-        println!("{:?}", token);
-        window
-            .emit(
-                ChatEvents::InProgress.as_str(),
-                ChatStreamInProgress { content: &token },
-            )
-            .unwrap();
+    state
+        .workers
+        .cancellation_tokens
+        .insert(job_id, cancellation_token);
+    state.workers.statuses.insert(job_id, JobStatus::Queued);
+    state
+        .workers
+        .sender
+        .send(job)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(job_id)
+}
+#[tauri::command]
+pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<(), String> {
+    if let Some((_, token)) = state.workers.cancellation_tokens.remove(&job_id) {
+        token.cancel();
     }
-
-    Ok(ChatEvents::Completed.as_str().to_string())
+    Ok(())
 }
 
+#[tauri::command]
+pub async fn get_chat_status(
+    job_id: Uuid,
+    state: State<'_, AppState>,
+) -> Result<JobStatus, String> {
+    if let Some(status) = state.workers.statuses.get(&job_id) {
+        Ok(status.clone())
+    } else {
+        Err("Job not found".to_string())
+    }
+}
+
+/**
+ *  RAG Commands
+ */
 #[tauri::command]
 pub async fn create_embeddings(
     name: String,
@@ -156,4 +192,20 @@ pub async fn search_embeddings(
         .join("\n");
 
     Ok(context)
+}
+
+/**
+ *  Memory Commands
+ */
+
+#[tauri::command]
+pub async fn get_chat_sessions(
+    state: State<'_, AppState>,
+) -> Result<Option<super::memory::ChatSession>, String> {
+    let memory = state.memory.lock().await;
+    let sessions = memory
+        .get_chat_sessions()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(sessions)
 }

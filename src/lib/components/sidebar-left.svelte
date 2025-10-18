@@ -50,14 +50,7 @@
             {
                 title: "Home",
                 url: "/",
-                icon: HouseIcon,
-                isActive: true,
-            },
-            {
-                title: "Inbox",
-                url: "#",
-                icon: InboxIcon,
-                badge: "10",
+                icon: HouseIcon
             },
         ],
         navSecondary: [

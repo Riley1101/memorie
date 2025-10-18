@@ -5,9 +5,6 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from '@tauri-apps/api/event';
 
-  listen('chat-in-progress', (event) => {
-    console.log(event.payload)
-  });
 
   let load_status = $state("");
   let response = $state("");
@@ -36,6 +33,13 @@
         console.error(error);
       });
   }
+
+  listen('chat-in-progress', (event) => {
+    if(event?.payload?.content){
+      response += event.payload.content;
+    }
+  });
+
 </script>
 
 <main class="container w-full h-[90dvh] grid grid-rows-[1fr_auto] gap-4 py-8">

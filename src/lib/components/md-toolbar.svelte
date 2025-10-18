@@ -1,10 +1,16 @@
 <script>
     import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
     import BoldIcon from "@lucide/svelte/icons/bold";
+    import SaveIcon from "@lucide/svelte/icons/save";
     import ItalicIcon from "@lucide/svelte/icons/italic";
     import UnderlineIcon from "@lucide/svelte/icons/underline";
-    /** @type {import('@tiptap/core').Editor} */
+    /** @type {import('@tiptap/core').Editor | undefined } */
     export let editor;
+
+    /**
+     * @type {() => void} onSave
+     */
+    export let onSave;
 </script>
 
 {#if editor}
@@ -18,6 +24,10 @@
         </ToggleGroup.Item>
         <ToggleGroup.Item value="strikethrough" aria-label="Toggle strikethrough" onclick={() => editor.chain().focus().toggleStrike().run()}>
             <UnderlineIcon class="h-4 w-4" />
+        </ToggleGroup.Item>
+
+        <ToggleGroup.Item value="strikethrough" aria-label="Toggle strikethrough" onclick={onSave}>
+            <SaveIcon class="h-4 w-4" />
         </ToggleGroup.Item>
     </ToggleGroup.Root>
     </div>

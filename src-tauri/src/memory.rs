@@ -1,24 +1,32 @@
 use super::error::MemoryError;
+use chrono::Utc;
 use kalosm::language::{Document, DocumentTable, DocumentTableSurrealExt, SemanticChunker};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
 use surrealdb::Surreal;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LexicalDoc {
-    pub name: String,
-    pub content: Option<String>,
-}
 
 const MEMORY_DB_PATH: &str = "/Users/arkar/.memorie/db/memory/";
 const MEMORY_DB_VECTOR_STORE: &str = "/Users/arkar/.memorie/db/memory/embeddings.db";
 
 const TABLE: &str = "documents";
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatSession {
+    pub id: String,
+    pub user_id: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 // A wrapper around the document table for managing RAG memory.
 pub struct Memory {
     db: Surreal<Db>,
     pub document_table: DocumentTable<Db>,
+}
+
+pub trait UserMemory {
+    async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError>;
+    async fn save_chat_session(&self, session_id: &str) -> Result<(), MemoryError>;
 }
 
 impl Memory {
@@ -41,5 +49,32 @@ impl Memory {
             .await?;
 
         Ok(Memory { db, document_table })
+    }
+}
+
+impl UserMemory for Memory {
+    /// Retrieves the chat sessions for the user.
+    /// /// Returns an optional `ChatSession` if found, or `None` if no sessions exist.
+    async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError> {
+        self.db.use_ns("user_ns").use_db("user_ns").await?;
+        let sessions: Option<ChatSession> = self.db.select(("chat_session", "me")).await?;
+        Ok(sessions)
+    }
+
+    /// Saves a new chat session for the user with the provided session ID.
+    /// /// Returns `Ok(())` if the session is saved successfully, or a `MemoryError` if an error occurs.
+    async fn save_chat_session(&self, session_id: &str) -> Result<(), MemoryError> {
+        self.db.use_ns("user_ns").use_db("user_ns").await?;
+        let session: Option<ChatSession> = self
+            .db
+            .create(("chat_session", "me"))
+            .content(ChatSession {
+                id: session_id.to_string(),
+                user_id: "tobie".to_string(),
+                created_at: Utc::now().to_rfc3339(),
+                updated_at: Utc::now().to_rfc3339(),
+            })
+            .await?;
+        Ok(())
     }
 }

@@ -3,10 +3,13 @@
     import * as Sidebar from "$lib/components/ui/sidebar/index.js";
     import { useSidebar } from "$lib/components/ui/sidebar/index.js";
     import ArrowUpRightIcon from "@lucide/svelte/icons/arrow-up-right";
+    import FileTextIcon from "@lucide/svelte/icons/file";
     import EllipsisIcon from "@lucide/svelte/icons/ellipsis";
     import LinkIcon from "@lucide/svelte/icons/link";
     import StarOffIcon from "@lucide/svelte/icons/star-off";
     import Trash2Icon from "@lucide/svelte/icons/trash-2";
+    import { formatFileName } from "$lib/utils.js"
+    import FileText from "@lucide/svelte/icons/file-text";
 
     /**
      * @type {{ favourites: Array<{ name: string, path: string, emoji?: string }> }}
@@ -24,8 +27,8 @@
                 <Sidebar.MenuButton>
                     {#snippet child({ props })}
                         <a href={item.name} title={item.name} {...props}>
-                            <span>{item.emoji}</span>
-                            <span>{item.name}</span>
+                            <FileTextIcon class="size-4" />
+                            <span class="capitalize">{formatFileName(item.name)}</span>
                         </a>
                     {/snippet}
                 </Sidebar.MenuButton>
@@ -43,15 +46,6 @@
                         side={sidebar.isMobile ? "bottom" : "right"}
                         align={sidebar.isMobile ? "end" : "start"}
                     >
-                        <DropdownMenu.Item>
-                            <StarOffIcon class="text-muted-foreground" />
-                            <span>Remove from Favorites</span>
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Separator />
-                        <DropdownMenu.Item>
-                            <LinkIcon class="text-muted-foreground" />
-                            <span>Copy Link</span>
-                        </DropdownMenu.Item>
                         <DropdownMenu.Item>
                             <ArrowUpRightIcon class="text-muted-foreground" />
                             <span>Open in New Tab</span>
