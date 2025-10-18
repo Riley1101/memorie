@@ -1,8 +1,8 @@
-# Tauri + SvelteKit
+```
+Memorie 
 
-This template should help get you started developing with Tauri and SvelteKit in Vite.
-
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
-# memorie
+Memorie is a local-first, privacy-focused note-taking and knowledge management application. 
+Memorie is designed to be your personal knowledge base, allowing you to manage your notes, files, and ideas seamlessly.
+An integrated chat feature powered by a local large language model (LLM), 
+allows you to interact with your notes and get intelligent responses without sending your data to the cloud overlords.
+```
