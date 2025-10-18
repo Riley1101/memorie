@@ -77,7 +77,6 @@ class FileManager {
    */
   errorMessage = $state("");
 
-  // --- METHODS ---
 
   /**
    * Fetches the list of all .md files from the backend.
@@ -116,59 +115,6 @@ class FileManager {
   }
 
   /**
-   * Selects a file, fetching its content and updating the state.
-   * @async
-   * @param {FileEntry | null} file - The file to select.
-   * @returns {Promise<void>}
-   */
-  async readFile(file) {
-    if (!file) {
-      this.currentFile = null;
-      this.currentContent = "";
-      return;
-    }
-
-    this.isLoading = true;
-    this.errorMessage = "";
-    try {
-      const content = await rs_commands.readFile(file.name);
-      this.currentFile = file;
-      this.currentContent = content;
-    } catch (err) {
-      this.errorMessage = `Failed to read file "${file.name}": ${err}`;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  /**
-   * Saves the content of the currently selected file to the backend.
-   * @async
-   * @param {string} name - The name of the file to save.
-   * @param {string} content - The content to save.
-   * @returns {Promise<void>}
-   */
-  async saveCurrentFile(name, content) {
-    if (!this.currentFile) {
-      this.errorMessage = "No file is selected to save.";
-      return;
-    }
-
-    this.isLoading = true;
-    this.errorMessage = "";
-    try {
-      await invoke("update_file", {
-        name: name,
-        content: content,
-      });
-    } catch (err) {
-      this.errorMessage = `Failed to save file "${this.currentFile.name}": ${err}`;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  /**
    * Creates a new, empty .md file and refreshes the file list.
    * @async
    * @param {string} fileName - The name for the new file (without extension).
@@ -176,7 +122,6 @@ class FileManager {
    * @returns {Promise<void>}
    */
   async createNewFile(fileName, content = "") {
-    console.log("Creating new file:", fileName);
     if (!fileName || !fileName.trim()) {
       this.errorMessage = "File name cannot be empty.";
       return;
@@ -191,8 +136,6 @@ class FileManager {
 
     try {
       await invoke("create_file", { name : finalFileName, content });
-
-      // Refresh the file list to show the new file
       await this.getFiles();
     } catch (err) {
       this.errorMessage = `Failed to create file "${finalFileName}": ${err}`;

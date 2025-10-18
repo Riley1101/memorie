@@ -3,7 +3,8 @@ use chrono::Utc;
 use kalosm::language::{Document, DocumentTable, DocumentTableSurrealExt, SemanticChunker};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
-use surrealdb::Surreal;
+use surrealdb::{Surreal, RecordId};
+
 
 const MEMORY_DB_PATH: &str = "/Users/arkar/.memorie/db/memory/";
 const MEMORY_DB_VECTOR_STORE: &str = "/Users/arkar/.memorie/db/memory/embeddings.db";
@@ -12,7 +13,7 @@ const TABLE: &str = "documents";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatSession {
-    pub id: String,
+    pub job_id: String,
     pub user_id: String,
     pub created_at: String,
     pub updated_at: String,
@@ -67,9 +68,9 @@ impl UserMemory for Memory {
         self.db.use_ns("user_ns").use_db("user_ns").await?;
         let session: Option<ChatSession> = self
             .db
-            .create(("chat_session", "me"))
+            .create("chat_sessions")
             .content(ChatSession {
-                id: session_id.to_string(),
+                job_id: session_id.to_string(),
                 user_id: "tobie".to_string(),
                 created_at: Utc::now().to_rfc3339(),
                 updated_at: Utc::now().to_rfc3339(),

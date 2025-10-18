@@ -5,7 +5,6 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from '@tauri-apps/api/event';
 
-
   let load_status = $state("");
   let response = $state("");
   let prompt = $state("Hi, How are you?");
@@ -27,7 +26,6 @@
     })
       .then((res) => {
         response = res;
-        console.log(res);
       })
       .catch((error) => {
         console.error(error);

@@ -62,12 +62,12 @@ impl Model {
 
         let mut chat = model.chat();
 
-        //        if let Some(old_session) = std::fs::read(&session_cache_path)
-        //            .ok()
-        //            .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
-        //        {
-        //            chat = chat.with_session(old_session);
-        //        }
+        if let Some(old_session) = std::fs::read(&session_cache_path)
+            .ok()
+            .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
+        {
+            chat = chat.with_session(old_session);
+        }
 
         Ok(chat)
     }

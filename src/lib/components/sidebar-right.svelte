@@ -1,11 +1,8 @@
 <script>
-  import NavUser from "./nav-user.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import {Button} from "@/components/ui/button/index.js";
   import { fileManager } from "$lib/runes/fs.svelte";
   import {invoke} from "@tauri-apps/api/core";
-  import {Input} from "@/components/ui/input/index.js";
-  // This is sample data.
+
   const data = {
     user: {
       name: "shadcn",
@@ -30,6 +27,7 @@
   let query = $state("");
 
   let { ref = $bindable(null), ...restProps } = $props();
+  let isOpen = $state(true);
 
   function handleSearchEmbeddings(){
     invoke("search_embeddings", { query }).then((res) => {
@@ -52,36 +50,17 @@
 
 </script>
 
+
 <Sidebar.Root
   bind:ref
-  collapsible="none"
-  class="sticky top-0 hidden h-svh border-l lg:flex"
+  side="right"
+  collapsible="icon"
+  class="sticky top-0 hidden h-svh border-r lg:flex"
   {...restProps}
 >
-  <Sidebar.Header class="border-sidebar-border h-16 border-b">
-    <NavUser user={data.user} />
+  <Sidebar.Header>
   </Sidebar.Header>
-  <Sidebar.Content>
-    <div class="p-2 flex flex-col gap-2 max-w-max">
-      <Input bind:value={query}/>
-
-      <Button onclick={handleCreateEmbeddings}>
-        Create Embeddings
-      </Button>
-      <Button onclick={handleSearchEmbeddings}>
-        Search Embeddings
-      </Button>
-    </div>
-  </Sidebar.Content>
-  <Sidebar.Footer>
-    <Sidebar.Menu>
-      <Sidebar.MenuItem>
-        <Sidebar.MenuButton>
-          <!-- <PlusIcon /> -->
-          <!-- <span>New Calendar</span> -->
-        </Sidebar.MenuButton>
-      </Sidebar.MenuItem>
-    </Sidebar.Menu>
-  </Sidebar.Footer>
+  <Sidebar.Content></Sidebar.Content>
+  <Sidebar.Rail />
 </Sidebar.Root>
 

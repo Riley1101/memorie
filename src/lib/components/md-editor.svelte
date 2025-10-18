@@ -19,7 +19,10 @@
     /**
      * @type {{fileName?:string ,content?: string }}
      */
-    let {content, fileName} = $props();
+    let data = $props();
+
+    let fileName = $derived(data.fileName);
+    let content = $derived(data.content);
 
     /**
      * Create or save the file with the given content
@@ -63,8 +66,12 @@
 }}/>
 
 <div>
-    <Input placeholder="File Name" bind:value={fileName} class="h-auto border-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none text-3xl mb-4" />
-    <div bind:this={element} class="rounded-lg  max-w-none h-[40vh] border-t-none w-full"></div>
+    <Input placeholder="Start writing ..." bind:value={fileName}
+           class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none md:4xl mb-4 p-0 md:text-2xl md:mt-6"/>
+    <hr>
+    <div class="markdown">
+        <div bind:this={element} class="rounded-lg  max-w-none h-[40vh] border-t-none w-full"></div>
+    </div>
 </div>
 
 
