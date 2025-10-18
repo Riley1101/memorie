@@ -8,4 +8,5 @@ notes, files, and ideas seamlessly. An integrated chat feature
 powered by a local large language model (LLM), 
 allows you to interact with your notes and get intelligent 
 responses without sending your data to the cloud overlords.
+
 ```
