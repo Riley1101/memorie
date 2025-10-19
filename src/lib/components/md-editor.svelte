@@ -34,6 +34,11 @@
         }
     }
 
+
+    $effect(()=>{
+
+    })
+
     onMount(() => {
         editor = new Editor({
             element: element,
@@ -52,11 +57,9 @@
     });
 
     onDestroy(() => {
-        editor?.destroy();
+        editor?.unmount();
     })
-
 </script>
-
 
 <MdToolbar editor={editor} onSave={()=>{
     if (editor){
@@ -65,15 +68,11 @@
     }
 }}/>
 
-<div>
-    <Input placeholder="Start writing ..." bind:value={fileName}
-           class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none md:4xl mb-4 p-0 md:text-2xl md:mt-6"/>
-    <hr>
-    <div class="markdown">
-        <div bind:this={element} class="rounded-lg  max-w-none h-[40vh] border-t-none w-full"></div>
-    </div>
-</div>
+<div class="px-4">
+    <Input placeholder="Start writing ..." bind:value={fileName} class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none md:4xl mb-4 p-0 md:text-2xl md:mt-6"/>
 
+    <div bind:this={element} class="markdown rounded-lg  max-w-none border-t-none w-full"></div>
+</div>
 
 <style>
     :global(.ProseMirror:focus) {
@@ -84,3 +83,4 @@
         min-height: 300px;
     }
 </style>
+

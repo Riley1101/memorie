@@ -22,9 +22,6 @@
         await llmManager.sendMessage(prompt);
         prompt = '';
     }
-
-    console.log(llmManager)
-
 </script>
 <InputGroup.Root>
     <InputGroup.Textarea placeholder="Ask, Search or Chat..." bind:value={prompt} />

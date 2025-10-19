@@ -4,6 +4,8 @@
     import SaveIcon from "@lucide/svelte/icons/save";
     import ItalicIcon from "@lucide/svelte/icons/italic";
     import UnderlineIcon from "@lucide/svelte/icons/underline";
+    import * as Sidebar from "@/components/ui/sidebar/index.js";
+
     /** @type {import('@tiptap/core').Editor | undefined } */
     export let editor;
 
@@ -14,20 +16,24 @@
 </script>
 
 {#if editor}
-    <div class="mb-4 pb-4 sticky top-0 backdrop-blur-2xl">
+    <div class="sticky flex items-center left-0 top-0 bg-background z-10 w-full border-b p-2">
+        <Sidebar.Trigger class="mr-auto"/>
         <ToggleGroup.Root type="multiple" variant="outline">
-            <ToggleGroup.Item value="bold" aria-label="Toggle bold" onclick={() => editor.chain().focus().toggleBold().run()} >
-                <BoldIcon class="h-4 w-4" />
+            <ToggleGroup.Item value="bold" aria-label="Toggle bold"
+                              onclick={() => editor.chain().focus().toggleBold().run()}>
+                <BoldIcon class="h-4 w-4"/>
             </ToggleGroup.Item>
-            <ToggleGroup.Item value="italic" aria-label="Toggle italic" onclick={() => editor.chain().focus().toggleItalic().run()}>
-                <ItalicIcon class="h-4 w-4" />
+            <ToggleGroup.Item value="italic" aria-label="Toggle italic"
+                              onclick={() => editor.chain().focus().toggleItalic().run()}>
+                <ItalicIcon class="h-4 w-4"/>
             </ToggleGroup.Item>
-            <ToggleGroup.Item value="strikethrough" aria-label="Toggle strikethrough" onclick={() => editor.chain().focus().toggleStrike().run()}>
-                <UnderlineIcon class="h-4 w-4" />
+            <ToggleGroup.Item value="strikethrough" aria-label="Toggle strikethrough"
+                              onclick={() => editor.chain().focus().toggleStrike().run()}>
+                <UnderlineIcon class="h-4 w-4"/>
             </ToggleGroup.Item>
 
             <ToggleGroup.Item value="save" aria-label="Toggle strikethrough" onclick={onSave}>
-                <SaveIcon class="h-4 w-4" />
+                <SaveIcon class="h-4 w-4"/>
             </ToggleGroup.Item>
         </ToggleGroup.Root>
     </div>

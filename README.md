@@ -1,5 +1,5 @@
 ```
-Memorie 
+# Memorie 
 
 Memorie is a local-first, privacy-focused note-taking and 
 knowledge management application. Memorie is designed to 
@@ -8,5 +8,17 @@ notes, files, and ideas seamlessly. An integrated chat feature
 powered by a local large language model (LLM), 
 allows you to interact with your notes and get intelligent 
 responses without sending your data to the cloud overlords.
+
+
+## Sample config 
+
+```yaml
+content_directory: "~/.memorie/notes"
+
+undotree_dir: "~/.memorie/.history"
+
+default_llm_model: "qwen_2_5_0_5b_instruct"
+```
+
 
 ```

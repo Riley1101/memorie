@@ -3,8 +3,8 @@ use kalosm::language::*;
 use kalosm_common::Cache;
 use std::path::PathBuf;
 
-const MODAL_CACHE_PATH: &str = "/Users/arkar/.memorie/models/";
-const CHAT_SESSION_CACHE: &str = "/Users/arkar/.memorie/chat_sessions/";
+const MODAL_CACHE_PATH: &str = "/home/arkar/.memorie/models/";
+const CHAT_SESSION_CACHE: &str = "/home/arkar/.memorie/chat_sessions/";
 
 pub struct Model {
     name: PathBuf,

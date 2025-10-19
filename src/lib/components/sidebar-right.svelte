@@ -31,7 +31,6 @@
 
   function handleSearchEmbeddings(){
     invoke("search_embeddings", { query }).then((res) => {
-      console.log("Search results:", res);
     }).catch((err) => {
       console.error("Error searching embeddings:", err);
     });
