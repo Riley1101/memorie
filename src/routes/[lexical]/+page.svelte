@@ -1,5 +1,5 @@
 <script>
-  import MarkdownEditor from "$lib/components/md-editor.svelte";
+  import MarkdownEditor from '$lib/components/md-editor.svelte';
 
   /**
    * @type
@@ -12,12 +12,11 @@
 
   let { fileName, content } = $derived(data);
 
-  let body = $state(content || "")
+  let body = $derived(content || '');
 
-  $effect(()=>{
-      body = content || ""
-  })
-
+  $effect(() => {
+    body = content || '';
+  });
 </script>
 
-<MarkdownEditor fileName={fileName} content={body} />
+<MarkdownEditor {fileName} content={body} />

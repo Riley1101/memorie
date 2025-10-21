@@ -1,86 +1,87 @@
 <script>
-    import {Color} from '@tiptap/extension-text-style'
-    import {ListItem} from '@tiptap/extension-list'
-    import {TextStyle} from '@tiptap/extension-text-style'
-    import StarterKit from "@tiptap/starter-kit";
-    import {Editor} from "@tiptap/core";
-    import {onMount, onDestroy} from "svelte";
-    import {Markdown} from '@tiptap/markdown'
-    import MdToolbar from './md-toolbar.svelte';
-    import {Input} from "@/components/ui/input/index.js";
-    import {fileManager} from "@/runes/fs.svelte.js";
+  import { Color } from '@tiptap/extension-text-style';
+  import { ListItem } from '@tiptap/extension-list';
+  import { TextStyle } from '@tiptap/extension-text-style';
+  import StarterKit from '@tiptap/starter-kit';
+  import { Editor } from '@tiptap/core';
+  import { onMount, onDestroy } from 'svelte';
+  import { Markdown } from '@tiptap/markdown';
+  import MdToolbar from './md-toolbar.svelte';
+  import { Input } from '@/components/ui/input/index.js';
+  import { fileManager } from '@/runes/fs.svelte.js';
 
-    /** @type {HTMLDivElement | undefined} */
-    let element = $state()
+  /** @type {HTMLDivElement | undefined} */
+  let element = $state();
 
-    /** @type {Editor | undefined } */
-    let editor = $state();
+  /** @type {Editor | undefined } */
+  let editor = $state();
 
-    /**
-     * @type {{fileName?:string ,content?: string }}
-     */
-    let data = $props();
+  /**
+   * @type {{fileName?:string ,content?: string }}
+   */
+  let data = $props();
 
-    let fileName = $derived(data.fileName);
-    let content = $derived(data.content);
+  let fileName = $derived(data.fileName);
+  let content = $derived(data.content);
 
-    /**
-     * Create or save the file with the given content
-     * @param {string} content - The content to save in the file
-     */
-    function createOrSave(content) {
-        if (fileName) {
-            fileManager.createNewFile(fileName, content);
-        }
+  /**
+   * Create or save the file with the given content
+   * @param {string} content - The content to save in the file
+   */
+  function createOrSave(content) {
+    if (fileName) {
+      fileManager.createNewFile(fileName, content);
     }
+  }
 
-
-    $effect(()=>{
-
-    })
-
-    onMount(() => {
-        editor = new Editor({
-            element: element,
-            extensions: [
-                Color.configure({types: [TextStyle.name, ListItem.name]}),
-                TextStyle.configure({types: [ListItem.name]}),
-                StarterKit,
-                Markdown,
-            ],
-            content: content || [],
-            contentType: "markdown",
-            onTransaction: ({editor}) => {
-                editor = editor
-            },
-        });
+  onMount(() => {
+    editor = new Editor({
+      element: element,
+      extensions: [
+        Color.configure({ types: [TextStyle.name, ListItem.name] }),
+        TextStyle.configure({ types: [ListItem.name] }),
+        StarterKit,
+        Markdown,
+      ],
+      content: content || [],
+      contentType: 'markdown',
+      onTransaction: ({ editor: e }) => {
+        editor = e;
+      },
     });
+  });
 
-    onDestroy(() => {
-        editor?.unmount();
-    })
+  onDestroy(() => {
+    editor?.unmount();
+  });
 </script>
 
-<MdToolbar editor={editor} onSave={()=>{
-    if (editor){
-        let content = editor.getMarkdown();
-        createOrSave(content);
+<MdToolbar
+  {editor}
+  onSave={() => {
+    if (editor) {
+      let content = editor.getMarkdown();
+      createOrSave(content);
     }
-}}/>
+  }}
+/>
 
 <div class="px-4">
-    <Input placeholder="Start writing ..." bind:value={fileName} class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none md:4xl mb-4 p-0 md:text-2xl md:mt-6"/>
+  <Input
+    placeholder="Start writing ..."
+    bind:value={fileName}
+    class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none md:4xl mb-4 p-0 md:text-2xl md:mt-6"
+  />
 
-    <div bind:this={element} class="markdown rounded-lg  max-w-none border-t-none w-full"></div>
+  <div bind:this={element} class="markdown rounded-lg max-w-none border-t-none w-full"></div>
 </div>
 
 <style>
-    :global(.ProseMirror:focus) {
-        outline: none;
-    }
+  :global(.ProseMirror:focus) {
+    outline: none;
+  }
 
-    :global(.ProseMirror) {
-        min-height: 300px;
-    }
+  :global(.ProseMirror) {
+    min-height: 300px;
+  }
 </style>
-

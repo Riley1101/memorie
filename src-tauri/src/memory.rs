@@ -3,8 +3,7 @@ use chrono::Utc;
 use kalosm::language::{Document, DocumentTable, DocumentTableSurrealExt, SemanticChunker};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
-use surrealdb::{Surreal, RecordId};
-
+use surrealdb::{RecordId, Surreal};
 
 const MEMORY_DB_PATH: &str = "/home/arkar/.memorie/db/memory/";
 const MEMORY_DB_VECTOR_STORE: &str = "/home/arkar/.memorie/db/memory/embeddings.db";

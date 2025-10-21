@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-import { join } from "@tauri-apps/api/path";
+import { invoke } from '@tauri-apps/api/core';
 
 /**
  * @typedef {Object} FileEntry
@@ -12,21 +11,21 @@ const rs_commands = {
    * @returns {Promise<FileEntry[]>}
    */
   getFiles: async () => {
-    return await invoke("list_files");
+    return await invoke('list_files');
   },
 
   /**
    * @returns {Promise<FileEntry[]>}
    */
   getRecents: async () => {
-    return await invoke("list_recents");
+    return await invoke('list_recents');
   },
   /**
    * @param {string} name - The name of the file to read.
    * @returns {Promise<string>}
    */
   readFile: async (name) => {
-    return await invoke("read_file", { name });
+    return await invoke('read_file', { name });
   },
   /**
    * @param {string} path - The path of the file to save.
@@ -34,7 +33,7 @@ const rs_commands = {
    * @returns {Promise<string>}
    */
   saveFile: async (path, content) => {
-    return await invoke("save_file", { path, content });
+    return await invoke('save_file', { path, content });
   },
 };
 
@@ -63,7 +62,7 @@ class FileManager {
    * The text content of the currently selected file.
    * @type {string}
    */
-  currentContent = $state("");
+  currentContent = $state('');
 
   /**
    * A flag to indicate when an async operation is in progress.
@@ -75,8 +74,7 @@ class FileManager {
    * Holds the message of the last error that occurred.
    * @type {string}
    */
-  errorMessage = $state("");
-
+  errorMessage = $state('');
 
   /**
    * Fetches the list of all .md files from the backend.
@@ -85,7 +83,7 @@ class FileManager {
    */
   async getFiles() {
     this.isLoading = true;
-    this.errorMessage = "";
+    this.errorMessage = '';
     try {
       this.files = await rs_commands.getFiles();
     } catch (err) {
@@ -103,13 +101,13 @@ class FileManager {
    */
   async getRecents() {
     this.isLoading = true;
-    this.errorMessage = "";
+    this.errorMessage = '';
     try {
-        this.files = await rs_commands.getRecents();
+      this.files = await rs_commands.getRecents();
     } catch (err) {
       console.error(err);
       this.errorMessage = `Failed to discover recent files: ${err}`;
-    }finally {
+    } finally {
       this.isLoading = false;
     }
   }
@@ -121,21 +119,19 @@ class FileManager {
    * @param {string} [content=""] - Optional initial content for the new file.
    * @returns {Promise<void>}
    */
-  async createNewFile(fileName, content = "") {
+  async createNewFile(fileName, content = '') {
     if (!fileName || !fileName.trim()) {
-      this.errorMessage = "File name cannot be empty.";
+      this.errorMessage = 'File name cannot be empty.';
       return;
     }
 
-    const finalFileName = fileName.endsWith(".md")
-      ? fileName
-      : `${fileName}.md`;
+    const finalFileName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
 
     this.isLoading = true;
-    this.errorMessage = "";
+    this.errorMessage = '';
 
     try {
-      await invoke("create_file", { name : finalFileName, content });
+      await invoke('create_file', { name: finalFileName, content });
       await this.getFiles();
     } catch (err) {
       this.errorMessage = `Failed to create file "${finalFileName}": ${err}`;

@@ -1,10 +1,8 @@
 <script>
-  import SidebarLeft from "$lib/components/sidebar-left.svelte";
-  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
-  import { Separator } from "$lib/components/ui/separator/index.js";
-  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import { fileManager } from "$lib/runes/fs.svelte";
-  import "../app.css";
+  import SidebarLeft from '$lib/components/sidebar-left.svelte';
+  import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+  import { fileManager } from '$lib/runes/fs.svelte';
+  import '../app.css';
 
   /**
    * Initializes the file manager and retrieves the list of files.
@@ -16,7 +14,7 @@
 
 <div class="dark font-writer font-normal w-full h-screen">
   <Sidebar.Provider>
-    <SidebarLeft favourites={fileManager.files}/>
+    <SidebarLeft favourites={fileManager.files} />
     <Sidebar.Inset>
       <div class="flex flex-1 flex-col gap-4 text-foreground overflow-hidden relative">
         {@render children()}
@@ -24,7 +22,6 @@
     </Sidebar.Inset>
   </Sidebar.Provider>
 </div>
-
 
 <style>
   /**

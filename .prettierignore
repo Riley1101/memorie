@@ -1,0 +1,13 @@
+/node_modules
+/dist
+/.svelte-kit
+/.vercel
+/build
+/target
+/src-tauri/target
+/src-tauri
+/components/ui
+./src/lib/components/ui/*
+src/lib/components/ui/*
+*.lock
+

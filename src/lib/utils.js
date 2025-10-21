@@ -1,5 +1,5 @@
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 /**
  * @param  {...any} inputs string array of classes
@@ -9,19 +9,16 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-
 /**
  * Trim and uppercase a file with .md extension
  *
- * @param name - string
+ * @param {string} name - file name
  * @returns string
  */
 export function formatFileName(name) {
-    const ext = name.split(".").pop();
-    if (ext === "md") {
-        return name.replace(".md", "").trim();
-    }
-    return name.trim();
+  const ext = name.split('.').pop();
+  if (ext === 'md') {
+    return name.replace('.md', '').trim();
+  }
+  return name.trim();
 }
