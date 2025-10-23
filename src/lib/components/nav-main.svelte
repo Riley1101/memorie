@@ -1,20 +1,28 @@
 <script>
   import { resolve } from '$app/paths';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-  let { items } = $props();
+  import HouseIcon from '@lucide/svelte/icons/house';
+  import SparklesIcon from '@lucide/svelte/icons/sparkles';
+  import { appState } from '$lib/runes/app.svelte.js';
+
+  $inspect(`Toggling AI chat interface ${appState.isAiChatOpen ? 'closed' : 'open'}`);
 </script>
 
 <Sidebar.Menu>
-  {#each items as item (item.title)}
-    <Sidebar.MenuItem>
-      <Sidebar.MenuButton isActive={item.isActive}>
-        {#snippet child({ props })}
-          <a href={resolve(item.url)} {...props}>
-            <item.icon />
-            <span>{item.title}</span>
-          </a>
-        {/snippet}
-      </Sidebar.MenuButton>
-    </Sidebar.MenuItem>
-  {/each}
+  <Sidebar.MenuItem>
+    <Sidebar.MenuButton>
+      {#snippet child({ props })}
+        <a href={resolve('/')} {...props}>
+          <HouseIcon />
+          <span>Home</span>
+        </a>
+      {/snippet}
+    </Sidebar.MenuButton>
+  </Sidebar.MenuItem>
+  <Sidebar.MenuItem>
+    <Sidebar.MenuButton onclick={appState.toggleAiChat}>
+      <SparklesIcon />
+      AI Search
+    </Sidebar.MenuButton>
+  </Sidebar.MenuItem>
 </Sidebar.Menu>

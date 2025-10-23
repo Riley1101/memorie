@@ -76,8 +76,6 @@ pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
 }
 
 pub fn create_file(path: &Path, content: &str) -> Result<File, FileError> {
-    println!("Creating {}", path.display());
-    println!("content {}", content);
     fs::write(path, content)?;
     Ok(File::new(path.to_path_buf()))
 }

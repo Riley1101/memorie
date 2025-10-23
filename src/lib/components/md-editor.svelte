@@ -44,11 +44,16 @@
         Markdown,
       ],
       content: content || [],
-      contentType: 'markdown',
       onTransaction: ({ editor: e }) => {
         editor = e;
       },
     });
+  });
+
+  $effect(() => {
+    if (editor && content !== undefined) {
+      editor.commands.setContent(content);
+    }
   });
 
   onDestroy(() => {
@@ -60,7 +65,7 @@
   {editor}
   onSave={() => {
     if (editor) {
-      let content = editor.getMarkdown();
+      let content = editor.getHTML();
       createOrSave(content);
     }
   }}

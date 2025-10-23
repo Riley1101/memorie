@@ -9,7 +9,6 @@ mod utils;
 mod workers;
 
 use config::AppConfig;
-use dirs;
 use tauri::Manager;
 use tokio::sync::Mutex;
 use undotree::UndoTree;

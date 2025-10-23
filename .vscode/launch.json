@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Tauri Rust",
+            "cargo": {
+                "args": [
+                    "build"
+                ],
+                "filter": {
+                    "name": "memorie" // Replace with your app's name from Cargo.toml
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}/src-tauri"
+        }
+    ]
+}

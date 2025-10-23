@@ -19,14 +19,14 @@
 </script>
 
 <Sidebar.Group class="group-data-[collapsible=icon]:hidden">
-  <Sidebar.GroupLabel>Favorites</Sidebar.GroupLabel>
+  <Sidebar.GroupLabel>Recents</Sidebar.GroupLabel>
   <Sidebar.Menu>
     {#each favourites as item (item.name)}
       <Sidebar.MenuItem>
         <Sidebar.MenuButton>
           {#snippet child({ props })}
             <a
-              onclick={async () => await goto(resolve(`${item.name}`))}
+              onclick={async () => await goto(resolve(`/${item.name}`))}
               title={item.name}
               {...props}
             >

@@ -17,6 +17,7 @@
   $effect(() => {
     body = content || '';
   });
+
 </script>
 
 <MarkdownEditor {fileName} content={body} />
