@@ -5,7 +5,7 @@
 <script lang="ts">
   import { Root } from '../avatar';
   import { Avatar as AvatarPrimitive } from 'bits-ui';
-  import { cn } from '../../../utils/utils.js';
+  import { cn } from '$lib/utils';
 
   let {
     ref = $bindable(null),

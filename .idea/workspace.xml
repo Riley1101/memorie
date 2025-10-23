@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/src-tauri/Cargo.toml">
+      <package file="$PROJECT_DIR$/src-tauri">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Refactor layout and editor components for improved structure and styling">
+      <change beforePath="$PROJECT_DIR$/.vscode/launch.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/launch.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bun.lock" beforeDir="false" afterPath="$PROJECT_DIR$/bun.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/jsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/jsconfig.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/config.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/llm.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/llm.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/memory.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/app.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat-modal.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat-modal.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/md-toolbar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/md-toolbar.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-avatar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-avatar.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-message.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-message.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-list.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-list.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/separator/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/separator/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/separator/separator.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/separator/separator.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/hooks/use-auto-scroll.svelte.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/hooks/use-auto-scroll.svelte.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/runes/memory.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/memory.svelte.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/utils.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/utils.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="md-editor" />
+        <option value="md-toolbar.svelte" />
+        <option value="Rust File" />
+        <option value="+layout.svelte" />
+        <option value="AiChat.svelte" />
+        <option value="JavaScript File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Riley1101&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Riley1101/memorie.git&quot;,
+    &quot;accountId&quot;: &quot;c133a246-7d55-495c-bdd1-569c62e89aaa&quot;
+  }
+}</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/node_modules/@tauri-apps/api/window.d.ts" root0="SKIP_INSPECTION" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="g8FKHnKR" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="3416b06nfiQdtN3Q21loaXX3mUn" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Notification.DisplayName-DoNotAsk-ideavim&quot;: &quot;ideavim&quot;,
+    &quot;Notification.DoNotAsk-ideavim&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;bun&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
+    &quot;org.rust.first.attach.projects&quot;: &quot;true&quot;,
+    &quot;prettierjs.PrettierConfiguration.Package&quot;: &quot;/Users/arkar/RustroverProjects/memorie/node_modules/prettier&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/arkar/RustroverProjects/memorie/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/static" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Cargo.Run memoire">
+    <configuration name="Run memoire" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="buildProfileId" value="dev" />
+      <option name="command" value="run --package memoire --bin memoire" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/src-tauri" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test memoire" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="test --workspace" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/src-tauri" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="" />
+      <created>1760368798478</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1760368798478</updated>
+      <workItem from="1760368799669" duration="1119000" />
+      <workItem from="1760369957152" duration="81000" />
+      <workItem from="1760370046379" duration="32508000" />
+      <workItem from="1760628177896" duration="9138000" />
+      <workItem from="1760650432275" duration="3282000" />
+      <workItem from="1760751437502" duration="6500000" />
+      <workItem from="1760758179758" duration="19474000" />
+      <workItem from="1760811750368" duration="1069000" />
+      <workItem from="1760844666006" duration="5073000" />
+      <workItem from="1761057918233" duration="213000" />
+      <workItem from="1761058143384" duration="5390000" />
+      <workItem from="1761066406747" duration="2268000" />
+      <workItem from="1761164751556" duration="7979000" />
+      <workItem from="1761684474361" duration="690000" />
+      <workItem from="1761685202374" duration="9088000" />
+      <workItem from="1761707862533" duration="13000" />
+    </task>
+    <task id="LOCAL-00001" summary="Add semantic chunker">
+      <option name="closed" value="true" />
+      <created>1760469838704</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1760469838704</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Add semantic chunker">
+      <option name="closed" value="true" />
+      <created>1760470046609</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1760470046609</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Add Embedding search query">
+      <option name="closed" value="true" />
+      <created>1760470954669</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1760470954669</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Add most recent features">
+      <option name="closed" value="true" />
+      <created>1760474911985</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1760474911985</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Remove lexical and now uses markdown based editing">
+      <option name="closed" value="true" />
+      <created>1760500740147</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1760500740147</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Add error handling for Llama and Memory modules">
+      <option name="closed" value="true" />
+      <created>1760631001156</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1760631001156</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Add chat event handling and streaming support">
+      <option name="closed" value="true" />
+      <created>1760649905577</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1760649905577</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Add chat session management, concurrency and LLM event handling">
+      <option name="closed" value="true" />
+      <created>1760757752668</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1760757752668</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Update Readme.md">
+      <option name="closed" value="true" />
+      <created>1760758018187</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1760758018187</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Update Readme.md">
+      <option name="closed" value="true" />
+      <created>1760758216534</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1760758216534</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Add layout and chat components, stream chat and more">
+      <option name="closed" value="true" />
+      <created>1760811559535</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1760811559535</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Add input group button component with size variants">
+      <option name="closed" value="true" />
+      <created>1760811664266</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1760811664266</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Add input group button component with size variants">
+      <option name="closed" value="true" />
+      <created>1760811711322</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1760811711322</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Add input group button component with size variants">
+      <option name="closed" value="true" />
+      <created>1760811790326</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1760811790326</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Refactor layout and editor components for improved structure and styling">
+      <option name="closed" value="true" />
+      <created>1760848464617</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1760848464617</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Refactor layout and editor components for improved structure and styling">
+      <option name="closed" value="true" />
+      <created>1761066482101</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1761066482101</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Refactor layout and editor components for improved structure and styling">
+      <option name="closed" value="true" />
+      <created>1761235249935</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1761235249935</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+    <option name="exactExcludedFiles">
+      <list>
+        <option value="$PROJECT_DIR$/src/lib/components/ui/avatar/index.js" />
+        <option value="$PROJECT_DIR$/src/lib/components/ui/button/index.js" />
+        <option value="$PROJECT_DIR$/src/lib/hooks/use-auto-scroll.svelte.js" />
+      </list>
+    </option>
+    <option name="includedJSSourcePackages">
+      <set>
+        <option value="carta-md" />
+      </set>
+    </option>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_SMELLS_BEFORE_PROJECT_COMMIT" value="false" />
+    <option name="CHECK_NEW_TODO" value="false" />
+    <MESSAGE value="Add semantic chunker" />
+    <MESSAGE value="Add Embedding search query" />
+    <MESSAGE value="Add most recent features" />
+    <MESSAGE value="Remove lexical and now uses markdown based editing" />
+    <MESSAGE value="Add error handling for Llama and Memory modules" />
+    <MESSAGE value="Add chat event handling and streaming support" />
+    <MESSAGE value="Add chat session management, concurrency and LLM event handling" />
+    <MESSAGE value="Update Readme.md" />
+    <MESSAGE value="Add layout and chat components, stream chat and more" />
+    <MESSAGE value="Add input group button component with size variants" />
+    <MESSAGE value="Refactor layout and editor components for improved structure and styling" />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor layout and editor components for improved structure and styling" />
+  </component>
+</project>

@@ -14,12 +14,8 @@ responses without sending your data to the cloud overlords.
 
 ```yaml
 content_directory: "~/.memorie/notes"
-
 undotree_dir: "~/.memorie/.history"
-
 default_llm_model: "qwen_2_5_0_5b_instruct"
+```
+
 ````
-
-```
-
-```

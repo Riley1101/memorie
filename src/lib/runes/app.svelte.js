@@ -1,15 +1,23 @@
 class AppState {
-
-  isAiChatOpen = $state(false);
+  /**
+   * @public
+   * @type {{isChatOpen: boolean}}
+   */
+  ui = $state({
+    isChatOpen: false,
+  });
 
   /**
+   * @public
+   *
    * Toggles the AI chat interface visibility.
    * @returns {void}
    */
   toggleAiChat() {
-    console.log("Toggling AI Chat Interface");
-    this.isAiChatOpen = !this.isAiChatOpen;
-    console.log(this.isAiChatOpen)
+    this.ui = {
+      ...this.ui,
+      isChatOpen: !this.ui.isChatOpen,
+    };
   }
 }
 

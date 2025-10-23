@@ -3,8 +3,8 @@
 # Example: "C:/Users/YourUser/Documents/Notes"
 # Example: "/home/youruser/notes"
 
-content_directory: '/home/arkar/notes'
+content_directory: '/home/Users/notes'
 
-undotree_dir: '/home/arkar/notes/.history'
+undotree_dir: '/home/Users/notes/.history'
 
 default_llm_model: 'qwen_2_5_0_5b_instruct'

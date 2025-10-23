@@ -22,7 +22,12 @@
 <InputGroup.Root>
   <InputGroup.Textarea placeholder="Ask, Search or Chat..." bind:value={prompt} />
   <InputGroup.Addon align="block-end">
-    <InputGroup.Button variant="outline" class="rounded-full" size="icon-xs">
+    <InputGroup.Button
+      onclick={() => llmManager.newSession()}
+      variant="outline"
+      class="rounded-full"
+      size="icon-xs"
+    >
       <PlusIcon />
     </InputGroup.Button>
     <Separator orientation="vertical" class="!h-4" />

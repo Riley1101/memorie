@@ -1,7 +1,11 @@
 <script>
+  /* eslint svelte/no-at-html-tags: "warn" */
+
   import { llmManager } from '@/runes/llm.svelte.js';
   import * as Chat from '$lib/components/ui/chat';
   import { onDestroy, onMount } from 'svelte';
+  import { marked } from 'marked';
+  import { sanitizeMarkdown } from '$lib/utils';
 
   onMount(() => {
     llmManager.setupListeners();
@@ -12,7 +16,7 @@
   });
 </script>
 
-<Chat.List>
+<Chat.List class="dark">
   {#each llmManager.messages as message, index (index)}
     <Chat.Bubble variant={message.role === 'user' ? 'sent' : 'received'}>
       <Chat.BubbleAvatar>
@@ -24,8 +28,8 @@
       {#if message.role === 'assistant' && message.content === ''}
         <Chat.BubbleMessage typing={true} />
       {:else}
-        <Chat.BubbleMessage class="prose markdown dark:prose-invert">
-          {message.content}
+        <Chat.BubbleMessage class="text-foreground prose dark:prose-invert prose-sm max-w-auto p-3">
+          {@html marked(sanitizeMarkdown(message.content))}
         </Chat.BubbleMessage>
       {/if}
     </Chat.Bubble>

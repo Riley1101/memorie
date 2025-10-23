@@ -29,6 +29,9 @@ const LLM_INVOKE = {
  * Manages the state and communication for an LLM chat interface in a Tauri app.
  */
 export class LlmManager {
+  /** @type string | null- unique worker ID **/
+  workerId = null;
+
   /** @type Message[] - array of messages **/
   messages = $state([]);
 
@@ -75,7 +78,6 @@ export class LlmManager {
     if (this.isLoading || !prompt.trim()) {
       return; // Prevent sending empty messages or multiple requests
     }
-
     this.isLoading = true;
     this.error = null;
 
@@ -83,13 +85,22 @@ export class LlmManager {
     this.messages.push({ role: 'assistant', content: '' });
 
     try {
-      await invoke(LLM_INVOKE.CHAT, { message: prompt });
+      /** @type {string} processId */
+      this.workerId = await invoke(LLM_INVOKE.CHAT, { message: prompt });
     } catch (e) {
       console.error(e);
       this.error = `An error occurred: ${e}`;
       this.isLoading = false;
       this.messages.pop();
     }
+  }
+
+  /**
+   * @public
+   *  Clear message array and start a new chart
+   */
+  newSession() {
+    this.messages = [];
   }
 
   /**

@@ -19,4 +19,4 @@ class MemoryManager {
   }
 }
 
-export let memoryManager = new MemoryManager();
+export const memoryManager = new MemoryManager();

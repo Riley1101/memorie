@@ -3,13 +3,13 @@
 -->
 
 <script lang="ts">
-  import { cn } from '../../../utils/utils';
   import { onMount } from 'svelte';
   import { Button } from '../button';
   import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
   import { scale } from 'svelte/transition';
   import { UseAutoScroll } from '../../../hooks/use-auto-scroll.svelte.js';
   import type { ChatListProps } from './types';
+  import { cn } from '$lib/utils';
 
   let { ref = $bindable(null), children, class: className, ...rest }: ChatListProps = $props();
 

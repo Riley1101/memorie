@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
 use surrealdb::{RecordId, Surreal};
 
-const MEMORY_DB_PATH: &str = "/home/arkar/.memorie/db/memory/";
-const MEMORY_DB_VECTOR_STORE: &str = "/home/arkar/.memorie/db/memory/embeddings.db";
+const MEMORY_DB_PATH: &str = "/Users/arkar/.memorie/db/memory/";
+const MEMORY_DB_VECTOR_STORE: &str = "/Users/arkar/.memorie/db/memory/embeddings.db";
 
 const TABLE: &str = "documents";
 

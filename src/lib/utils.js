@@ -1,4 +1,5 @@
 import { clsx } from 'clsx';
+import DOMPurify from 'dompurify';
 import { twMerge } from 'tailwind-merge';
 
 /**
@@ -21,4 +22,30 @@ export function formatFileName(name) {
     return name.replace('.md', '').trim();
   }
   return name.trim();
+}
+
+/**
+ * Sanitize Markdown text before rendering.
+ * - Removes malicious or unwanted HTML.
+ * - Normalizes line breaks and whitespace.
+ */
+export function sanitizeMarkdown(md) {
+  if (!md) return '';
+
+  let sanitized = md;
+
+  sanitized = sanitized
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+$/gm, '')
+    .trim();
+
+  sanitized = DOMPurify.sanitize(sanitized);
+
+  sanitized = sanitized
+    .replace(/^```[\w-]*\n([\s\S]*?)\n```$/gm, '```$1```')
+    .replace(/<!--.*?-->/gs, '')
+    .replace(/<\/?[^>]+(>|$)/g, (match) => match);
+
+  return sanitized;
 }
