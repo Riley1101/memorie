@@ -1,16 +1,14 @@
 use super::error::MemoryError;
+use super::utils;
 use chrono::Utc;
 use kalosm::language::{Document, DocumentTable, DocumentTableSurrealExt, SemanticChunker};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
-use surrealdb::{RecordId, Surreal};
-
-const MEMORY_DB_PATH: &str = "/Users/arkar/.memorie/db/memory/";
-const MEMORY_DB_VECTOR_STORE: &str = "/Users/arkar/.memorie/db/memory/embeddings.db";
+use surrealdb::Surreal;
 
 const TABLE: &str = "documents";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ChatSession {
     pub job_id: String,
     pub user_id: String,
@@ -35,7 +33,11 @@ impl Memory {
     /// This function initializes a local SurrealDB instance, sets the namespace,
     /// and builds a document table configured to store embeddings in a separate file.
     pub async fn new() -> Result<Self, MemoryError> {
-        let db = Surreal::new::<SurrealKv>(MEMORY_DB_PATH).await?;
+
+        // TODO! Make the path configurable via app settings
+        let root_dir = utils::get_app_dir()?.join("db/memory/");
+
+        let db = Surreal::new::<SurrealKv>(root_dir.clone()).await?;
 
         db.use_ns("lexical_ns").use_db("files_db").await?;
 
@@ -44,7 +46,7 @@ impl Memory {
         let document_table = db
             .document_table_builder(TABLE)
             .with_chunker(chunker)
-            .at(MEMORY_DB_VECTOR_STORE)
+            .at(root_dir.join("db/memory/embeddings.db"))
             .build::<Document>()
             .await?;
 
@@ -65,7 +67,7 @@ impl UserMemory for Memory {
     /// /// Returns `Ok(())` if the session is saved successfully, or a `MemoryError` if an error occurs.
     async fn save_chat_session(&self, session_id: &str) -> Result<(), MemoryError> {
         self.db.use_ns("user_ns").use_db("user_ns").await?;
-        let session: Option<ChatSession> = self
+        let _: Option<ChatSession> = self
             .db
             .create("chat_sessions")
             .content(ChatSession {

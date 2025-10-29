@@ -18,31 +18,37 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
+chrono = "0.4.42"
+dashmap = "6.1.0"
+dirs = "6.0.0"
+
+futures = "0.3.31"
+futures-util = "0.3.31"
+
+indextree = "4.6.1"
+
+kalosm = { version = "0.4.0", features = ["full"] }
+kalosm-common = "0.4.0"
+kalosm-llama = "0.4.3"
 
 serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9.34"
 serde_json = "1"
+serde_yaml = "0.9.34"
+surrealdb = { version = "2.3.10", features = ["kv-mem", "kv-surrealkv"] }
+
+tauri = { version = "2", features = [] }
+tauri-plugin-devtools = "2.0.0"
+tauri-plugin-fs = "2.0.0"
+tauri-plugin-log = "2"
+tauri-plugin-opener = "2"
+thiserror = "2.0.16"
+tokio = { version = "1.47.1", features = ["full"] }
+tokio-util = { version = "0.7.16" }
+
+uuid = { version = "1", features = ["v4", "serde"] }
 
 walkdir = "2"
-indextree = "4.6.1"
-tauri-plugin-devtools = "2.0.0"
-tauri-plugin-log = "2"
-thiserror = "2.0.16"
-tauri-plugin-fs = "2.0.0"
-kalosm = { version = "0.4.0", features = ["full"] }
-tokio = { version = "1.47.1", features = ["full"] }
-kalosm-common = "0.4.0"
-dirs = "6.0.0"
-futures-util = "0.3.31"
-futures = "0.3.31"
-surrealdb = { version = "2.3.10", features = ["kv-mem", "kv-surrealkv"] }
-kalosm-llama = "0.4.3"
-uuid = { version = "1", features = ["v4", "serde"] }
-tokio-util = { version = "0.7.16" }
-dashmap = "6.1.0"
-chrono = "0.4.42"
 
 [dev-dependencies]
 tempfile = "3.23.0"
+

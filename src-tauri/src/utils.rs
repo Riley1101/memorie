@@ -1,5 +1,5 @@
 use super::error::FileError;
-use std::{error::Error, path::PathBuf};
+use std::path::PathBuf;
 
 /// Get the directory where the app stores its data.
 pub fn get_app_dir() -> Result<PathBuf, FileError> {

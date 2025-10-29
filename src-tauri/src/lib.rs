@@ -31,12 +31,19 @@ pub async fn run() {
         .expect("Failed to get home directory")
         .join("config.yaml");
 
+    let config_path_str = home_dir.to_str().expect("Config path is not valid UTF-8");
+
+    if let Err(e) = config::AppConfig::init_default_config(config_path_str) {
+        eprintln!("Failed to initialize config: {}", e);
+        panic!("Failed to initialize config: {}", e);
+    }
+
+    let app_config = config::AppConfig::load(config_path_str)
+        .expect("Failed to load config after initialization");
+
     let memory_instance = Memory::new()
         .await
         .expect("Failed to initialize memory database");
-
-    let app_config = AppConfig::load(home_dir.to_str().expect("Failed to get home directory"))
-        .expect("Failed to load config");
 
     #[cfg(debug_assertions)]
     let devtools = tauri_plugin_devtools::init();

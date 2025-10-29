@@ -1,24 +1,28 @@
+use crate::utils;
+
 use super::error::LlamaError;
 use kalosm::language::*;
 use kalosm_common::Cache;
 use std::path::PathBuf;
 
-const MODAL_CACHE_PATH: &str = "/Users/arkar/.memorie/models/";
-const CHAT_SESSION_CACHE: &str = "/Users/arkar/.memorie/chat_sessions/";
-
 pub struct Model {
     name: PathBuf,
     llma: Option<Llama>,
+    base_path: PathBuf,
 }
 
 impl Model {
     pub fn new(name: PathBuf) -> Self {
-        Model { name, llma: None }
+        let root_dir = utils::get_app_dir().expect("Failed to get app directory");
+
+        Model { name, llma: None , base_path: root_dir }
     }
 
-    // !TODO use this.error  handling
+    // !TODO use model from config
     pub async fn load_model(&self) -> Result<Llama, LlamaError> {
-        let modal_path = PathBuf::from(MODAL_CACHE_PATH);
+        let root_dir = self.base_path.clone().join("models/");
+
+        let modal_path = PathBuf::from(root_dir);
 
         let cache = Cache::new(modal_path);
 
@@ -56,7 +60,8 @@ impl Model {
     ///
     /// Returns a Chat instance.
     pub async fn run_chat(&self) -> Result<Chat<Llama>, LlamaError> {
-        let session_cache_path = PathBuf::from(CHAT_SESSION_CACHE);
+
+        let session_cache_path = self.base_path.clone().join("chat_sessions/");
 
         let model = Llama::new_chat().await?;
 

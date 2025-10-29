@@ -17,6 +17,9 @@ pub enum ConfigurationError {
 
     #[error("YAML parsing error")]
     Yaml(#[from] serde_yaml::Error),
+
+    #[error("Error getting config yaml: {0}")]
+    FilePathError(#[from] FileError),
 }
 
 #[derive(Error, Debug)]
@@ -26,6 +29,9 @@ pub enum LlamaError {
 
     #[error("Llama chat error: {0}")]
     LlamaChat(String),
+
+    #[error("Error getting ModelPath path: {0}")]
+    FilePathError(#[from] FileError),
 }
 
 #[derive(Error, Debug)]
@@ -35,6 +41,9 @@ pub enum MemoryError {
 
     #[error("Document table creation error")]
     DocumentCreation(#[from] kalosm::language::DocumentTableCreationError),
+
+    #[error("Error getting DB path: {0}")]
+    FilePathError(#[from] FileError),
 }
 
 #[derive(Error, Debug)]

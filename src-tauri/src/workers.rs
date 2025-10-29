@@ -1,9 +1,8 @@
 use dashmap::DashMap;
 use futures::StreamExt;
-use kalosm::language::Document;
 use serde::Serialize;
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager, State, Window};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{mpsc, Semaphore};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;

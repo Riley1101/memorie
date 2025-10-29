@@ -1,9 +1,10 @@
 use super::error::ConfigurationError;
-use serde::Deserialize;
+use super::utils;
+use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AppConfig {
     pub content_directory: PathBuf,
     pub undotree_dir: PathBuf,
@@ -11,6 +12,38 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
+    pub fn new_default() -> Result<Self, ConfigurationError> {
+        let app_dir = utils::get_app_dir()?;
+
+        Ok(AppConfig {
+            content_directory: app_dir.join("content"),
+            undotree_dir: app_dir.join("history"),
+            default_llm_model: app_dir.join("models").join("default_model.gguf"),
+        })
+    }
+
+    pub fn init_default_config(path: &str) -> Result<(), ConfigurationError> {
+        let config_path = Path::new(path);
+
+        if config_path.exists() {
+            return Ok(());
+        }
+
+        if let Some(parent) = config_path.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+
+        let default_config = Self::new_default()?;
+
+        let yaml_str = serde_yaml::to_string(&default_config)?;
+
+        fs::write(config_path, yaml_str)?;
+
+        Ok(())
+    }
+
     pub fn load(path: &str) -> Result<Self, ConfigurationError> {
         let config_str = fs::read_to_string(path)?;
         let config: AppConfig = serde_yaml::from_str(&config_str)?;
@@ -20,6 +53,12 @@ impl AppConfig {
         }
 
         if let Some(parent) = config.undotree_dir.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+
+        if let Some(parent) = config.default_llm_model.parent() {
             if !parent.exists() {
                 fs::create_dir_all(parent)?;
             }
@@ -54,5 +93,39 @@ mod config_tests {
 
         assert!(config.content_directory.exists());
         assert!(config.undotree_dir.parent().unwrap().exists());
+    }
+
+    #[test]
+    fn test_init_default_config() {
+        let dir = tempdir().unwrap();
+        let app_dir = dir.path().join(".memorie");
+        let config_path = app_dir.join("config.yaml");
+        let _ = config_path.to_str().unwrap();
+        assert!(!app_dir.exists());
+        assert!(!config_path.exists());
+
+        let temp_config_path = dir.path().join("test_config.yaml");
+        let temp_config_str = temp_config_path.to_str().unwrap();
+
+        assert!(!temp_config_path.exists());
+
+        match AppConfig::init_default_config(temp_config_str) {
+            Ok(_) => {
+                assert!(temp_config_path.exists());
+
+                let config = AppConfig::load(temp_config_str).unwrap();
+                assert!(config.content_directory.ends_with("content"));
+                assert!(config.undotree_dir.ends_with("history"));
+                assert!(config
+                    .default_llm_model
+                    .ends_with("models/default_model.gguf"));
+
+                AppConfig::init_default_config(temp_config_str).unwrap();
+                assert!(temp_config_path.exists());
+            }
+            Err(e) => {
+                eprintln!("Warning: test_init_default_config skipped: {:?}", e);
+            }
+        }
     }
 }

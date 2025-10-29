@@ -7,7 +7,6 @@
   import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import { formatFileName } from '$lib/utils.js';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
 
   /**
@@ -16,6 +15,7 @@
   let { favourites } = $props();
 
   const sidebar = useSidebar();
+
 </script>
 
 <Sidebar.Group class="group-data-[collapsible=icon]:hidden">
@@ -25,11 +25,7 @@
       <Sidebar.MenuItem>
         <Sidebar.MenuButton>
           {#snippet child({ props })}
-            <a
-              onclick={async () => await goto(resolve(`/${item.name}`))}
-              title={item.name}
-              {...props}
-            >
+            <a href={resolve(`/${item.name}`)} title={item.name} {...props}>
               <FileTextIcon class="size-4" />
               <span class="capitalize">{formatFileName(item.name)}</span>
             </a>
