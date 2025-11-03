@@ -8,14 +8,14 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import { formatFileName } from '$lib/utils.js';
   import { resolve } from '$app/paths';
+  import { fileManager } from '$lib/runes/fs.svelte';
 
   /**
-   * @type {{ favourites: Array<{ name: string, path: string, emoji?: string }> }}
+   * @type {  Array<{ name: string, path: string, emoji?: string }> }
    */
-  let { favourites } = $props();
+  let favourites = $derived(fileManager.files);
 
   const sidebar = useSidebar();
-
 </script>
 
 <Sidebar.Group class="group-data-[collapsible=icon]:hidden">

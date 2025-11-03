@@ -4,8 +4,6 @@
   import HouseIcon from '@lucide/svelte/icons/house';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
   import { appState } from '$lib/runes/app.svelte.js';
-
-  $inspect(`Toggling AI chat interface ${appState.isAiChatOpen ? 'closed' : 'open'}`);
 </script>
 
 <Sidebar.Menu>
@@ -20,7 +18,7 @@
     </Sidebar.MenuButton>
   </Sidebar.MenuItem>
   <Sidebar.MenuItem>
-    <Sidebar.MenuButton onclick={appState.toggleAiChat}>
+    <Sidebar.MenuButton onclick={()=>appState.toggleAiChat(!appState.ui.isChatOpen)}>
       <SparklesIcon />
       AI Search
     </Sidebar.MenuButton>

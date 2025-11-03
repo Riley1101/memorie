@@ -2,6 +2,7 @@
   import * as InputGroup from '$lib/components/ui/input-group';
   import Button from '@/components/ui/button/button.svelte';
   import { fileManager } from '@/runes/fs.svelte';
+  import { SidebarTrigger } from '@/components/ui/sidebar/index.js';
 
   let fileName = 'example';
   let content = '';

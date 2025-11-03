@@ -15,7 +15,11 @@ impl Model {
     pub fn new(name: PathBuf) -> Self {
         let root_dir = utils::get_app_dir().expect("Failed to get app directory");
 
-        Model { name, llma: None , base_path: root_dir }
+        Model {
+            name,
+            llma: None,
+            base_path: root_dir,
+        }
     }
 
     // !TODO use model from config
@@ -60,12 +64,12 @@ impl Model {
     ///
     /// Returns a Chat instance.
     pub async fn run_chat(&self) -> Result<Chat<Llama>, LlamaError> {
-
         let session_cache_path = self.base_path.clone().join("chat_sessions/");
 
         let model = Llama::new_chat().await?;
 
-        let mut chat = model.chat();
+        let mut chat = model.chat()
+            .with_system_prompt("You are a helpful assistant.");
 
         if let Some(old_session) = std::fs::read(&session_cache_path)
             .ok()

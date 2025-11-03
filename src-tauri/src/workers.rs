@@ -111,7 +111,6 @@ async fn run_chat_worker(
     loop {
         tokio::select! {
             _ = cancellation_token.cancelled() => {
-                println!("Chat cancelled");
                 return Err("Chat was cancelled".to_string());
             }
             token = stream.next() => {

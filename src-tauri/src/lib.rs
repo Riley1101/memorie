@@ -54,7 +54,8 @@ pub async fn run() {
 
     let model = Model::new(default_model_path);
 
-    let mut builder = tauri::Builder::default().setup(|app| {
+    let mut builder = tauri::Builder::default()
+        .setup(|app| {
         let app_handle = app.handle().clone();
         let app_state = AppState {
             config: Mutex::new(app_config),
@@ -83,10 +84,13 @@ pub async fn run() {
             commands::delete_file,
             commands::load_model,
             commands::run_chat,
+            commands::cancel_chat,
             commands::read_file,
+            commands::get_file_history,
             commands::create_embeddings,
             commands::search_embeddings,
             commands::get_chat_sessions,
+            commands::undo_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

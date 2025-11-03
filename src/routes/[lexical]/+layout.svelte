@@ -8,20 +8,23 @@
 
   /** @type {import("./$types").LayoutProps} */
   let { data, children } = $props();
+
   let { content, fileName } = $derived(data);
 
-  let ui = $derived(appState.ui);
 
   $effect(() => {
     memoryManager.setContext(content, fileName);
   });
 </script>
 
-<ScrollArea class="h-dvh w-full relative">
-  {@render children()}
-</ScrollArea>
+{@render children()}
 
-<Drawer.Root open={ui.isChatOpen} direction="right" class="absolute top-0 right-0 h-dvh">
+<Drawer.Root
+  bind:open={() => appState.ui.isChatOpen, (newOpen) => {
+    appState.toggleAiChat(newOpen);
+  }}
+  direction="right" class="absolute top-0 right-0 h-dvh"
+>
   <Drawer.Content class="dark text-foreground md:min-w-[600px] font-serif">
     <ScrollArea class="w-full h-[calc(100dvh-140px)] p-4 pb-0">
       <AiChatStream />

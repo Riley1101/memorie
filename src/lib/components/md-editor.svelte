@@ -8,34 +8,21 @@
   import { Markdown } from '@tiptap/markdown';
   import MdToolbar from './md-toolbar.svelte';
   import { Input } from '@/components/ui/input/index.js';
-  import { fileManager } from '@/runes/fs.svelte.js';
+  import { editorState } from '$lib/runes/editor.svelte.js';
 
   /** @type {HTMLDivElement | undefined} */
   let element = $state();
 
-  /** @type {Editor | undefined } */
-  let editor = $state();
-
   /**
-   * @type {{fileName?:string ,content?: string }}
+   * @type {{fileName?:string ,body?: string }}
    */
   let data = $props();
 
   let fileName = $derived(data.fileName);
-  let content = $derived(data.content);
-
-  /**
-   * Create or save the file with the given content
-   * @param {string} content - The content to save in the file
-   */
-  function createOrSave(content) {
-    if (fileName) {
-      fileManager.createNewFile(fileName, content);
-    }
-  }
+  let content = $derived(data.body);
 
   onMount(() => {
-    editor = new Editor({
+    let editor = new Editor({
       element: element,
       extensions: [
         Color.configure({ types: [TextStyle.name, ListItem.name] }),
@@ -48,28 +35,21 @@
         editor = e;
       },
     });
+    editorState.setEditor(editor);
   });
 
   $effect(() => {
-    if (editor && content !== undefined) {
-      editor.commands.setContent(content);
+    if (editorState.editor && content !== undefined) {
+      editorState.editor.commands.setContent(content);
     }
   });
 
   onDestroy(() => {
-    editor?.unmount();
+    editorState.editor?.unmount();
   });
 </script>
 
-<MdToolbar
-  {editor}
-  onSave={() => {
-    if (editor) {
-      let content = editor.getHTML();
-      createOrSave(content);
-    }
-  }}
-/>
+<MdToolbar />
 
 <div class="px-4">
   <Input
