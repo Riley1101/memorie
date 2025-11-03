@@ -12,31 +12,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Refactor layout and editor components for improved structure and styling">
-      <change beforePath="$PROJECT_DIR$/.vscode/launch.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/launch.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bun.lock" beforeDir="false" afterPath="$PROJECT_DIR$/bun.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/jsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/jsconfig.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/config.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/llm.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/llm.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/memory.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat-modal.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat-modal.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/md-editor.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/md-editor.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/components/md-toolbar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/md-toolbar.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-avatar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-avatar.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-message.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-bubble-message.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-list.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/chat/chat-list.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/separator/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/separator/index.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ui/separator/separator.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ui/separator/separator.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/hooks/use-auto-scroll.svelte.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/hooks/use-auto-scroll.svelte.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/runes/memory.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/memory.svelte.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/utils.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/utils.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -54,6 +34,7 @@
         <option value="+layout.svelte" />
         <option value="AiChat.svelte" />
         <option value="JavaScript File" />
+        <option value="EditorCommandBar" />
       </list>
     </option>
   </component>
@@ -90,35 +71,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Notification.DisplayName-DoNotAsk-ideavim&quot;: &quot;ideavim&quot;,
-    &quot;Notification.DoNotAsk-ideavim&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1&quot;: &quot;true&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;bun&quot;,
-    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
-    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
-    &quot;org.rust.first.attach.projects&quot;: &quot;true&quot;,
-    &quot;prettierjs.PrettierConfiguration.Package&quot;: &quot;/Users/arkar/RustroverProjects/memorie/node_modules/prettier&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Users/arkar/RustroverProjects/memorie/node_modules/typescript/lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Notification.DisplayName-DoNotAsk-ideavim": "ideavim",
+    "Notification.DoNotAsk-ideavim": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.rust.reset.selective.auto.import": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultAutoModeForALLUsers.v1": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "bun",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
+    "org.rust.first.attach.projects": "true",
+    "prettierjs.PrettierConfiguration.Package": "/Users/arkar/RustroverProjects/memorie-new/node_modules/prettier",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "/Users/arkar/RustroverProjects/memorie-new/node_modules/typescript/lib",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/static" />
@@ -187,6 +168,8 @@
       <workItem from="1761684474361" duration="690000" />
       <workItem from="1761685202374" duration="9088000" />
       <workItem from="1761707862533" duration="13000" />
+      <workItem from="1761716707440" duration="952000" />
+      <workItem from="1762135140124" duration="4982000" />
     </task>
     <task id="LOCAL-00001" summary="Add semantic chunker">
       <option name="closed" value="true" />

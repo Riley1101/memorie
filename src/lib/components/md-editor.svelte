@@ -3,7 +3,7 @@
   import { ListItem } from '@tiptap/extension-list';
   import { TextStyle } from '@tiptap/extension-text-style';
   import StarterKit from '@tiptap/starter-kit';
-  import { Editor } from '@tiptap/core';
+  import { Editor  } from '@tiptap/core';
   import { onMount, onDestroy } from 'svelte';
   import { Markdown } from '@tiptap/markdown';
   import MdToolbar from './md-toolbar.svelte';
@@ -17,12 +17,12 @@
   let editor = $state();
 
   /**
-   * @type {{fileName?:string ,content?: string }}
+   * @type {{fileName?:string ,body?: string }}
    */
   let data = $props();
 
   let fileName = $derived(data.fileName);
-  let content = $derived(data.content);
+  let content = $derived(data.body);
 
   /**
    * Create or save the file with the given content
@@ -90,3 +90,4 @@
     min-height: 300px;
   }
 </style>
+

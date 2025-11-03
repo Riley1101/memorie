@@ -1,5 +1,6 @@
 <script>
   import MarkdownEditor from '$lib/components/md-editor.svelte';
+  import EditorCommandbar from '@/components/editor-commandbar.svelte';
 
   /**
    * @type
@@ -17,8 +18,24 @@
   $effect(() => {
     body = content || '';
   });
+
 </script>
 
-<div class="container mx-auto max-w-4xl">
-  <MarkdownEditor {fileName} content={body} />
+<div class="grid grid-cols-[1fr_auto_1fr] w-full grid-rows-[1fr_auto] h-screen">
+
+  <div class="row-span-1 col-span-1">
+
+  </div>
+
+  <div class="min-w-4xl max-w-4xl">
+    <MarkdownEditor {fileName} {body} />
+  </div>
+
+  <div>
+
+  </div>
+
+  <div class="sticky bottom-0 col-span-3 row-start-2">
+    <EditorCommandbar {fileName} {body} />
+  </div>
 </div>

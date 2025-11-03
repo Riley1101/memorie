@@ -9,6 +9,7 @@
   import { appState } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button';
 
+
   /** @type {import('@tiptap/core').Editor | undefined } */
   export let editor;
 
@@ -23,9 +24,9 @@
     <Sidebar.Trigger class="mr-auto" />
     <ButtonGroup.Root type="multiple" variant="outline">
       <Button
-        variant="outline"
         aria-label="Toggle bold"
         onclick={() => editor.chain().focus().toggleBold().run()}
+        variant="outline"
       >
         <BoldIcon class="h-4 w-4" />
       </Button>
