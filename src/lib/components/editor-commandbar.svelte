@@ -1,6 +1,10 @@
 <script>
-  import { onMount, onDestroy, tick } from 'svelte'
+  import { onMount, onDestroy, tick } from 'svelte';
+  import { editorState } from '$lib/runes/editor.svelte.js';
+  import { appState } from '$lib/runes/app.svelte.js';
   import { fileManager } from '@/runes/fs.svelte.js';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
 
   /**
    * @type {{fileName?:string ,body?: string }}
@@ -8,7 +12,18 @@
   let data = $props();
 
   let fileName = $derived(data.fileName);
-  let content = $derived(data.body);
+
+  /**
+   * @description Handles the save action for the editor content.
+   */
+  function onSave() {
+    if (editorState.editor) {
+      let content = editorState.editor.getHTML();
+      if (fileName) {
+        fileManager.createNewFile(fileName, content);
+      }
+    }
+  }
 
   /**
    * @typedef {Object} Command
@@ -18,131 +33,138 @@
    */
 
   /**
-   * @type {() => void}
-   */
-  let onToggleHistory = ()=>{};
-  /**
    * @type {boolean}
    */
   let isHistoryVisible = false;
 
   /** @type {Command[]} */
   const commands = [
-    { cmd: ':history', description: 'Toggle history sidebar', action: 'toggleHistory' },
+    { cmd: ':u', description: 'Toggle history sidebar', action: 'toggleHistory' },
     { cmd: ':w', description: 'Save file', action: 'save' },
     { cmd: ':q', description: 'Close file', action: 'close' },
     { cmd: ':wq', description: 'Save and close', action: 'saveAndClose' },
     { cmd: ':e', description: 'Edit file', action: 'edit' },
+    { cmd: ':d', description: 'Toggle Sidebar', action: 'sidebar' },
+    { cmd: ':ai', description: 'Toggle AI', action: 'aichat' },
     { cmd: ':help', description: 'Show help', action: 'help' },
-  ]
+  ];
 
   const quickCommands = [
-    { cmd: ':history', label: 'History', icon: '⌘H' },
+    {cmd: ":d", label:"Sidebar", icon:"⌘B"},
+    { cmd: ':u', label: 'History', icon: '⌘U' },
     { cmd: ':w', label: 'Save', icon: '⌘S' },
     { cmd: ':q', label: 'Close', icon: '⌘Q' },
     { cmd: ':wq', label: 'Save & Close', icon: '⌘W' },
-  ]
+  ];
 
   // --- State ---
-  let isCommandMode = $state(false)
-  let input = $state('')
+  let isCommandMode = $state(false);
+  let input = $state('');
   /** @type {Command[]} */
-  let suggestions = $state([])
-  let selectedIndex = $state(0)
+  let suggestions = $state([]);
+  let selectedIndex = $state(0);
   /** @type {HTMLInputElement | null} */
-  let inputRef = null
+  let inputRef = null;
 
-  $effect(()=>{
+  $effect(() => {
     if (input.length > 1) {
       suggestions = commands.filter(
         (cmd) =>
           cmd.cmd.startsWith(input) ||
-          cmd.description.toLowerCase().includes(input.slice(1).toLowerCase()),
-      )
-      selectedIndex = 0
+          cmd.description.toLowerCase().includes(input.slice(1).toLowerCase())
+      );
+      selectedIndex = 0;
     } else {
-      suggestions = []
+      suggestions = [];
     }
-  })
+  });
 
   /**
    * @param {KeyboardEvent} e
    */
   const handleGlobalKeyDown = (e) => {
     if (e.key === ':' && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
-      e.preventDefault()
-      isCommandMode = true
-      input = ':'
+      e.preventDefault();
+      isCommandMode = true;
+      input = ':';
     } else if (e.key === 'Escape' && isCommandMode) {
-      isCommandMode = false
-      input = ''
+      isCommandMode = false;
+      input = '';
     }
-  }
+  };
 
   onMount(() => {
-    window.addEventListener('keydown', handleGlobalKeyDown)
-  })
+    window.addEventListener('keydown', handleGlobalKeyDown);
+  });
 
   onDestroy(() => {
-    window.removeEventListener('keydown', handleGlobalKeyDown)
-  })
+    window.removeEventListener('keydown', handleGlobalKeyDown);
+  });
 
-  $effect(()=>{
+  $effect(() => {
     if (isCommandMode && inputRef) {
       tick().then(() => {
-        inputRef?.focus()
-      })
+        inputRef?.focus();
+      });
     }
-  })
+  });
 
   /**
    * @param {string} cmd
    */
   function executeCommand(cmd) {
-    const command = commands.find((c) => c.cmd === cmd)
-    if (!command) return
+    const command = commands.find((c) => c.cmd === cmd);
+    if (!command) return;
 
     switch (command.action) {
       case 'toggleHistory':
-        onToggleHistory()
-        break
+        appState.TOGGLECHATHISTORY();
+        break;
+      case 'sidebar':
+        appState.toggleSidebar(!appState.ui.isSidebarOpen);
+        break;
+      case 'aichat':
+        appState.toggleAiChat(!appState.ui.isChatOpen);
+        break;
       case 'save':
         if (fileName) {
-          let content
-          fileManager.createNewFile(fileName, content);
+          onSave();
         }
-        break
+        break;
       case 'close':
-        console.log('[Svelte] Close file')
-        break
+          goto(resolve('/'));
+        break;
       case 'saveAndClose':
-        console.log('[Svelte] Save and close file')
-        break
+        if (fileName) {
+          onSave();
+          goto(resolve('/'));
+        }
+        break;
       case 'edit':
-        console.log('[Svelte] Edit file')
-        break
+        console.log('[Svelte] Edit file');
+        break;
       case 'help':
-        console.log('[Svelte] Show help')
-        break
+        console.log('[Svelte] Show help');
+        break;
     }
 
-    isCommandMode = false
-    input = ''
+    isCommandMode = false;
+    input = '';
   }
 
   /**
    * @param {string} cmd
    */
   function handleQuickCommand(cmd) {
-    executeCommand(cmd)
+    executeCommand(cmd);
   }
 
   function handleSubmit(e) {
     e.preventDefault();
     if (suggestions.length > 0) {
-      executeCommand(suggestions[selectedIndex].cmd)
+      executeCommand(suggestions[selectedIndex].cmd);
     } else {
-      executeCommand(input)
+      executeCommand(input);
     }
   }
 
@@ -151,35 +173,33 @@
    */
   function handleInputKeyDown(e) {
     if (e.key === 'ArrowDown') {
-      e.preventDefault()
+      e.preventDefault();
       if (suggestions.length > 0) {
-        selectedIndex = (selectedIndex + 1) % suggestions.length
+        selectedIndex = (selectedIndex + 1) % suggestions.length;
       }
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
+      e.preventDefault();
       if (suggestions.length > 0) {
-        selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length
+        selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
       }
     } else if (e.key === 'Tab') {
-      e.preventDefault()
+      e.preventDefault();
       if (suggestions.length > 0) {
-        input = suggestions[selectedIndex].cmd
+        input = suggestions[selectedIndex].cmd;
       }
     }
   }
 
   function handleBlur() {
     setTimeout(() => {
-      isCommandMode = false
-      input = ''
-    }, 200)
+      isCommandMode = false;
+      input = '';
+    }, 200);
   }
 </script>
 
 {#if isCommandMode && suggestions.length > 0}
-  <div
-    class="mx-auto max-w-2xl bg-background border border-border rounded-t-lg shadow-lg"
-  >
+  <div class="mx-auto max-w-2xl bg-background border border-border rounded-t-lg shadow-lg">
     <div class="max-h-48 overflow-y-auto">
       {#each suggestions as suggestion, index (suggestion.cmd)}
         <button
@@ -200,10 +220,7 @@
 <div class="bg-background border-t border-border">
   <div class="flex items-center px-4 py-2">
     <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-      <span
-        class:text-green-500={isHistoryVisible}
-        class:text-muted-foreground={!isHistoryVisible}
-      >
+      <span class:text-green-500={isHistoryVisible} class:text-muted-foreground={!isHistoryVisible}>
         {isHistoryVisible ? 'HISTORY' : 'NO HISTORY'}
       </span>
       <span>NORMAL</span>
@@ -216,11 +233,11 @@
             class="group flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono bg-muted/50 hover:bg-muted border border-border/50 rounded transition-all hover:border-primary/50"
           >
             <span class="text-foreground group-hover:text-primary transition-colors"
-            >{qCmd.label}</span
+              >{qCmd.label}</span
             >
             <span
               class="text-[10px] text-muted-foreground/70 group-hover:text-primary/70 transition-colors"
-            >{qCmd.icon}</span
+              >{qCmd.icon}</span
             >
           </button>
         {/each}

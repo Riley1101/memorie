@@ -54,7 +54,8 @@ pub async fn run() {
 
     let model = Model::new(default_model_path);
 
-    let mut builder = tauri::Builder::default().setup(|app| {
+    let mut builder = tauri::Builder::default()
+        .setup(|app| {
         let app_handle = app.handle().clone();
         let app_state = AppState {
             config: Mutex::new(app_config),

@@ -33,7 +33,6 @@ impl Memory {
     /// This function initializes a local SurrealDB instance, sets the namespace,
     /// and builds a document table configured to store embeddings in a separate file.
     pub async fn new() -> Result<Self, MemoryError> {
-
         // TODO! Make the path configurable via app settings
         let root_dir = utils::get_app_dir()?.join("db/memory/");
 
