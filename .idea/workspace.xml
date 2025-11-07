@@ -12,24 +12,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Wip added undo tree">
-      <change afterPath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/lib/typedefs.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/commands.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/commands.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/llm.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/llm.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/undotree.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/undotree.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/workers.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/workers.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/runes/fs.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/fs.svelte.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/routes/+layout.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/+layout.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+layout.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+layout.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -188,6 +171,7 @@
       <workItem from="1762294922047" duration="4918000" />
       <workItem from="1762549628938" duration="2397000" />
       <workItem from="1762552037591" duration="1654000" />
+      <workItem from="1762553965884" duration="24000" />
     </task>
     <task id="LOCAL-00001" summary="Add semantic chunker">
       <option name="closed" value="true" />
