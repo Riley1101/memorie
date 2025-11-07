@@ -10,21 +10,17 @@
   let { data, children } = $props();
   let { content, fileName } = $derived(data);
 
-  let ui = $derived(appState.ui);
 
   $effect(() => {
     memoryManager.setContext(content, fileName);
   });
 </script>
 
-<ScrollArea class="h-dvh w-full relative">
-  {@render children()}
-</ScrollArea>
+{@render children()}
 
 <Drawer.Root
-
   bind:open={() => appState.ui.isChatOpen, (newOpen) => {
-    appState.toggleAiChat()
+    appState.toggleAiChat(newOpen);
   }}
   direction="right" class="absolute top-0 right-0 h-dvh"
 >

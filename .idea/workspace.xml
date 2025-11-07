@@ -11,24 +11,23 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Add editor command bar and refactor layout for improved user interaction">
-      <change afterPath="$PROJECT_DIR$/src/lib/components/undotree.svelte" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/lib/runes/editor.svelte.js" afterDir="false" />
+    <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Wip added undo tree">
+      <change afterPath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/lib/typedefs.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/commands.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/commands.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src-tauri/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src-tauri/src/llm.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/llm.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src-tauri/src/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/memory.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat-modal.svelte" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/undotree.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/undotree.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/workers.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/workers.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat-stream.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/md-editor.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/md-editor.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/md-toolbar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/md-toolbar.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/nav-favorites.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/nav-favorites.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/nav-main.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/nav-main.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib/components/sidebar-left.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/sidebar-left.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/runes/fs.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/fs.svelte.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/llm.svelte.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/routes/+layout.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/+layout.svelte" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/routes/+page.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/+page.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+layout.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+layout.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" afterDir="false" />
     </list>
@@ -47,8 +46,9 @@
         <option value="+layout.svelte" />
         <option value="AiChat.svelte" />
         <option value="EditorCommandBar" />
-        <option value="JavaScript File" />
         <option value="undotree" />
+        <option value="editor-history" />
+        <option value="JavaScript File" />
       </list>
     </option>
   </component>
@@ -184,7 +184,10 @@
       <workItem from="1761707862533" duration="13000" />
       <workItem from="1761716707440" duration="952000" />
       <workItem from="1762135140124" duration="6234000" />
-      <workItem from="1762230181881" duration="4586000" />
+      <workItem from="1762230181881" duration="5646000" />
+      <workItem from="1762294922047" duration="4918000" />
+      <workItem from="1762549628938" duration="2397000" />
+      <workItem from="1762552037591" duration="1654000" />
     </task>
     <task id="LOCAL-00001" summary="Add semantic chunker">
       <option name="closed" value="true" />
@@ -330,7 +333,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762140171573</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="Wip added undo tree">
+      <option name="closed" value="true" />
+      <created>1762234943957</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1762234943957</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -374,7 +385,8 @@
     <MESSAGE value="Add input group button component with size variants" />
     <MESSAGE value="Refactor layout and editor components for improved structure and styling" />
     <MESSAGE value="Add editor command bar and refactor layout for improved user interaction" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add editor command bar and refactor layout for improved user interaction" />
+    <MESSAGE value="Wip added undo tree" />
+    <option name="LAST_COMMIT_MESSAGE" value="Wip added undo tree" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

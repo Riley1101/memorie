@@ -68,7 +68,8 @@ impl Model {
 
         let model = Llama::new_chat().await?;
 
-        let mut chat = model.chat();
+        let mut chat = model.chat()
+            .with_system_prompt("You are a helpful assistant.");
 
         if let Some(old_session) = std::fs::read(&session_cache_path)
             .ok()

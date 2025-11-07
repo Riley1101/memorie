@@ -3,17 +3,8 @@
 
   import { llmManager } from '@/runes/llm.svelte.js';
   import * as Chat from '$lib/components/ui/chat';
-  import { onDestroy, onMount } from 'svelte';
   import { marked } from 'marked';
   import { sanitizeMarkdown } from '$lib/utils';
-
-  onMount(() => {
-    llmManager.setupListeners();
-  });
-
-  onDestroy(() => {
-    llmManager.destroy();
-  });
 </script>
 
 <Chat.List class="dark">

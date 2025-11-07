@@ -1,9 +1,12 @@
 <script>
-  import SidebarLeft from '$lib/components/sidebar-left.svelte';
-  import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-  import { fileManager } from '$lib/runes/fs.svelte';
   import '../app.css';
+  import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+  import SidebarLeft from '$lib/components/sidebar-left.svelte';
+
   import { appState } from '@/runes/app.svelte.js';
+  import { fileManager } from '$lib/runes/fs.svelte';
+  import { llmManager } from '@/runes/llm.svelte.js';
+  import { onDestroy, onMount } from 'svelte';
 
   /**
    * Initializes the file manager and retrieves the list of files.
@@ -11,6 +14,14 @@
   fileManager.getRecents();
 
   let { children } = $props();
+
+  onMount(() => {
+    llmManager.setupListeners();
+  });
+
+  onDestroy(() => {
+    llmManager.destroy();
+  });
 </script>
 
 <div class="dark font-writer font-normal w-full h-screen">

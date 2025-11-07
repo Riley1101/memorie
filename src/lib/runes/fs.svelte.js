@@ -20,21 +20,6 @@ const rs_commands = {
   getRecents: async () => {
     return await invoke('list_recents');
   },
-  /**
-   * @param {string} name - The name of the file to read.
-   * @returns {Promise<string>}
-   */
-  readFile: async (name) => {
-    return await invoke('read_file', { name });
-  },
-  /**
-   * @param {string} path - The path of the file to save.
-   * @param {string} content - The content to write to the file.
-   * @returns {Promise<string>}
-   */
-  saveFile: async (path, content) => {
-    return await invoke('save_file', { path, content });
-  },
 };
 
 /**
@@ -139,6 +124,25 @@ class FileManager {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  /**
+   * Undoes the last change made to the specified file.
+   * @async
+   * @param {string} fileName - The name of the file to undo the last change for.
+   * @returns {Promise<void>}
+   */
+  async undoFile(fileName){
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('undo_file', { name: fileName });
+    }catch (err) {
+      this.errorMessage = `Failed to undo last change for file "${fileName}": ${err}`;
+      console.error(err);
+    }
+
   }
 }
 

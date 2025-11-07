@@ -50,7 +50,7 @@
   ];
 
   const quickCommands = [
-    {cmd: ":d", label:"Sidebar", icon:"⌘B"},
+    { cmd: ':d', label: 'Sidebar', icon: '⌘B' },
     { cmd: ':u', label: 'History', icon: '⌘U' },
     { cmd: ':w', label: 'Save', icon: '⌘S' },
     { cmd: ':q', label: 'Close', icon: '⌘Q' },
@@ -71,7 +71,7 @@
       suggestions = commands.filter(
         (cmd) =>
           cmd.cmd.startsWith(input) ||
-          cmd.description.toLowerCase().includes(input.slice(1).toLowerCase())
+          cmd.description.toLowerCase().includes(input.slice(1).toLowerCase()),
       );
       selectedIndex = 0;
     } else {
@@ -118,7 +118,7 @@
 
     switch (command.action) {
       case 'toggleHistory':
-        appState.TOGGLECHATHISTORY();
+        appState.toggleChatHistory();
         break;
       case 'sidebar':
         appState.toggleSidebar(!appState.ui.isSidebarOpen);
@@ -132,7 +132,7 @@
         }
         break;
       case 'close':
-          goto(resolve('/'));
+        goto(resolve('/'));
         break;
       case 'saveAndClose':
         if (fileName) {
@@ -197,71 +197,70 @@
     }, 200);
   }
 </script>
-
-{#if isCommandMode && suggestions.length > 0}
-  <div class="mx-auto max-w-2xl bg-background border border-border rounded-t-lg shadow-lg">
-    <div class="max-h-48 overflow-y-auto">
-      {#each suggestions as suggestion, index (suggestion.cmd)}
-        <button
-          onclick={() => executeCommand(suggestion.cmd)}
-          class="w-full px-4 py-2 text-left text-sm font-mono flex items-center justify-between transition-colors"
-          class:bg-muted={index === selectedIndex}
-          class:text-foreground={index === selectedIndex}
-          class:text-muted-foreground={index !== selectedIndex}
-        >
-          <span class="font-semibold">{suggestion.cmd}</span>
-          <span class="text-xs">{suggestion.description}</span>
-        </button>
-      {/each}
-    </div>
-  </div>
-{/if}
-
-<div class="bg-background border-t border-border">
-  <div class="flex items-center px-4 py-2">
-    <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-      <span class:text-green-500={isHistoryVisible} class:text-muted-foreground={!isHistoryVisible}>
-        {isHistoryVisible ? 'HISTORY' : 'NO HISTORY'}
-      </span>
-      <span>NORMAL</span>
-
-      <span class="text-muted-foreground/50">|</span>
-      <div class="flex items-center gap-2">
-        {#each quickCommands as qCmd (qCmd.cmd)}
+  {#if isCommandMode && suggestions.length > 0}
+    <div class="mx-auto max-w-2xl bg-background border border-border rounded-t-lg shadow-lg">
+      <div class="max-h-48 overflow-y-auto">
+        {#each suggestions as suggestion, index (suggestion.cmd)}
           <button
-            onclick={() => handleQuickCommand(qCmd.cmd)}
-            class="group flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono bg-muted/50 hover:bg-muted border border-border/50 rounded transition-all hover:border-primary/50"
+            onclick={() => executeCommand(suggestion.cmd)}
+            class="w-full px-4 py-2 text-left text-sm font-mono flex items-center justify-between transition-colors"
+            class:bg-muted={index === selectedIndex}
+            class:text-foreground={index === selectedIndex}
+            class:text-muted-foreground={index !== selectedIndex}
           >
-            <span class="text-foreground group-hover:text-primary transition-colors"
-              >{qCmd.label}</span
-            >
-            <span
-              class="text-[10px] text-muted-foreground/70 group-hover:text-primary/70 transition-colors"
-              >{qCmd.icon}</span
-            >
+            <span class="font-semibold">{suggestion.cmd}</span>
+            <span class="text-xs">{suggestion.description}</span>
           </button>
         {/each}
       </div>
     </div>
+  {/if}
 
-    {#if isCommandMode}
-      <form onsubmit={handleSubmit} class="flex-1 ml-4">
-        <input
-          bind:this={inputRef}
-          type="text"
-          bind:value={input}
-          onkeydown={handleInputKeyDown}
-          onblur={handleBlur}
-          placeholder="Enter command..."
-          class="w-full bg-transparent font-mono text-sm outline-none text-foreground"
-        />
-      </form>
-    {/if}
+  <div class="bg-background border-t border-border">
+    <div class="flex items-center px-4 py-2">
+      <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground">
+      <span class:text-green-500={isHistoryVisible} class:text-muted-foreground={!isHistoryVisible}>
+        {isHistoryVisible ? 'HISTORY' : 'NO HISTORY'}
+      </span>
+        <span>NORMAL</span>
 
-    <div class="ml-auto text-xs font-mono text-muted-foreground">
-      <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">:</kbd> command
-      <span class="mx-2">|</span>
-      <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">ESC</kbd> cancel
+        <span class="text-muted-foreground/50">|</span>
+        <div class="flex items-center gap-2">
+          {#each quickCommands as qCmd (qCmd.cmd)}
+            <button
+              onclick={() => handleQuickCommand(qCmd.cmd)}
+              class="group flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono bg-muted/50 hover:bg-muted border border-border/50 rounded transition-all hover:border-primary/50"
+            >
+            <span class="text-foreground group-hover:text-primary transition-colors"
+            >{qCmd.label}</span
+            >
+              <span
+                class="text-[10px] text-muted-foreground/70 group-hover:text-primary/70 transition-colors"
+              >{qCmd.icon}</span
+              >
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      {#if isCommandMode}
+        <form onsubmit={handleSubmit} class="flex-1 ml-4">
+          <input
+            bind:this={inputRef}
+            type="text"
+            bind:value={input}
+            onkeydown={handleInputKeyDown}
+            onblur={handleBlur}
+            placeholder="Enter command..."
+            class="w-full bg-transparent font-mono text-sm outline-none text-foreground"
+          />
+        </form>
+      {/if}
+
+      <div class="ml-auto text-xs font-mono text-muted-foreground">
+        <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">:</kbd> command
+        <span class="mx-2">|</span>
+        <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">ESC</kbd> cancel
+      </div>
     </div>
   </div>
-</div>

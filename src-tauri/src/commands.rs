@@ -88,6 +88,15 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     file.read_content().map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn get_file_history(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<Option<super::undotree::History>, String> {
+    let undo_tree = state.undotree.lock().await;
+    Ok(undo_tree.get_history(&name).cloned())
+}
+
 /**
  *  LLM Commands
  */
@@ -130,11 +139,11 @@ pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<Uui
     Ok(job_id)
 }
 #[tauri::command]
-pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<bool, String> {
     if let Some((_, token)) = state.workers.cancellation_tokens.remove(&job_id) {
         token.cancel();
     }
-    Ok(())
+    Ok(true)
 }
 
 #[tauri::command]
@@ -208,4 +217,25 @@ pub async fn get_chat_sessions(
         .await
         .map_err(|e| e.to_string())?;
     Ok(sessions)
+}
+
+
+/**
+ *  UNDO TREE Commands
+ */
+#[tauri::command]
+pub async fn undo_file(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let config = state.config.lock().await;
+    let mut undo_tree = state.undotree.lock().await;
+    if let Some(previous_content) = undo_tree.undo(&name) {
+        undo_tree
+            .save(&config.undotree_dir)
+            .map_err(|e| e.to_string())?;
+        Ok(Some(previous_content))
+    } else {
+        Ok(None)
+    }
 }

@@ -2,6 +2,7 @@
   import * as InputGroup from '$lib/components/ui/input-group/index.js';
   import { Separator } from '$lib/components/ui/separator/index.js';
   import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
+  import PauseIcon from '@lucide/svelte/icons/pause';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
@@ -35,9 +36,19 @@
       variant="default"
       class="ml-auto rounded-full"
       size="icon-xs"
-      onclick={handleSubmit}
+      onclick={()=>{
+        if (llmManager.isLoading){
+          llmManager.cancelMessage()
+          return;
+        }
+        handleSubmit();
+      }}
     >
-      <ArrowUpIcon />
+      {#if llmManager.isLoading}
+        <PauseIcon />
+      {:else}
+        <ArrowUpIcon />
+      {/if}
       <span class="sr-only">Send</span>
     </InputGroup.Button>
   </InputGroup.Addon>

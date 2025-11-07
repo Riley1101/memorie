@@ -13,6 +13,7 @@ const LLM_EVENTS = {
 
 const LLM_INVOKE = {
   CHAT: 'run_chat',
+  CANCEL_CHAT: 'cancel_chat',
 };
 
 /**
@@ -30,7 +31,7 @@ const LLM_INVOKE = {
  */
 export class LlmManager {
   /** @type string | null- unique worker ID **/
-  workerId = null;
+  workerId = $state(null);
 
   /** @type Message[] - array of messages **/
   messages = $state([]);
@@ -76,7 +77,7 @@ export class LlmManager {
    */
   async sendMessage(prompt) {
     if (this.isLoading || !prompt.trim()) {
-      return; // Prevent sending empty messages or multiple requests
+      return;
     }
     this.isLoading = true;
     this.error = null;
@@ -92,6 +93,17 @@ export class LlmManager {
       this.error = `An error occurred: ${e}`;
       this.isLoading = false;
       this.messages.pop();
+    }
+  }
+
+  async cancelMessage() {
+    if (this.workerId) {
+      let status = await invoke(LLM_INVOKE.CANCEL_CHAT, { jobId: this.workerId });
+      if (status){
+        this.isLoading = false;
+        this.workerId = null;
+        this.messages.pop();
+      }
     }
   }
 
