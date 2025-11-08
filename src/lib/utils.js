@@ -28,6 +28,7 @@ export function formatFileName(name) {
  * Sanitize Markdown text before rendering.
  * - Removes malicious or unwanted HTML.
  * - Normalizes line breaks and whitespace.
+ * @param {string} md - Markdown text
  */
 export function sanitizeMarkdown(md) {
   if (!md) return '';

@@ -132,18 +132,36 @@ class FileManager {
    * @param {string} fileName - The name of the file to undo the last change for.
    * @returns {Promise<void>}
    */
-  async undoFile(fileName){
+  async undoFile(fileName) {
     this.isLoading = true;
     this.errorMessage = '';
 
     try {
       const result = await invoke('undo_file', { name: fileName });
       console.log(`Undo result for file "${fileName}":`, result);
-    }catch (err) {
+    } catch (err) {
       this.errorMessage = `Failed to undo last change for file "${fileName}": ${err}`;
       console.error(err);
     }
+  }
 
+  /**
+   * Redoes the last undone change for the specified file.
+   * @async
+   * @param {string} fileName - The name of the file to redo the last undone change for.
+   * @returns {Promise<void>}
+   */
+  async redoFile(fileName) {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      const result = await invoke('redo_file', { name: fileName });
+      console.log(`Redo result for file "${fileName}":`, result);
+    } catch (err) {
+      this.errorMessage = `Failed to redo last undone change for file "${fileName}": ${err}`;
+      console.error(err);
+    }
   }
 }
 

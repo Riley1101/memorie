@@ -82,6 +82,21 @@ pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(),
 
 #[tauri::command]
 pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<String, String> {
+    let undo_tree = state.undotree.lock().await;
+
+    if let Some(history) = undo_tree.get_history(&name) {
+        if let Some(current_index) = history.current {
+            if let Some(current_node) = history.nodes.get(current_index.0) {
+                // Found history, return the current node's content
+                return Ok(current_node.content.clone());
+            }
+        }
+    }
+
+    // Drop the lock on the undo_tree before acquiring the config lock
+    drop(undo_tree);
+
+    // Fallback: If no history exists or it's empty, read from the file
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
     let file = File { path, name };
@@ -219,15 +234,12 @@ pub async fn get_chat_sessions(
     Ok(sessions)
 }
 
-
 /**
  *  UNDO TREE Commands
  */
+
 #[tauri::command]
-pub async fn undo_file(
-    name: String,
-    state: State<'_, AppState>,
-) -> Result<Option<String>, String> {
+pub async fn undo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
     let config = state.config.lock().await;
     let mut undo_tree = state.undotree.lock().await;
     if let Some(previous_content) = undo_tree.undo(&name) {
@@ -235,6 +247,38 @@ pub async fn undo_file(
             .save(&config.undotree_dir)
             .map_err(|e| e.to_string())?;
         Ok(Some(previous_content))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub async fn redo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let config = state.config.lock().await;
+    let mut undo_tree = state.undotree.lock().await;
+    if let Some(next_content) = undo_tree.redo(&name) {
+        undo_tree
+            .save(&config.undotree_dir)
+            .map_err(|e| e.to_string())?;
+        Ok(Some(next_content))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub async fn goto_file_version(
+    name: String,
+    node_id: usize,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let config = state.config.lock().await;
+    let mut undo_tree = state.undotree.lock().await;
+    if let Some(content) = undo_tree.goto_version(&name, node_id) {
+        undo_tree
+            .save(&config.undotree_dir)
+            .map_err(|e| e.to_string())?;
+        Ok(Some(content))
     } else {
         Ok(None)
     }

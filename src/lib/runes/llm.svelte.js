@@ -99,7 +99,7 @@ export class LlmManager {
   async cancelMessage() {
     if (this.workerId) {
       let status = await invoke(LLM_INVOKE.CANCEL_CHAT, { jobId: this.workerId });
-      if (status){
+      if (status) {
         this.isLoading = false;
         this.workerId = null;
         this.messages.pop();

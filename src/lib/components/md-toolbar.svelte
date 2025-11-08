@@ -35,7 +35,11 @@
       >
         <UnderlineIcon class="h-4 w-4" />
       </Button>
-      <Button variant="outline" aria-label="Toggle Ai chat" onclick={() => appState.toggleAiChat(!appState.ui.isChatOpen)}>
+      <Button
+        variant="outline"
+        aria-label="Toggle Ai chat"
+        onclick={() => appState.toggleAiChat(!appState.ui.isChatOpen)}
+      >
         <SparklesIcon class="h-4 w-4" />
       </Button>
     </ButtonGroup.Root>

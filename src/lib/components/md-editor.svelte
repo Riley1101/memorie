@@ -5,7 +5,6 @@
   import StarterKit from '@tiptap/starter-kit';
   import { Editor } from '@tiptap/core';
   import { onMount, onDestroy } from 'svelte';
-  import { Markdown } from '@tiptap/markdown';
   import MdToolbar from './md-toolbar.svelte';
   import { Input } from '@/components/ui/input/index.js';
   import { editorState } from '$lib/runes/editor.svelte.js';
@@ -28,7 +27,6 @@
         Color.configure({ types: [TextStyle.name, ListItem.name] }),
         TextStyle.configure({ types: [ListItem.name] }),
         StarterKit,
-        Markdown,
       ],
       content: content || [],
       onTransaction: ({ editor: e }) => {

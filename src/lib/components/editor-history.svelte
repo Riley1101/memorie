@@ -13,25 +13,33 @@
    * @property {number[]} redo_stack - A transient stack of indices for managing linear redo.
    */
 
-  import { Button } from '$lib/components/ui/button/index.js';
-  import { fileManager } from '$lib/runes/fs.svelte';
+  import HistoryIcon from '@lucide/svelte/icons/history';
+  import TreeNode from './treeview/treenode.svelte';
 
   /** @type {{ fileName:string , history: History}} */
   let { fileName, history } = $props();
 
-  function handleUndo() {
-    fileManager.undoFile(fileName);
-  }
+  let allNodes = $derived(history.nodes);
 
+  let rootId = -1;
+
+  let rootNode = allNodes.find((node, index) => {
+    if (node.parent === null) {
+      rootId = index;
+      return true;
+    }
+    return false;
+  });
 </script>
 
-<div class="w-full p-2">
-  <Button onclick={handleUndo} disabled={history.current === null} class="mb-2">
-    Undo
-  </Button>
-  <code>
-    <pre>
-      {JSON.stringify(history, null, 2)}
-    </pre>
-  </code>
+<div class="p-5 pb-[50vh]">
+  <div class="flex items-center gap-2 mb-4 text-muted-foreground">
+    <HistoryIcon class="size-5 " />
+    <h2 class="mt-1">Undotree</h2>
+  </div>
+  <div class="pl-2">
+    {#if rootNode}
+      <TreeNode id={rootId} node={rootNode} {allNodes} current={history.current} {fileName} />
+    {/if}
+  </div>
 </div>
