@@ -8,8 +8,8 @@
 
   /** @type {import("./$types").LayoutProps} */
   let { data, children } = $props();
-  let { content, fileName } = $derived(data);
 
+  let { content, fileName } = $derived(data);
 
   $effect(() => {
     memoryManager.setContext(content, fileName);
@@ -19,10 +19,14 @@
 {@render children()}
 
 <Drawer.Root
-  bind:open={() => appState.ui.isChatOpen, (newOpen) => {
-    appState.toggleAiChat(newOpen);
-  }}
-  direction="right" class="absolute top-0 right-0 h-dvh"
+  bind:open={
+    () => appState.ui.isChatOpen,
+    (newOpen) => {
+      appState.toggleAiChat(newOpen);
+    }
+  }
+  direction="right"
+  class="absolute top-0 right-0 h-dvh"
 >
   <Drawer.Content class="dark text-foreground md:min-w-[600px] font-serif">
     <ScrollArea class="w-full h-[calc(100dvh-140px)] p-4 pb-0">

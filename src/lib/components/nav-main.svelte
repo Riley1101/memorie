@@ -18,7 +18,7 @@
     </Sidebar.MenuButton>
   </Sidebar.MenuItem>
   <Sidebar.MenuItem>
-    <Sidebar.MenuButton onclick={()=>appState.toggleAiChat(!appState.ui.isChatOpen)}>
+    <Sidebar.MenuButton onclick={() => appState.toggleAiChat(!appState.ui.isChatOpen)}>
       <SparklesIcon />
       AI Search
     </Sidebar.MenuButton>

@@ -6,26 +6,26 @@ use std::path::Path;
 
 // Represents a single state in the history tree.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-struct Node {
-    content: String,
+pub struct Node {
+    pub content: String,
     // The parent node (the state we came from).
     // `None` for the root node.
-    parent: Option<NodeIndex>,
+    pub parent: Option<NodeIndex>,
     // Child nodes (states that come after this one).
     // Can be more than one, creating branches.
-    children: Vec<NodeIndex>,
+    pub children: Vec<NodeIndex>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-struct NodeIndex(usize);
+pub struct NodeIndex(pub usize);
 
 // Represents the complete change history for a single file.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct History {
     // All nodes (states) are stored in an arena-like vector.
-    nodes: Vec<Node>,
+    pub nodes: Vec<Node>,
     // Points to the current state's index in `nodes`.
-    current: Option<NodeIndex>,
+    pub current: Option<NodeIndex>,
     // A transient stack to manage linear redo.
     // We `skip` serializing this, as it's runtime state.
     #[serde(skip)]
@@ -71,33 +71,27 @@ impl UndoTree {
     pub fn add_change(&mut self, file_name: &str, content: &str) {
         let history = self.entries.entry(file_name.to_string()).or_default();
 
-        // Don't add if content is identical to the current state.
         if let Some(current_index) = history.current {
             if history.nodes[current_index.0].content == content {
                 return;
             }
         }
 
-        // Create the new node
         let new_node = Node {
             content: content.to_string(),
-            parent: history.current, // Parent is the current node
+            parent: history.current,
             children: Vec::new(),
         };
 
-        // Add node to the arena
         let new_index = NodeIndex(history.nodes.len());
         history.nodes.push(new_node);
 
-        // Link this new node as a child of its parent
         if let Some(current_index) = history.current {
             history.nodes[current_index.0].children.push(new_index);
         }
 
-        // The new node is now the current state
         history.current = Some(new_index);
 
-        // A new change invalidates the old redo stack.
         history.redo_stack.clear();
     }
 
@@ -110,42 +104,43 @@ impl UndoTree {
             if let Some(current_index) = history.current {
                 let current_node = &history.nodes[current_index.0];
 
-                // Check if a parent exists
                 if let Some(parent_index) = current_node.parent {
-                    // Move current pointer to the parent
                     history.current = Some(parent_index);
-                    // Push the node we *just left* onto the redo stack
                     history.redo_stack.push(current_index);
-                    // Return the parent's content
                     return Some(history.nodes[parent_index.0].content.clone());
                 }
             }
         }
-        // No current node or no parent node, can't undo
         None
     }
 
     pub fn redo(&mut self, file_name: &str) -> Option<String> {
         if let Some(history) = self.entries.get_mut(file_name) {
-            // Check if there's anything on the redo stack
             if let Some(redo_index) = history.redo_stack.pop() {
                 let node_to_redo_to = &history.nodes[redo_index.0];
-
-                // Check if the node to redo to is a valid child of current
                 if node_to_redo_to.parent == history.current {
-                    // It's valid. Move current pointer forward.
                     history.current = Some(redo_index);
                     return Some(node_to_redo_to.content.clone());
                 } else {
-                    // Invalid stack (e.g., branch changed). Clear it.
-                    // Push the popped item back, since it was invalid.
                     history.redo_stack.push(redo_index);
                     history.redo_stack.clear();
                     return None;
                 }
             }
         }
-        // Redo stack is empty
+        None
+    }
+
+    pub fn goto_version(&mut self, file_name: &str, target_node_index: usize) -> Option<String> {
+        if let Some(history) = self.entries.get_mut(file_name) {
+            if target_node_index < history.nodes.len() {
+                let target_index = NodeIndex(target_node_index);
+                history.current = Some(target_index);
+
+                history.redo_stack.clear();
+                return Some(history.nodes[target_index.0].content.clone());
+            }
+        }
         None
     }
 
@@ -157,9 +152,9 @@ impl UndoTree {
 #[cfg(test)]
 mod undotree_tests {
     use super::*;
-    use tempfile::tempdir;
     use std::fs;
     use std::io;
+    use tempfile::tempdir;
 
     #[test]
     fn test_new_undo_tree_is_empty() {
@@ -215,12 +210,18 @@ mod undotree_tests {
         let undone_content = tree.undo("file1.txt").unwrap();
         // State is "first", current=0, redo_stack=[1]
         assert_eq!(undone_content, "first");
-        assert_eq!(tree.entries.get("file1.txt").unwrap().current, Some(NodeIndex(0)));
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(0))
+        );
 
         let redone_content = tree.redo("file1.txt").unwrap();
         // State is "second", current=1, redo_stack=[]
         assert_eq!(redone_content, "second");
-        assert_eq!(tree.entries.get("file1.txt").unwrap().current, Some(NodeIndex(1)));
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(1))
+        );
     }
 
     #[test]
@@ -235,7 +236,10 @@ mod undotree_tests {
         // Try to undo past the root
         assert!(tree.undo("file1.txt").is_none());
         // State is still "first", current=0
-        assert_eq!(tree.entries.get("file1.txt").unwrap().current, Some(NodeIndex(0)));
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(0))
+        );
     }
 
     #[test]
@@ -246,7 +250,10 @@ mod undotree_tests {
 
         // No undo has been performed, so redo should be None
         assert!(tree.redo("file1.txt").is_none());
-        assert_eq!(tree.entries.get("file1.txt").unwrap().current, Some(NodeIndex(1)));
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(1))
+        );
     }
 
     #[test]
@@ -303,7 +310,7 @@ mod undotree_tests {
         let mut tree_to_save = UndoTree::new();
         tree_to_save.add_change("file1.txt", "hello"); // Node 0
         tree_to_save.add_change("file1.txt", "world"); // Node 1
-        tree_to_save.add_change("file2.txt", "test");  // Node 0 (file 2)
+        tree_to_save.add_change("file2.txt", "test"); // Node 0 (file 2)
         tree_to_save.undo("file1.txt"); // file1: current=0, redo_stack=[1]
 
         tree_to_save.save(&file_path)?;
@@ -331,7 +338,6 @@ mod undotree_tests {
         assert_eq!(history2_saved.nodes, history2_loaded.nodes);
         assert_eq!(history2_saved.current, history2_loaded.current);
         assert_eq!(history2_loaded.current, Some(NodeIndex(0)));
-
 
         dir.close()?;
         Ok(())
@@ -400,5 +406,68 @@ mod undotree_tests {
 
         dir.close()?;
         Ok(())
+    }
+    #[test]
+    fn test_goto_version() {
+        let mut tree = UndoTree::new();
+        tree.add_change("file1.txt", "a"); // Node 0
+        tree.add_change("file1.txt", "b"); // Node 1
+        tree.add_change("file1.txt", "c"); // Node 2
+
+        // State is "c", current=2
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(2))
+        );
+
+        // 1. Test jump to beginning
+        let content_a = tree.goto_version("file1.txt", 0).unwrap();
+        assert_eq!(content_a, "a");
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(0))
+        );
+
+        // 2. Test jump to end
+        let content_c = tree.goto_version("file1.txt", 2).unwrap();
+        assert_eq!(content_c, "c");
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(2))
+        );
+
+        // 3. Test jump to middle
+        let content_b = tree.goto_version("file1.txt", 1).unwrap();
+        assert_eq!(content_b, "b");
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(1))
+        );
+
+        // 4. Test invalid jump (out of bounds)
+        assert!(tree.goto_version("file1.txt", 99).is_none());
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(1))
+        ); // Current stays at "b"
+
+        // 5. Test invalid file
+        assert!(tree.goto_version("nonexistent.txt", 0).is_none());
+
+        // 6. Test that goto_version clears the redo stack
+        tree.goto_version("file1.txt", 2); // Go to "c"
+        tree.undo("file1.txt"); // Go to "b", current=1, redo_stack=[2]
+        assert!(!tree.entries.get("file1.txt").unwrap().redo_stack.is_empty());
+
+        // Jump to "a". This should clear the redo stack.
+        tree.goto_version("file1.txt", 0);
+        assert_eq!(
+            tree.entries.get("file1.txt").unwrap().current,
+            Some(NodeIndex(0))
+        );
+        assert!(tree.entries.get("file1.txt").unwrap().redo_stack.is_empty());
+
+        // Redo should now fail
+        assert!(tree.redo("file1.txt").is_none());
     }
 }

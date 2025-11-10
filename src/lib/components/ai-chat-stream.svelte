@@ -11,8 +11,7 @@
   {#each llmManager.messages as message, index (index)}
     <Chat.Bubble variant={message.role === 'user' ? 'sent' : 'received'}>
       <Chat.BubbleAvatar>
-        <Chat.BubbleAvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-        <Chat.BubbleAvatarFallback>
+        <Chat.BubbleAvatarFallback class="">
           {message.role}
         </Chat.BubbleAvatarFallback>
       </Chat.BubbleAvatar>

@@ -12,8 +12,8 @@ class AppState {
    */
   ui = $state({
     isChatOpen: false,
-    isHistoryOpen: true,
-    isSidebarOpen: true,
+    isHistoryOpen: false,
+    isSidebarOpen: false,
   });
 
   /**
@@ -50,7 +50,7 @@ class AppState {
   toggleSidebar(state) {
     this.ui = {
       ...this.ui,
-      isSidebarOpen: state
+      isSidebarOpen: state,
     };
   }
 }

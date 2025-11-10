@@ -36,9 +36,9 @@
       variant="default"
       class="ml-auto rounded-full"
       size="icon-xs"
-      onclick={()=>{
-        if (llmManager.isLoading){
-          llmManager.cancelMessage()
+      onclick={() => {
+        if (llmManager.isLoading) {
+          llmManager.cancelMessage();
           return;
         }
         handleSubmit();
