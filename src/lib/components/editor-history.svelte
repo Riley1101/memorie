@@ -19,7 +19,7 @@
   /** @type {{ fileName:string , history: History}} */
   let { fileName, history } = $props();
 
-  let allNodes = $derived(history.nodes);
+  let allNodes = $derived(history?.nodes || []);
 
   let rootId = -1;
 
@@ -39,7 +39,7 @@
   </div>
   <div class="pl-2">
     {#if rootNode}
-      <TreeNode id={rootId} node={rootNode} {allNodes} current={history.current} {fileName} />
+      <TreeNode id={rootId} node={rootNode} {allNodes} current={history?.current} {fileName} />
     {/if}
   </div>
 </div>

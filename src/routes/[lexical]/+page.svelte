@@ -7,6 +7,23 @@
 
   let { data } = $props();
 
+  /**
+   * @typedef {Object} Node
+   * @property {string} content - The text content of this history state.
+   * @property {number | null} parent - The index in the `nodes` array of the parent node.
+   * @property {number[]} children - An array of indices for all child nodes.
+   */
+
+  /**
+   * @typedef {Object} History
+   * @property {Node[]} nodes - An array (arena) holding all node objects for this history.
+   * @property {number | null} current - The index in the `nodes` array of the current state.
+   * @property {number[]} redo_stack - A transient stack of indices for managing linear redo.
+   */
+
+  /**
+   * @type {{fileName: string, content: string, history: History | null}}
+   */
   let { fileName, content, history } = $derived(data);
 
   let body = $derived(content || '');
@@ -22,7 +39,9 @@
       type="scroll"
       class="bg-card absolute lg:relative w-full max-h-[calc(100vh-2.5em)] left-0 top-0 border-r"
     >
-      <EditorHistory {fileName} {history} />
+      {#if history}
+        <EditorHistory {fileName} {history} />
+      {/if}
     </ScrollArea>
   {/if}
 
@@ -35,6 +54,6 @@
   </ScrollArea>
 
   <div class="sticky bottom-0 col-span-3 row-start-2">
-    <EditorCommandbar {fileName} {body} currentVersion={history.current} />
+      <EditorCommandbar {fileName} {body} currentVersion={history?.current || 0} />
   </div>
 </div>

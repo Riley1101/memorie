@@ -12,7 +12,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Wip added undo tree">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -172,6 +175,8 @@
       <workItem from="1762549628938" duration="2397000" />
       <workItem from="1762552037591" duration="1654000" />
       <workItem from="1762553965884" duration="24000" />
+      <workItem from="1762997270239" duration="2375000" />
+      <workItem from="1763062043437" duration="901000" />
     </task>
     <task id="LOCAL-00001" summary="Add semantic chunker">
       <option name="closed" value="true" />
