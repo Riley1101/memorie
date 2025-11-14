@@ -1,6 +1,6 @@
 use kalosm_llama::LlamaSourceError;
+use rbert::{BertError, BertLoadingError};
 use thiserror::Error;
-use kalosm::language::{BertBuilder, Embedder};
 
 #[derive(Error, Debug)]
 pub enum FileError {
@@ -45,6 +45,15 @@ pub enum MemoryError {
 
     #[error("Error getting DB path: {0}")]
     FilePathError(#[from] FileError),
+
+    #[error("Embedding model: Bert error: {0}")]
+    BertModelError(#[from] BertError),
+
+    #[error("Embedding model: Bert Loading Error : {0}")]
+    BertModelLoadingError(#[from] BertLoadingError),
+
+    #[error("Embedding model not loaded")]
+    ModelNotLoaded,
 }
 
 #[derive(Error, Debug)]

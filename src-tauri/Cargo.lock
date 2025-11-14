@@ -4987,6 +4987,7 @@ dependencies = [
  "kalosm",
  "kalosm-common",
  "kalosm-llama",
+ "rbert",
  "serde",
  "serde_json",
  "serde_yaml",

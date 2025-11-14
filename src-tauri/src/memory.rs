@@ -1,7 +1,10 @@
 use super::error::MemoryError;
 use super::utils;
 use chrono::Utc;
-use kalosm::language::{Bert, Document, DocumentTable, DocumentTableSurrealExt, ModelLoadingProgress, SemanticChunker};
+use kalosm::language::{
+    Bert, Document, DocumentTable, DocumentTableSurrealExt, ModelLoadingProgress,EmbedderExt,
+    SemanticChunker,
+};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
 use surrealdb::Surreal;
@@ -31,9 +34,9 @@ pub trait UserMemory {
 pub trait EmbeddingMemory {
     fn document_table(&self) -> &DocumentTable<Db>;
 
-    async fn download_model (&mut self) ->Result<(), MemoryError>;
+    async fn download_model(&mut self) -> Result<(), MemoryError>;
 
-    async fn generate_embeddings(&self) -> Result<(), MemoryError>;
+    async fn generate_embeddings(&self, text: &str) -> Result<(), MemoryError>;
 }
 
 impl Memory {
@@ -58,7 +61,11 @@ impl Memory {
             .build::<Document>()
             .await?;
 
-        Ok(Memory { db,bert:None, document_table })
+        Ok(Memory {
+            db,
+            bert: None,
+            document_table,
+        })
     }
 }
 
@@ -66,7 +73,8 @@ impl EmbeddingMemory for Memory {
     fn document_table(&self) -> &DocumentTable<Db> {
         &self.document_table
     }
-    async fn download_model (&mut self) -> Result<(), MemoryError> {
+
+    async fn download_model(&mut self) -> Result<(), MemoryError> {
         let bert = Bert::builder()
             .build_with_loading_handler(|progress| match &progress {
                 ModelLoadingProgress::Downloading {
@@ -82,9 +90,23 @@ impl EmbeddingMemory for Memory {
                     println!("Loading model {progress}%");
                 }
             })
-            .await.unwrap();
+            .await?;
         self.bert = Some(bert);
         Ok(())
+    }
+
+    async fn generate_embeddings(&self, text: &str) -> Result<(), MemoryError> {
+        if let Some(bert) = &self.bert {
+            let embeddings = bert.embed(text).await;
+            println!("Generated embeddings: {:?}", embeddings);
+
+            // self.document_table
+            //     .generate_embeddings(bert.as_ref())
+            //     .await?;
+            Ok(())
+        } else {
+            Err(MemoryError::ModelNotLoaded)
+        }
     }
 }
 

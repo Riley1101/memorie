@@ -4,7 +4,7 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use super::fs::{self, File};
-use super::memory::UserMemory;
+use super::memory::{UserMemory, EmbeddingMemory};
 use super::workers::{Job, JobStatus};
 use super::AppState;
 
@@ -96,7 +96,6 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     // Drop the lock on the undo_tree before acquiring the config lock
     drop(undo_tree);
 
-    // Fallback: If no history exists or it's empty, read from the file
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
     let file = File { path, name };
@@ -176,8 +175,21 @@ pub async fn get_chat_status(
 /**
  *  RAG Commands
  */
+
+pub async fn create_embedding(
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let memory = state.memory.lock().await;
+    let embedding = memory
+        .generate_embeddings(&content)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
-pub async fn create_embeddings(
+pub async fn create_documents(
     name: String,
     content: String,
     state: State<'_, AppState>,
@@ -192,10 +204,7 @@ pub async fn create_embeddings(
 }
 
 #[tauri::command]
-pub async fn search_embeddings(
-    query: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
+pub async fn search_documents(query: String, state: State<'_, AppState>) -> Result<String, String> {
     let memory = state.memory.lock().await;
 
     let table = &memory.document_table;
