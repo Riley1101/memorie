@@ -2,10 +2,13 @@
   import { tick } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
+  import {cn} from "$lib/utils"
   import { fileManager } from '@/runes/fs.svelte.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { invalidateAll } from '$app/navigation';
+  import {llmManager} from '@/runes/llm.svelte.js';
+  import AiSparkleIcon from "@lucide/svelte/icons/sparkles"
 
   /**
    * @type {{fileName?:string ,body?: string , currentVersion?: number}}
@@ -13,6 +16,8 @@
   let data = $props();
 
   let fileName = $derived(data.fileName);
+
+  let isThinking = $derived(llmManager.isLoading);
 
   /**
    * @description Handles the save action for the editor content.
@@ -243,6 +248,7 @@
 <div class="bg-background border-t border-border">
   <div class="flex items-center px-4 py-2">
     <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground">
+      <AiSparkleIcon class={cn("size-3", isThinking ? "animate-pulse" : "")}/>
       <span class:text-green-500={isHistoryVisible} class:text-muted-foreground={!isHistoryVisible}>
         {isHistoryVisible ? 'HISTORY' : `Version ${data?.currentVersion ?? 0} `}
       </span>

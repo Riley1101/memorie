@@ -1,12 +1,15 @@
 mod commands;
 mod config;
 mod error;
+
+mod prompts;
 mod fs;
 mod llm;
 mod memory;
 mod undotree;
 mod utils;
 mod workers;
+mod responses;
 
 use config::AppConfig;
 use tauri::Manager;

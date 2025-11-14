@@ -23,6 +23,7 @@
 </script>
 
 <div class="flex flex-col gap-2">
+  {JSON.stringify(context)}
   <Button class="max-w-max" size="sm" variant="outline"
           onclick={() => llmManager.newSession()}
   >

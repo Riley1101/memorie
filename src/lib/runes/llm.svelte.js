@@ -4,8 +4,12 @@ import { listen } from '@tauri-apps/api/event';
 /**
  * LLM events
  * @type {{CHAT_IN_PROGRESS: string, COMPLETED: string, Error: string}}
+ *
+ * This enum map directly to ChatEvent enum in Rust backend
+ * @see ./src-tauri/workers.rs
  */
 const LLM_EVENTS = {
+  CHAT_INIT: 'chat-init',
   CHAT_IN_PROGRESS: 'chat-in-progress',
   COMPLETED: 'chat-completed',
   Error: 'chat-error',
@@ -30,7 +34,7 @@ const LLM_INVOKE = {
  * Manages the state and communication for an LLM chat interface in a Tauri app.
  */
 export class LlmManager {
-  /** @type string | null- unique worker ID **/
+  /** @type string | null - unique worker ID **/
   workerId = $state(null);
 
   /** @type Message[] - array of messages **/
@@ -54,6 +58,13 @@ export class LlmManager {
   async setupListeners() {
     console.info('Setting up LLM listeners');
     // Listener for incoming text chunks
+
+    await listen(LLM_EVENTS.CHAT_INIT,(response)=>{
+      if (response.event === "chat-in-progress"){
+        this.isLoading = true;
+      }
+    })
+
     this.unlistenChunk = await listen(LLM_EVENTS.CHAT_IN_PROGRESS, (event) => {
       const chunk = /** @type {string} */ (event.payload.content);
       if (this.messages.length > 0) {
@@ -65,8 +76,10 @@ export class LlmManager {
     });
 
     // Listener for when the stream is complete
-    this.unlistenDone = await listen(LLM_EVENTS.COMPLETED, () => {
-      this.isLoading = false;
+    this.unlistenDone = await listen(LLM_EVENTS.COMPLETED, (response) => {
+      if(response.event === "chat-completed"){
+        this.isLoading = false;
+      }
     });
   }
 
@@ -87,7 +100,10 @@ export class LlmManager {
 
     try {
       /** @type {string} processId */
-      this.workerId = await invoke(LLM_INVOKE.CHAT, { message: prompt });
+      this.workerId = await invoke(LLM_INVOKE.CHAT, {
+        message: prompt ,
+        mode: "Normal"
+      });
     } catch (e) {
       console.error(e);
       this.error = `An error occurred: ${e}`;

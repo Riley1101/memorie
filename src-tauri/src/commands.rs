@@ -1,10 +1,10 @@
-use kalosm::language::Document;
+use kalosm::language::{Chat, Document};
 use tauri::State;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-
+use crate::utils::ChatMode;
 use super::fs::{self, File};
-use super::memory::{UserMemory, EmbeddingMemory};
+use super::memory::UserMemory;
 use super::workers::{Job, JobStatus};
 use super::AppState;
 
@@ -121,8 +121,45 @@ pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
     model.set_loaded_model(llama);
     Ok("Model loaded successfully.".to_string())
 }
+
 #[tauri::command]
-pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<Uuid, String> {
+pub async fn run_autocomplete(message: String,mode:ChatMode, state: State<'_, AppState>) -> Result<Uuid, String> {
+
+    let job_id = Uuid::new_v4();
+    let cancellation_token = CancellationToken::new();
+    let memory = state.memory.lock().await;
+
+    memory
+        .save_chat_session(&job_id.to_string())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let job = Job {
+        mode,
+        id: job_id,
+        message,
+        cancellation_token: cancellation_token.clone(),
+    };
+
+    state
+        .workers
+        .cancellation_tokens
+        .insert(job_id, cancellation_token);
+
+    state.workers.statuses.insert(job_id, JobStatus::Queued);
+    state
+        .workers
+        .sender
+        .send(job)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(job_id)
+}
+
+// TODO! add job type for chat vs autocomplete
+#[tauri::command]
+pub async fn run_chat(message: String, mode: ChatMode , state: State<'_, AppState>) -> Result<Uuid, String> {
     let job_id = Uuid::new_v4();
     let cancellation_token = CancellationToken::new();
     let memory = state.memory.lock().await;
@@ -134,6 +171,7 @@ pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<Uui
 
     let job = Job {
         id: job_id,
+        mode,
         message,
         cancellation_token: cancellation_token.clone(),
     };
@@ -142,6 +180,7 @@ pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<Uui
         .workers
         .cancellation_tokens
         .insert(job_id, cancellation_token);
+
     state.workers.statuses.insert(job_id, JobStatus::Queued);
     state
         .workers
@@ -152,6 +191,7 @@ pub async fn run_chat(message: String, state: State<'_, AppState>) -> Result<Uui
 
     Ok(job_id)
 }
+
 #[tauri::command]
 pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<bool, String> {
     if let Some((_, token)) = state.workers.cancellation_tokens.remove(&job_id) {
@@ -176,18 +216,6 @@ pub async fn get_chat_status(
  *  RAG Commands
  */
 
-pub async fn create_embedding(
-    content: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    let memory = state.memory.lock().await;
-    let embedding = memory
-        .generate_embeddings(&content)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 #[tauri::command]
 pub async fn create_documents(
     name: String,
@@ -198,6 +226,7 @@ pub async fn create_documents(
 
     let table = &memory.document_table;
     let document = Document::from_parts(name, content);
+
     table.insert(document).await.map_err(|e| e.to_string())?;
 
     Ok("Hello".to_string())

@@ -1,3 +1,5 @@
+use super::responses::AutoCompleteResponse;
+use super::utils::ChatMode;
 use dashmap::DashMap;
 use futures::StreamExt;
 use serde::Serialize;
@@ -11,6 +13,7 @@ use uuid::Uuid;
 /// Each job has a unique ID, a message to process, and a cancellation token.
 pub struct Job {
     pub id: Uuid,
+    pub mode: ChatMode,
     pub message: String,
     pub cancellation_token: CancellationToken,
 }
@@ -24,7 +27,7 @@ pub struct LlmEventService {
     pub cancellation_tokens: Arc<DashMap<Uuid, CancellationToken>>,
 }
 
-const MAX_CONCURRENT_LLM_CALLS: usize = 2;
+const MAX_CONCURRENT_LLM_CALLS: usize = 3;
 
 impl LlmEventService {
     /// Creates a new LLM event service.
@@ -35,7 +38,7 @@ impl LlmEventService {
     /// # Returns
     /// A new instance of `LlmEventService`.
     pub fn new(app_handle: AppHandle) -> Self {
-        let (sender, mut receiver) = mpsc::channel::<Job>(100); // Bounded channel for up to 100 queued jobs
+        let (sender, mut receiver) = mpsc::channel::<Job>(100);
         let statuses = Arc::new(DashMap::new());
         let cancellation_tokens = Arc::new(DashMap::new());
 
@@ -58,7 +61,7 @@ impl LlmEventService {
                             statuses_clone.insert(job.id, JobStatus::Cancelled);
                             Err("Cancelled".to_string())
                         }
-                        res = run_chat_worker(app_handle.clone(), job.message.clone(), job.cancellation_token.clone()) => {
+                        res = run_chat_worker(app_handle.clone(), job.message.clone(), job.cancellation_token.clone(), job.mode.clone()) => {
                             res
                         }
                     };
@@ -100,38 +103,59 @@ async fn run_chat_worker(
     app_handle: AppHandle,
     message: String,
     cancellation_token: CancellationToken,
+    mode: ChatMode,
 ) -> Result<String, String> {
     let state: tauri::State<crate::AppState> = app_handle.state();
+
     let model = state.model.lock().await;
+    let response = String::new();
 
-    let mut chat_session = model.run_chat().await.map_err(|e| e.to_string())?;
-    let mut stream = chat_session.add_message(message);
-    let mut response = String::new();
+    if mode == ChatMode::Normal {
+        let mut chat_ression = model.run_chat().await.map_err(|e| e.to_string())?;
+        let mut stream = chat_ression.add_message(message);
 
-    loop {
-        tokio::select! {
-            _ = cancellation_token.cancelled() => {
-                return Err("Chat was cancelled".to_string());
-            }
-            token = stream.next() => {
-                match token {
-                    Some(token) => {
-                        response.push_str(&token);
-                        app_handle
-                            .emit(
-                                ChatEvents::InProgress.as_str(),
-                                ChatStreamInProgress { content: &token },
-                            )
-                            .unwrap();
-                    }
-                    None => {
-                        break;
+        let mut response = String::new();
+        app_handle
+            .emit(ChatEvents::Init.as_str(), "")
+            .map_err(|e| e.to_string())?;
+        loop {
+            tokio::select! {
+                _ = cancellation_token.cancelled() => {
+                    return Err("Chat cancelled".to_string());
+                }
+                token = stream.next() => {
+                    match token {
+                        Some(token) => {
+                            response.push_str(&token);
+                            app_handle
+                                .emit(
+                                    ChatEvents::InProgress.as_str(),
+                                    ChatStreamInProgress { content: &token },
+                                )
+                                .unwrap();
+                        }
+                        None => {
+                            break;
+                        }
                     }
                 }
             }
         }
+    } else {
+        let chat_session = model.run_autocomplete().await.map_err(|e| e.to_string())?;
+        let stream = chat_session(&message);
+        let result = stream.await.map_err(|e| e.to_string())?;
+        app_handle
+            .emit(
+                ChatEvents::InProgress.as_str(),
+                AutoCompleteStreamInProgress {
+                    response: result.clone(),
+                },
+            )
+            .unwrap();
+        app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
     }
-    app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
+
     Ok(response)
 }
 
@@ -143,7 +167,6 @@ pub enum JobStatus {
     Running,
     Completed(String),
     Failed(String),
-
     Cancelled,
 }
 
@@ -151,6 +174,7 @@ pub enum JobStatus {
 /// Includes in-progress updates, completion, and error events.
 /// Each event can be converted to a string representation for emission.
 pub enum ChatEvents {
+    Init,
     InProgress,
     Completed,
     Error,
@@ -159,6 +183,7 @@ pub enum ChatEvents {
 impl ChatEvents {
     pub fn as_str(&self) -> &'static str {
         match self {
+            ChatEvents::Init => "chat-init",
             ChatEvents::InProgress => "chat-in-progress",
             ChatEvents::Completed => "chat-completed",
             ChatEvents::Error => "chat-error",
@@ -170,6 +195,11 @@ impl ChatEvents {
 #[serde(rename_all = "camelCase")]
 pub struct ChatStreamInProgress<'a> {
     pub content: &'a str,
+}
+
+#[derive(Clone, Serialize)]
+pub struct AutoCompleteStreamInProgress {
+    response: AutoCompleteResponse,
 }
 
 /// Events emitted during the model loading lifecycle.

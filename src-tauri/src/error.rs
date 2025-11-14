@@ -43,6 +43,12 @@ pub enum MemoryError {
     #[error("Document table creation error")]
     DocumentCreation(#[from] kalosm::language::DocumentTableCreationError),
 
+    #[error("Document table creation error")]
+    DocumentModify(#[from] kalosm::language::DocumentTableModifyError<BertError>),
+
+    #[error("Document table search error")]
+    DocumentSearchError(#[from] kalosm::language::DocumentTableSearchError<BertError>),
+
     #[error("Error getting DB path: {0}")]
     FilePathError(#[from] FileError),
 
