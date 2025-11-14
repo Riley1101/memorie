@@ -11,10 +11,19 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Wip added undo tree">
+    <list default="true" id="f48971a7-840a-485f-a3f3-1d79619c38e4" name="Changes" comment="Enhance history management by adding type definitions and improving null safety in components">
+      <change afterPath="$PROJECT_DIR$/src/lib/components/ai-context-menu.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/error.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/llm.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/llm.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src-tauri/src/memory.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src-tauri/src/memory.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/ai-chat.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/editor-commandbar.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/editor-history.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/components/sidebar-right.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/components/sidebar-right.svelte" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/app.svelte.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib/runes/memory.svelte.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib/runes/memory.svelte.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+layout.svelte" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/[lexical]/+page.svelte" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -35,6 +44,7 @@
         <option value="undotree" />
         <option value="editor-history" />
         <option value="JavaScript File" />
+        <option value="ai-context-menu" />
       </list>
     </option>
   </component>
@@ -176,7 +186,7 @@
       <workItem from="1762552037591" duration="1654000" />
       <workItem from="1762553965884" duration="24000" />
       <workItem from="1762997270239" duration="2375000" />
-      <workItem from="1763062043437" duration="901000" />
+      <workItem from="1763062043437" duration="7291000" />
     </task>
     <task id="LOCAL-00001" summary="Add semantic chunker">
       <option name="closed" value="true" />
@@ -330,7 +340,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762234943957</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="Enhance history management by adding type definitions and improving null safety in components">
+      <option name="closed" value="true" />
+      <created>1763068363241</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1763068363241</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -375,7 +393,8 @@
     <MESSAGE value="Refactor layout and editor components for improved structure and styling" />
     <MESSAGE value="Add editor command bar and refactor layout for improved user interaction" />
     <MESSAGE value="Wip added undo tree" />
-    <option name="LAST_COMMIT_MESSAGE" value="Wip added undo tree" />
+    <MESSAGE value="Enhance history management by adding type definitions and improving null safety in components" />
+    <option name="LAST_COMMIT_MESSAGE" value="Enhance history management by adding type definitions and improving null safety in components" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

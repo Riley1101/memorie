@@ -29,7 +29,7 @@
   class="absolute top-0 right-0 h-dvh"
 >
   <Drawer.Content class="dark text-foreground md:min-w-[600px] font-serif">
-    <ScrollArea class="w-full h-[calc(100dvh-140px)] p-4 pb-0">
+    <ScrollArea class="w-full h-[calc(100dvh-240px)] p-4 pb-0">
       <AiChatStream />
     </ScrollArea>
     <Drawer.Footer>

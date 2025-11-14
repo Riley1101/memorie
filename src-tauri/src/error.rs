@@ -1,5 +1,6 @@
 use kalosm_llama::LlamaSourceError;
 use thiserror::Error;
+use kalosm::language::{BertBuilder, Embedder};
 
 #[derive(Error, Debug)]
 pub enum FileError {

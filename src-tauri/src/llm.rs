@@ -64,7 +64,7 @@ impl Model {
     ///
     /// Returns a Chat instance.
     pub async fn run_chat(&self) -> Result<Chat<Llama>, LlamaError> {
-        let session_cache_path = self.base_path.clone().join("chat_sessions/");
+        let session_cache_path = self.base_path.clone().join("chat.llama");
 
         let model = Llama::new_chat().await?;
 

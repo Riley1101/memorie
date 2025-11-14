@@ -4,6 +4,7 @@
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
+  import { memoryManager } from '@/runes/memory.svelte.js';
 
   let { data } = $props();
 
@@ -25,6 +26,8 @@
    * @type {{fileName: string, content: string, history: History | null}}
    */
   let { fileName, content, history } = $derived(data);
+
+  let context = $derived(memoryManager.getContext());
 
   let body = $derived(content || '');
 

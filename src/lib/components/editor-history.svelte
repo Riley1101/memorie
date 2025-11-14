@@ -21,7 +21,7 @@
 
   let allNodes = $derived(history?.nodes || []);
 
-  let rootId = -1;
+  let rootId = $state(-1);
 
   let rootNode = allNodes.find((node, index) => {
     if (node.parent === null) {

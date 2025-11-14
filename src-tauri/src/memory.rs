@@ -1,7 +1,7 @@
 use super::error::MemoryError;
 use super::utils;
 use chrono::Utc;
-use kalosm::language::{Document, DocumentTable, DocumentTableSurrealExt, SemanticChunker};
+use kalosm::language::{Bert, Document, DocumentTable, DocumentTableSurrealExt, ModelLoadingProgress, SemanticChunker};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
 use surrealdb::Surreal;
@@ -19,12 +19,21 @@ pub struct ChatSession {
 // A wrapper around the document table for managing RAG memory.
 pub struct Memory {
     db: Surreal<Db>,
+    bert: Option<Bert>,
     pub document_table: DocumentTable<Db>,
 }
 
 pub trait UserMemory {
     async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError>;
     async fn save_chat_session(&self, session_id: &str) -> Result<(), MemoryError>;
+}
+
+pub trait EmbeddingMemory {
+    fn document_table(&self) -> &DocumentTable<Db>;
+
+    async fn download_model (&mut self) ->Result<(), MemoryError>;
+
+    async fn generate_embeddings(&self) -> Result<(), MemoryError>;
 }
 
 impl Memory {
@@ -49,7 +58,33 @@ impl Memory {
             .build::<Document>()
             .await?;
 
-        Ok(Memory { db, document_table })
+        Ok(Memory { db,bert:None, document_table })
+    }
+}
+
+impl EmbeddingMemory for Memory {
+    fn document_table(&self) -> &DocumentTable<Db> {
+        &self.document_table
+    }
+    async fn download_model (&mut self) -> Result<(), MemoryError> {
+        let bert = Bert::builder()
+            .build_with_loading_handler(|progress| match &progress {
+                ModelLoadingProgress::Downloading {
+                    source,
+                    progress: file_loading_progress,
+                } => {
+                    let elapsed = file_loading_progress.start_time.elapsed().as_secs_f32();
+                    let progress = (progress.progress() * 100.0) as u32;
+                    println!("Downloading file {source} {progress}% ({elapsed}s)");
+                }
+                ModelLoadingProgress::Loading { progress } => {
+                    let progress = (progress * 100.0) as u32;
+                    println!("Loading model {progress}%");
+                }
+            })
+            .await.unwrap();
+        self.bert = Some(bert);
+        Ok(())
     }
 }
 

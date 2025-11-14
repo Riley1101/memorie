@@ -44,7 +44,6 @@
     { cmd: ':u', description: 'Toggle history sidebar', action: 'toggleHistory' },
     { cmd: ':w', description: 'Save file', action: 'save' },
     { cmd: ':q', description: 'Close file', action: 'close' },
-    { cmd: ':wq', description: 'Save and close', action: 'saveAndClose' },
     { cmd: ':e', description: 'Edit file', action: 'edit' },
     { cmd: ':d', description: 'Toggle Sidebar', action: 'sidebar' },
     { cmd: ':ai', description: 'Toggle AI', action: 'aichat' },
@@ -56,7 +55,6 @@
     { cmd: ':u', label: 'History', icon: '⌘U' },
     { cmd: ':w', label: 'Save', icon: '⌘S' },
     { cmd: ':q', label: 'Close', icon: '⌘Q' },
-    { cmd: ':wq', label: 'Save & Close', icon: '⌘W' },
   ];
 
   let isCommandMode = $state(false);
