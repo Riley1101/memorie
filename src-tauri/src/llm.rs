@@ -23,6 +23,7 @@ impl Model {
         }
     }
 
+
     // !TODO use model from config
     pub async fn load_model(&self) -> Result<Llama, LlamaError> {
         let root_dir = self.base_path.clone().join("models/");
@@ -75,7 +76,8 @@ impl Model {
 
         let cache = Cache::new(modal_path);
 
-        let llama_source = LlamaSource::deepseek_r1_distill_qwen_1_5b().with_cache(cache);
+        let llama_source = LlamaSource::qwen_2_5_3b_instruct()
+            .with_cache(cache);
 
         let model = Llama::builder()
             .with_source(llama_source)

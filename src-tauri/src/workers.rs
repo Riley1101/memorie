@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::{mpsc, Semaphore};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+use kalosm::language::GenerationParameters;
 
 /// Represents a job to be processed by the LLM event service.
 /// Each job has a unique ID, a message to process, and a cancellation token.
@@ -111,8 +112,15 @@ async fn run_chat_worker(
     let response = String::new();
 
     if mode == ChatMode::Normal {
-        let mut chat_ression = model.run_chat().await.map_err(|e| e.to_string())?;
-        let mut stream = chat_ression.add_message(message);
+        let mut chat_ression =
+            model
+                .run_chat()
+                .await.map_err(|e| e.to_string())?;
+
+        // TODO! Add sampler
+        let mut stream = chat_ression
+            .add_message(message)
+            ;
 
         let mut response = String::new();
         app_handle
@@ -142,7 +150,8 @@ async fn run_chat_worker(
             }
         }
     } else {
-        let chat_session = model.run_autocomplete().await.map_err(|e| e.to_string())?;
+        let chat_session = model.run_autocomplete()
+            .await.map_err(|e| e.to_string())?;
         let stream = chat_session(&message);
         let result = stream.await.map_err(|e| e.to_string())?;
         app_handle
