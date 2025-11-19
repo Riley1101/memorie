@@ -1,5 +1,5 @@
 use kalosm::language::{Parse, Schema};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Response<T> {
@@ -31,23 +31,8 @@ impl<T> Response<T> {
     }
 }
 
-#[derive(Clone, Debug, Parse, Schema)]
+#[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]
 pub struct AutoCompleteResponse {
-    name: String,
-    description: String,
-    age: u8,
+    suggestion: String,
+    options: Vec<String>,
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

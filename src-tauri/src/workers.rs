@@ -147,7 +147,7 @@ async fn run_chat_worker(
         let result = stream.await.map_err(|e| e.to_string())?;
         app_handle
             .emit(
-                ChatEvents::InProgress.as_str(),
+                ChatEvents::AutoComplete.as_str(),
                 AutoCompleteStreamInProgress {
                     response: result.clone(),
                 },
@@ -177,6 +177,7 @@ pub enum ChatEvents {
     Init,
     InProgress,
     Completed,
+    AutoComplete,
     Error,
 }
 
@@ -184,6 +185,7 @@ impl ChatEvents {
     pub fn as_str(&self) -> &'static str {
         match self {
             ChatEvents::Init => "chat-init",
+            ChatEvents::AutoComplete => "chat-autocomplete",
             ChatEvents::InProgress => "chat-in-progress",
             ChatEvents::Completed => "chat-completed",
             ChatEvents::Error => "chat-error",

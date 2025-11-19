@@ -1,5 +1,5 @@
 use super::error::LlamaError;
-use super::prompts::NORMAL_CHAT_PROMPT;
+use super::prompts::{NORMAL_CHAT_PROMPT, WRITING_COPILOT_PROMPT};
 use super::responses::AutoCompleteResponse;
 use crate::utils;
 use kalosm::language::*;
@@ -75,7 +75,7 @@ impl Model {
 
         let cache = Cache::new(modal_path);
 
-        let llama_source = LlamaSource::deepseek_r1_distill_qwen_7b().with_cache(cache);
+        let llama_source = LlamaSource::deepseek_r1_distill_qwen_1_5b().with_cache(cache);
 
         let model = Llama::builder()
             .with_source(llama_source)
@@ -93,7 +93,7 @@ impl Model {
             .await?;
 
         let task = model
-            .task(NORMAL_CHAT_PROMPT.to_string())
+            .task(WRITING_COPILOT_PROMPT.to_string())
             .typed::<AutoCompleteResponse>();
         Ok(task)
     }

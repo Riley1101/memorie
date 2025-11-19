@@ -11,6 +11,7 @@ import { listen } from '@tauri-apps/api/event';
 const LLM_EVENTS = {
   CHAT_INIT: 'chat-init',
   CHAT_IN_PROGRESS: 'chat-in-progress',
+  AUTOCOMPOLETE: 'chat-autocomplete',
   COMPLETED: 'chat-completed',
   Error: 'chat-error',
 };
@@ -59,11 +60,25 @@ export class LlmManager {
     console.info('Setting up LLM listeners');
     // Listener for incoming text chunks
 
+
     await listen(LLM_EVENTS.CHAT_INIT,(response)=>{
       if (response.event === "chat-in-progress"){
         this.isLoading = true;
       }
     })
+
+    await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
+      console.log(event)
+      const chunk = /** @type {string} */ (event.payload.response);
+      if (this.messages.length > 0) {
+        console.log("Received chunk:", chunk);
+        const lastMessage = this.messages[this.messages.length - 1];
+        if (lastMessage.role === 'assistant') {
+          lastMessage.content += JSON.stringify(chunk);
+        }
+        
+      }
+    });
 
     this.unlistenChunk = await listen(LLM_EVENTS.CHAT_IN_PROGRESS, (event) => {
       const chunk = /** @type {string} */ (event.payload.content);
@@ -86,9 +101,10 @@ export class LlmManager {
   /**
    * Sends a user's prompt to the Rust backend to start the LLM stream.
    * @param {string} prompt The user's message.
+   * @param {string} [mode] The mode of the chat (default is "Normal").
    * @returns {Promise<void>}
    */
-  async sendMessage(prompt) {
+  async sendMessage(prompt, mode = "Normal") {
     if (this.isLoading || !prompt.trim()) {
       return;
     }
@@ -101,8 +117,8 @@ export class LlmManager {
     try {
       /** @type {string} processId */
       this.workerId = await invoke(LLM_INVOKE.CHAT, {
-        message: prompt ,
-        mode: "Normal"
+        message: prompt,
+        mode, 
       });
     } catch (e) {
       console.error(e);

@@ -23,12 +23,19 @@
 </script>
 
 <div class="flex flex-col gap-2">
-  {JSON.stringify(context)}
-  <Button class="max-w-max" size="sm" variant="outline"
-          onclick={() => llmManager.newSession()}
-  >
+  <Button class="max-w-max" size="sm" variant="outline" onclick={() => llmManager.newSession()}>
     <PlusIcon />
     New Session
+  </Button>
+
+  <Button
+    class="max-w-max"
+    size="sm"
+    variant="outline"
+    onclick={() => llmManager.sendMessage(prompt, 'Autocomplete')}
+  >
+    <PlusIcon />
+    Call Autocomplete
   </Button>
   <InputGroup.Root>
     <InputGroup.Textarea placeholder="Ask, Search or Chat..." bind:value={prompt} />
@@ -47,12 +54,12 @@
         class="ml-auto rounded-full"
         size="icon-xs"
         onclick={() => {
-        if (llmManager.isLoading) {
-          llmManager.cancelMessage();
-          return;
-        }
-        handleSubmit();
-      }}
+          if (llmManager.isLoading) {
+            llmManager.cancelMessage();
+            return;
+          }
+          handleSubmit();
+        }}
       >
         {#if llmManager.isLoading}
           <PauseIcon />
