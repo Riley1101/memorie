@@ -2,6 +2,7 @@ use kalosm::language::{Chat, Document};
 use tauri::State;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+use crate::llm::ModelType;
 use crate::utils::ChatMode;
 use super::fs::{self, File};
 use super::memory::UserMemory;
@@ -115,59 +116,19 @@ pub async fn get_file_history(
  *  LLM Commands
  */
 #[tauri::command]
-pub async fn load_model(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn load_models(state: State<'_, AppState>) -> Result<String, String> {
     let mut model = state.model.lock().await;
-    let llama = model.load_model().await.map_err(|e| e.to_string())?;
-    model.set_loaded_model(llama);
+    model.download_or_load_model(ModelType::Chat).await.map_err(|e| e.to_string())?;
+    model.download_or_load_model(ModelType::AutoComplete).await.map_err(|e| e.to_string())?;
     Ok("Model loaded successfully.".to_string())
 }
 
-#[tauri::command]
-pub async fn run_autocomplete(message: String,mode:ChatMode, state: State<'_, AppState>) -> Result<Uuid, String> {
-
-    let job_id = Uuid::new_v4();
-    let cancellation_token = CancellationToken::new();
-    let memory = state.memory.lock().await;
-
-    memory
-        .save_chat_session(&job_id.to_string())
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let job = Job {
-        mode,
-        id: job_id,
-        message,
-        cancellation_token: cancellation_token.clone(),
-    };
-
-    state
-        .workers
-        .cancellation_tokens
-        .insert(job_id, cancellation_token);
-
-    state.workers.statuses.insert(job_id, JobStatus::Queued);
-    state
-        .workers
-        .sender
-        .send(job)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(job_id)
-}
 
 // TODO! add job type for chat vs autocomplete
 #[tauri::command]
 pub async fn run_chat(message: String, mode: ChatMode , state: State<'_, AppState>) -> Result<Uuid, String> {
     let job_id = Uuid::new_v4();
     let cancellation_token = CancellationToken::new();
-    let memory = state.memory.lock().await;
-
-    memory
-        .save_chat_session(&job_id.to_string())
-        .await
-        .map_err(|e| e.to_string())?;
 
     let job = Job {
         id: job_id,
@@ -182,6 +143,7 @@ pub async fn run_chat(message: String, mode: ChatMode , state: State<'_, AppStat
         .insert(job_id, cancellation_token);
 
     state.workers.statuses.insert(job_id, JobStatus::Queued);
+
     state
         .workers
         .sender

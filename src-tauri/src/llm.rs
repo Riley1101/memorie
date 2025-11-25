@@ -1,14 +1,21 @@
 use super::error::LlamaError;
 use super::prompts::{NORMAL_CHAT_PROMPT, WRITING_COPILOT_PROMPT};
-use super::responses::AutoCompleteResponse;
+use super::responses::{AutoCompleteResponse, ModelLoadingResponse, Response};
 use crate::utils;
 use kalosm::language::*;
 use kalosm_common::Cache;
 use std::path::PathBuf;
 
+#[derive(Clone)]
+pub enum ModelType {
+    Chat,
+    AutoComplete,
+}
+
 pub struct Model {
     name: PathBuf,
-    llma: Option<Llama>,
+    chat_model : Option<Llama>,
+    auto_complete_model : Option<Llama>,
     base_path: PathBuf,
 }
 
@@ -18,47 +25,63 @@ impl Model {
 
         Model {
             name,
-            llma: None,
+            chat_model: None,
+            auto_complete_model: None,
             base_path: root_dir,
         }
     }
 
-
     // !TODO use model from config
-    pub async fn load_model(&self) -> Result<Llama, LlamaError> {
-        let root_dir = self.base_path.clone().join("models/");
+    /// Load or get the model from cache
+    /// # Returns
+    /// A Result containing a reference to the Llama model or a LlamaError
+    pub async fn download_or_load_model(&mut self, model_type: ModelType) -> Result<Response<ModelLoadingResponse>, LlamaError> {
+        if self.auto_complete_model.is_none() {
+            let root_dir = self.base_path.clone().join("models/");
+            let modal_path = PathBuf::from(root_dir);
+            let cache = Cache::new(modal_path);
 
-        let modal_path = PathBuf::from(root_dir);
+            let source = match &model_type {
+                ModelType::Chat => LlamaSource::qwen_2_5_3b_instruct().with_cache(cache),
+                ModelType::AutoComplete => LlamaSource::llama_3_1_8b_chat().with_cache(cache),
+            };
 
-        let cache = Cache::new(modal_path);
+            let loaded_model = Llama::builder()
+                .with_source(source)
+                .build_with_loading_handler(|progress| match progress {
+                    ModelLoadingProgress::Downloading { source, progress } => {
+                        let progress_percent = (progress.progress * 100) as u32;
+                        let elapsed = progress.start_time.elapsed().as_secs_f32();
+                        println!("Downloading file {source} {progress_percent}% ({elapsed}s)");
+                    }
+                    ModelLoadingProgress::Loading { progress } => {
+                        let progress = (progress * 100.0) as u32;
+                        println!("Loading model {progress}%");
+                    }
+                })
+                .await?;
+            match  &model_type {
+                ModelType::Chat => self.chat_model = Some(loaded_model),
+                ModelType::AutoComplete => self.auto_complete_model = Some(loaded_model),
+            }
+        }
 
-        let local_source = LlamaSource::qwen_2_5_0_5b_instruct().with_cache(cache);
-
-        let loaded_model = Llama::builder()
-            .with_source(local_source)
-            .build_with_loading_handler(|progress| match progress {
-                ModelLoadingProgress::Downloading { source, progress } => {
-                    let progress_percent = (progress.progress * 100) as u32;
-                    let elapsed = progress.start_time.elapsed().as_secs_f32();
-                    println!("Downloading file {source} {progress_percent}% ({elapsed}s)");
-                }
-                ModelLoadingProgress::Loading { progress } => {
-                    let progress = (progress * 100.0) as u32;
-                    println!("Loading model {progress}%");
-                }
-            })
-            .await?;
-
-        Ok(loaded_model)
+        let response = ModelLoadingResponse {
+            is_loaded:true,
+            message: match &model_type {
+                ModelType::Chat => "Qwen 2.5B Instruct".to_string(),
+                ModelType::AutoComplete => "Llama 3.1 8B Chat".to_string(),
+            },
+        };
+        Ok(Response::success(response))
     }
 
-    #[allow(dead_code)]
-    pub fn is_model_loaded(&self) -> bool {
-        self.llma.is_some()
-    }
-
-    pub fn set_loaded_model(&mut self, model: Llama) {
-        self.llma = Some(model);
+    pub async fn get_model(&mut self, model_type: ModelType) -> Result<&Llama, LlamaError> {
+        self.download_or_load_model(model_type.clone()).await?;
+        match &model_type {
+            ModelType::Chat => Ok(self.chat_model.as_ref().unwrap()),
+            ModelType::AutoComplete => Ok(self.auto_complete_model.as_ref().unwrap()),
+        }
     }
 
     /// Load or create a chat session with the model
@@ -68,34 +91,32 @@ impl Model {
     /// # Returns
     /// A Result containing the Chat instance or a LlamaError
     pub async fn run_autocomplete(
-        &self,
+        &mut self,
     ) -> Result<Task<Llama, ArcParser<AutoCompleteResponse>>, LlamaError> {
-        let root_dir = self.base_path.clone().join("models/");
-
-        let modal_path = PathBuf::from(root_dir);
-
-        let cache = Cache::new(modal_path);
-
-        let llama_source = LlamaSource::qwen_2_5_3b_instruct()
-            .with_cache(cache);
-
-        let model = Llama::builder()
-            .with_source(llama_source)
-            .build_with_loading_handler(|progress| match progress {
-                ModelLoadingProgress::Downloading { source, progress } => {
-                    let progress_percent = (progress.progress * 100) as u32;
-                    let elapsed = progress.start_time.elapsed().as_secs_f32();
-                    println!("Downloading file {source} {progress_percent}% ({elapsed}s)");
-                }
-                ModelLoadingProgress::Loading { progress } => {
-                    let progress = (progress * 100.0) as u32;
-                    println!("Loading model {progress}%");
-                }
-            })
-            .await?;
+        let model = self.get_model(ModelType::AutoComplete).await?;
 
         let task = model
             .task(WRITING_COPILOT_PROMPT.to_string())
+            .with_example(
+                "CONTEXT: Subject: Meeting Request. Hi Dave, I reviewed the quarterly reports and noticed some discrepancies in the marketing budget. CURRENT_INPUT: I would like to schedule a time to",
+                "{ 'completion': 'discuss these figures before the board meeting next week.' }"
+            )
+            .with_example(
+                "CONTEXT: To get started with the API, you first need to generate an authentication token in your dashboard. Once you have the key, include it in the header. CURRENT_INPUT: If the request is successful, the server will return",
+                "{ 'completion': 'a 200 OK status code along with the requested JSON data.' }"
+            )
+            .with_example(
+                "CONTEXT: The old house stood at the end of the lane, its windows boarded up and the garden overgrown with weeds. Nobody had lived there for fifty years. CURRENT_INPUT: As the storm approached, the front door suddenly",
+                "{ 'completion': 'creaked open, revealing a flickering light inside.' }"
+            )
+            .with_example(
+                "CONTEXT: While remote work offers flexibility, it also presents challenges regarding team cohesion. Spontaneous interactions are harder to replicate digitally. CURRENT_INPUT: Therefore, organizations must intentionally design",
+                "{ 'completion': 'virtual spaces that foster casual communication and relationship building.' }"
+            )
+            .with_example(
+                "CONTEXT: // This function calculates the fibonacci sequence recursively. // Note: This implementation is not optimized for large numbers. CURRENT_INPUT: // To improve performance, we should consider using",
+                "{ 'completion': 'memoization or an iterative approach.' }"
+            )
             .typed::<AutoCompleteResponse>();
         Ok(task)
     }
@@ -106,42 +127,22 @@ impl Model {
     ///
     /// # Returns
     /// A Result containing the Chat instance or a LlamaError
-    pub async fn run_chat(&self) -> Result<Chat<Llama>, LlamaError> {
-        let root_dir = self.base_path.clone().join("models/");
+    pub async fn run_chat(&mut self) -> Result<Chat<Llama>, LlamaError> {
 
-        let modal_path = PathBuf::from(root_dir);
+        // let session_cache_path = self.base_path.clone().join("chat.llama");
 
-        let cache = Cache::new(modal_path);
+        let model = self.get_model(ModelType::AutoComplete).await?;
 
-        let llama_source = LlamaSource::llama_3_1_8b_chat().with_cache(cache);
-
-        let model = Llama::builder()
-            .with_source(llama_source)
-            .build_with_loading_handler(|progress| match progress {
-                ModelLoadingProgress::Downloading { source, progress } => {
-                    let progress_percent = (progress.progress * 100) as u32;
-                    let elapsed = progress.start_time.elapsed().as_secs_f32();
-                    println!("Downloading file {source} {progress_percent}% ({elapsed}s)");
-                }
-                ModelLoadingProgress::Loading { progress } => {
-                    let progress = (progress * 100.0) as u32;
-                    println!("Loading model {progress}%");
-                }
-            })
-            .await?;
-
-        let session_cache_path = self.base_path.clone().join("chat.llama");
-
-        let mut chat = model
+        let chat = model
             .chat()
             .with_system_prompt(NORMAL_CHAT_PROMPT.to_string());
 
-        if let Some(old_session) = std::fs::read(&session_cache_path)
-            .ok()
-            .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
-        {
-            chat = chat.with_session(old_session);
-        }
+//         if let Some(old_session) = std::fs::read(&session_cache_path)
+//             .ok()
+//             .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
+//         {
+//             chat = chat.with_session(old_session);
+//         }
 
         Ok(chat)
     }

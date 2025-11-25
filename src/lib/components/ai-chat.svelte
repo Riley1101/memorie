@@ -53,6 +53,7 @@
         variant="default"
         class="ml-auto rounded-full"
         size="icon-xs"
+        isDisabled={prompt.trim().length === 0 && !llmManager.modelsLoaded}
         onclick={() => {
           if (llmManager.isLoading) {
             llmManager.cancelMessage();

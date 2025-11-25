@@ -38,6 +38,9 @@ export class LlmManager {
   /** @type string | null - unique worker ID **/
   workerId = $state(null);
 
+  /** @type boolean - indicates if models are loaded **/
+  modelsLoaded = $state(false);
+
   /** @type Message[] - array of messages **/
   messages = $state([]);
 
@@ -56,10 +59,12 @@ export class LlmManager {
   /**
    * Sets up Tauri event listeners to receive streaming data from the Rust backend.
    */
-  async setupListeners() {
-    console.info('Setting up LLM listeners');
-    // Listener for incoming text chunks
+  async setupModels() {
+    this.modelsLoaded = false;
 
+    await invoke("load_models").then(()=>{
+      this.modelsLoaded = true;
+    });
 
     await listen(LLM_EVENTS.CHAT_INIT,(response)=>{
       if (response.event === "chat-in-progress"){

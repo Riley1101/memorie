@@ -12,7 +12,7 @@
 
   onMount(() => {
     fileManager.getRecents();
-    llmManager.setupListeners();
+    llmManager.setupModels();
   });
 
   onDestroy(() => {

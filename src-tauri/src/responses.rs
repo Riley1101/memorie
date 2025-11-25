@@ -34,5 +34,10 @@ impl<T> Response<T> {
 #[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]
 pub struct AutoCompleteResponse {
     suggestion: String,
-    options: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]
+pub struct ModelLoadingResponse {
+    pub is_loaded: bool,
+    pub message: String,
 }

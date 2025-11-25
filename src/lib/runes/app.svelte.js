@@ -11,7 +11,7 @@ class AppState {
    * }}
    */
   ui = $state({
-    isChatOpen: true,
+    isChatOpen: false,
     isHistoryOpen: false,
     isSidebarOpen: false,
   });
