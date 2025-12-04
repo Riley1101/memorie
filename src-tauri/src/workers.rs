@@ -112,13 +112,13 @@ async fn run_chat_worker(
     let response = String::new();
 
     if mode == ChatMode::Normal {
-        let mut chat_ression =
+        let mut chat_session =
             model
                 .run_chat()
                 .await.map_err(|e| e.to_string())?;
 
         // TODO! Add sampler
-        let mut stream = chat_ression
+        let mut stream = chat_session
             .add_message(message);
 
         let mut response = String::new();

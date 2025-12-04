@@ -7,7 +7,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { invalidateAll } from '$app/navigation';
-  import {llmManager} from '@/runes/llm.svelte.js';
+  import { llmManager } from '@/runes/llm.svelte.js';
   import AiSparkleIcon from "@lucide/svelte/icons/sparkles"
 
   /**
@@ -49,14 +49,12 @@
     { cmd: ':u', description: 'Toggle history sidebar', action: 'toggleHistory' },
     { cmd: ':w', description: 'Save file', action: 'save' },
     { cmd: ':q', description: 'Close file', action: 'close' },
-    { cmd: ':e', description: 'Edit file', action: 'edit' },
-    { cmd: ':d', description: 'Toggle Sidebar', action: 'sidebar' },
+    { cmd: ':b', description: 'Toggle Sidebar', action: 'sidebar' },
     { cmd: ':ai', description: 'Toggle AI', action: 'aichat' },
-    { cmd: ':help', description: 'Show help', action: 'help' },
   ];
 
   const quickCommands = [
-    { cmd: ':d', label: 'Sidebar', icon: '⌘B' },
+    { cmd: ':b', label: 'Sidebar', icon: '⌘B' },
     { cmd: ':u', label: 'History', icon: '⌘U' },
     { cmd: ':w', label: 'Save', icon: '⌘S' },
     { cmd: ':q', label: 'Close', icon: '⌘Q' },
@@ -64,9 +62,11 @@
 
   let isCommandMode = $state(false);
   let input = $state('');
+
   /** @type {Command[]} */
   let suggestions = $state([]);
   let selectedIndex = $state(0);
+
   /** @type {HTMLInputElement | null} */
   let inputRef = null;
 
@@ -87,11 +87,21 @@
    * @param {KeyboardEvent} e
    */
   const handleGlobalKeyDown = (e) => {
-    if (e.key === ':' && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
+    if (!editorState.editMode && e.key === ':' && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
       e.preventDefault();
       isCommandMode = true;
       input = ':';
       return;
+    }
+
+    if (e.key === "i" && !editorState.editMode){
+      editorState.setEditMode(true);
+      editorState?.editor?.commands?.focus();
+    }
+
+    if(e.key === "Escape"){
+      editorState.setEditMode(false);
+      editorState?.editor?.commands?.blur();
     }
 
     if (e.key === 'Escape' && isCommandMode) {

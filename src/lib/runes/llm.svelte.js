@@ -73,10 +73,8 @@ export class LlmManager {
     })
 
     await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
-      console.log(event)
       const chunk = /** @type {string} */ (event.payload.response);
       if (this.messages.length > 0) {
-        console.log("Received chunk:", chunk);
         const lastMessage = this.messages[this.messages.length - 1];
         if (lastMessage.role === 'assistant') {
           lastMessage.content += JSON.stringify(chunk);

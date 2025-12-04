@@ -1,10 +1,11 @@
 use super::error::LlamaError;
-use super::prompts::{NORMAL_CHAT_PROMPT, WRITING_COPILOT_PROMPT};
+use super::prompts::{NORMAL_CHAT_PROMPT, TEST_PROMPT, WRITING_COPILOT_PROMPT};
 use super::responses::{AutoCompleteResponse, ModelLoadingResponse, Response};
 use crate::utils;
 use kalosm::language::*;
 use kalosm_common::Cache;
 use std::path::PathBuf;
+use kalosm_llama::prelude;
 
 #[derive(Clone)]
 pub enum ModelType {
@@ -43,7 +44,7 @@ impl Model {
 
             let source = match &model_type {
                 ModelType::Chat => LlamaSource::qwen_2_5_3b_instruct().with_cache(cache),
-                ModelType::AutoComplete => LlamaSource::llama_3_1_8b_chat().with_cache(cache),
+                ModelType::AutoComplete => LlamaSource::qwen_2_5_3b_instruct().with_cache(cache),
             };
 
             let loaded_model = Llama::builder()
@@ -70,7 +71,7 @@ impl Model {
             is_loaded:true,
             message: match &model_type {
                 ModelType::Chat => "Qwen 2.5B Instruct".to_string(),
-                ModelType::AutoComplete => "Llama 3.1 8B Chat".to_string(),
+                ModelType::AutoComplete => "Qwen 2.5B Instruct".to_string(),
             },
         };
         Ok(Response::success(response))
@@ -96,7 +97,7 @@ impl Model {
         let model = self.get_model(ModelType::AutoComplete).await?;
 
         let task = model
-            .task(WRITING_COPILOT_PROMPT.to_string())
+            .task(TEST_PROMPT.to_string())
             .with_example(
                 "CONTEXT: Subject: Meeting Request. Hi Dave, I reviewed the quarterly reports and noticed some discrepancies in the marketing budget. CURRENT_INPUT: I would like to schedule a time to",
                 "{ 'completion': 'discuss these figures before the board meeting next week.' }"
@@ -129,20 +130,20 @@ impl Model {
     /// A Result containing the Chat instance or a LlamaError
     pub async fn run_chat(&mut self) -> Result<Chat<Llama>, LlamaError> {
 
-        // let session_cache_path = self.base_path.clone().join("chat.llama");
+        let session_cache_path = self.base_path.clone().join("chat.llama");
 
         let model = self.get_model(ModelType::AutoComplete).await?;
 
-        let chat = model
+        let mut chat = model
             .chat()
             .with_system_prompt(NORMAL_CHAT_PROMPT.to_string());
 
-//         if let Some(old_session) = std::fs::read(&session_cache_path)
-//             .ok()
-//             .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
-//         {
-//             chat = chat.with_session(old_session);
-//         }
+         if let Some(old_session) = std::fs::read(&session_cache_path)
+             .ok()
+             .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
+         {
+             chat = chat.with_session(old_session);
+         }
 
         Ok(chat)
     }
