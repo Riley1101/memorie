@@ -19,6 +19,7 @@
 {@render children()}
 
 <Drawer.Root
+  dismissible={false}
   bind:open={
     () => appState.ui.isChatOpen,
     (newOpen) => {
@@ -28,11 +29,11 @@
   direction="right"
   class="absolute top-0 right-0 h-dvh"
 >
-  <Drawer.Content class="dark text-foreground md:min-w-[600px] font-serif">
-    <ScrollArea class="w-full h-[calc(100dvh-240px)] p-4 pb-0">
+  <Drawer.Content class="dark min-w-1/2 text-foreground font-serif h-full flex flex-col bg-background/95 backdrop-blur-sm">
+    <ScrollArea class="h-dvh overflow-hidden flex-1 grow shrink-0">
       <AiChatStream />
     </ScrollArea>
-    <Drawer.Footer>
+    <Drawer.Footer class="">
       <AiChat />
     </Drawer.Footer>
   </Drawer.Content>

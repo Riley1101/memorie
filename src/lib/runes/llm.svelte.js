@@ -137,7 +137,7 @@ export class LlmManager {
       if (status) {
         this.isLoading = false;
         this.workerId = null;
-        this.messages.pop();
+        this.messages[this.messages.length - 1].content += "\n\nCancelled by user.";
       }
     }
   }

@@ -27,16 +27,6 @@
     <PlusIcon />
     New Session
   </Button>
-
-  <Button
-    class="max-w-max"
-    size="sm"
-    variant="outline"
-    onclick={() => llmManager.sendMessage(prompt, 'Autocomplete')}
-  >
-    <PlusIcon />
-    Call Autocomplete
-  </Button>
   <InputGroup.Root>
     <InputGroup.Textarea placeholder="Ask, Search or Chat..." bind:value={prompt} />
     <InputGroup.Addon align="block-end">
@@ -53,7 +43,7 @@
         variant="default"
         class="ml-auto rounded-full"
         size="icon-xs"
-        disabled={prompt.trim().length === 0 || !llmManager.modelsLoaded}
+        disabled={!llmManager.modelsLoaded}
         onclick={() => {
           if (llmManager.isLoading) {
             llmManager.cancelMessage();

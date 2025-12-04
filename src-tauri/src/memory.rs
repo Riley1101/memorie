@@ -25,7 +25,7 @@ pub struct ChatSession {
 }
 
 pub struct Memory {
-    db: Surreal<Db>,
+    pub db: Surreal<Db>,
     pub document_table: DocumentTable<Db>,
 }
 
@@ -54,7 +54,7 @@ impl Memory {
         let document_table = db
             .document_table_builder(TABLE)
             .with_chunker(chunker)
-            .at(root_dir.join("db/memory/embeddings.db"))
+            .at(root_dir.join("embeddings.db"))
             .build::<Document>()
             .await?;
 

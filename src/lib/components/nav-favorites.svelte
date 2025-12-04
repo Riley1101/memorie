@@ -4,7 +4,6 @@
   import { useSidebar } from '$lib/components/ui/sidebar/index.js';
   import FileTextIcon from '@lucide/svelte/icons/file';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
-  import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import { formatFileName } from '$lib/utils.js';
   import { resolve } from '$app/paths';
@@ -45,11 +44,6 @@
             side={sidebar.isMobile ? 'bottom' : 'right'}
             align={sidebar.isMobile ? 'end' : 'start'}
           >
-            <DropdownMenu.Item>
-              <ArrowUpRightIcon class="text-muted-foreground" />
-              <span>Open in New Tab</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator />
             <DropdownMenu.Item>
               <Trash2Icon class="text-muted-foreground" />
               <span>Delete</span>

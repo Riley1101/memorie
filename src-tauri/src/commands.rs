@@ -2,13 +2,13 @@ use kalosm::language::{Chat, Document};
 use tauri::State;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+use surrealdb::Response;
 use crate::llm::ModelType;
 use crate::utils::ChatMode;
 use super::fs::{self, File};
 use super::memory::UserMemory;
 use super::workers::{Job, JobStatus};
 use super::AppState;
-
 /**
  *  FS Commands
  */
@@ -32,16 +32,79 @@ pub async fn list_recents(state: State<'_, AppState>) -> Result<Vec<File>, Strin
 #[tauri::command]
 pub async fn create_file(
     name: String,
-    content: &str,
+    content: String,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
+
+    let memory = state.memory.lock().await;
+    let db = &memory.db;
+
+    let mut query_result =
+        db.query("SELECT * FROM documents WHERE title = $title LIMIT 1")
+        .bind(("title", name.clone()))
+        .await.unwrap();
+    println!("query result: {:?}", query_result);
+    let first  =  query_result.take::<Option<Document>>(0).unwrap();
+    match first {
+        Some(doc) => {
+            println!("Document exists: {:?}", doc);
+           // let updated_document = Document::from_parts(name.clone(), content.clone());
+           // let result = db
+           //     .update(doc.id)
+           //     .content(updated_document)
+           //     .await;
+           // println!("Update result: {:?}", result);
+        }
+        None => {
+           // let document = Document::from_parts(name.clone(), content.clone());
+           // let result = db
+           //     .create("documents")
+           //     .content(document)
+           //     .await;
+            println!("Created notexists:", );
+        }
+    }
+
+//    let table = &memory.document_table;
+//    let document = Document::from_parts(name.clone(), content.clone());
+    // let search_results= table
+    //     .search(&name) // Search for the 'name' and limit results to 1
+    //     .with_results(1)
+    //     .await
+    //     .map_err(|e| format!("Search error: {}", e))?;
+    // println!("{:?}", search_results);
+    // match search_results.first() {
+    //     Some(doc) => {
+    //         println!("{:?}",doc.record.title());
+    //         println!("{:?}",name);
+    //         if doc.record.title() == name.clone() {
+    //             println!("did i run");
+    //             let updated_document = Document::from_parts(name.clone(), content.clone());
+    //             let record_id = doc.record_id.clone();
+    //             let result = table
+    //                 .update(record_id,updated_document).await;
+    //             println!("{:?}",result)
+    //         } else {
+    //             let result = table
+    //                 .insert(document)
+    //                 .await
+    //                 .map_err(|e| format!("Insert error: {}", e))?;
+    //             println!("Created document {:?}", result);
+    //         }
+    //
+    //     }
+    //     None => {
+    //         let result = table.insert(document).await.map_err(|e| format!("Insert error: {}", e))?;
+    //         println!("Created document {:?}", result);
+    //     }
+    // }
+
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
-    let result = fs::create_file(&path, content).map_err(|e| e.to_string())?;
+    let result = fs::create_file(&path, &content).map_err(|e| e.to_string())?;
 
     let mut undo_tree = state.undotree.lock().await;
-
-    undo_tree.add_change(&name, content);
+    undo_tree.add_change(&name, &content);
     undo_tree
         .save(&config.undotree_dir)
         .map_err(|e| e.to_string())?;

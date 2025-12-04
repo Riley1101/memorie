@@ -94,12 +94,17 @@
       return;
     }
 
-    if (e.key === "i" && !editorState.editMode){
+    if (e.key === "i" && !editorState.editMode && !isCommandMode){
       editorState.setEditMode(true);
       editorState?.editor?.commands?.focus();
     }
 
     if(e.key === "Escape"){
+      if (appState.ui.isChatOpen){
+        appState.toggleAiChat(false);
+        e.preventDefault();
+        return;
+      }
       editorState.setEditMode(false);
       editorState?.editor?.commands?.blur();
     }
