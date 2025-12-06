@@ -62,15 +62,15 @@ export class LlmManager {
   async setupModels() {
     this.modelsLoaded = false;
 
-    await invoke("load_models").then(()=>{
+    await invoke('load_models').then(() => {
       this.modelsLoaded = true;
     });
 
-    await listen(LLM_EVENTS.CHAT_INIT,(response)=>{
-      if (response.event === "chat-in-progress"){
+    await listen(LLM_EVENTS.CHAT_INIT, (response) => {
+      if (response.event === 'chat-in-progress') {
         this.isLoading = true;
       }
-    })
+    });
 
     await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
       const chunk = /** @type {string} */ (event.payload.response);
@@ -79,7 +79,6 @@ export class LlmManager {
         if (lastMessage.role === 'assistant') {
           lastMessage.content += JSON.stringify(chunk);
         }
-        
       }
     });
 
@@ -95,7 +94,7 @@ export class LlmManager {
 
     // Listener for when the stream is complete
     this.unlistenDone = await listen(LLM_EVENTS.COMPLETED, (response) => {
-      if(response.event === "chat-completed"){
+      if (response.event === 'chat-completed') {
         this.isLoading = false;
       }
     });
@@ -107,7 +106,7 @@ export class LlmManager {
    * @param {string} [mode] The mode of the chat (default is "Normal").
    * @returns {Promise<void>}
    */
-  async sendMessage(prompt, mode = "Normal") {
+  async sendMessage(prompt, mode = 'Normal') {
     if (this.isLoading || !prompt.trim()) {
       return;
     }
@@ -121,7 +120,7 @@ export class LlmManager {
       /** @type {string} processId */
       this.workerId = await invoke(LLM_INVOKE.CHAT, {
         message: prompt,
-        mode, 
+        mode,
       });
     } catch (e) {
       console.error(e);
@@ -137,7 +136,7 @@ export class LlmManager {
       if (status) {
         this.isLoading = false;
         this.workerId = null;
-        this.messages[this.messages.length - 1].content += "\n\nCancelled by user.";
+        this.messages[this.messages.length - 1].content += '\n\nCancelled by user.';
       }
     }
   }

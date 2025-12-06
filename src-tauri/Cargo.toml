@@ -31,6 +31,7 @@ kalosm = { version = "0.4.0", features = ["full"] }
 kalosm-common = "0.4.0"
 kalosm-llama = "0.4.3"
 kalosm-sample = "0.4.1"
+rand = "0.9.2"
 rbert = "0.4.0"
 
 serde = { version = "1", features = ["derive"] }

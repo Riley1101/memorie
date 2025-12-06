@@ -29,7 +29,6 @@
 
   let context = $derived(memoryManager.getContext());
 
-
   let body = $derived(content || '');
 
   $effect(() => {
@@ -37,7 +36,9 @@
   });
 </script>
 
-<div class="grid grid-cols-[auto_1fr_auto] md:grid-cols-[240px_auto_240px] w-full grid-rows-[1fr_auto] h-screen relative">
+<div
+  class="grid grid-cols-[auto_1fr_auto] md:grid-cols-[240px_auto_240px] w-full grid-rows-[1fr_auto] h-screen relative"
+>
   {#if appState.ui.isHistoryOpen}
     <ScrollArea
       type="scroll"
@@ -58,6 +59,6 @@
   </ScrollArea>
 
   <div class="sticky bottom-0 col-span-3 row-start-2">
-      <EditorCommandbar {fileName} {body} currentVersion={history?.current || 0} />
+    <EditorCommandbar {fileName} {body} currentVersion={history?.current || 0} />
   </div>
 </div>

@@ -24,7 +24,6 @@ class EditorState {
     status: 'idle',
   });
 
-
   /**
    * Sets the editor instance.
    * @param editorInstance {import("@tiptap/core").Editor} - The Tiptap editor instance.
@@ -38,9 +37,8 @@ class EditorState {
    * @param status
    */
   setSaveStatus(status) {
-    this.saveStatus = {...this.saveStatus,...status};
+    this.saveStatus = { ...this.saveStatus, ...status };
   }
-
 
   /**
    * Sets the edit mode.

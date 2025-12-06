@@ -60,6 +60,9 @@ pub enum MemoryError {
 
     #[error("Embedding model not loaded")]
     ModelNotLoaded,
+
+    #[error("Update error: Document Update or Insert Error: {0}")]
+    DocumentUpdateInsertError(String),
 }
 
 #[derive(Error, Debug)]

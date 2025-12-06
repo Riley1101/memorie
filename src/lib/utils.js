@@ -60,19 +60,23 @@ export function formatTimeAgo(date) {
   const seconds = Math.floor((new Date() - date) / 1000);
 
   if (seconds < 5) {
-    return "just now";
+    return 'just now';
   } else if (seconds < 60) {
     return `${seconds} seconds ago`;
-  } else if (seconds < 3600) { // Less than an hour
+  } else if (seconds < 3600) {
+    // Less than an hour
     const minutes = Math.floor(seconds / 60);
     return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  } else if (seconds < 86400) { // Less than a day
+  } else if (seconds < 86400) {
+    // Less than a day
     const hours = Math.floor(seconds / 3600);
     return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  } else if (seconds < 2592000) { // Less than a month (approx. 30 days)
+  } else if (seconds < 2592000) {
+    // Less than a month (approx. 30 days)
     const days = Math.floor(seconds / 86400);
     return `${days} day${days > 1 ? 's' : ''} ago`;
-  } else if (seconds < 31536000) { // Less than a year (approx. 365 days)
+  } else if (seconds < 31536000) {
+    // Less than a year (approx. 365 days)
     const months = Math.floor(seconds / 2592000);
     return `${months} month${months > 1 ? 's' : ''} ago`;
   } else {
@@ -80,4 +84,3 @@ export function formatTimeAgo(date) {
     return `${years} year${years > 1 ? 's' : ''} ago`;
   }
 }
-

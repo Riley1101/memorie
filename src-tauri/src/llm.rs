@@ -4,8 +4,8 @@ use super::responses::{AutoCompleteResponse, ModelLoadingResponse, Response};
 use crate::utils;
 use kalosm::language::*;
 use kalosm_common::Cache;
-use std::path::PathBuf;
 use kalosm_llama::prelude;
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub enum ModelType {
@@ -15,8 +15,8 @@ pub enum ModelType {
 
 pub struct Model {
     name: PathBuf,
-    chat_model : Option<Llama>,
-    auto_complete_model : Option<Llama>,
+    chat_model: Option<Llama>,
+    auto_complete_model: Option<Llama>,
     base_path: PathBuf,
 }
 
@@ -36,7 +36,10 @@ impl Model {
     /// Load or get the model from cache
     /// # Returns
     /// A Result containing a reference to the Llama model or a LlamaError
-    pub async fn download_or_load_model(&mut self, model_type: ModelType) -> Result<Response<ModelLoadingResponse>, LlamaError> {
+    pub async fn download_or_load_model(
+        &mut self,
+        model_type: ModelType,
+    ) -> Result<Response<ModelLoadingResponse>, LlamaError> {
         if self.auto_complete_model.is_none() {
             let root_dir = self.base_path.clone().join("models/");
             let modal_path = PathBuf::from(root_dir);
@@ -61,14 +64,14 @@ impl Model {
                     }
                 })
                 .await?;
-            match  &model_type {
+            match &model_type {
                 ModelType::Chat => self.chat_model = Some(loaded_model),
                 ModelType::AutoComplete => self.auto_complete_model = Some(loaded_model),
             }
         }
 
         let response = ModelLoadingResponse {
-            is_loaded:true,
+            is_loaded: true,
             message: match &model_type {
                 ModelType::Chat => "Qwen 2.5B Instruct".to_string(),
                 ModelType::AutoComplete => "Qwen 2.5B Instruct".to_string(),
@@ -129,7 +132,6 @@ impl Model {
     /// # Returns
     /// A Result containing the Chat instance or a LlamaError
     pub async fn run_chat(&mut self) -> Result<Chat<Llama>, LlamaError> {
-
         let session_cache_path = self.base_path.clone().join("chat.llama");
 
         let model = self.get_model(ModelType::AutoComplete).await?;
@@ -138,12 +140,12 @@ impl Model {
             .chat()
             .with_system_prompt(NORMAL_CHAT_PROMPT.to_string());
 
-         if let Some(old_session) = std::fs::read(&session_cache_path)
-             .ok()
-             .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
-         {
-             chat = chat.with_session(old_session);
-         }
+        if let Some(old_session) = std::fs::read(&session_cache_path)
+            .ok()
+            .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
+        {
+            chat = chat.with_session(old_session);
+        }
 
         Ok(chat)
     }

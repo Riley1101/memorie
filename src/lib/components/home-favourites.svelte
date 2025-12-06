@@ -1,5 +1,5 @@
 <script>
-  import * as Item from "$lib/components/ui/item/index.js";
+  import * as Item from '$lib/components/ui/item/index.js';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { fileManager } from '@/runes/fs.svelte';
   import { resolve } from '$app/paths';
@@ -20,11 +20,15 @@
     limit += 4;
   }
 </script>
+
 <div class="flex flex-col">
   <div class="grid grid-cols-2 gap-4">
     {#each filteredFavourites() as item (item.path)}
-      <Item.Root variant="outline"  class="flex text-muted-foreground items-center cursor-pointer hover:text-white p-3">
-        {#snippet child({props})}
+      <Item.Root
+        variant="outline"
+        class="flex text-muted-foreground items-center cursor-pointer hover:text-white p-3"
+      >
+        {#snippet child({ props })}
           <a href={resolve(`/${item.name}`)} {...props}>
             <Item.Media>
               <FileIcon class="size-5" />
@@ -35,13 +39,9 @@
             <Item.Actions>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
-                  <EllipsisIcon class="size-4"/>
+                  <EllipsisIcon class="size-4" />
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content
-                  class="dark w-56 rounded-lg"
-                  side='right'
-                  align='start'
-                >
+                <DropdownMenu.Content class="dark w-56 rounded-lg" side="right" align="start">
                   <DropdownMenu.Item>
                     <Trash2Icon class="text-muted-foreground" />
                     <span>Delete</span>
@@ -54,7 +54,5 @@
       </Item.Root>
     {/each}
   </div>
-  <Button onclick={loadMore} class="mt-4 ml-auto" variant="outline">
-    More
-  </Button>
+  <Button onclick={loadMore} class="mt-4 ml-auto" variant="outline">More</Button>
 </div>

@@ -1,6 +1,6 @@
 use super::error::FileError;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use serde::{ Serialize, Deserialize};
 
 /// Get the directory where the app stores its data.
 pub fn get_app_dir() -> Result<PathBuf, FileError> {
@@ -10,7 +10,7 @@ pub fn get_app_dir() -> Result<PathBuf, FileError> {
 }
 
 /// Modes for chat interactions.
-#[derive( Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub enum ChatMode {
     Normal,
     Autocomplete,

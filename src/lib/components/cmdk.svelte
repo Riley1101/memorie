@@ -1,11 +1,11 @@
 <script>
-  import CirclePlusIcon from "@lucide/svelte/icons/circle-plus";
-  import SearchIcon from "@lucide/svelte/icons/search";
-  import * as Command from "$lib/components/ui/command/index.js";
+  import CirclePlusIcon from '@lucide/svelte/icons/circle-plus';
+  import SearchIcon from '@lucide/svelte/icons/search';
+  import * as Command from '$lib/components/ui/command/index.js';
 </script>
 
 <Command.Root class=" border shadow-md md:min-w-[450px]">
-  <Command.Input placeholder="Enter command"/>
+  <Command.Input placeholder="Enter command" />
   <Command.List>
     <Command.Empty class="p-0">
       <Command.Item>
@@ -29,4 +29,3 @@
     </Command.Group>
   </Command.List>
 </Command.Root>
-

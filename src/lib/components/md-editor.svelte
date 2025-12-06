@@ -29,31 +29,30 @@
 
   function triggerAutoSave() {
     editorState.setSaveStatus({
-      status: 'unsaved'
-    })
+      status: 'unsaved',
+    });
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       editorState.setSaveStatus({
-        status: 'saving'
-      })
+        status: 'saving',
+      });
       try {
         let contentToSave = editorState.editor?.getHTML();
-        if (fileName){
-          fileManager.createNewFile(fileName,contentToSave);
-          invalidateAll()
+        if (fileName) {
+          fileManager.createNewFile(fileName, contentToSave);
+          invalidateAll();
         }
         editorState.setSaveStatus({
           lastSaved: new Date(),
-          status: 'saved'
-        })
-      }catch (e){
-        console.error(e)
+          status: 'saved',
+        });
+      } catch (e) {
+        console.error(e);
         editorState.setSaveStatus({
-          status: 'error'
-        })
+          status: 'error',
+        });
       }
     }, DEBOUNCE_SAVE_MS);
-
   }
 
   onMount(() => {
@@ -73,10 +72,8 @@
       },
       onBlur: () => {
         editorState.setEditMode(false);
+        triggerAutoSave();
       },
-      onUpdate:()=>{
-        triggerAutoSave()
-      }
     });
     editorState.setEditor(editor);
   });
@@ -102,7 +99,8 @@
     />
     <div class="ml-auto flex items-center text-xs shrink-0 text-muted-foreground">
       <span class="lowercase first-letter:uppercase">
-       {editorState.saveStatus.status} {formatTimeAgo(editorState.saveStatus.lastSaved)}
+        {editorState.saveStatus.status}
+        {formatTimeAgo(editorState.saveStatus.lastSaved)}
       </span>
     </div>
   </div>

@@ -2,13 +2,13 @@
   import { tick } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
-  import {cn} from "$lib/utils"
+  import { cn } from '$lib/utils';
   import { fileManager } from '@/runes/fs.svelte.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { invalidateAll } from '$app/navigation';
   import { llmManager } from '@/runes/llm.svelte.js';
-  import AiSparkleIcon from "@lucide/svelte/icons/sparkles"
+  import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
 
   /**
    * @type {{fileName?:string ,body?: string , currentVersion?: number}}
@@ -87,20 +87,25 @@
    * @param {KeyboardEvent} e
    */
   const handleGlobalKeyDown = (e) => {
-    if (!editorState.editMode && e.key === ':' && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
+    if (
+      !editorState.editMode &&
+      e.key === ':' &&
+      !isCommandMode &&
+      document.activeElement?.tagName !== 'INPUT'
+    ) {
       e.preventDefault();
       isCommandMode = true;
       input = ':';
       return;
     }
 
-    if (e.key === "i" && !editorState.editMode && !isCommandMode){
+    if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
       editorState.setEditMode(true);
       editorState?.editor?.commands?.focus();
     }
 
-    if(e.key === "Escape"){
-      if (appState.ui.isChatOpen){
+    if (e.key === 'Escape') {
+      if (appState.ui.isChatOpen) {
         appState.toggleAiChat(false);
         e.preventDefault();
         return;
@@ -263,7 +268,7 @@
 <div class="bg-background border-t border-border">
   <div class="flex items-center px-4 py-2">
     <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-      <AiSparkleIcon class={cn("size-3", isThinking ? "animate-pulse" : "")}/>
+      <AiSparkleIcon class={cn('size-3', isThinking ? 'animate-pulse' : '')} />
       <span class:text-green-500={isHistoryVisible} class:text-muted-foreground={!isHistoryVisible}>
         {isHistoryVisible ? 'HISTORY' : `Version ${data?.currentVersion ?? 0} `}
       </span>

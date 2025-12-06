@@ -1,7 +1,6 @@
 <script>
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   let { ref = $bindable(null), ...restProps } = $props();
-
 </script>
 
 <Sidebar.Root

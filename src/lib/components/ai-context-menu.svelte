@@ -7,10 +7,9 @@
   let open = $state(false);
   let value = $state('');
   let triggerRef = $state(null);
-
 </script>
 
-<Popover.Root bind:open >
+<Popover.Root bind:open>
   <Popover.Trigger bind:ref={triggerRef}>
     {#snippet child({ props })}
       <Button
@@ -20,17 +19,16 @@
         role="combobox"
         aria-expanded={open}
       >
-        <PlusIcon  />
+        <PlusIcon />
       </Button>
     {/snippet}
   </Popover.Trigger>
   <Popover.Content class="dark w-[200px] p-0" side="top" align="start" sideOffset={8}>
     <Command.Root>
-      <Command.Input placeholder="Search context..." bind:value/>
+      <Command.Input placeholder="Search context..." bind:value />
       <Command.List>
         <Command.Empty>No context found.</Command.Empty>
-        <Command.Group>
-        </Command.Group>
+        <Command.Group></Command.Group>
       </Command.List>
     </Command.Root>
   </Popover.Content>
