@@ -3,9 +3,14 @@
  */
 
 class EditorState {
+
+  // --- STATE ---
+  name = $state('Untitled Document');
+  content = $state('');
+
   /**
    * @public
-   * @type {import("@tiptap/core").Editor | null} - The Tiptap editor instance.
+   * @type {import("@milkdown/kit/core").Editor | null} - The Tiptap editor instance.
    */
   editor = $state(null);
 
@@ -26,7 +31,7 @@ class EditorState {
 
   /**
    * Sets the editor instance.
-   * @param editorInstance {import("@tiptap/core").Editor} - The Tiptap editor instance.
+   * @param editorInstance {import("@milkdown/kit/core").Editor} - The Tiptap editor instance.
    */
   setEditor(editorInstance) {
     this.editor = editorInstance;
@@ -46,6 +51,22 @@ class EditorState {
    */
   setEditMode(isEditMode) {
     this.editMode = isEditMode;
+  }
+
+  /**
+   * Sets the document name.
+   * @param newName string - The new document name.
+   */
+  setName(newName) {
+    this.name = newName;
+  }
+
+  /**
+   * Sets the document content.
+   * @param newContent string - The new document content.
+   */
+  setContent(newContent) {
+    this.content = newContent;
   }
 }
 

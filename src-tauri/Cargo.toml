@@ -18,12 +18,14 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+ammonia = "4.1.2"
 chrono = "0.4.42"
 dashmap = "6.1.0"
 dirs = "6.0.0"
 
 futures = "0.3.31"
 futures-util = "0.3.31"
+htmd = "0.5.0"
 
 indextree = "4.6.1"
 

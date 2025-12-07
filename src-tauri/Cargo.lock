@@ -3577,6 +3577,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62adaabb884c94955b19907d60019f4e145d091c75345379e70d1ee696f7854f"
 
 [[package]]
+name = "htmd"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60ae59466542f2346e43d4a5e9b4432a1fc915b279c9fc0484e9ed7379121454"
+dependencies = [
+ "html5ever 0.35.0",
+ "markup5ever_rcdom 0.35.0+unofficial",
+ "phf 0.13.1",
+]
+
+[[package]]
 name = "html5ever"
 version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4877,7 +4888,19 @@ dependencies = [
  "html5ever 0.25.2",
  "markup5ever 0.10.1",
  "tendril",
- "xml5ever",
+ "xml5ever 0.16.2",
+]
+
+[[package]]
+name = "markup5ever_rcdom"
+version = "0.35.0+unofficial"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8bcd53df4748257345b8bc156d620340ce0f015ec1c7ef1cff475543888a31d"
+dependencies = [
+ "html5ever 0.35.0",
+ "markup5ever 0.35.0",
+ "tendril",
+ "xml5ever 0.35.0",
 ]
 
 [[package]]
@@ -4978,11 +5001,13 @@ dependencies = [
 name = "memoire"
 version = "0.1.0"
 dependencies = [
+ "ammonia",
  "chrono",
  "dashmap 6.1.0",
  "dirs 6.0.0",
  "futures",
  "futures-util",
+ "htmd",
  "indextree",
  "kalosm",
  "kalosm-common",
@@ -6174,6 +6199,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
+dependencies = [
+ "phf_macros 0.13.1",
+ "phf_shared 0.13.1",
+ "serde",
+]
+
+[[package]]
 name = "phf_codegen"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6234,6 +6270,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf_generator"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "135ace3a761e564ec88c03a77317a7c6b80bb7f7135ef2544dbe054243b89737"
+dependencies = [
+ "fastrand",
+ "phf_shared 0.13.1",
+]
+
+[[package]]
 name = "phf_macros"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6262,6 +6308,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf_macros"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "812f032b54b1e759ccd5f8b6677695d5268c588701effba24601f6932f8269ef"
+dependencies = [
+ "phf_generator 0.13.1",
+ "phf_shared 0.13.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
 name = "phf_shared"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6287,6 +6346,15 @@ checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
 dependencies = [
  "siphasher 1.0.1",
  "unicase",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
+dependencies = [
+ "siphasher 1.0.1",
 ]
 
 [[package]]
@@ -6965,7 +7033,7 @@ checksum = "e7843b159286299dd2b90f06d904ae1a8017a650d88d716c85dd6f123947f399"
 dependencies = [
  "html5ever 0.25.2",
  "lazy_static",
- "markup5ever_rcdom",
+ "markup5ever_rcdom 0.1.0",
  "regex",
  "url",
 ]
@@ -11214,6 +11282,16 @@ dependencies = [
  "mac",
  "markup5ever 0.10.1",
  "time 0.1.45",
+]
+
+[[package]]
+name = "xml5ever"
+version = "0.35.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee3f1e41afb31a75aef076563b0ad3ecc24f5bd9d12a72b132222664eb76b494"
+dependencies = [
+ "log",
+ "markup5ever 0.35.0",
 ]
 
 [[package]]

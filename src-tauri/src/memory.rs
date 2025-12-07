@@ -6,8 +6,8 @@ use kalosm::language::{
     Document, DocumentTable, DocumentTableSurrealExt, EmbeddingId, SemanticChunker,
 };
 use kalosm::sound::ModelLoadingProgress;
-use rbert::Bert;
 use rbert::EmbedderExt;
+use rbert::{Bert, Embedding};
 use serde::{Deserialize, Serialize};
 use surrealdb::engine::local::{Db, SurrealKv};
 use surrealdb::sql::Thing;
@@ -15,6 +15,107 @@ use surrealdb::Surreal;
 
 const TABLE: &str = "documents";
 
+/// Represents a note document with a title and body content.
+/// This struct is used for storing and managing documents in the RAG memory system.
+#[derive(Serialize, Deserialize)]
+pub struct NoteDocument {
+    pub title: String,
+    pub body: String,
+}
+
+/// Implements methods for the NoteDocument struct.
+/// This implementation includes methods for creating a NoteDocument
+impl NoteDocument {
+    pub fn from_parts(title: &str, body: &str) -> Self {
+        NoteDocument {
+            title: title.to_string(),
+            body: body.to_string(),
+        }
+    }
+
+    pub async fn embedding(&self, model: &Bert) -> Option<Embedding> {
+        if let Ok(embeddings) = model.embed(&self.body).await {
+            return Some(embeddings);
+        }
+        None
+    }
+}
+
+/// Represents the memory management system for RAG using SurrealDB.
+/// This struct contains the database connection, document table,
+/// and optional embedding model.
+pub struct Memory {
+    pub db: Surreal<Db>,
+    pub document_table: DocumentTable<Db>,
+    pub embedding_model: Option<Bert>,
+}
+
+/// Represents lines of context extracted from documents.
+/// This struct contains the content of the document context.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocumentContext {
+    document_title: String,
+    content: String,
+    embedding: Option<Embedding>,
+}
+
+impl DocumentContext {
+    /// Returns the content of the document context.
+    pub fn content(&self) -> &str {
+        &self.content
+    }
+
+    /// Returns the title of the document.
+    pub fn document_title(&self) -> &str {
+        &self.document_title
+    }
+
+    /// Returns the embedding associated with the document context.
+    pub fn embeddings(&self) -> &Option<Embedding> {
+        &self.embedding
+    }
+
+    /// Creates a new DocumentContext from the given parts.
+    pub fn from_parts(
+        document_title: String,
+        content: String,
+        embedding: Option<Embedding>,
+    ) -> Self {
+        DocumentContext {
+            document_title,
+            content,
+            embedding,
+        }
+    }
+}
+
+/// Trait for converting a NoteDocument into a DocumentContext using embeddings.
+/// This trait defines an asynchronous method to perform the conversion.
+pub trait MemoryDocumentContextExt {
+    async fn to_document_context(&self, embedding_document: NoteDocument) -> DocumentContext;
+}
+
+/// Implements the MemoryDocumentContext trait for the Memory struct.
+/// This implementation converts a NoteDocument into a MemoryDocumentContext
+/// by generating embeddings using the BERT model.
+impl MemoryDocumentContextExt for Memory {
+    async fn to_document_context(&self, embedding_document: NoteDocument) -> DocumentContext {
+        let model = self
+            .embedding_model
+            .as_ref()
+            .expect("Embedding model not initialized");
+        let embeddings = embedding_document.embedding(&model).await;
+        DocumentContext::from_parts(
+            embedding_document.title,
+            embedding_document.body,
+            embeddings,
+        )
+    }
+}
+
+/// Represents a document with its embedding information.
+/// This struct contains the distance to the query, the document ID,
+/// /// title, and body content.
 #[derive(Serialize, Deserialize)]
 pub struct EmbeddingDocument {
     pub distance: f32,
@@ -23,12 +124,9 @@ pub struct EmbeddingDocument {
     pub body: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct QueryResult {
-    pub id: Thing,
-    pub object: Document,
-}
-
+/// Represents a chat session associated with a user.
+/// This struct contains the job ID, user ID, creation timestamp,
+/// and last updated timestamp.
 #[derive(Serialize, Deserialize)]
 pub struct ChatSession {
     pub job_id: String,
@@ -37,11 +135,32 @@ pub struct ChatSession {
     pub updated_at: String,
 }
 
-pub struct Memory {
-    pub db: Surreal<Db>,
-    pub document_table: DocumentTable<Db>,
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Clone)]
+pub struct QueryResult {
+    pub id: Thing,
+    pub object: Document,
 }
 
+#[allow(dead_code)]
+pub trait DocumentMemory {
+    async fn find_document_by_title(
+        &self,
+        title: String,
+    ) -> Result<Option<QueryResult>, MemoryError>;
+    async fn create_or_update_document(
+        &self,
+        title: &str,
+        body: &str,
+    ) -> Result<Response<String>, MemoryError>;
+    async fn search_documents(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Response<Vec<EmbeddingDocument>>, MemoryError>;
+}
+
+#[allow(dead_code)]
 pub trait UserMemory {
     async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError>;
     async fn save_chat_session(&self, session_id: &str) -> Result<Response<String>, MemoryError>;
@@ -60,7 +179,8 @@ impl Memory {
 
         let db = Surreal::new::<SurrealKv>(root_dir.clone()).await?;
 
-        let bert = Bert::builder()
+        // TODO! Make the model configurable via app settings
+        let model = Bert::builder()
             .build_with_loading_handler(|progress| match &progress {
                 ModelLoadingProgress::Downloading {
                     source,
@@ -76,21 +196,29 @@ impl Memory {
                 }
             })
             .await?;
+
         db.use_ns("embeddings_ns").use_db("embeddings").await?;
 
         let chunker = SemanticChunker::new().with_target_score(90 as f32);
 
         let document_table = db
             .document_table_builder(TABLE)
-            .with_embedding_model(bert)
             .with_chunker(chunker)
             .at(root_dir.join("embeddings.db"))
             .build::<Document>()
             .await?;
 
-        Ok(Memory { db, document_table })
+        Ok(Memory {
+            db,
+            document_table,
+            embedding_model: Some(model),
+        })
     }
+}
 
+/// Implements document-specific memory operations for managing documents in the RAG memory.
+/// This trait provides methods to find, create/update, and search documents.
+impl DocumentMemory for Memory {
     /// Finds a document in the memory by its title.
     /// Returns a vector of `QueryResult` containing the matching documents.
     /// # Arguments
@@ -99,7 +227,7 @@ impl Memory {
     ///  A vector of `QueryResult` containing the matching documents.
     ///  # Errors
     ///  Returns a `MemoryError` if the search operation fails.
-    pub async fn find_document_by_title(
+    async fn find_document_by_title(
         &self,
         title: String,
     ) -> Result<Option<QueryResult>, MemoryError> {
@@ -123,7 +251,7 @@ impl Memory {
     /// A success response indicating that the document was created or updated.
     /// # Errors
     /// Returns a `MemoryError` if the create or update operation fails.
-    pub async fn create_or_update_document(
+    async fn create_or_update_document(
         &self,
         title: &str,
         body: &str,
@@ -160,7 +288,7 @@ impl Memory {
     ///  A vector of `EmbeddingDocument` containing the search results.
     ///  # Errors
     ///  Returns a `MemoryError` if the search operation fails.
-    pub async fn search_documents(
+    async fn search_documents(
         &self,
         query: &str,
         limit: usize,
@@ -172,7 +300,7 @@ impl Memory {
 
         let context = table
             .search(user_question_embedding)
-            .with_results(3)
+            .with_results(limit)
             .await?
             .into_iter()
             .map(|document| EmbeddingDocument {

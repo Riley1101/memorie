@@ -8,6 +8,7 @@
   import { resolve } from '$app/paths';
   import { invalidateAll } from '$app/navigation';
   import { llmManager } from '@/runes/llm.svelte.js';
+  import { memoryManager } from '@/runes/memory.svelte';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
 
   /**
@@ -46,6 +47,7 @@
 
   /** @type {Command[]} */
   const commands = [
+    { cmd: ':c', description: 'Create Document Context', action: 'createDocumentContext' },
     { cmd: ':u', description: 'Toggle history sidebar', action: 'toggleHistory' },
     { cmd: ':w', description: 'Save file', action: 'save' },
     { cmd: ':q', description: 'Close file', action: 'close' },
@@ -54,6 +56,7 @@
   ];
 
   const quickCommands = [
+    { cmd: ':c', label: 'Analyze', icon: '⌘C' },
     { cmd: ':b', label: 'Sidebar', icon: '⌘B' },
     { cmd: ':u', label: 'History', icon: '⌘U' },
     { cmd: ':w', label: 'Save', icon: '⌘S' },
@@ -163,6 +166,9 @@
     if (!command) return;
 
     switch (command.action) {
+      case 'createDocumentContext':
+        memoryManager.createDocumentContext();
+        break;
       case 'toggleHistory':
         appState.toggleChatHistory();
         break;

@@ -1,18 +1,20 @@
 use super::fs::{self, File};
-use super::memory::{EmbeddingDocument, UserMemory};
+use super::memory::{EmbeddingDocument, MemoryDocumentContextExt, NoteDocument, UserMemory};
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
+use crate::error::FileError;
 use crate::llm::ModelType;
 use crate::utils::ChatMode;
-use kalosm::language::Document;
+use ammonia::is_html;
+use htmd::HtmlToMarkdown;
 use tauri::State;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+
 /**
  *  FS Commands
  */
-
 #[tauri::command]
 pub async fn list_files(state: State<'_, AppState>) -> Result<Vec<File>, String> {
     let config = state.config.lock().await;
@@ -35,7 +37,6 @@ pub async fn create_file(
     content: String,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
-
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
     let result = fs::create_file(&path, &content).map_err(|e| e.to_string())?;
@@ -88,8 +89,23 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     if let Some(history) = undo_tree.get_history(&name) {
         if let Some(current_index) = history.current {
             if let Some(current_node) = history.nodes.get(current_index.0) {
-                // Found history, return the current node's content
-                return Ok(current_node.content.clone());
+                let content = current_node.content.clone();
+
+                let is_html_content = is_html(&content);
+
+                if is_html_content {
+                    let converter = HtmlToMarkdown::builder()
+                        .skip_tags(vec!["script", "style"])
+                        .build();
+                    let result = converter
+                        .convert(&content)
+                        .map_err(|e| FileError::ContentConversionError(e.to_string()));
+                    if let Ok(markdown_content) = result {
+                        return Ok(markdown_content);
+                    }
+                } else {
+                    return Ok(content);
+                }
             }
         }
     }
@@ -188,39 +204,38 @@ pub async fn get_chat_status(
  */
 
 #[tauri::command]
-pub async fn create_documents(
+pub async fn create_document_context(
     name: String,
     content: String,
     state: State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<Response<String>, String> {
     let memory = state.memory.lock().await;
+    let document = NoteDocument::from_parts(&name, &content);
+    println!("Creating document context for: {}", name);
 
-    let table = &memory.document_table;
+    let document_context = memory.to_document_context(document).await;
 
-    let document = Document::from_parts(name, content);
+    println!(
+        "Document context created: {:?}",
+        document_context.embeddings()
+    );
 
-    table.insert(document).await.map_err(|e| e.to_string())?;
-
-    Ok("Hello".to_string())
+    Ok(Response::success("Created Embeddings".to_string()))
 }
 
 #[tauri::command]
 pub async fn search_documents(
-    query: String,
-    state: State<'_, AppState>,
+    _query: String,
+    _state: State<'_, AppState>,
 ) -> Result<Response<Vec<EmbeddingDocument>>, String> {
-    let memory = state.memory.lock().await;
-
-    Ok(memory
-        .search_documents(&query, 1)
-        .await
-        .map_err(|e| e.to_string())?)
+    let vec = Vec::new();
+    let response = Response::success(vec);
+    Ok(response)
 }
 
 /**
  *  Memory Commands
  */
-
 #[tauri::command]
 pub async fn get_chat_sessions(
     state: State<'_, AppState>,

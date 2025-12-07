@@ -9,6 +9,9 @@ pub enum FileError {
 
     #[error("Home dir Directory not found")]
     HomeDirNotFound,
+
+    #[error("Content conversion error: {0}")]
+    ContentConversionError(String),
 }
 
 #[derive(Error, Debug)]

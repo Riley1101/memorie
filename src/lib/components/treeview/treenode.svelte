@@ -45,10 +45,13 @@
     await invoke('goto_file_version', {
       name: fileName,
       nodeId: nodeId,
-    }).catch((e) => {
-      console.error('Error going to file version:', e);
-    });
-    invalidateAll();
+    })
+      .then(() => {
+        invalidateAll();
+      })
+      .catch((e) => {
+        console.error('Error going to file version:', e);
+      });
   }
 </script>
 

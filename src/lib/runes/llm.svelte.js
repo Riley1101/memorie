@@ -130,6 +130,10 @@ export class LlmManager {
     }
   }
 
+  /**
+   * Cancels the ongoing LLM message generation.
+   * @returns {Promise<void>}
+   */
   async cancelMessage() {
     if (this.workerId) {
       let status = await invoke(LLM_INVOKE.CANCEL_CHAT, { jobId: this.workerId });

@@ -32,11 +32,13 @@ class MemoryManager {
    * Creates embeddings for the current file content.
    * @public
    *
-   * @param {string} fileName - The name of the file.
-   * @param {string} fileContent - The content of the file.
    */
-  createEmbeddings(fileName, fileContent) {
-    invoke('create_embeddings', { name: fileName, content: fileContent })
+  createDocumentContext() {
+    console.log(this.context)
+    invoke('create_document_context', {
+      content: this.context.content,
+      name: this.context.fileName,
+    })
       .then((res) => {
         console.log('Embeddings created:', res);
       })
