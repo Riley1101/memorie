@@ -1,5 +1,5 @@
 use super::fs::{self, File};
-use super::memory::{EmbeddingDocument, MemoryDocumentContextExt, NoteDocument, UserMemory};
+use super::memory::{MemoryDocumentAnalysisExt, NoteDocument, UserMemoryExt};
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
@@ -215,10 +215,7 @@ pub async fn create_document_context(
 
     let document_context = memory.to_document_context(document).await;
 
-    println!(
-        "Document context created: {:?}",
-        document_context.embeddings()
-    );
+    println!("Document context created: {:?}", document_context);
 
     Ok(Response::success("Created Embeddings".to_string()))
 }
@@ -227,7 +224,7 @@ pub async fn create_document_context(
 pub async fn search_documents(
     _query: String,
     _state: State<'_, AppState>,
-) -> Result<Response<Vec<EmbeddingDocument>>, String> {
+) -> Result<Response<Vec<String>>, String> {
     let vec = Vec::new();
     let response = Response::success(vec);
     Ok(response)

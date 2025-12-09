@@ -1,169 +1,49 @@
+use std::collections::HashMap;
+
 use super::error::MemoryError;
 use super::responses::Response;
 use super::utils;
 use chrono::Utc;
-use kalosm::language::{
-    Document, DocumentTable, DocumentTableSurrealExt, EmbeddingId, SemanticChunker,
-};
 use kalosm::sound::ModelLoadingProgress;
-use rbert::EmbedderExt;
-use rbert::{Bert, Embedding};
+use rbert::Bert;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use surrealdb::engine::local::{Db, SurrealKv};
 use surrealdb::sql::Thing;
 use surrealdb::Surreal;
 
+// -------------------------------------------------------
+//  GENERAL UTILS
+// -------------------------------------------------------
 const TABLE: &str = "documents";
 
-/// Represents a note document with a title and body content.
-/// This struct is used for storing and managing documents in the RAG memory system.
-#[derive(Serialize, Deserialize)]
-pub struct NoteDocument {
-    pub title: String,
-    pub body: String,
+/// Splits text by double newline (paragraphs).
+/// This is more stable than fixed - character chunking for editors.
+fn split_by_paragraph(text: &str) -> Vec<&str> {
+    text.split("\n\n")
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
-/// Implements methods for the NoteDocument struct.
-/// This implementation includes methods for creating a NoteDocument
-impl NoteDocument {
-    pub fn from_parts(title: &str, body: &str) -> Self {
-        NoteDocument {
-            title: title.to_string(),
-            body: body.to_string(),
-        }
-    }
-
-    pub async fn embedding(&self, model: &Bert) -> Option<Embedding> {
-        if let Ok(embeddings) = model.embed(&self.body).await {
-            return Some(embeddings);
-        }
-        None
-    }
+/// Generates a SHA256 hash of the text content.
+/// This acts as a unique fingerprint for the paragraph.
+fn generate_hash(content: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(content);
+    hex::encode(hasher.finalize())
 }
+
+// -------------------------------------------------------
+// MEMORY STRUCTS
+// -------------------------------------------------------
 
 /// Represents the memory management system for RAG using SurrealDB.
 /// This struct contains the database connection, document table,
 /// and optional embedding model.
 pub struct Memory {
     pub db: Surreal<Db>,
-    pub document_table: DocumentTable<Db>,
     pub embedding_model: Option<Bert>,
-}
-
-/// Represents lines of context extracted from documents.
-/// This struct contains the content of the document context.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DocumentContext {
-    document_title: String,
-    content: String,
-    embedding: Option<Embedding>,
-}
-
-impl DocumentContext {
-    /// Returns the content of the document context.
-    pub fn content(&self) -> &str {
-        &self.content
-    }
-
-    /// Returns the title of the document.
-    pub fn document_title(&self) -> &str {
-        &self.document_title
-    }
-
-    /// Returns the embedding associated with the document context.
-    pub fn embeddings(&self) -> &Option<Embedding> {
-        &self.embedding
-    }
-
-    /// Creates a new DocumentContext from the given parts.
-    pub fn from_parts(
-        document_title: String,
-        content: String,
-        embedding: Option<Embedding>,
-    ) -> Self {
-        DocumentContext {
-            document_title,
-            content,
-            embedding,
-        }
-    }
-}
-
-/// Trait for converting a NoteDocument into a DocumentContext using embeddings.
-/// This trait defines an asynchronous method to perform the conversion.
-pub trait MemoryDocumentContextExt {
-    async fn to_document_context(&self, embedding_document: NoteDocument) -> DocumentContext;
-}
-
-/// Implements the MemoryDocumentContext trait for the Memory struct.
-/// This implementation converts a NoteDocument into a MemoryDocumentContext
-/// by generating embeddings using the BERT model.
-impl MemoryDocumentContextExt for Memory {
-    async fn to_document_context(&self, embedding_document: NoteDocument) -> DocumentContext {
-        let model = self
-            .embedding_model
-            .as_ref()
-            .expect("Embedding model not initialized");
-        let embeddings = embedding_document.embedding(&model).await;
-        DocumentContext::from_parts(
-            embedding_document.title,
-            embedding_document.body,
-            embeddings,
-        )
-    }
-}
-
-/// Represents a document with its embedding information.
-/// This struct contains the distance to the query, the document ID,
-/// /// title, and body content.
-#[derive(Serialize, Deserialize)]
-pub struct EmbeddingDocument {
-    pub distance: f32,
-    pub id: EmbeddingId,
-    pub title: String,
-    pub body: String,
-}
-
-/// Represents a chat session associated with a user.
-/// This struct contains the job ID, user ID, creation timestamp,
-/// and last updated timestamp.
-#[derive(Serialize, Deserialize)]
-pub struct ChatSession {
-    pub job_id: String,
-    pub user_id: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-pub struct QueryResult {
-    pub id: Thing,
-    pub object: Document,
-}
-
-#[allow(dead_code)]
-pub trait DocumentMemory {
-    async fn find_document_by_title(
-        &self,
-        title: String,
-    ) -> Result<Option<QueryResult>, MemoryError>;
-    async fn create_or_update_document(
-        &self,
-        title: &str,
-        body: &str,
-    ) -> Result<Response<String>, MemoryError>;
-    async fn search_documents(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> Result<Response<Vec<EmbeddingDocument>>, MemoryError>;
-}
-
-#[allow(dead_code)]
-pub trait UserMemory {
-    async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError>;
-    async fn save_chat_session(&self, session_id: &str) -> Result<Response<String>, MemoryError>;
 }
 
 /// Implements the Memory struct for managing RAG memory using SurrealDB.
@@ -199,126 +79,213 @@ impl Memory {
 
         db.use_ns("embeddings_ns").use_db("embeddings").await?;
 
-        let chunker = SemanticChunker::new().with_target_score(90 as f32);
-
-        let document_table = db
-            .document_table_builder(TABLE)
-            .with_chunker(chunker)
-            .at(root_dir.join("embeddings.db"))
-            .build::<Document>()
-            .await?;
-
         Ok(Memory {
             db,
-            document_table,
             embedding_model: Some(model),
         })
     }
 }
 
-/// Implements document-specific memory operations for managing documents in the RAG memory.
-/// This trait provides methods to find, create/update, and search documents.
-impl DocumentMemory for Memory {
-    /// Finds a document in the memory by its title.
-    /// Returns a vector of `QueryResult` containing the matching documents.
-    /// # Arguments
-    ///  * `title` - The title of the document to search for.
-    ///  # Returns
-    ///  A vector of `QueryResult` containing the matching documents.
-    ///  # Errors
-    ///  Returns a `MemoryError` if the search operation fails.
-    async fn find_document_by_title(
-        &self,
-        title: String,
-    ) -> Result<Option<QueryResult>, MemoryError> {
-        let db = &self.db;
-        let mut response = db
-            .query("SELECT * FROM documents where object.title = $title LIMIT 1")
-            .bind(("title", title))
-            .await?;
-        let mut result: Vec<QueryResult> = response.take(0)?;
-        let first = result.pop();
-        Ok(first)
-    }
+// -------------------------------------------------------
+//  Note DOCUMENTS and CHUNKS
+// -------------------------------------------------------
 
-    /// Creates or updates a document in the memory with the given title and body.
-    /// If a document with the specified title already exists, it is updated; otherwise,  
-    /// a new document is created.
-    /// # Arguments
-    /// * `title` - The title of the document.
-    /// * `body` - The body content of the document.
-    /// # Returns
-    /// A success response indicating that the document was created or updated.
-    /// # Errors
-    /// Returns a `MemoryError` if the create or update operation fails.
-    async fn create_or_update_document(
-        &self,
-        title: &str,
-        body: &str,
-    ) -> Result<Response<String>, MemoryError> {
-        let document = Document::from_parts(title.to_string(), body);
-        match self.find_document_by_title(title.to_string()).await? {
-            Some(result) => {
-                let id = result.id.to_string();
-                let query = format!("UPDATE {} SET object = $document", id);
-                self.db
-                    .query(query)
-                    .bind(("document", document))
-                    .await
-                    .map_err(|e| MemoryError::DocumentUpdateInsertError(e.to_string()))?;
-                Ok(Response::success("Document Updated".to_string()))
-            }
-            None => {
-                let _ = self
-                    .document_table
-                    .insert(document)
-                    .await
-                    .map_err(|e| MemoryError::DocumentUpdateInsertError(e.to_string()))?;
-                Ok(Response::success("Document Created".to_string()))
-            }
+/// Represents a note document with a title and body content.
+/// This struct is used for storing and managing documents in the RAG memory system.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NoteDocument {
+    id: Option<Thing>,
+    pub title: String,
+    pub body: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TextChunk {
+    id: Option<Thing>,
+    pub parent: Thing,
+    pub content: String,
+    pub sequence: usize,
+    content_hash: String,
+    grammar_check: Option<String>,
+    is_dirty: bool,
+}
+
+/// Implements methods for the NoteDocument struct.
+/// This implementation includes methods for creating a NoteDocument
+impl NoteDocument {
+    pub fn from_parts(title: &str, body: &str) -> Self {
+        NoteDocument {
+            id: None,
+            title: title.to_string(),
+            body: body.to_string(),
         }
     }
+}
 
-    /// Searches for documents in the memory that are relevant to the given query.
-    /// Returns a vector of `EmbeddingDocument` containing the search results.
-    ///  # Arguments
-    ///  * `query` - The search query string.
-    ///  * `limit` - The maximum number of results to return.
-    ///  # Returns
-    ///  A vector of `EmbeddingDocument` containing the search results.
-    ///  # Errors
-    ///  Returns a `MemoryError` if the search operation fails.
-    async fn search_documents(
+// -------------------------------------------------------
+// MEMORY DOCUMENT ANALYSIS EXTENSION
+// -------------------------------------------------------
+
+/// Trait for converting a NoteDocument into a DocumentContext using embeddings.
+/// This trait defines an asynchronous method to perform the conversion.
+pub trait MemoryDocumentAnalysisExt {
+    async fn to_document_context(
         &self,
-        query: &str,
-        limit: usize,
-    ) -> Result<Response<Vec<EmbeddingDocument>>, MemoryError> {
-        let table = &self.document_table;
-        println!("Searching documents with query: {}", query);
+        embedding_document: NoteDocument,
+    ) -> Option<String>;
+}
 
-        let user_question_embedding = table.embedding_model().embed(&query).await?;
+/// Implements the MemoryDocumentAnalysisExt trait for the Memory struct.
+/// This implementation provides the logic to convert a note_document
+/// into a DocumentContext by splitting the document into paragraphs,
+/// generating hashes, and reconciling with existing chunks in the database.
+/// It handles new, unchanged, and deleted paragraphs accordingly.
+impl MemoryDocumentAnalysisExt for Memory {
+    async fn to_document_context(
+        &self,
+        embedding_document: NoteDocument,
+    ) -> Option<String> {
+        let db = &self.db;
 
-        let context = table
-            .search(user_question_embedding)
-            .with_results(limit)
-            .await?
-            .into_iter()
-            .map(|document| EmbeddingDocument {
-                distance: document.distance,
-                id: document.id,
-                title: document.record.title().to_string(),
-                body: document.record.body().to_string(),
+        let note_document: Option<NoteDocument> = db
+            .create(TABLE)
+            .content(NoteDocument {
+                id: None,
+                title: embedding_document.title.clone(),
+                body: embedding_document.body.clone(),
             })
-            .collect::<Vec<EmbeddingDocument>>();
-        println!("Found {} documents", context.len());
-        let response = Response::success(context);
-        Ok(response)
+            .await
+            .unwrap();
+
+        let parent_id = note_document.as_ref().and_then(|doc| doc.id.clone());
+        let new_segments = split_by_paragraph(&embedding_document.body);
+        let sql = "SELECT * FROM chunk WHERE parent = $id";
+        let mut response = db.query(sql).bind(("id", parent_id.clone())).await.unwrap();
+        let existing_chunks: Vec<TextChunk> = response.take(0).unwrap();
+
+        println!("Created Note Document: {:?}", note_document);
+        let mut old_chunk_map: HashMap<String, TextChunk> = HashMap::new();
+
+        for chunk in existing_chunks {
+            old_chunk_map.insert(chunk.content_hash.clone(), chunk);
+        }
+        println!(
+            ">> Reconciliation Start: {} new paragraphs vs {} existing",
+            new_segments.len(),
+            old_chunk_map.len()
+        );
+
+        for (i, segment) in new_segments.iter().enumerate() {
+            let new_hash = generate_hash(segment);
+            let short_preview = segment
+                .chars()
+                .take(20)
+                .collect::<String>()
+                .replace('\n', " ");
+
+            if let Some(mut old_chunk) = old_chunk_map.remove(&new_hash) {
+                // --- CASE A: UNCHANGED ---
+                // We found a chunk in the DB with the exact same hash.
+                // We preserve the 'grammar_check' and 'id'.
+                // We only update 'sequence' (in case the paragraph moved up/down).
+
+                if old_chunk.sequence != i {
+                    // It moved position
+                    // let _: Option<TextChunk> = db
+                    //     .update(("chunk", old_chunk.id.as_ref().unwrap().id.clone()))
+                    //     .merge(TextChunk {
+                    //         id: old_chunk.id.clone(),
+                    //         parent: parent_id,
+                    //         content: segment.to_string(),
+                    //         sequence: i,
+                    //         content_hash: new_hash,
+                    //         grammar_check: old_chunk.grammar_check, // PRESERVED!
+                    //         is_dirty: false,
+                    //     })
+                    //     .await.unwrap();
+                    println!(
+                        "   [MOVED]  idx {}: '{}...' (Analysis Preserved)",
+                        i, short_preview
+                    );
+                } else {
+                    // Exact match, same position. Often we can skip writing to DB entirely here,
+                    // but for safety we ensure the record is confirmed.
+                    println!(
+                        "   [MATCH]  idx {}: '{}...' (Skipping DB Write)",
+                        i, short_preview
+                    );
+                }
+            } else {
+                // --- CASE B: NEW / EDITED ---
+                // No hash match found. This is a new paragraph or an edit.
+                // Create a new chunk and mark is_dirty = true.
+                let _: Option<TextChunk> = db
+                    .create("chunk")
+                    .content(TextChunk {
+                        id: None,
+                        parent: parent_id.clone().unwrap(),
+                        content: segment.to_string(),
+                        sequence: i,
+                        content_hash: new_hash,
+                        grammar_check: None, // No analysis yet
+                        is_dirty: true,      // NEEDS LLM
+                    })
+                    .await
+                    .unwrap();
+                println!(
+                    "   [NEW]    idx {}: '{}...' (Marked Dirty)",
+                    i, short_preview
+                );
+            }
+        }
+
+        if !old_chunk_map.is_empty() {
+            println!(
+                ">> Cleaning up {} deleted paragraphs...",
+                old_chunk_map.len()
+            );
+            for (_, unused_chunk) in old_chunk_map {
+                println!(
+                    "   [DELETED] idx {}: '{}...'",
+                    unused_chunk.sequence,
+                    unused_chunk
+                        .content
+                        .chars()
+                        .take(20)
+                        .collect::<String>()
+                        .replace('\n', " ")
+                );
+                // delete unused chunks
+                // let _: Option<TextChunk> = db.delete(("chunk", unused_chunk.id.unwrap().id)).await?;
+            }
+        }
+        None
     }
+}
+
+// -------------------------------------------------------
+// USER CHAT SESSIONS
+// -------------------------------------------------------
+
+/// Represents a chat session associated with a user.
+/// This struct contains the job ID, user ID, creation timestamp,
+/// and last updated timestamp.
+#[derive(Serialize, Deserialize)]
+pub struct ChatSession {
+    pub job_id: String,
+    pub user_id: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+pub trait UserMemoryExt {
+    async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError>;
+    async fn save_chat_session(&self, session_id: &str) -> Result<Response<String>, MemoryError>;
 }
 
 /// Implements user-specific memory operations for managing chat sessions.
 /// This trait provides methods to retrieve and save chat sessions associated with a user.
-impl UserMemory for Memory {
+impl UserMemoryExt for Memory {
     /// Retrieves the chat sessions for the user.
     /// Returns an optional `ChatSession` if found, or `None` if no sessions exist.
     // TODO! Replace "root" with actual user ID

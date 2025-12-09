@@ -53,6 +53,9 @@ tokio-util = { version = "0.7.16" }
 uuid = { version = "1", features = ["v4", "serde"] }
 
 walkdir = "2"
+text-splitter = { version = "0.28.0", features = ["markdown"] }
+sha2 = "0.10.9"
+hex = {version = "0.4.3", features = ["serde"] }
 
 [dev-dependencies]
 tempfile = "3.23.0"
