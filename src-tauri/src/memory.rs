@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
-use super::error::MemoryError;
-use super::responses::Response;
-use super::utils;
+use super::{error::MemoryError, responses::Response, utils};
 use chrono::Utc;
 use kalosm::sound::ModelLoadingProgress;
 use rbert::Bert;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use surrealdb::engine::local::{Db, SurrealKv};
 use surrealdb::sql::Thing;
 use surrealdb::Surreal;
@@ -15,7 +12,8 @@ use surrealdb::Surreal;
 // -------------------------------------------------------
 //  GENERAL UTILS
 // -------------------------------------------------------
-const TABLE: &str = "documents";
+const DOCUMENT_TABLE: &str = "documents";
+const CHUNK_TABLE: &str = "chunk";
 
 /// Splits text by double newline (paragraphs).
 /// This is more stable than fixed - character chunking for editors.
@@ -56,9 +54,7 @@ impl Memory {
     pub async fn new() -> Result<Self, MemoryError> {
         // TODO! Make the path configurable via app settings
         let root_dir = utils::get_app_dir()?.join("db/memory/");
-
         let db = Surreal::new::<SurrealKv>(root_dir.clone()).await?;
-
         // TODO! Make the model configurable via app settings
         let model = Bert::builder()
             .build_with_loading_handler(|progress| match &progress {
@@ -84,6 +80,45 @@ impl Memory {
             embedding_model: Some(model),
         })
     }
+
+    pub async fn find_document_by_title(
+        &self,
+        title: &str,
+    ) -> Result<Option<NoteDocument>, MemoryError> {
+        let db = &self.db;
+        let mut response = db
+            .query("SELECT * FROM documents WHERE title = $title LIMIT 1")
+            .bind(("title", title.to_string()))
+            .await?;
+        let mut result: Vec<NoteDocument> = response.take(0)?;
+        let first = result.pop();
+        Ok(first)
+    }
+
+    pub async fn create_or_update_document(
+        &self,
+        title: &str,
+        body: &str,
+    ) -> Result<Option<NoteDocument>, MemoryError> {
+        let db = &self.db;
+        match self.find_document_by_title(&title).await? {
+            Some(mut result) => {
+                println!(">> Updating existing document: {}", title);
+                result.set_body(body);
+                result.set_title(title);
+                let mut result: Vec<NoteDocument> =
+                    db.upsert(DOCUMENT_TABLE).content(result).await.unwrap();
+                Ok(result.pop())
+            }
+            None => {
+                println!(">> created a new doc: {}", title);
+                let document = NoteDocument::from_parts(title, body);
+                let note_document: Option<NoteDocument> =
+                    db.create(DOCUMENT_TABLE).content(document).await?;
+                Ok(note_document)
+            }
+        }
+    }
 }
 
 // -------------------------------------------------------
@@ -99,6 +134,26 @@ pub struct NoteDocument {
     pub body: String,
 }
 
+/// Implements methods for the NoteDocument struct.
+/// This implementation includes methods for creating a NoteDocument
+impl NoteDocument {
+    pub fn from_parts(title: &str, body: &str) -> Self {
+        NoteDocument {
+            id: None,
+            title: title.to_string(),
+            body: body.to_string(),
+        }
+    }
+
+    pub fn set_body(&mut self, body: &str) {
+        self.body = body.to_string();
+    }
+
+    pub fn set_title(&mut self, title: &str) {
+        self.title = title.to_string();
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TextChunk {
     id: Option<Thing>,
@@ -110,18 +165,6 @@ pub struct TextChunk {
     is_dirty: bool,
 }
 
-/// Implements methods for the NoteDocument struct.
-/// This implementation includes methods for creating a NoteDocument
-impl NoteDocument {
-    pub fn from_parts(title: &str, body: &str) -> Self {
-        NoteDocument {
-            id: None,
-            title: title.to_string(),
-            body: body.to_string(),
-        }
-    }
-}
-
 // -------------------------------------------------------
 // MEMORY DOCUMENT ANALYSIS EXTENSION
 // -------------------------------------------------------
@@ -129,10 +172,7 @@ impl NoteDocument {
 /// Trait for converting a NoteDocument into a DocumentContext using embeddings.
 /// This trait defines an asynchronous method to perform the conversion.
 pub trait MemoryDocumentAnalysisExt {
-    async fn to_document_context(
-        &self,
-        embedding_document: NoteDocument,
-    ) -> Option<String>;
+    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<String>;
 }
 
 /// Implements the MemoryDocumentAnalysisExt trait for the Memory struct.
@@ -141,21 +181,18 @@ pub trait MemoryDocumentAnalysisExt {
 /// generating hashes, and reconciling with existing chunks in the database.
 /// It handles new, unchanged, and deleted paragraphs accordingly.
 impl MemoryDocumentAnalysisExt for Memory {
-    async fn to_document_context(
-        &self,
-        embedding_document: NoteDocument,
-    ) -> Option<String> {
+    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<String> {
         let db = &self.db;
 
-        let note_document: Option<NoteDocument> = db
-            .create(TABLE)
-            .content(NoteDocument {
-                id: None,
-                title: embedding_document.title.clone(),
-                body: embedding_document.body.clone(),
-            })
+        let note_document = self
+            .create_or_update_document(&embedding_document.title, &embedding_document.body)
             .await
             .unwrap();
+
+        println!(
+            ">> Starting Document Reconciliation for '{}'",
+            embedding_document.title
+        );
 
         let parent_id = note_document.as_ref().and_then(|doc| doc.id.clone());
         let new_segments = split_by_paragraph(&embedding_document.body);
@@ -163,7 +200,6 @@ impl MemoryDocumentAnalysisExt for Memory {
         let mut response = db.query(sql).bind(("id", parent_id.clone())).await.unwrap();
         let existing_chunks: Vec<TextChunk> = response.take(0).unwrap();
 
-        println!("Created Note Document: {:?}", note_document);
         let mut old_chunk_map: HashMap<String, TextChunk> = HashMap::new();
 
         for chunk in existing_chunks {
@@ -190,26 +226,20 @@ impl MemoryDocumentAnalysisExt for Memory {
                 // We only update 'sequence' (in case the paragraph moved up/down).
 
                 if old_chunk.sequence != i {
-                    // It moved position
-                    // let _: Option<TextChunk> = db
-                    //     .update(("chunk", old_chunk.id.as_ref().unwrap().id.clone()))
-                    //     .merge(TextChunk {
-                    //         id: old_chunk.id.clone(),
-                    //         parent: parent_id,
-                    //         content: segment.to_string(),
-                    //         sequence: i,
-                    //         content_hash: new_hash,
-                    //         grammar_check: old_chunk.grammar_check, // PRESERVED!
-                    //         is_dirty: false,
-                    //     })
-                    //     .await.unwrap();
-                    println!(
-                        "   [MOVED]  idx {}: '{}...' (Analysis Preserved)",
-                        i, short_preview
-                    );
+                    let _: Vec<TextChunk> = db
+                        .upsert(CHUNK_TABLE)
+                        .content(TextChunk {
+                            id: old_chunk.id.clone(),
+                            parent: parent_id.clone().unwrap(),
+                            content: segment.to_string(),
+                            sequence: i,
+                            content_hash: new_hash,
+                            grammar_check: old_chunk.grammar_check,
+                            is_dirty: false,
+                        })
+                        .await
+                        .unwrap();
                 } else {
-                    // Exact match, same position. Often we can skip writing to DB entirely here,
-                    // but for safety we ensure the record is confirmed.
                     println!(
                         "   [MATCH]  idx {}: '{}...' (Skipping DB Write)",
                         i, short_preview
@@ -220,15 +250,15 @@ impl MemoryDocumentAnalysisExt for Memory {
                 // No hash match found. This is a new paragraph or an edit.
                 // Create a new chunk and mark is_dirty = true.
                 let _: Option<TextChunk> = db
-                    .create("chunk")
+                    .create(CHUNK_TABLE)
                     .content(TextChunk {
                         id: None,
                         parent: parent_id.clone().unwrap(),
                         content: segment.to_string(),
                         sequence: i,
                         content_hash: new_hash,
-                        grammar_check: None, // No analysis yet
-                        is_dirty: true,      // NEEDS LLM
+                        grammar_check: None,
+                        is_dirty: true,
                     })
                     .await
                     .unwrap();
@@ -255,8 +285,10 @@ impl MemoryDocumentAnalysisExt for Memory {
                         .collect::<String>()
                         .replace('\n', " ")
                 );
-                // delete unused chunks
-                // let _: Option<TextChunk> = db.delete(("chunk", unused_chunk.id.unwrap().id)).await?;
+                let _: Option<TextChunk> = db
+                    .delete((CHUNK_TABLE, unused_chunk.id.unwrap().to_string()))
+                    .await
+                    .unwrap();
             }
         }
         None
