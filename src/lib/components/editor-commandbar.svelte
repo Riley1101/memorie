@@ -10,6 +10,7 @@
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
+  import { getMarkdown } from '@milkdown/kit/utils';
 
   /**
    * @type {{fileName?:string ,body?: string , currentVersion?: number}}
@@ -25,9 +26,9 @@
    */
   function onSave() {
     if (editorState.editor) {
-      let content = editorState.editor.getHTML();
+      const markdown = editorState.editor.action(getMarkdown());
       if (fileName) {
-        fileManager.createNewFile(fileName, content);
+        fileManager.createNewFile(fileName, markdown);
         invalidateAll();
       }
     }

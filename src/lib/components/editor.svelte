@@ -1,10 +1,12 @@
 <script>
   import { Editor, rootCtx } from '@milkdown/core';
   import { commonmark } from '@milkdown/preset-commonmark';
+  import { gfm } from '@milkdown/kit/preset/gfm';
   import { editorState } from '$lib/runes/editor.svelte';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
   import { replaceAll } from '@milkdown/kit/utils';
   import { headingIdGenerator } from '@milkdown/kit/preset/commonmark';
+  import { clipboard } from '@milkdown/kit/plugin/clipboard';
 
   /**
    * @type {{ defaultValue?:string , onSave?: (markdown: string) => void}}
@@ -23,6 +25,7 @@
    * @param {string} markdown - The current markdown content.
    */
   function triggerAutoSave(markdown) {
+    return;
     editorState.setSaveStatus({
       status: 'unsaved',
     });
@@ -68,6 +71,8 @@
       .use(listener)
       .use(commonmark)
       .use(headingIdGenerator)
+      .use(gfm)
+      .use(clipboard)
       .create()
       .then((ed) => {
         editorState.setEditor(ed);

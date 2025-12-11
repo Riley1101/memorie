@@ -21,14 +21,6 @@ class MemoryManager {
   }
 
   /**
-   * Gets the current memory context.
-   * @returns {{content: string, fileName: string}}
-   */
-  getContext() {
-    return this.context;
-  }
-
-  /**
    * Creates embeddings for the current file content.
    * @public
    *

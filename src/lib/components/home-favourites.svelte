@@ -7,6 +7,7 @@
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FileIcon from '@lucide/svelte/icons/file';
   import Button from './ui/button/button.svelte';
+  import { formatFileName } from '@/utils';
 
   let favourites = $derived(fileManager.files);
 
@@ -34,7 +35,9 @@
               <FileIcon class="size-5" />
             </Item.Media>
             <Item.Content>
-              <Item.Title>{item.name}</Item.Title>
+              <Item.Title>
+                <span class="capitalize"> {formatFileName(item.name)}</span>
+              </Item.Title>
             </Item.Content>
             <Item.Actions>
               <DropdownMenu.Root>

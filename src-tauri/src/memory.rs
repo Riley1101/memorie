@@ -302,8 +302,10 @@ impl MemoryDocumentAnalysisExt for Memory {
                         .replace('\n', " ")
                 );
 
-                let deleted: Option<TextChunk> =
-                    db.delete((CHUNK_TABLE, unused_chunkid.id.to_string())).await.unwrap();
+                let _: Option<TextChunk> = db
+                    .delete((CHUNK_TABLE, unused_chunkid.id.to_string()))
+                    .await
+                    .unwrap();
                 println!("      -> Deleted chunk ID: {:?}", unused_chunk);
             }
         }
