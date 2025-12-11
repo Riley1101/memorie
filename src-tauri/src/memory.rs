@@ -129,7 +129,7 @@ impl Memory {
 /// This struct is used for storing and managing documents in the RAG memory system.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoteDocument {
-    id: Option<Thing>,
+    pub id: Option<Thing>,
     pub title: String,
     pub body: String,
 }
@@ -165,6 +165,12 @@ pub struct TextChunk {
     is_dirty: bool,
 }
 
+impl TextChunk {
+    pub fn get_thing_id(&self) -> Option<Thing> {
+        self.id.clone()
+    }
+}
+
 // -------------------------------------------------------
 // MEMORY DOCUMENT ANALYSIS EXTENSION
 // -------------------------------------------------------
@@ -172,7 +178,8 @@ pub struct TextChunk {
 /// Trait for converting a NoteDocument into a DocumentContext using embeddings.
 /// This trait defines an asynchronous method to perform the conversion.
 pub trait MemoryDocumentAnalysisExt {
-    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<String>;
+    async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk>;
+    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument>;
 }
 
 /// Implements the MemoryDocumentAnalysisExt trait for the Memory struct.
@@ -181,7 +188,15 @@ pub trait MemoryDocumentAnalysisExt {
 /// generating hashes, and reconciling with existing chunks in the database.
 /// It handles new, unchanged, and deleted paragraphs accordingly.
 impl MemoryDocumentAnalysisExt for Memory {
-    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<String> {
+    async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk> {
+        let db = &self.db;
+        let sql =
+            "SELECT * FROM chunk WHERE parent = $id AND is_dirty = true ORDER BY sequence ASC";
+        let mut response = db.query(sql).bind(("id", document_id)).await.unwrap();
+        response.take(0).unwrap()
+    }
+
+    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument> {
         let db = &self.db;
 
         let note_document = self
@@ -219,7 +234,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                 .collect::<String>()
                 .replace('\n', " ");
 
-            if let Some(mut old_chunk) = old_chunk_map.remove(&new_hash) {
+            if let Some(old_chunk) = old_chunk_map.remove(&new_hash) {
                 // --- CASE A: UNCHANGED ---
                 // We found a chunk in the DB with the exact same hash.
                 // We preserve the 'grammar_check' and 'id'.
@@ -275,9 +290,10 @@ impl MemoryDocumentAnalysisExt for Memory {
                 old_chunk_map.len()
             );
             for (_, unused_chunk) in old_chunk_map {
+                let unused_chunkid = unused_chunk.get_thing_id().unwrap();
                 println!(
                     "   [DELETED] idx {}: '{}...'",
-                    unused_chunk.sequence,
+                    unused_chunkid,
                     unused_chunk
                         .content
                         .chars()
@@ -285,13 +301,13 @@ impl MemoryDocumentAnalysisExt for Memory {
                         .collect::<String>()
                         .replace('\n', " ")
                 );
-                let _: Option<TextChunk> = db
-                    .delete((CHUNK_TABLE, unused_chunk.id.unwrap().to_string()))
-                    .await
-                    .unwrap();
+
+                let deleted: Option<TextChunk> =
+                    db.delete((CHUNK_TABLE, unused_chunkid.id.to_string())).await.unwrap();
+                println!("      -> Deleted chunk ID: {:?}", unused_chunk);
             }
         }
-        None
+        note_document
     }
 }
 

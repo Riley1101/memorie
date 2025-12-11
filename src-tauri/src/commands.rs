@@ -5,6 +5,7 @@ use super::workers::{Job, JobStatus};
 use super::AppState;
 use crate::error::FileError;
 use crate::llm::ModelType;
+use crate::memory::TextChunk;
 use crate::utils::ChatMode;
 use ammonia::is_html;
 use htmd::HtmlToMarkdown;
@@ -208,16 +209,20 @@ pub async fn create_document_context(
     name: String,
     content: String,
     state: State<'_, AppState>,
-) -> Result<Response<String>, String> {
+) -> Result<Response<Vec<TextChunk>>, String> {
     let memory = state.memory.lock().await;
     let document = NoteDocument::from_parts(&name, &content);
-    println!("Creating document context for: {}", name);
 
     let document_context = memory.to_document_context(document).await;
-
-    println!("Document context created: {:?}", document_context);
-
-    Ok(Response::success("Created Embeddings".to_string()))
+    match document_context {
+        Some(document) => {
+            let result = memory.get_dirty_document_chunk(document.id.unwrap()).await;
+            return Ok(Response::success(result));
+        }
+        None => {
+            return Ok(Response::success(Vec::new()));
+        }
+    }
 }
 
 #[tauri::command]

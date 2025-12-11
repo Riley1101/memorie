@@ -34,16 +34,15 @@ class MemoryManager {
    *
    */
   createDocumentContext() {
-    console.log(this.context)
     invoke('create_document_context', {
       content: this.context.content,
       name: this.context.fileName,
     })
       .then((res) => {
-        console.log('Embeddings created:', res);
+        console.log('Document context created:', res);
       })
       .catch((err) => {
-        console.error('Error creating embeddings:', err);
+        console.error('Error creating context:', err);
       });
   }
 
