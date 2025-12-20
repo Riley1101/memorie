@@ -92,21 +92,25 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
             if let Some(current_node) = history.nodes.get(current_index.0) {
                 let content = current_node.content.clone();
 
-                let is_html_content = is_html(&content);
-
-                if is_html_content {
-                    let converter = HtmlToMarkdown::builder()
-                        .skip_tags(vec!["script", "style"])
-                        .build();
-                    let result = converter
-                        .convert(&content)
-                        .map_err(|e| FileError::ContentConversionError(e.to_string()));
-                    if let Ok(markdown_content) = result {
-                        return Ok(markdown_content);
-                    }
-                } else {
-                    return Ok(content);
-                }
+                return Ok(content);
+                // let is_html_content = is_html(&content);
+                //
+                // if is_html_content {
+                //     let converter = HtmlToMarkdown::builder()
+                //         .skip_tags(vec!["script", "style"])
+                //         .build();
+                //
+                //     let result = converter
+                //         .convert(&content)
+                //         .map_err(|e| FileError::ContentConversionError(e.to_string()));
+                //
+                //     if let Ok(markdown_content) = result {
+                //         return Ok(markdown_content);
+                //     }
+                //
+                // } else {
+                //     return Ok(content);
+                // }
             }
         }
     }

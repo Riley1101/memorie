@@ -10,7 +10,11 @@
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
+  import MenuIcon from '@lucide/svelte/icons/menu';
   import { getMarkdown } from '@milkdown/kit/utils';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import ButtonGroup from './ui/button-group/button-group.svelte';
 
   /**
    * @type {{fileName?:string ,body?: string , currentVersion?: number}}
@@ -308,13 +312,18 @@
 
 <div class="bg-background border-t border-border">
   <div class="flex items-center px-4 py-2">
-    <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-      <AiSparkleIcon class={cn('size-3', isThinking ? 'animate-pulse' : '')} />
-      <span class:text-green-500={isHistoryVisible} class:text-muted-foreground={!isHistoryVisible}>
-        {isHistoryVisible ? 'HISTORY' : `Version ${data?.currentVersion ?? 0} `}
-      </span>
-      <span class="text-muted-foreground/50">|</span>
-      <div class="flex items-center gap-2">
+    <div class="w-full flex items-center gap-4 text-xs font-mono text-muted-foreground">
+      <div class="flex items-center gap-1">
+        <AiSparkleIcon class={cn('size-3', isThinking ? 'animate-pulse' : '')} />
+        <span
+          class:text-green-500={isHistoryVisible}
+          class:text-muted-foreground={!isHistoryVisible}
+        >
+          {isHistoryVisible ? 'HISTORY' : `Version ${data?.currentVersion ?? 0} `}
+        </span>
+      </div>
+
+      <div class="items-center gap-2 hidden md:flex">
         {#each quickCommands as qCmd (qCmd.cmd)}
           <button
             onclick={() => handleQuickCommand(qCmd.cmd)}
@@ -348,7 +357,27 @@
       </form>
     {/if}
 
-    <div class="ml-auto text-xs font-mono text-muted-foreground">
+    <DropdownMenu.Root class="dark">
+      <DropdownMenu.Trigger>
+        {#snippet child({ props })}
+          <Button {...props} variant="ghost" size="sm" class="md:hidden">
+            <MenuIcon class="size-3" />
+          </Button>
+        {/snippet}
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content class="dark w-56" align="start">
+        <DropdownMenu.Group>
+          {#each quickCommands as qCmd (qCmd.cmd)}
+            <DropdownMenu.Item onclick={() => handleQuickCommand(qCmd.cmd)}>
+              <span class="font-mono text-sm">{qCmd.label}</span>
+              <DropdownMenu.Shortcut>{qCmd.icon}</DropdownMenu.Shortcut>
+            </DropdownMenu.Item>
+          {/each}
+        </DropdownMenu.Group>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+
+    <div class="ml-auto text-xs font-mono text-muted-foreground md:flex items-center gap-2 hidden">
       <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">:</kbd> command
       <span class="mx-2">|</span>
       <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">ESC</kbd> cancel

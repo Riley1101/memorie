@@ -29,23 +29,24 @@ impl File {
     // TODO:  for older version with html content;
     pub fn read_content(&self) -> Result<String, FileError> {
         let content = fs::read_to_string(&self.path)?;
-        let is_html_content = is_html(&content);
-        match is_html_content {
-            true => {
-                println!(
-                    "Converting HTML content to Markdown for file: {}",
-                    self.name
-                );
-                let converter = HtmlToMarkdown::builder()
-                    .skip_tags(vec!["script", "style"])
-                    .build();
-                let result = converter
-                    .convert(&content)
-                    .map_err(|e| FileError::ContentConversionError(e.to_string()))?;
-                Ok(result)
-            }
-            false => Ok(content),
-        }
+        Ok(content)
+        // let is_html_content = is_html(&content);
+        // match is_html_content {
+        //     true => {
+        //         println!(
+        //             "Converting HTML content to Markdown for file: {}",
+        //             self.name
+        //         );
+        //         let converter = HtmlToMarkdown::builder()
+        //             .skip_tags(vec!["script", "style"])
+        //             .build();
+        //         let result = converter
+        //             .convert(&content)
+        //             .map_err(|e| FileError::ContentConversionError(e.to_string()))?;
+        //         Ok(result)
+        //     }
+        //     false => Ok(content),
+        // }
     }
 
     #[allow(dead_code)]

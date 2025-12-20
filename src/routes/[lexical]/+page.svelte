@@ -4,6 +4,8 @@
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
   import EditorOutline from '$lib/components/editor-outline.svelte';
+  import Button from '$lib/components/ui/button/button.svelte';
+  import HomeIcon from '@lucide/svelte/icons/home';
   import { appState } from '$lib/runes/app.svelte.js';
 
   let { data } = $props();
@@ -58,7 +60,12 @@
     <!-- Center: Markdown Editor -->
     <main class="h-full flex-1 overflow-hidden">
       <ScrollArea class="flex-1 h-full" type="scroll">
-        <div class="mx-auto max-w-4xl px-6 py-8">
+        <a href="/">
+          <Button variant="ghost" size="sm" class="mx-6 mt-6 text-neutral-500">
+            <HomeIcon class="h-4 w-4" />
+          </Button>
+        </a>
+        <div class="mx-auto max-w-4xl px-6 pb-8">
           <MarkdownEditor {fileName} {body} />
         </div>
       </ScrollArea>
