@@ -12,34 +12,36 @@
    * @property {number | null} current - The index in the `nodes` array of the current state.
    * @property {number[]} redo_stack - A transient stack of indices for managing linear redo.
    */
-
-  import HistoryIcon from '@lucide/svelte/icons/history';
   import TreeNode from './treeview/treenode.svelte';
 
   /** @type {{ fileName:string , history: History}} */
   let { fileName, history } = $props();
 
-  let allNodes = $derived(history?.nodes || []);
+  let rootNodeData = $derived.by(() => {
+    const nodes = history?.nodes || [];
+    const rootIndex = nodes.findIndex((node) => node.parent === null);
 
-  let rootId = $state(-1);
-
-  let rootNode = allNodes.find((node, index) => {
-    if (node.parent === null) {
-      rootId = index;
-      return true;
+    if (rootIndex === -1) {
+      return { node: null, id: -1 };
     }
-    return false;
+
+    return { node: nodes[rootIndex], id: rootIndex };
   });
 </script>
 
 <div class="p-5 pb-[50vh]">
-  <div class="flex items-center gap-2 mb-4 text-muted-foreground">
-    <HistoryIcon class="size-5 " />
-    <h2 class="mt-1">Undotree</h2>
-  </div>
+  <!-- Cleaner conditional rendering with better null handling -->
   <div class="pl-2">
-    {#if rootNode}
-      <TreeNode id={rootId} node={rootNode} {allNodes} current={history?.current} {fileName} />
+    {#if rootNodeData.node}
+      <TreeNode
+        id={rootNodeData.id}
+        node={rootNodeData.node}
+        allNodes={history.nodes}
+        current={history.current}
+        {fileName}
+      />
+    {:else}
+      <p class="text-sm text-muted-foreground">No history available</p>
     {/if}
   </div>
 </div>

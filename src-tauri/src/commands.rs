@@ -255,34 +255,6 @@ pub async fn get_chat_sessions(
  */
 
 #[tauri::command]
-pub async fn undo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let config = state.config.lock().await;
-    let mut undo_tree = state.undotree.lock().await;
-    if let Some(previous_content) = undo_tree.undo(&name) {
-        undo_tree
-            .save(&config.undotree_dir)
-            .map_err(|e| e.to_string())?;
-        Ok(Some(previous_content))
-    } else {
-        Ok(None)
-    }
-}
-
-#[tauri::command]
-pub async fn redo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let config = state.config.lock().await;
-    let mut undo_tree = state.undotree.lock().await;
-    if let Some(next_content) = undo_tree.redo(&name) {
-        undo_tree
-            .save(&config.undotree_dir)
-            .map_err(|e| e.to_string())?;
-        Ok(Some(next_content))
-    } else {
-        Ok(None)
-    }
-}
-
-#[tauri::command]
 pub async fn goto_file_version(
     name: String,
     node_id: usize,
@@ -290,11 +262,17 @@ pub async fn goto_file_version(
 ) -> Result<Option<String>, String> {
     let config = state.config.lock().await;
     let mut undo_tree = state.undotree.lock().await;
-    if let Some(content) = undo_tree.goto_version(&name, node_id) {
+
+    let result = undo_tree
+        .goto_version(&name, node_id)
+        .map(|content| content.to_string());
+
+    if let Some(content_string) = &result {
         undo_tree
             .save(&config.undotree_dir)
             .map_err(|e| e.to_string())?;
-        Ok(Some(content))
+
+        Ok(Some(content_string.clone()))
     } else {
         Ok(None)
     }

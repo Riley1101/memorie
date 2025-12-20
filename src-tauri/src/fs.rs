@@ -32,7 +32,10 @@ impl File {
         let is_html_content = is_html(&content);
         match is_html_content {
             true => {
-                println!("Converting HTML content to Markdown for file: {}", self.name);
+                println!(
+                    "Converting HTML content to Markdown for file: {}",
+                    self.name
+                );
                 let converter = HtmlToMarkdown::builder()
                     .skip_tags(vec!["script", "style"])
                     .build();

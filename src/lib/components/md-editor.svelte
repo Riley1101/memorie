@@ -17,6 +17,8 @@
     editorState.setName(fileName);
   });
 
+  $inspect(content);
+
   /**
    * @description Handles the save action for the editor content.
    * @param {string} content - The content to be saved.

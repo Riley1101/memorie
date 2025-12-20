@@ -18,8 +18,9 @@
   let data = $props();
 
   let fileName = $derived(data.fileName);
-
   let isThinking = $derived(llmManager.isLoading);
+
+  const BLUR_DELAY = 200;
 
   /**
    * @description Handles the save action for the editor content.
@@ -39,6 +40,7 @@
    * @property {string} cmd - The command string (e.g., ":w").
    * @property {string} description - A brief description of the command.
    * @property {string} action - An identifier for the action to take.
+   * @property {string} [shortcut] - Optional keyboard shortcut display.
    */
 
   /**
@@ -48,12 +50,18 @@
 
   /** @type {Command[]} */
   const commands = [
-    { cmd: ':c', description: 'Create Document Context', action: 'createDocumentContext' },
-    { cmd: ':u', description: 'Toggle history sidebar', action: 'toggleHistory' },
-    { cmd: ':w', description: 'Save file', action: 'save' },
-    { cmd: ':q', description: 'Close file', action: 'close' },
-    { cmd: ':b', description: 'Toggle Sidebar', action: 'sidebar' },
-    { cmd: ':ai', description: 'Toggle AI', action: 'aichat' },
+    {
+      cmd: ':c',
+      description: 'Create Document Context',
+      action: 'createDocumentContext',
+      shortcut: '⌘C',
+    },
+    { cmd: ':u', description: 'Toggle history sidebar', action: 'toggleHistory', shortcut: '⌘U' },
+    { cmd: ':w', description: 'Save file', action: 'save', shortcut: '⌘S' },
+    { cmd: ':wq', description: 'Save and close file', action: 'saveAndClose', shortcut: '⌘W' },
+    { cmd: ':q', description: 'Close file', action: 'close', shortcut: '⌘Q' },
+    { cmd: ':b', description: 'Toggle Sidebar', action: 'sidebar', shortcut: '⌘B' },
+    { cmd: ':ai', description: 'Toggle AI Chat', action: 'aichat', shortcut: '⌘A' },
   ];
 
   const quickCommands = [
@@ -61,95 +69,111 @@
     { cmd: ':b', label: 'Sidebar', icon: '⌘B' },
     { cmd: ':u', label: 'History', icon: '⌘U' },
     { cmd: ':w', label: 'Save', icon: '⌘S' },
-    { cmd: ':q', label: 'Close', icon: '⌘Q' },
+    { cmd: ':ai', label: 'AI', icon: '⌘A' },
   ];
 
   let isCommandMode = $state(false);
   let input = $state('');
-
-  /** @type {Command[]} */
-  let suggestions = $state([]);
   let selectedIndex = $state(0);
+  let inputRef = $state(/** @type {HTMLInputElement | null} */ (null));
 
-  /** @type {HTMLInputElement | null} */
-  let inputRef = null;
-
-  $effect(() => {
+  let suggestions = $derived.by(() => {
+    if (input === ':') {
+      return commands;
+    }
     if (input.length > 1) {
-      suggestions = commands.filter(
+      return commands.filter(
         (cmd) =>
           cmd.cmd.startsWith(input) ||
           cmd.description.toLowerCase().includes(input.slice(1).toLowerCase())
       );
+    }
+    return [];
+  });
+
+  $effect(() => {
+    if (suggestions.length > 0 && selectedIndex >= suggestions.length) {
       selectedIndex = 0;
-    } else {
-      suggestions = [];
     }
   });
 
   /**
-   * @param {KeyboardEvent} e
+   * GLOBAL KEYDOWN HANDLER (Capture Phase)
+   * Using { capture: true } ensures we see the event before the editor (Milkdown/ProseMirror)
+   * can swallow it. This fixes the Cmd+B conflict.
    */
-  const handleGlobalKeyDown = (e) => {
-    if (
-      !editorState.editMode &&
-      e.key === ':' &&
-      !isCommandMode &&
-      document.activeElement?.tagName !== 'INPUT'
-    ) {
-      e.preventDefault();
-      isCommandMode = true;
-      input = ':';
-      return;
-    }
+  $effect(() => {
+    const handleCaptureKeyDown = (e) => {
+      // 1. Handle Escape globally
+      if (e.key === 'Escape') {
+        if (appState.ui.isChatOpen) {
+          appState.toggleAiChat(false);
+          e.preventDefault();
+          return;
+        }
+        if (isCommandMode) {
+          isCommandMode = false;
+          input = '';
+          e.preventDefault();
+          return;
+        }
+        if (editorState.editMode) {
+          editorState.setEditMode(false);
+          editorState?.editor?.commands?.blur();
+          e.preventDefault();
+          return;
+        }
+      }
 
-    if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
-      editorState.setEditMode(true);
-      editorState?.editor?.commands?.focus();
-    }
-
-    if (e.key === 'Escape') {
-      if (appState.ui.isChatOpen) {
-        appState.toggleAiChat(false);
+      // 2. Enter command mode (:)
+      if (
+        !editorState.editMode &&
+        e.key === ':' &&
+        !isCommandMode &&
+        document.activeElement?.tagName !== 'INPUT'
+      ) {
         e.preventDefault();
+        isCommandMode = true;
+        input = ':';
         return;
       }
-      editorState.setEditMode(false);
-      editorState?.editor?.commands?.blur();
-    }
 
-    if (e.key === 'Escape' && isCommandMode) {
-      e.preventDefault();
-      isCommandMode = false;
-      input = '';
-      return;
-    }
-
-    const isShortcut = e.metaKey || e.ctrlKey;
-    if (isShortcut && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
-      let handled = true;
-      switch (e.key.toLowerCase()) {
-        case 'u':
-          executeCommand(':u');
-          break;
-        case 's':
-          executeCommand(':w');
-          break;
-        case 'q':
-          executeCommand(':q');
-          break;
-        case 'w':
-          executeCommand(':wq');
-          break;
-        default:
-          handled = false;
+      // 3. Enter edit mode (i)
+      if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
+        // We don't preventDefault here usually, but we need to focus
+        editorState.setEditMode(true);
+        editorState?.editor?.commands?.focus();
+        return;
       }
 
-      if (handled) {
-        e.preventDefault();
+      // 4. Handle Shortcuts (Cmd+B, etc.)
+      const isShortcut = e.metaKey || e.ctrlKey;
+      if (isShortcut && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
+        const keyMap = {
+          c: ':c',
+          u: ':u',
+          s: ':w',
+          w: ':wq',
+          q: ':q',
+          b: ':b',
+          a: ':ai',
+        };
+
+        const command = keyMap[e.key.toLowerCase()];
+        if (command) {
+          e.preventDefault();
+          e.stopPropagation(); // Stop editor from seeing this event
+          executeCommand(command);
+        }
       }
-    }
-  };
+    };
+
+    window.addEventListener('keydown', handleCaptureKeyDown, { capture: true });
+
+    return () => {
+      window.removeEventListener('keydown', handleCaptureKeyDown, { capture: true });
+    };
+  });
 
   $effect(() => {
     if (isCommandMode && inputRef) {
@@ -193,12 +217,6 @@
           goto(resolve('/'));
         }
         break;
-      case 'edit':
-        console.log('[Svelte] Edit file');
-        break;
-      case 'help':
-        console.log('[Svelte] Show help');
-        break;
     }
 
     isCommandMode = false;
@@ -212,6 +230,9 @@
     executeCommand(cmd);
   }
 
+  /**
+   * @param {SubmitEvent} e
+   */
   function handleSubmit(e) {
     e.preventDefault();
     if (suggestions.length > 0) {
@@ -243,26 +264,39 @@
     }
   }
 
+  let blurTimeout = $state(/** @type {NodeJS.Timeout | null} */ (null));
+
   function handleBlur() {
-    setTimeout(() => {
+    blurTimeout = setTimeout(() => {
       isCommandMode = false;
       input = '';
-    }, 200);
+    }, BLUR_DELAY);
+  }
+
+  function handleFocus() {
+    if (blurTimeout !== null) {
+      clearTimeout(blurTimeout);
+      blurTimeout = null;
+    }
   }
 </script>
 
-<svelte:window on:keydown={handleGlobalKeyDown} />
-
 {#if isCommandMode && suggestions.length > 0}
-  <div class="mx-auto max-w-2xl bg-background border border-border rounded-t-lg shadow-lg">
+  <div
+    class="mx-auto max-w-2xl bg-background border border-border rounded-t-lg shadow-lg"
+    role="listbox"
+  >
     <div class="max-h-48 overflow-y-auto">
       {#each suggestions as suggestion, index (suggestion.cmd)}
         <button
           onclick={() => executeCommand(suggestion.cmd)}
+          onfocus={handleFocus}
           class="w-full px-4 py-2 text-left text-sm font-mono flex items-center justify-between transition-colors"
           class:bg-muted={index === selectedIndex}
           class:text-foreground={index === selectedIndex}
           class:text-muted-foreground={index !== selectedIndex}
+          role="option"
+          aria-selected={index === selectedIndex}
         >
           <span class="font-semibold">{suggestion.cmd}</span>
           <span class="text-xs">{suggestion.description}</span>
@@ -306,8 +340,10 @@
           bind:value={input}
           onkeydown={handleInputKeyDown}
           onblur={handleBlur}
+          onfocus={handleFocus}
           placeholder="Enter command..."
           class="w-full bg-transparent font-mono text-sm outline-none text-foreground"
+          aria-label="Command input"
         />
       </form>
     {/if}

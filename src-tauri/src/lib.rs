@@ -92,8 +92,6 @@ pub async fn run() {
             commands::create_document_context,
             commands::search_documents,
             commands::get_chat_sessions,
-            commands::undo_file,
-            commands::redo_file,
             commands::goto_file_version,
         ])
         .run(tauri::generate_context!())

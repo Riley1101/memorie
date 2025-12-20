@@ -1,8 +1,8 @@
 <script>
-  import { cn } from '@/utils';
+  import Tree_node from './treenode.svelte';
+  import { cn } from '$lib/utils';
   import { invalidateAll } from '$app/navigation';
-  import TreeNode from './treenode.svelte';
-  import Button from '../ui/button/button.svelte';
+  import Button from '$lib/components/ui/button/button.svelte';
   import { invoke } from '@tauri-apps/api/core';
 
   /**
@@ -14,9 +14,11 @@
    */
 
   /**
-   * @type {{ node: Node , id: number , allNodes: Node[] , current: number | null, fileName: string}}
+   * @type {{ node: Node, id: number, allNodes: Node[], current: number | null, fileName: string }}
    */
   let { node, id, allNodes, current, fileName } = $props();
+
+  let isNavigating = $state(false);
 
   /**
    * A derived array of the full child node objects.
@@ -38,44 +40,72 @@
   let nodeName = $derived(node.id ? `Version ${node.id}` : 'Root');
 
   /**
-   * Handles the undoto action when this node is clicked.
-   * @param nodeId {number} - The ID of the node to undoto to.
+   * Handles navigation to a specific version when this node is clicked.
+   * @param {number} nodeId - The ID of the node to navigate to.
    */
   async function handleUndotoVersion(nodeId) {
-    await invoke('goto_file_version', {
-      name: fileName,
-      nodeId: nodeId,
-    })
-      .then(() => {
-        invalidateAll();
-      })
-      .catch((e) => {
-        console.error('Error going to file version:', e);
+    if (isNavigating || isCurrent) return;
+
+    isNavigating = true;
+
+    try {
+      await invoke('goto_file_version', {
+        name: fileName,
+        nodeId: nodeId,
       });
+      await invalidateAll();
+    } catch (error) {
+      console.error(`Failed to navigate to version ${nodeId}:`, error);
+    } finally {
+      isNavigating = false;
+    }
   }
+
+  let hasMultipleChildren = $derived(children.length > 1);
+  let hasChildren = $derived(children.length > 0);
 </script>
 
-<div class="text-muted-foreground w-full text-xs">
-  {#if children.length > 0}
+<div class="w-full text-xs">
+  {#if hasChildren}
+    <!-- Improved button with better accessibility and states -->
     <Button
       onclick={() => handleUndotoVersion(id)}
       variant="ghost"
       size="sm"
-      class={cn('w-full justify-start border-l border-dashed', isCurrent && 'text-primary')}
+      disabled={isNavigating || isCurrent}
+      class={cn(
+        'w-full justify-start border-l border-dashed transition-colors',
+        isCurrent && 'bg-accent text-accent-foreground font-medium',
+        !isCurrent && 'text-muted-foreground hover:text-foreground',
+        isNavigating && 'opacity-50 cursor-wait'
+      )}
+      aria-label={`Navigate to ${nodeName}`}
+      aria-current={isCurrent ? 'location' : undefined}
     >
       {nodeName}
     </Button>
-    <div class={cn('border-dashed pt-2', children.length > 1 ? 'pl-5 border-l ' : '')}>
+
+    <!-- Better tree structure with consistent indentation -->
+    <div class={cn('pt-1', hasMultipleChildren && 'pl-5 border-l border-dashed')}>
       {#each children as child (child.id)}
-        <TreeNode id={child.id} node={child} {allNodes} {current} {fileName} />
+        <Tree_node id={child.id} node={child} {allNodes} {current} {fileName} />
       {/each}
     </div>
   {:else}
+    <!-- Leaf node with better spacing -->
     <Button
       onclick={() => handleUndotoVersion(id)}
       size="sm"
       variant="ghost"
-      class={cn('border-l border-dashed w-full justify-start mb-2', isCurrent && 'text-primary')}
+      disabled={isNavigating || isCurrent}
+      class={cn(
+        'border-l border-dashed w-full justify-start mb-1 transition-colors',
+        isCurrent && 'bg-accent text-accent-foreground font-medium',
+        !isCurrent && 'text-muted-foreground hover:text-foreground',
+        isNavigating && 'opacity-50 cursor-wait'
+      )}
+      aria-label={`Navigate to ${nodeName}`}
+      aria-current={isCurrent ? 'location' : undefined}
     >
       {nodeName}
     </Button>

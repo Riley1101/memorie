@@ -3,14 +3,13 @@
  */
 
 class EditorState {
-
   // --- STATE ---
   name = $state('Untitled Document');
   content = $state('');
 
   /**
    * @public
-   * @type {import("@milkdown/kit/core").Editor | null} - The Tiptap editor instance.
+   * @type {import("@milkdown/kit/core").Editor | null} - The Milkdown editor instance.
    */
   editor = $state(null);
 
@@ -31,7 +30,7 @@ class EditorState {
 
   /**
    * Sets the editor instance.
-   * @param editorInstance {import("@milkdown/kit/core").Editor} - The Tiptap editor instance.
+   * @param editorInstance {import("@milkdown/kit/core").Editor} - The Milkdown editor instance.
    */
   setEditor(editorInstance) {
     this.editor = editorInstance;
