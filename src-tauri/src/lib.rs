@@ -90,6 +90,7 @@ pub async fn run() {
             commands::read_file,
             commands::get_file_history,
             commands::create_document_context,
+            commands::get_document_context,
             commands::search_documents,
             commands::get_chat_sessions,
             commands::goto_file_version,

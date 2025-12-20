@@ -152,6 +152,10 @@ impl NoteDocument {
     pub fn set_title(&mut self, title: &str) {
         self.title = title.to_string();
     }
+
+    pub fn get_thing_id(&self) -> Option<Thing> {
+        self.id.clone()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -235,7 +239,6 @@ impl MemoryDocumentAnalysisExt for Memory {
                 .replace('\n', " ");
 
             if let Some(old_chunk) = old_chunk_map.remove(&new_hash) {
-                // --- CASE A: UNCHANGED ---
                 // We found a chunk in the DB with the exact same hash.
                 // We preserve the 'grammar_check' and 'id'.
                 // We only update 'sequence' (in case the paragraph moved up/down).
@@ -261,7 +264,6 @@ impl MemoryDocumentAnalysisExt for Memory {
                     );
                 }
             } else {
-                // --- CASE B: NEW / EDITED ---
                 // No hash match found. This is a new paragraph or an edit.
                 // Create a new chunk and mark is_dirty = true.
                 let _: Option<TextChunk> = db

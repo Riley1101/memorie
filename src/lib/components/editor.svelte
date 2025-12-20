@@ -5,9 +5,9 @@
   import { editorState } from '$lib/runes/editor.svelte';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
   import { replaceAll, getMarkdown } from '@milkdown/kit/utils';
-  import { headingIdGenerator } from '@milkdown/kit/preset/commonmark';
   import { clipboard } from '@milkdown/kit/plugin/clipboard';
   import { untrack } from 'svelte';
+  import { grammarPlugin } from '$lib/components/plugins/grammar';
 
   /**
    * @type {{ defaultValue?: string, onSave?: (markdown: string) => void }}
@@ -16,54 +16,42 @@
 
   /** @type {ReturnType<typeof setTimeout> | null} */
   let saveTimer = $state(null);
+
   let isReady = $state(false);
 
   const DEBOUNCE_SAVE_MS = 2000;
 
   /**
    * Triggers an auto-save operation after a debounce period.
-   * @param {string} markdown - The current markdown content.
+   * @param {string} markdown
    */
   function triggerAutoSave(markdown) {
-    editorState.setSaveStatus({
-      status: 'unsaved',
-    });
+    editorState.setSaveStatus({ status: 'unsaved' });
 
     if (saveTimer) clearTimeout(saveTimer);
 
     saveTimer = setTimeout(() => {
-      editorState.setSaveStatus({
-        status: 'saving',
-      });
-
+      editorState.setSaveStatus({ status: 'saving' });
       try {
-        if (onSave) {
-          onSave(markdown);
-        }
-
+        if (onSave) onSave(markdown);
         editorState.setSaveStatus({
           lastSaved: new Date(),
           status: 'saved',
         });
       } catch (e) {
         console.error('Auto-save failed:', e);
-        editorState.setSaveStatus({
-          status: 'error',
-        });
+        editorState.setSaveStatus({ status: 'error' });
       }
     }, DEBOUNCE_SAVE_MS);
   }
 
   /**
    * Updates the editor content only if it differs from the current content.
-   * This prevents cursor jumping and infinite loops.
    */
   $effect(() => {
     const newValue = defaultValue;
-
     untrack(() => {
       if (!editorState?.editor || !isReady) return;
-
       try {
         const currentMarkdown = editorState.editor.action(getMarkdown());
         if (currentMarkdown !== newValue) {
@@ -77,24 +65,26 @@
 
   /**
    * Svelte Action to attach the Milkdown editor.
-   * @param {HTMLElement} dom - The DOM element to attach the editor to.
+   * @param {HTMLElement} dom
    */
   function editorAttachment(dom) {
     /**
-     * @type {import('@milkdown/core').Editor | null}
+     * @type {import('@milkdown/core').Editor}
      */
     let editorInstance;
 
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, dom);
-        ctx.get(listenerCtx).markdownUpdated((_ctx, markdown, _prevMarkdown) => {
+        //  selectionLengthConfig(ctx);
+        ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
           triggerAutoSave(markdown);
         });
       })
       .use(listener)
+      //  .use(selectionLengthTooltip)
       .use(commonmark)
-      .use(headingIdGenerator)
+      .use(grammarPlugin)
       .use(gfm)
       .use(clipboard)
       .create()
@@ -108,9 +98,7 @@
     return {
       destroy() {
         isReady = false;
-        if (editorInstance) {
-          editorInstance.destroy();
-        }
+        if (editorInstance) editorInstance.destroy();
         if (saveTimer) clearTimeout(saveTimer);
       },
     };
@@ -124,6 +112,14 @@
 <style>
   main :global(.ProseMirror) {
     min-height: 200px;
+    text-wrap: pre-wrap;
     outline: none;
+    position: relative; /* Essential for tooltip positioning */
+    padding-bottom: 50vh;
+  }
+
+  /*  Ensure Milkdown doesn't hide the tooltip overflow */
+  main :global(.milkdown) {
+    overflow: visible !important;
   }
 </style>

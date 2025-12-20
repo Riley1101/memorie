@@ -3,12 +3,9 @@ use super::memory::{MemoryDocumentAnalysisExt, NoteDocument, UserMemoryExt};
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
-use crate::error::FileError;
 use crate::llm::ModelType;
 use crate::memory::TextChunk;
 use crate::utils::ChatMode;
-use ammonia::is_html;
-use htmd::HtmlToMarkdown;
 use tauri::State;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -192,18 +189,6 @@ pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<boo
     Ok(true)
 }
 
-#[tauri::command]
-pub async fn get_chat_status(
-    job_id: Uuid,
-    state: State<'_, AppState>,
-) -> Result<JobStatus, String> {
-    if let Some(status) = state.workers.statuses.get(&job_id) {
-        Ok(status.clone())
-    } else {
-        Err("Job not found".to_string())
-    }
-}
-
 /**
  *  RAG Commands
  */
@@ -226,6 +211,34 @@ pub async fn create_document_context(
         None => {
             return Ok(Response::success(Vec::new()));
         }
+    }
+}
+
+#[tauri::command]
+pub async fn get_document_context(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<Response<Vec<TextChunk>>, String> {
+    let memory = state.memory.lock().await;
+    let document = memory.find_document_by_title(&name).await;
+    match document {
+        Ok(doc) => {
+            if let Some(document) = doc {
+                let thing_id = document.get_thing_id();
+                match thing_id {
+                    Some(id) => {
+                        let result = memory.get_dirty_document_chunk(id).await;
+                        return Ok(Response::success(result));
+                    }
+                    None => {
+                        return Ok(Response::success(Vec::new()));
+                    }
+                }
+            } else {
+                return Ok(Response::success(Vec::new()));
+            }
+        }
+        Err(_) => todo!(),
     }
 }
 

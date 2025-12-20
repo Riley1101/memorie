@@ -14,7 +14,6 @@
   import { getMarkdown } from '@milkdown/kit/utils';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
-  import ButtonGroup from './ui/button-group/button-group.svelte';
 
   /**
    * @type {{fileName?:string ,body?: string , currentVersion?: number}}
