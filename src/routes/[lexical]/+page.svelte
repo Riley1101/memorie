@@ -16,7 +16,7 @@
   /**
    * @typedef {Object} RecordPointer
    * @property {string} tb - The table name (e.g., 'chunk', 'documents').
-   * @property {string} id - The record identifier wrapper.
+   * @property {{String:string}} id - The record identifier wrapper.
    */
 
   /**
@@ -60,6 +60,19 @@
   });
 
   let body = $derived(content || '');
+
+  /**
+   * @param {ChunkItem} item
+   */
+  function handleChunkPress(item) {
+    const id = String(item.id.id.String);
+    invoke('update_text_chunk', {
+      id,
+      correction: 'Please fix the grammar in this text.',
+    }).then((result) => {
+      console.log('Grammar check result:', result);
+    });
+  }
 </script>
 
 <div class="flex h-screen w-full bg-background">
@@ -108,10 +121,10 @@
         <h2 class="font-semibold text-sm">Outline</h2>
       </div>
       <ScrollArea class="flex-1 h-full" type="scroll">
-        <ul>
+        <ul class="space-y-2">
           {#each dirty_chunks as chunk}
             <li>
-              <button>
+              <button onclick={() => handleChunkPress(chunk)} class="border p-1">
                 {chunk.content}
               </button>
             </li>

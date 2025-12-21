@@ -90,7 +90,7 @@ pub async fn run() {
             commands::read_file,
             commands::get_file_history,
             commands::create_document_context,
-            commands::update_text_chunk_grammar,
+            commands::update_text_chunk,
             commands::get_document_context,
             commands::search_documents,
             commands::get_chat_sessions,

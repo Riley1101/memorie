@@ -194,7 +194,7 @@ pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<boo
  */
 
 #[tauri::command]
-pub async fn update_text_chunk_grammar(
+pub async fn update_text_chunk(
     id: String,
     correction: String,
     state: State<'_, AppState>,
