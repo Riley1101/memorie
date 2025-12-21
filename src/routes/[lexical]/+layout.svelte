@@ -8,7 +8,6 @@
 
   /** @type {import("./$types").LayoutProps} */
   let { data, children } = $props();
-
   let { content, fileName } = $derived(data);
 
   $effect(() => {

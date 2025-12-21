@@ -1,13 +1,14 @@
 <script>
   import { Editor, rootCtx } from '@milkdown/core';
+  import { clipboard } from '@milkdown/kit/plugin/clipboard';
   import { commonmark } from '@milkdown/preset-commonmark';
-  import { gfm } from '@milkdown/kit/preset/gfm';
   import { editorState } from '$lib/runes/editor.svelte';
+  import { gfm } from '@milkdown/kit/preset/gfm';
+  import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
   import { replaceAll, getMarkdown } from '@milkdown/kit/utils';
-  import { clipboard } from '@milkdown/kit/plugin/clipboard';
   import { untrack } from 'svelte';
-  import { grammarPlugin } from '$lib/components/plugins/grammar';
+  import { memoryManager } from '$lib/runes/memory.svelte';
 
   /**
    * @type {{ defaultValue?: string, onSave?: (markdown: string) => void }}
@@ -34,6 +35,7 @@
       editorState.setSaveStatus({ status: 'saving' });
       try {
         if (onSave) onSave(markdown);
+        memoryManager.createDocumentContext()
         editorState.setSaveStatus({
           lastSaved: new Date(),
           status: 'saved',
@@ -105,7 +107,9 @@
   }
 </script>
 
-<main class="prose dark:prose-invert prose-stone prose-base max-w-none w-full font-writer">
+<main
+  class="prose dark:prose-invert prose-stone prose-base max-w-none w-full font-writer prose-p:my-2"
+>
   <div use:editorAttachment></div>
 </main>
 

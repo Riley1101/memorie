@@ -10,6 +10,7 @@
 		children,
 		...restProps
 	} = $props();
+
 </script>
 
 <DrawerPrimitive.Portal {...portalProps}>

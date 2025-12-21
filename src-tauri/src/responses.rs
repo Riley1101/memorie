@@ -37,6 +37,12 @@ pub struct AutoCompleteResponse {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]
+pub struct GrammarCheckResponse {
+    pub corrections: String,
+    pub explanation: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]
 pub struct ModelLoadingResponse {
     pub is_loaded: bool,
     pub message: String,

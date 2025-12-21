@@ -81,6 +81,15 @@ impl Memory {
         })
     }
 
+    pub async fn find_text_chunk_by_id(
+        &self,
+        chunk_id: &str,
+    ) -> Result<Option<TextChunk>, MemoryError> {
+        let db = &self.db;
+        let chunk: Option<TextChunk> = db.select((CHUNK_TABLE, chunk_id.to_string())).await?;
+        Ok(chunk)
+    }
+
     pub async fn find_document_by_title(
         &self,
         title: &str,
@@ -165,8 +174,8 @@ pub struct TextChunk {
     pub content: String,
     pub sequence: usize,
     content_hash: String,
-    grammar_check: Option<String>,
-    is_dirty: bool,
+    correction: Option<String>,
+    pub is_dirty: bool,
 }
 
 impl TextChunk {
@@ -184,6 +193,7 @@ impl TextChunk {
 pub trait MemoryDocumentAnalysisExt {
     async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk>;
     async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument>;
+    async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk>;
 }
 
 /// Implements the MemoryDocumentAnalysisExt trait for the Memory struct.
@@ -192,6 +202,15 @@ pub trait MemoryDocumentAnalysisExt {
 /// generating hashes, and reconciling with existing chunks in the database.
 /// It handles new, unchanged, and deleted paragraphs accordingly.
 impl MemoryDocumentAnalysisExt for Memory {
+    async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk> {
+        let db = &self.db;
+        let mut updated_chunk = chunk;
+        updated_chunk.content = new_content.to_string();
+        updated_chunk.is_dirty = false;
+        let updated: Vec<TextChunk> = db.upsert(CHUNK_TABLE).content(updated_chunk).await.unwrap();
+        updated
+    }
+
     async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk> {
         let db = &self.db;
         let sql =
@@ -252,7 +271,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                             content: segment.to_string(),
                             sequence: i,
                             content_hash: new_hash,
-                            grammar_check: old_chunk.grammar_check,
+                            correction: old_chunk.correction,
                             is_dirty: false,
                         })
                         .await
@@ -274,7 +293,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                         content: segment.to_string(),
                         sequence: i,
                         content_hash: new_hash,
-                        grammar_check: None,
+                        correction: None,
                         is_dirty: true,
                     })
                     .await

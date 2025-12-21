@@ -147,6 +147,20 @@ async fn run_chat_worker(
                 }
             }
         }
+    } else if mode == ChatMode::Grammar {
+        let grammar_check_session = model.run_grammar_check().await.map_err(|e| e.to_string())?;
+        let stream = grammar_check_session(&message);
+        let result = stream.await.map_err(|e| e.to_string())?;
+        app_handle
+            .emit(
+                ChatEvents::GrammarCheck.as_str(),
+                GrammarCheckStreamInProgress {
+                    corrections: &result.corrections,
+                    explanation: &result.explanation,
+                },
+            )
+            .unwrap();
+        app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
     } else {
         let chat_session = model.run_autocomplete().await.map_err(|e| e.to_string())?;
         let stream = chat_session(&message);
@@ -184,6 +198,7 @@ pub enum ChatEvents {
     InProgress,
     Completed,
     AutoComplete,
+    GrammarCheck,
     Error,
 }
 
@@ -192,6 +207,7 @@ impl ChatEvents {
         match self {
             ChatEvents::Init => "chat-init",
             ChatEvents::AutoComplete => "chat-autocomplete",
+            ChatEvents::GrammarCheck => "chat-grammar-check",
             ChatEvents::InProgress => "chat-in-progress",
             ChatEvents::Completed => "chat-completed",
             ChatEvents::Error => "chat-error",
@@ -208,6 +224,12 @@ pub struct ChatStreamInProgress<'a> {
 #[derive(Clone, Serialize)]
 pub struct AutoCompleteStreamInProgress {
     response: AutoCompleteResponse,
+}
+
+#[derive(Clone, Serialize)]
+pub struct GrammarCheckStreamInProgress<'a> {
+    pub corrections: &'a str,
+    pub explanation: &'a str,
 }
 
 /// Events emitted during the model loading lifecycle.

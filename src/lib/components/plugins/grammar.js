@@ -1,7 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import { mount, unmount } from 'svelte';
+import { mount } from 'svelte';
 import GrammarBox from './GrammarBox.svelte';
 
 export const grammarPlugin = $prose((ctx) => {
@@ -18,34 +18,53 @@ export const grammarPlugin = $prose((ctx) => {
 
 function createDecorations(doc) {
   const decos = [];
+  
+  let sequence = 0;
 
   doc.descendants((node, pos) => {
-    if (node.type.name === 'paragraph' && node.textContent.length < 200 && node.textContent.length > 100) {
-
-      const container = document.createElement('div');
+    if (node.type.name === 'paragraph') {
       
-      const handleFix = (view, startPos, endPos, newText) => {
-        const { tr } = view.state;
-        view.dispatch(
-          tr.replaceWith(startPos, endPos, view.state.schema.text(newText))
-        );
-      };
+      if (node.textContent.trim().length === 0) {
+        return true; 
+      }
 
-      decos.push(
-        Decoration.widget(pos + node.nodeSize, (view) => {
-          const component = mount(GrammarBox, {
-            target: container,
-            props: {
-              originalText: node.textContent,
-              onFix: (fixedText) => handleFix(view, pos + 1, pos + node.nodeSize, fixedText)
-            }
-          });
-          return container;
-        }, {
-          side: 1,
-          block: true,
-        })
-      );
+      // Match Rust's "chunking" logic
+      // Only attach the box if it meets your criteria (< 200 & > 10 chars)
+      if (node.textContent.length < 200 && node.textContent.length > 10) {
+        const container = document.createElement('div');
+        
+        const currentSequence = sequence;
+
+        decos.push(
+          Decoration.widget(pos + node.nodeSize, (view, getPos) => {
+            
+            const handleFix = (fixedText) => {
+              const currentEnd = getPos(); 
+              const currentStart = currentEnd - node.content.size; // Calculate start
+              const { tr } = view.state;
+              
+              view.dispatch(
+                tr.replaceWith(currentStart, currentEnd - 1, view.state.schema.text(fixedText))
+              );
+            };
+
+            mount(GrammarBox, {
+              target: container,
+              props: {
+                sequence: currentSequence,  
+                originalText: node.textContent, 
+                onFix: handleFix
+              }
+            });
+            return container;
+          }, {
+            side: 1,
+            block: true,
+            key: `grammar-${sequence}` 
+          })
+        );
+      }
+      sequence++;
     }
     return true;
   });

@@ -14,6 +14,7 @@ pub fn get_app_dir() -> Result<PathBuf, FileError> {
 pub enum ChatMode {
     Normal,
     Autocomplete,
+    Grammar
 }
 
 /// Convert ChatMode to its string representation.
@@ -22,6 +23,7 @@ impl ChatMode {
         match self {
             ChatMode::Normal => "Normal",
             ChatMode::Autocomplete => "Autocomplete",
+            ChatMode::Grammar => "Grammar",
         }
     }
 }

@@ -2,10 +2,32 @@
  * @file Editor state management using Svelte's reactive stores.
  */
 
+/**
+ * @typedef {Object} RecordPointer
+ * @property {string} tb - The table name (e.g., 'chunk', 'documents').
+ * @property {string} id - The record identifier wrapper.
+ */
+
+/**
+ * @typedef {Object} ChunkItem
+ * @property {RecordPointer} id - The unique identifier for this chunk.
+ * @property {RecordPointer} parent - The reference to the parent document.
+ * @property {string} content - The text content of the paragraph.
+ * @property {number} sequence - The order of the paragraph (0-indexed).
+ * @property {string} content_hash - A hash string for the content.
+ * @property {?Object} grammar_check - Grammar check results (nullable).
+ * @property {boolean} is_dirty - Indicates if the content has been modified.
+ */
+
 class EditorState {
   // --- STATE ---
   name = $state('Untitled Document');
   content = $state('');
+  /**
+   * @public
+   * @type {ChunkItem[]} - Array of chunk items representing paragraphs.
+   */
+  grammarChecks = $state([]);
 
   /**
    * @public
@@ -66,6 +88,14 @@ class EditorState {
    */
   setContent(newContent) {
     this.content = newContent;
+  }
+
+  /**
+   * Sets the grammar checks.
+   * @param checks {ChunkItem[]} - Array of chunk items with grammar checks.
+   */
+  setGrammarChecks(checks) {
+    this.grammarChecks = checks;
   }
 }
 

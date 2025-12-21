@@ -7,8 +7,28 @@
   import Button from '$lib/components/ui/button/button.svelte';
   import HomeIcon from '@lucide/svelte/icons/home';
   import { appState } from '$lib/runes/app.svelte.js';
+  import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { editorState } from '$lib/runes/editor.svelte';
 
   let { data } = $props();
+
+  /**
+   * @typedef {Object} RecordPointer
+   * @property {string} tb - The table name (e.g., 'chunk', 'documents').
+   * @property {string} id - The record identifier wrapper.
+   */
+
+  /**
+   * @typedef {Object} ChunkItem
+   * @property {RecordPointer} id - The unique identifier for this chunk.
+   * @property {RecordPointer} parent - The reference to the parent document.
+   * @property {string} content - The text content of the paragraph.
+   * @property {number} sequence - The order of the paragraph (0-indexed).
+   * @property {string} content_hash - A hash string for the content.
+   * @property {?Object} grammar_check - Grammar check results (nullable).
+   * @property {boolean} is_dirty - Indicates if the content has been modified.
+   */
 
   /**
    * @typedef {Object} Node
@@ -25,15 +45,24 @@
    */
 
   /**
-   * @type {{fileName: string, content: string, history: History | null}}
+   * @type {{fileName: string, content: string, history: History | null }}
    */
   let { fileName, content, history } = $derived(data);
+
+  /** @type {ChunkItem[] | null} */
+  let dirty_chunks = $state([]);
+
+  onMount(() => {
+    invoke('get_document_context', { name: fileName }).then((chunks) => {
+      editorState.setGrammarChecks(chunks.data || []);
+      dirty_chunks = chunks.data;
+    });
+  });
 
   let body = $derived(content || '');
 </script>
 
 <div class="flex h-screen w-full bg-background">
-  <!-- Left Sidebar: History Panel -->
   <aside
     class="border-r bg-card transition-all duration-300 ease-in-out h-dvh
     {appState.ui.isHistoryOpen ? 'w-60' : 'w-0'} overflow-hidden"
@@ -54,10 +83,7 @@
     {/if}
   </aside>
 
-  <!-- Main Content Area -->
   <div class="w-full h-full flex flex-1 flex-col">
-    <!-- Editor & Outline Container -->
-    <!-- Center: Markdown Editor -->
     <main class="h-full flex-1 overflow-hidden">
       <ScrollArea class="flex-1 h-full" type="scroll">
         <a href="/">
@@ -71,21 +97,28 @@
       </ScrollArea>
     </main>
 
-    <!-- Right Sidebar: Outline/TOC -->
-    <aside class="hidden w-64 border-l bg-card overflow-hidden">
-      <div class="flex h-full flex-col">
-        <div class="border-b px-4 py-3">
-          <h2 class="font-semibold text-sm">Outline</h2>
-        </div>
-        <ScrollArea class="flex-1 h-full" type="scroll">
-          <EditorOutline {body} />
-        </ScrollArea>
-      </div>
-    </aside>
-
-    <!-- Bottom: Command Bar -->
     <footer class="border-t bg-background">
       <EditorCommandbar {fileName} {body} currentVersion={history?.current || 0} />
     </footer>
   </div>
+
+  <aside class="w-42 border-l bg-card overflow-hidden">
+    <div class="flex h-full flex-col">
+      <div class="border-b px-4 py-3">
+        <h2 class="font-semibold text-sm">Outline</h2>
+      </div>
+      <ScrollArea class="flex-1 h-full" type="scroll">
+        <ul>
+          {#each dirty_chunks as chunk}
+            <li>
+              <button>
+                {chunk.content}
+              </button>
+            </li>
+          {/each}
+        </ul>
+        <EditorOutline {body} />
+      </ScrollArea>
+    </div>
+  </aside>
 </div>

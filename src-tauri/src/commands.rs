@@ -194,6 +194,26 @@ pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<boo
  */
 
 #[tauri::command]
+pub async fn update_text_chunk_grammar(
+    id: String,
+    correction: String,
+    state: State<'_, AppState>,
+) -> Result<Response<String>, String> {
+    let memory = state.memory.lock().await;
+    let text_chunk = memory
+        .find_text_chunk_by_id(&id)
+        .await
+        .map_err(|e| e.to_string())?;
+    match text_chunk {
+        Some(chunk) => {
+            memory.update_dirty_chunk(chunk, &correction).await;
+            Ok(Response::success("updated".to_string()))
+        }
+        None => Err("Text chunk not found".to_string()),
+    }
+}
+
+#[tauri::command]
 pub async fn create_document_context(
     name: String,
     content: String,
@@ -227,6 +247,7 @@ pub async fn get_document_context(
                 let thing_id = document.get_thing_id();
                 match thing_id {
                     Some(id) => {
+                        println!("Fetching document chunks for document ID: {}", id);
                         let result = memory.get_dirty_document_chunk(id).await;
                         return Ok(Response::success(result));
                     }

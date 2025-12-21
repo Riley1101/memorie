@@ -1,10 +1,10 @@
 use super::error::LlamaError;
-use super::prompts::{NORMAL_CHAT_PROMPT, TEST_PROMPT, WRITING_COPILOT_PROMPT};
+use super::prompts::{GRAMMAR_CHECK_PROMPT, NORMAL_CHAT_PROMPT, TEXT_COMPLETION};
 use super::responses::{AutoCompleteResponse, ModelLoadingResponse, Response};
+use crate::responses::GrammarCheckResponse;
 use crate::utils;
 use kalosm::language::*;
 use kalosm_common::Cache;
-use kalosm_llama::prelude;
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -46,8 +46,8 @@ impl Model {
             let cache = Cache::new(modal_path);
 
             let source = match &model_type {
-                ModelType::Chat => LlamaSource::qwen_2_5_3b_instruct().with_cache(cache),
-                ModelType::AutoComplete => LlamaSource::qwen_2_5_3b_instruct().with_cache(cache),
+                ModelType::Chat => LlamaSource::qwen_2_5_1_5b_instruct().with_cache(cache),
+                ModelType::AutoComplete => LlamaSource::qwen_2_5_1_5b_instruct().with_cache(cache),
             };
 
             let loaded_model = Llama::builder()
@@ -100,7 +100,7 @@ impl Model {
         let model = self.get_model(ModelType::AutoComplete).await?;
 
         let task = model
-            .task(TEST_PROMPT.to_string())
+            .task(TEXT_COMPLETION.to_string())
             .with_example(
                 "CONTEXT: Subject: Meeting Request. Hi Dave, I reviewed the quarterly reports and noticed some discrepancies in the marketing budget. CURRENT_INPUT: I would like to schedule a time to",
                 "{ 'completion': 'discuss these figures before the board meeting next week.' }"
@@ -148,5 +148,42 @@ impl Model {
         }
 
         Ok(chat)
+    }
+
+    /// Load or create a grammar check session with the models
+    /// First tries to load a previous session from Cache
+    /// If no previous session is found, creates a new chat session with a grammar check system
+    /// prompts
+    /// # Returns
+    /// A Result containing the Chat instance or a LlamaError
+    pub async fn run_grammar_check(
+        &mut self,
+    ) -> Result<Task<Llama, ArcParser<GrammarCheckResponse>>, LlamaError> {
+        let model = self.get_model(ModelType::Chat).await?;
+
+        let task = model
+            .task(GRAMMAR_CHECK_PROMPT.to_string())
+            .with_example(
+                "CONTEXT: Subject: Meeting Request. Hi Dave, I reviewed the quarterly reports and noticed some discrepancies in the marketing budget. CURRENT_INPUT: I would like to schedule a time to",
+                "{ 'completion': 'discuss these figures before the board meeting next week.' }"
+            )
+            .with_example(
+                "CONTEXT: To get started with the API, you first need to generate an authentication token in your dashboard. Once you have the key, include it in the header. CURRENT_INPUT: If the request is successful, the server will return",
+                "{ 'completion': 'a 200 OK status code along with the requested JSON data.' }"
+            )
+            .with_example(
+                "CONTEXT: The old house stood at the end of the lane, its windows boarded up and the garden overgrown with weeds. Nobody had lived there for fifty years. CURRENT_INPUT: As the storm approached, the front door suddenly",
+                "{ 'completion': 'creaked open, revealing a flickering light inside.' }"
+            )
+            .with_example(
+                "CONTEXT: While remote work offers flexibility, it also presents challenges regarding team cohesion. Spontaneous interactions are harder to replicate digitally. CURRENT_INPUT: Therefore, organizations must intentionally design",
+                "{ 'completion': 'virtual spaces that foster casual communication and relationship building.' }"
+            )
+            .with_example(
+                "CONTEXT: // This function calculates the fibonacci sequence recursively. // Note: This implementation is not optimized for large numbers. CURRENT_INPUT: // To improve performance, we should consider using",
+                "{ 'completion': 'memoization or an iterative approach.' }"
+            )
+            .typed::<GrammarCheckResponse>();
+        Ok(task)
     }
 }
