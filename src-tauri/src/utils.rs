@@ -14,7 +14,7 @@ pub fn get_app_dir() -> Result<PathBuf, FileError> {
 pub enum ChatMode {
     Normal,
     Autocomplete,
-    Grammar
+    Grammar,
 }
 
 /// Convert ChatMode to its string representation.

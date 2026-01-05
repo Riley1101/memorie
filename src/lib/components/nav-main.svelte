@@ -2,6 +2,7 @@
   import { resolve } from '$app/paths';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import HouseIcon from '@lucide/svelte/icons/house';
+  import FileStackIcon from '@lucide/svelte/icons/file-stack';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
   import { appState } from '$lib/runes/app.svelte.js';
 </script>
@@ -13,6 +14,14 @@
         <a href={resolve('/')} {...props}>
           <HouseIcon />
           <span>Home</span>
+        </a>
+      {/snippet}
+    </Sidebar.MenuButton>
+    <Sidebar.MenuButton>
+      {#snippet child({ props })}
+        <a href={resolve('/documents')} {...props}>
+          <FileStackIcon />
+          <span>Documents</span>
         </a>
       {/snippet}
     </Sidebar.MenuButton>

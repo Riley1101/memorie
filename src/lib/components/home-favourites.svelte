@@ -8,13 +8,24 @@
   import FileIcon from '@lucide/svelte/icons/file';
   import Button from './ui/button/button.svelte';
   import { formatFileName } from '@/utils';
+  import { Input } from '@/components/ui/input/index.js';
+
+  /**
+   * @type {{
+   *   limit?:number
+   * }}
+   */
+  let { limit: propsLimit = 5 } = $props();
 
   let favourites = $derived(fileManager.files);
 
-  let limit = $state(5);
+  let keyword = $state('');
+  let limit = $derived(propsLimit);
 
   let filteredFavourites = $derived(() => {
-    return favourites.slice(0, limit);
+    return favourites
+      .filter((item) => item.name.toLowerCase().includes(keyword.toLowerCase()))
+      .slice(0, limit);
   });
 
   function loadMore() {
@@ -23,6 +34,7 @@
 </script>
 
 <div class="flex flex-col">
+  <Input bind:value={keyword} placeholder="Search" class="mb-4" />
   <div class="grid grid-cols-2 gap-4">
     {#each filteredFavourites() as item (item.path)}
       <Item.Root

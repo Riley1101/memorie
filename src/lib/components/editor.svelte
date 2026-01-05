@@ -35,7 +35,7 @@
       editorState.setSaveStatus({ status: 'saving' });
       try {
         if (onSave) onSave(markdown);
-        memoryManager.createDocumentContext()
+        memoryManager.createDocumentContext();
         editorState.setSaveStatus({
           lastSaved: new Date(),
           status: 'saved',
@@ -78,13 +78,11 @@
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, dom);
-        //  selectionLengthConfig(ctx);
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
           triggerAutoSave(markdown);
         });
       })
       .use(listener)
-      //  .use(selectionLengthTooltip)
       .use(commonmark)
       .use(grammarPlugin)
       .use(gfm)

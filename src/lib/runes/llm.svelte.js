@@ -3,10 +3,10 @@ import { listen } from '@tauri-apps/api/event';
 
 /**
  * LLM events
- * @type {{CHAT_IN_PROGRESS: string, COMPLETED: string, Error: string}}
+ * @type {Record<string, string>}
  *
  * This enum map directly to ChatEvent enum in Rust backend
- * @see ./src-tauri/workers.rs
+ * @see src-tauri/workers.rs
  */
 const LLM_EVENTS = {
   CHAT_INIT: 'chat-init',

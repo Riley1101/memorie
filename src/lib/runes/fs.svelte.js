@@ -10,13 +10,6 @@ const rs_commands = {
   /**
    * @returns {Promise<FileEntry[]>}
    */
-  getFiles: async () => {
-    return await invoke('list_files');
-  },
-
-  /**
-   * @returns {Promise<FileEntry[]>}
-   */
   getRecents: async () => {
     return await invoke('list_recents');
   },
@@ -62,24 +55,6 @@ class FileManager {
   errorMessage = $state('');
 
   /**
-   * Fetches the list of all .md files from the backend.
-   * @async
-   * @returns {Promise<void>}
-   */
-  async getFiles() {
-    this.isLoading = true;
-    this.errorMessage = '';
-    try {
-      this.files = await rs_commands.getFiles();
-    } catch (err) {
-      console.error(err);
-      this.errorMessage = `Failed to discover files: ${err}`;
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  /**
    * Fetches the list of recent files from the backend.
    * @async
    * @returns {Promise<void>}
@@ -117,7 +92,7 @@ class FileManager {
 
     try {
       await invoke('create_file', { name: finalFileName, content });
-      await this.getFiles();
+      await this.getRecents();
     } catch (err) {
       this.errorMessage = `Failed to create file "${finalFileName}": ${err}`;
       console.error(err);

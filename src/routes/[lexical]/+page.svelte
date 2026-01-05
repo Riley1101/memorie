@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { editorState } from '$lib/runes/editor.svelte';
+  import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
 
   let { data } = $props();
 
@@ -49,14 +50,8 @@
    */
   let { fileName, content, history } = $derived(data);
 
-  /** @type {ChunkItem[] | null} */
-  let dirty_chunks = $state([]);
-
   onMount(() => {
-    invoke('get_document_context', { name: fileName }).then((chunks) => {
-      editorState.setGrammarChecks(chunks.data || []);
-      dirty_chunks = chunks.data;
-    });
+    syncGrammarChecks(fileName);
   });
 
   let body = $derived(content || '');
@@ -70,9 +65,12 @@
       id,
       correction: 'Please fix the grammar in this text.',
     }).then((result) => {
+      syncGrammarChecks(fileName);
       console.log('Grammar check result:', result);
     });
   }
+
+  console.log(editorState.grammarChecks);
 </script>
 
 <div class="flex h-screen w-full bg-background">
@@ -115,14 +113,14 @@
     </footer>
   </div>
 
-  <aside class="w-42 border-l bg-card overflow-hidden">
+  <aside class="hidden w-72 border-l bg-card overflow-hidden">
     <div class="flex h-full flex-col">
       <div class="border-b px-4 py-3">
         <h2 class="font-semibold text-sm">Outline</h2>
       </div>
       <ScrollArea class="flex-1 h-full" type="scroll">
         <ul class="space-y-2">
-          {#each dirty_chunks as chunk}
+          {#each editorState.grammarChecks as chunk, index (index)}
             <li>
               <button onclick={() => handleChunkPress(chunk)} class="border p-1">
                 {chunk.content}

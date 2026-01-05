@@ -68,11 +68,11 @@
   ];
 
   const quickCommands = [
-    { cmd: ':c', label: 'Analyze', icon: '⌘C' },
+    { cmd: ':s', label: 'Analyze', icon: '⌘S' },
     { cmd: ':b', label: 'Sidebar', icon: '⌘B' },
     { cmd: ':u', label: 'History', icon: '⌘U' },
     { cmd: ':w', label: 'Save', icon: '⌘S' },
-    { cmd: ':ai', label: 'AI', icon: '⌘A' },
+    { cmd: ':ai', label: 'AI', icon: '⌘c' },
   ];
 
   let isCommandMode = $state(false);
@@ -102,10 +102,13 @@
 
   /**
    * GLOBAL KEYDOWN HANDLER (Capture Phase)
-   * Using { capture: true } ensures we see the event before the editor (Milkdown/ProseMirror)
+   * Using { capture: trues} ensures we see the event before the editor (Milkdown/ProseMirror)
    * can swallow it. This fixes the Cmd+B conflict.
    */
   $effect(() => {
+    /**
+     * @param {KeyboardEvent} e
+     */
     const handleCaptureKeyDown = (e) => {
       // 1. Handle Escape globally
       if (e.key === 'Escape') {
@@ -128,7 +131,6 @@
         }
       }
 
-      // 2. Enter command mode (:)
       if (
         !editorState.editMode &&
         e.key === ':' &&
@@ -140,26 +142,22 @@
         input = ':';
         return;
       }
-
-      // 3. Enter edit mode (i)
       if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
-        // We don't preventDefault here usually, but we need to focus
         editorState.setEditMode(true);
         editorState?.editor?.commands?.focus();
         return;
       }
 
-      // 4. Handle Shortcuts (Cmd+B, etc.)
       const isShortcut = e.metaKey || e.ctrlKey;
       if (isShortcut && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
         const keyMap = {
-          c: ':c',
+          s: ':s',
           u: ':u',
           s: ':w',
           w: ':wq',
           q: ':q',
           b: ':b',
-          a: ':ai',
+          c: ':ai',
         };
 
         const command = keyMap[e.key.toLowerCase()];
