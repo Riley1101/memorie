@@ -88,10 +88,9 @@ export class LlmManager {
     await listen(LLM_EVENTS.EDIT_ACTION_START, (response) => {
       if (response.event === 'chat-edit-action-start') {
         this.editActionInProgress = true;
-        this.editActionContent = "";
+        this.editActionContent = '';
       }
     });
-
 
     await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
       const chunk = /** @type {string} */ (event.payload.response);
@@ -118,7 +117,6 @@ export class LlmManager {
       this.editActionContent = this.editActionContent + chunk;
     });
 
-
     // Listener for when the stream is complete
     this.unlistenDone = await listen(LLM_EVENTS.COMPLETED, (response) => {
       if (response.event === 'chat-completed') {
@@ -132,7 +130,6 @@ export class LlmManager {
         this.editActionInProgress = false;
       }
     });
-
   }
 
   /**
@@ -172,7 +169,6 @@ export class LlmManager {
    * @returns {Promise<void>}
    */
   async sendEditActionMessage(originalMessage, editInstruction) {
-    
     if (this.editActionInProgress || !editInstruction.trim()) {
       return;
     }
@@ -183,7 +179,7 @@ export class LlmManager {
       /** @type {string} processId */
       this.workerId = await invoke(LLM_INVOKE.CHAT, {
         message: originalMessage,
-        edit_action: editInstruction,
+        editAction: editInstruction,
         mode: 'EditAction',
       });
     } catch (e) {
@@ -214,6 +210,15 @@ export class LlmManager {
    */
   newSession() {
     this.messages = [];
+  }
+
+  /**
+   * @public
+   * Clear edit action state and start a new edit action session
+   */
+  newEditActionSession() {
+    this.editActionType = null;
+    this.editActionContent = null;
   }
 
   /**

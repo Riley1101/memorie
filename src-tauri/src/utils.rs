@@ -14,7 +14,7 @@ pub fn get_app_dir() -> Result<PathBuf, FileError> {
 }
 
 /// Modes for chat interactions.
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum ChatMode {
     Normal,
     Autocomplete,

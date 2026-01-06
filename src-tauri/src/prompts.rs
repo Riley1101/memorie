@@ -17,30 +17,49 @@ BEHAVIOR: Always provide corrections. If no errors are found, respond with "No e
 Example: Input: "She dont know where is the book at." Output: { "corrections": "She doesn't know where the book is.", "explanation": "Corrected subject-verb agreement and removed unnecessary preposition." }
 "#;
 
-pub const PROMPT_EXPANSION_PROMPT: &str = r#"
-Role: Prompt Expansion Specialist. 
-Your task is to take a brief user prompt and expand it into a more detailed and comprehensive version that provides clearer instructions or context for an AI model to follow.\nOutput: A detailed and expanded version of the input prompt.\nStrict Rules:\nCLARITY: Ensure the expanded prompt is clear and unambiguous.\nRELEVANCE: Keep the expansion relevant to the original prompt's intent.\nDETAIL: Add necessary details that would help in understanding the task better, without deviating from the original meaning.
+// Global behavior: Ensures the AI only returns the edited text.
+
+pub const INSERTION_GUARDRAILS: &str = r#"
+Strict Rules for output text:
+1. Output ONLY the modified text.
+2. Do NOT include conversational filler, introductory remarks, or quotes.
+3. Preserve existing Markdown (bold, italics, links).
+4. If the text already meets the criteria, return it exactly as provided.
+5. Always response just with the edited text, no explanations.
 "#;
 
+pub const EDIT_ACTION_BASE_PROMPT: &str = r#"
+Role: AI assistant for writing improvements.\nTask: Perform the specified editing action on the provided text according to the given constraints.\nOutput: The fully edited text only, without any additional commentary or explanation.\n
+Strict Rules for output text:
+1. Output ONLY the modified text.
+2. Do NOT include conversational filler, introductory remarks, or quotes.
+3. Preserve existing Markdown (bold, italics, links).
+4. If the text already meets the criteria, return it exactly as provided.
+5. Always response just with the edited text, no explanations.
+"#;
+
+pub const PROMPT_EXPANSION_PROMPT: &str = r#""#;
+
 pub const CORRECT_GRAMMAR_PROMPT: &str = r#"
-Role: Grammar Corrector.
-Your task is to correct any grammatical errors in the provided text while maintaining the original meaning and tone
+Task: Fix grammar, spelling, and punctuation.
+Constraints: Maintain original tone. Do not change style unless grammatically necessary.
+Sentence:
 "#;
 
 pub const IMPROVE_CLARITY_PROMPT: &str = r#"
-Role: Clarity Enhancer.
-Your task is to improve the clarity of the provided text, making it easier to understand while preserving
-the original intent.
+Task: Enhance readability and flow.
+Constraints: Use active voice and concise phrasing. Preserve original meaning.
+Input:
 "#;
 
 pub const MAKE_FORMAL_PROMPT: &str = r#"
-Role: Formality Adjuster.
-Your task is to make the provided text more formal in tone, suitable for professional or academic contexts
-while retaining the original meaning.
+Task: Rewrite with professional/academic tone.
+Constraints: Remove slang and contractions. Suitable for business context.
+Input:
 "#;
 
 pub const SIMPLIFY_PROMPT: &str = r#"
-Role: Text Simplifier.
-Your task is to simplify the provided text, making it easier to read and understand while keeping there
-original message intact.
+Task: Simplify text to a 6th-grade reading level.
+Constraints: Short sentences, simple words, no jargon.
+Input:
 "#;

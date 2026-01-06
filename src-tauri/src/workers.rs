@@ -1,5 +1,6 @@
 use crate::utils::EditAction;
 
+use super::prompts::{EDIT_ACTION_BASE_PROMPT, INSERTION_GUARDRAILS};
 use super::responses::AutoCompleteResponse;
 use super::utils::ChatMode;
 use dashmap::DashMap;
@@ -158,17 +159,31 @@ async fn run_chat_worker(
             }
         }
     } else if mode == ChatMode::EditAction {
+        println!(
+            "Chat edit action: {:?}",
+            edit_action.clone().unwrap().as_str()
+        );
         let edit_action = if let Some(action) = edit_action {
             action
         } else {
-            EditAction::PromptExpansion
+            EditAction::CorrectGrammar
         };
 
-        let prompt = edit_action.into_prompt();
+        let prompt = if edit_action == EditAction::PromptExpansion {
+            format!("{}\n {}\n", INSERTION_GUARDRAILS, message)
+        } else {
+            format!(
+                "{}\n{}\n{}",
+                EDIT_ACTION_BASE_PROMPT,
+                edit_action.into_prompt(),
+                message
+            )
+        };
+        let prompt = prompt.lines().map(|s| s.trim()).collect::<String>();
 
-        let mut chat_session = model.run_chat(prompt).await.map_err(|e| e.to_string())?;
+        let mut chat_session = model.run_chat(&"").await.map_err(|e| e.to_string())?;
 
-        let mut stream = chat_session.add_message(message);
+        let mut stream = chat_session.add_message(prompt);
 
         let mut response = String::new();
 

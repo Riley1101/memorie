@@ -108,7 +108,7 @@
       </ScrollArea>
     </main>
 
-    <footer class="border-t bg-background">
+    <footer class="bg-background">
       <EditorCommandbar {fileName} {body} currentVersion={history?.current || 0} />
     </footer>
   </div>

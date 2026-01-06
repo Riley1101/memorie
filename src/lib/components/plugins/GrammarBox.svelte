@@ -6,7 +6,7 @@
   import { Label } from '$lib/components/ui/label/index.js';
   import { Textarea } from '$lib/components/ui/textarea/index.js';
   import { llmManager } from '@/runes/llm.svelte.js';
-
+  import SparklesIcon from '@lucide/svelte/icons/sparkles';
   /**
    * @typedef {Object} GrammarBoxProps
    * @property {string} originalText - The original text that needs grammar suggestions.
@@ -14,18 +14,29 @@
    * @property {number} sequence - The sequence number of the text segment.
    */
 
-  /**
-   * Handle sending the prompt to the LLM manager.
-    * @param {string} command - The command or prompt to send to the LLM.
+  /** @type {GrammarBoxProps} */
+  let { originalText, onFix } = $props();
 
-   */
-  function handleSend(command) {
-    console.log(command);
-    llmManager.sendEditActionMessage(originalText, command);
+  let customPrompt = $state('');
+
+  function handleAccept() {
+    if (llmManager.editActionContent) {
+      onFix(llmManager.editActionContent);
+      llmManager.newEditActionSession();
+    }
   }
 
-  /** @type {GrammarBoxProps} */
-  let { originalText } = $props();
+  /**
+   * Handle sending the prompt to the LLM manager.
+   * @param {string} command - The command or prompt to send to the LLM.
+   */
+  function handleSend(command) {
+    let text = originalText;
+    if (command === 'PromptExpansion') {
+      text = `PROMPT: ${customPrompt} , Input Sentence: ${originalText}`;
+    }
+    llmManager.sendEditActionMessage(text, command);
+  }
 
   const exampleSuggestions = [
     {
@@ -47,6 +58,17 @@
   ];
 </script>
 
+{#if llmManager.editActionContent || llmManager.editActionInProgress}
+  <div class="border rounded-md p-2 mb-2">
+    <p>
+      {#if llmManager.editActionInProgress}
+        <SparklesIcon class="animate-pulse size-4 mr-2 inline" />
+      {/if}
+      {llmManager.editActionContent}
+    </p>
+    <Button onclick={handleAccept} variant="outline" size="sm">Accept</Button>
+  </div>
+{/if}
 <DropdownMenu.Root>
   <DropdownMenu.Trigger>
     {#snippet child({ props })}
@@ -59,11 +81,6 @@
   </DropdownMenu.Trigger>
   <DropdownMenu.Content class="w-100 dark" align="start" size="sm">
     <div class="flex w-full max-w-sm flex-col gap-1.5 p-2">
-      <code class="text-[9px]!">
-        {llmManager.workerId}
-        {llmManager.editActionType}:{llmManager.editActionContent}
-      </code>
-      <Label for="prompt" class="text-xs! mb-1">Prompt</Label>
       <div class="flex gap-2 flex-col">
         <Textarea
           type="email"
@@ -72,6 +89,7 @@
           size="sm"
           class="text-xs!"
           variant="outline"
+          bind:value={customPrompt}
         />
         <Button
           size="sm"
@@ -85,7 +103,7 @@
       >Suggestions</DropdownMenu.Label
     >
     <DropdownMenu.Group>
-      {#each exampleSuggestions as example}
+      {#each exampleSuggestions as example (example.command)}
         <DropdownMenu.Item
           closeOnSelect={false}
           class="cursor-pointer hover:bg-accent/50 text-xs"

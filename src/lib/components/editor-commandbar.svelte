@@ -68,11 +68,11 @@
   ];
 
   const quickCommands = [
-    { cmd: ':s', label: 'Analyze', icon: '⌘S' },
-    { cmd: ':b', label: 'Sidebar', icon: '⌘B' },
-    { cmd: ':u', label: 'History', icon: '⌘U' },
-    { cmd: ':w', label: 'Save', icon: '⌘S' },
-    { cmd: ':ai', label: 'AI', icon: '⌘c' },
+    // { cmd: ':s', label: 'Analyze', icon: '⌘S' },
+    // { cmd: ':b', label: 'Sidebar', icon: '⌘B' },
+    // { cmd: ':u', label: 'History', icon: '⌘U' },
+    // { cmd: ':w', label: 'Save', icon: '⌘S' },
+    // { cmd: ':ai', label: 'AI', icon: '⌘c' },
   ];
 
   let isCommandMode = $state(false);
@@ -157,7 +157,7 @@
           w: ':wq',
           q: ':q',
           b: ':b',
-          c: ':ai',
+          t: ':ai',
         };
 
         const command = keyMap[e.key.toLowerCase()];
@@ -354,7 +354,7 @@
       </form>
     {/if}
 
-    <DropdownMenu.Root class="dark">
+    <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
           <Button {...props} variant="ghost" size="sm" class="md:hidden">

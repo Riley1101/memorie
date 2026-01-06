@@ -131,11 +131,7 @@ impl Model {
     ///
     /// # Returns
     /// A Result containing the Chat instance or a LlamaError
-    pub async fn run_chat(
-        &mut self,
-        sys_prompt: &str,
-    ) -> Result<Chat<Llama>, LlamaError> {
-
+    pub async fn run_chat(&mut self, sys_prompt: &str) -> Result<Chat<Llama>, LlamaError> {
         let prompt = if sys_prompt.is_empty() {
             NORMAL_CHAT_PROMPT.to_string()
         } else {
@@ -146,9 +142,7 @@ impl Model {
 
         let model = self.get_model(ModelType::AutoComplete).await?;
 
-        let mut chat = model
-            .chat()
-            .with_system_prompt(prompt);
+        let mut chat = model.chat();
 
         if let Some(old_session) = std::fs::read(&session_cache_path)
             .ok()
