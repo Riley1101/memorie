@@ -5,7 +5,7 @@ use super::workers::{Job, JobStatus};
 use super::AppState;
 use crate::llm::ModelType;
 use crate::memory::TextChunk;
-use crate::utils::ChatMode;
+use crate::utils::{ChatMode, EditAction};
 use tauri::State;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -145,6 +145,7 @@ pub async fn load_models(state: State<'_, AppState>) -> Result<String, String> {
 pub async fn run_chat(
     message: String,
     mode: ChatMode,
+    edit_action: Option<EditAction>,
     state: State<'_, AppState>,
 ) -> Result<Uuid, String> {
     let job_id = Uuid::new_v4();
@@ -152,6 +153,7 @@ pub async fn run_chat(
 
     let job = Job {
         id: job_id,
+        edit_action,
         mode,
         message,
         cancellation_token: cancellation_token.clone(),

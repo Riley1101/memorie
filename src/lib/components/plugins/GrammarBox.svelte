@@ -14,18 +14,36 @@
    * @property {number} sequence - The sequence number of the text segment.
    */
 
-  function handleSend() {}
+  /**
+   * Handle sending the prompt to the LLM manager.
+    * @param {string} command - The command or prompt to send to the LLM.
+
+   */
+  function handleSend(command) {
+    console.log(command);
+    llmManager.sendEditActionMessage(originalText, command);
+  }
 
   /** @type {GrammarBoxProps} */
-  let { originalText, onFix, sequence } = $props();
-
-  const suggestion = originalText.toUpperCase();
+  let { originalText } = $props();
 
   const exampleSuggestions = [
-    'Correct grammar',
-    'Improve clarity',
-    'Make it more formal',
-    'Simplify the language',
+    {
+      label: 'Correct grammar',
+      command: 'CorrectGrammar',
+    },
+    {
+      label: 'Improve clarity',
+      command: 'ImproveClarity',
+    },
+    {
+      label: 'Make it more formal',
+      command: 'MakeFormal',
+    },
+    {
+      label: 'Simplify the language',
+      command: 'Simplify',
+    },
   ];
 </script>
 
@@ -41,6 +59,10 @@
   </DropdownMenu.Trigger>
   <DropdownMenu.Content class="w-100 dark" align="start" size="sm">
     <div class="flex w-full max-w-sm flex-col gap-1.5 p-2">
+      <code class="text-[9px]!">
+        {llmManager.workerId}
+        {llmManager.editActionType}:{llmManager.editActionContent}
+      </code>
       <Label for="prompt" class="text-xs! mb-1">Prompt</Label>
       <div class="flex gap-2 flex-col">
         <Textarea
@@ -51,7 +73,12 @@
           class="text-xs!"
           variant="outline"
         />
-        <Button size="sm" variant="outline" onclick={handleSend} class="max-w-max">Send</Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onclick={() => handleSend('PromptExpansion')}
+          class="max-w-max">Send</Button
+        >
       </div>
     </div>
     <DropdownMenu.Label class="font-normal text-xs text-muted-foreground"
@@ -60,10 +87,11 @@
     <DropdownMenu.Group>
       {#each exampleSuggestions as example}
         <DropdownMenu.Item
+          closeOnSelect={false}
           class="cursor-pointer hover:bg-accent/50 text-xs"
-          on:click={() => onFix(`${example} applied to: ${originalText}`)}
+          onclick={() => handleSend(example.command)}
         >
-          {example}
+          {example.label}
         </DropdownMenu.Item>
       {/each}
     </DropdownMenu.Group>

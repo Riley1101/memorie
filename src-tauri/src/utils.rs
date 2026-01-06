@@ -1,4 +1,8 @@
 use super::error::FileError;
+use super::prompts::{
+    CORRECT_GRAMMAR_PROMPT, IMPROVE_CLARITY_PROMPT, MAKE_FORMAL_PROMPT, PROMPT_EXPANSION_PROMPT,
+    SIMPLIFY_PROMPT,
+};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -15,6 +19,7 @@ pub enum ChatMode {
     Normal,
     Autocomplete,
     Grammar,
+    EditAction,
 }
 
 /// Convert ChatMode to its string representation.
@@ -24,6 +29,39 @@ impl ChatMode {
             ChatMode::Normal => "Normal",
             ChatMode::Autocomplete => "Autocomplete",
             ChatMode::Grammar => "Grammar",
+            ChatMode::EditAction => "EditAction",
+        }
+    }
+}
+
+/// Editing actions that can be performed on text.
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
+pub enum EditAction {
+    CorrectGrammar,
+    ImproveClarity,
+    MakeFormal,
+    Simplify,
+    PromptExpansion,
+}
+
+impl EditAction {
+    pub fn as_str(&self) -> &str {
+        match self {
+            EditAction::PromptExpansion => "PromptExpansion",
+            EditAction::CorrectGrammar => "CorrectGrammar",
+            EditAction::ImproveClarity => "ImproveClarity",
+            EditAction::MakeFormal => "MakeFormal",
+            EditAction::Simplify => "Simplify",
+        }
+    }
+
+    pub fn into_prompt(&self) -> &str {
+        match self {
+            EditAction::PromptExpansion => PROMPT_EXPANSION_PROMPT,
+            EditAction::CorrectGrammar => CORRECT_GRAMMAR_PROMPT,
+            EditAction::ImproveClarity => IMPROVE_CLARITY_PROMPT,
+            EditAction::MakeFormal => MAKE_FORMAL_PROMPT,
+            EditAction::Simplify => SIMPLIFY_PROMPT,
         }
     }
 }

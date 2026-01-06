@@ -14,6 +14,10 @@ const LLM_EVENTS = {
   AUTOCOMPOLETE: 'chat-autocomplete',
   COMPLETED: 'chat-completed',
   Error: 'chat-error',
+
+  EDIT_ACTION_START: 'chat-edit-action-start',
+  EDIT_ACTION_IN_PROGRESS: 'chat-edit-action-in-progress',
+  EDIT_ACTION_COMPLETED: 'chat-edit-action-completed',
 };
 
 const LLM_INVOKE = {
@@ -37,6 +41,15 @@ const LLM_INVOKE = {
 export class LlmManager {
   /** @type string | null - unique worker ID **/
   workerId = $state(null);
+
+  /** @type string | null - Edit Action Type **/
+  editActionType = $state(null);
+
+  /** @type string | null - Edit Action Response **/
+  editActionContent = $state(null);
+
+  /** @type boolean - indicates if edit action is in progress **/
+  editActionInProgress = $state(false);
 
   /** @type boolean - indicates if models are loaded **/
   modelsLoaded = $state(false);
@@ -72,6 +85,14 @@ export class LlmManager {
       }
     });
 
+    await listen(LLM_EVENTS.EDIT_ACTION_START, (response) => {
+      if (response.event === 'chat-edit-action-start') {
+        this.editActionInProgress = true;
+        this.editActionContent = "";
+      }
+    });
+
+
     await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
       const chunk = /** @type {string} */ (event.payload.response);
       if (this.messages.length > 0) {
@@ -92,12 +113,26 @@ export class LlmManager {
       }
     });
 
+    this.unlistenChunk = await listen(LLM_EVENTS.EDIT_ACTION_IN_PROGRESS, (event) => {
+      const chunk = /** @type {string} */ (event.payload.content);
+      this.editActionContent = this.editActionContent + chunk;
+    });
+
+
     // Listener for when the stream is complete
     this.unlistenDone = await listen(LLM_EVENTS.COMPLETED, (response) => {
       if (response.event === 'chat-completed') {
         this.isLoading = false;
       }
     });
+
+    // Listener for when the edit action is complete
+    this.unlistenDone = await listen(LLM_EVENTS.EDIT_ACTION_COMPLETED, (response) => {
+      if (response.event === 'chat-edit-action-completed') {
+        this.editActionInProgress = false;
+      }
+    });
+
   }
 
   /**
@@ -127,6 +162,34 @@ export class LlmManager {
       this.error = `An error occurred: ${e}`;
       this.isLoading = false;
       this.messages.pop();
+    }
+  }
+
+  /**
+   * Sends an edit action instruction to the Rust backend to modify an existing message.
+   * @param {string} originalMessage The original message to be edited.
+   * @param {string} editInstruction The instruction for editing the message.
+   * @returns {Promise<void>}
+   */
+  async sendEditActionMessage(originalMessage, editInstruction) {
+    
+    if (this.editActionInProgress || !editInstruction.trim()) {
+      return;
+    }
+    this.editActionType = editInstruction;
+    this.editActionInProgress = true;
+
+    try {
+      /** @type {string} processId */
+      this.workerId = await invoke(LLM_INVOKE.CHAT, {
+        message: originalMessage,
+        edit_action: editInstruction,
+        mode: 'EditAction',
+      });
+    } catch (e) {
+      console.error(e);
+      this.error = `An error occurred: ${e}`;
+      this.editActionInProgress = false;
     }
   }
 

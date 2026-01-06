@@ -1,3 +1,5 @@
+use crate::utils::EditAction;
+
 use super::responses::AutoCompleteResponse;
 use super::utils::ChatMode;
 use dashmap::DashMap;
@@ -13,6 +15,7 @@ use uuid::Uuid;
 /// Each job has a unique ID, a message to process, and a cancellation token.
 pub struct Job {
     pub id: Uuid,
+    pub edit_action: Option<EditAction>,
     pub mode: ChatMode,
     pub message: String,
     pub cancellation_token: CancellationToken,
@@ -61,7 +64,13 @@ impl LlmEventService {
                             statuses_clone.insert(job.id, JobStatus::Cancelled);
                             Err("Cancelled".to_string())
                         }
-                        res = run_chat_worker(app_handle.clone(), job.message.clone(), job.cancellation_token.clone(), job.mode.clone()) => {
+                        res = run_chat_worker(
+                            app_handle.clone(),
+                            job.message.clone(),
+                            job.cancellation_token.clone(),
+                            job.mode.clone(),
+                            job.edit_action.clone(),
+                            ) => {
                             res
                         }
                     };
@@ -104,6 +113,7 @@ async fn run_chat_worker(
     message: String,
     cancellation_token: CancellationToken,
     mode: ChatMode,
+    edit_action: Option<EditAction>,
 ) -> Result<String, String> {
     let state: tauri::State<crate::AppState> = app_handle.state();
 
@@ -112,7 +122,7 @@ async fn run_chat_worker(
     let response = String::new();
 
     if mode == ChatMode::Normal {
-        let mut chat_session = model.run_chat().await.map_err(|e| e.to_string())?;
+        let mut chat_session = model.run_chat(&"").await.map_err(|e| e.to_string())?;
 
         // TODO! Add sampler
         let mut stream = chat_session.add_message(message);
@@ -141,6 +151,49 @@ async fn run_chat_worker(
                         }
                         None => {
                             app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    } else if mode == ChatMode::EditAction {
+        let edit_action = if let Some(action) = edit_action {
+            action
+        } else {
+            EditAction::PromptExpansion
+        };
+
+        let prompt = edit_action.into_prompt();
+
+        let mut chat_session = model.run_chat(prompt).await.map_err(|e| e.to_string())?;
+
+        let mut stream = chat_session.add_message(message);
+
+        let mut response = String::new();
+
+        app_handle
+            .emit(ChatEvents::EditActionStart.as_str(), "")
+            .map_err(|e| e.to_string())?;
+
+        loop {
+            tokio::select! {
+                _ = cancellation_token.cancelled() => {
+                    return Err("Chat cancelled".to_string());
+                }
+                token = stream.next() => {
+                    match token {
+                        Some(token) => {
+                            response.push_str(&token);
+                            app_handle
+                                .emit(
+                                    ChatEvents::EditActionInProgress.as_str(),
+                                    ChatStreamInProgress { content: &token },
+                                )
+                                .unwrap();
+                        }
+                        None => {
+                            app_handle.emit(ChatEvents::EditActionCompleted.as_str(), "").unwrap();
                             break;
                         }
                     }
@@ -199,12 +252,18 @@ pub enum ChatEvents {
     Completed,
     AutoComplete,
     GrammarCheck,
+    EditActionStart,
+    EditActionInProgress,
+    EditActionCompleted,
     Error,
 }
 
 impl ChatEvents {
     pub fn as_str(&self) -> &'static str {
         match self {
+            ChatEvents::EditActionStart => "chat-edit-action-start",
+            ChatEvents::EditActionInProgress => "chat-edit-action-in-progress",
+            ChatEvents::EditActionCompleted => "chat-edit-action-completed",
             ChatEvents::Init => "chat-init",
             ChatEvents::AutoComplete => "chat-autocomplete",
             ChatEvents::GrammarCheck => "chat-grammar-check",
