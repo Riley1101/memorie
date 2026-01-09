@@ -59,7 +59,7 @@
 </script>
 
 {#if llmManager.editActionContent || llmManager.editActionInProgress}
-  <div class="border rounded-md p-2 mb-2">
+  <div class="border rounded-md p-2">
     <p>
       {#if llmManager.editActionInProgress}
         <SparklesIcon class="animate-pulse size-4 mr-2 inline" />
