@@ -210,6 +210,11 @@ impl TextChunk {
 /// Trait for converting a NoteDocument into a DocumentContext using embeddings.
 /// This trait defines an asynchronous method to perform the conversion.
 pub trait MemoryDocumentAnalysisExt {
+    async fn search_documents(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<TextChunk>, MemoryError>;
     async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk>;
     async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument>;
     async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk>;
@@ -221,6 +226,37 @@ pub trait MemoryDocumentAnalysisExt {
 /// generating hashes, and reconciling with existing chunks in the database.
 /// It handles new, unchanged, and deleted paragraphs accordingly.
 impl MemoryDocumentAnalysisExt for Memory {
+    async fn search_documents(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<TextChunk>, MemoryError> {
+        let db = &self.db;
+
+        let query_embedding = self.generate_embedding(query).await?;
+
+        println!(
+            ">> Searching for top {} chunks matching query: '{:?}'",
+            limit, query_embedding
+        );
+
+        let sql = r#"
+    SELECT *, vector::similarity::cosine(embedding, $query_vec) AS score 
+    FROM chunk 
+    WHERE embedding IS NOT NONE 
+    ORDER BY score DESC 
+    LIMIT $limit
+"#;
+        let mut response = db
+            .query(sql)
+            .bind(("query_vec", query_embedding))
+            .bind(("limit", limit))
+            .await?;
+
+        let results: Vec<TextChunk> = response.take(0)?;
+        Ok(results)
+    }
+
     async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk> {
         let db = &self.db;
         let mut updated_chunk = chunk;
@@ -307,7 +343,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                     Ok(emb) => emb,
                     Err(e) => {
                         println!("Failed to generate embedding: {:?}", e);
-                        vec![] 
+                        vec![]
                     }
                 };
                 // No hash match found. This is a new paragraph or an edit.

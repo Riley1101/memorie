@@ -241,12 +241,20 @@ pub async fn get_document_context(
 
 #[tauri::command]
 pub async fn search_documents(
-    _query: String,
-    _state: State<'_, AppState>,
+    query: String,
+    state: State<'_, AppState>,
 ) -> Result<Response<Vec<String>>, String> {
-    let vec = Vec::new();
-    let response = Response::success(vec);
-    Ok(response)
+    let memory = state.memory.lock().await;
+    let chunks = memory
+        .search_documents(&query, 5)
+        .await
+        .map_err(|e| e.to_string())?;
+    if !chunks.is_empty() {
+        let contents: Vec<String> = chunks.into_iter().map(|c| c.content).collect();
+        let response = Response::success(contents);
+        return Ok(response);
+    }
+    Ok(Response::success(Vec::new()))
 }
 
 /**
