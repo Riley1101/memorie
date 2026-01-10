@@ -46,7 +46,7 @@
   <div class="overflow-hidden">
     <ScrollArea type="scroll" class="h-full">
       {#if commandInput === ''}
-        <h2 class="pt-24 text-4xl mb-8">Start writing down your thoughts</h2>
+        <h2 class="py-8 text-4xl">Start writing down your thoughts</h2>
         <HomeFavourites />
       {:else}
         <div>

@@ -4,6 +4,7 @@
   import { fileManager } from '@/runes/fs.svelte';
   import { resolve } from '$app/paths';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
+  import PlusIcon from '@lucide/svelte/icons/plus';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FileIcon from '@lucide/svelte/icons/file';
   import Button from './ui/button/button.svelte';
@@ -31,11 +32,40 @@
   function loadMore() {
     limit += 4;
   }
+
+  function createNewFile() {
+    fileManager.createNewFile(keyword).then(() => {});
+  }
 </script>
 
 <div class="flex flex-col">
-  <Input bind:value={keyword} placeholder="Search" class="mb-4" />
+  <Input bind:value={keyword} placeholder="Search or create new writing" class="px-2 mb-8" />
   <div class="grid grid-cols-2 gap-4">
+    {#if filteredFavourites().length === 0}
+      <Item.Root
+        variant="outline"
+        class="flex text-muted-foreground items-center cursor-pointer hover:text-white p-3"
+      >
+        {#snippet child({ props })}
+          <button class="unset" onclick={createNewFile} {...props}>
+            <Item.Media>
+              <FileIcon class="size-5" />
+            </Item.Media>
+            <Item.Content>
+              <Item.Title>
+                <span class="capitalize">
+                  Create <span class="text-bold lowercase">{keyword}.md</span></span
+                >
+              </Item.Title>
+            </Item.Content>
+            <Item.Actions>
+              <PlusIcon class="size-4" />
+            </Item.Actions>
+          </button>
+        {/snippet}
+      </Item.Root>
+    {/if}
+
     {#each filteredFavourites() as item (item.path)}
       <Item.Root
         variant="outline"

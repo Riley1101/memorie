@@ -1,12 +1,9 @@
 use crate::error::FileError;
-use ammonia::is_html;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
-
-use htmd::HtmlToMarkdown;
 
 const DEFAULT_EXTENSION: &str = "md";
 
@@ -26,27 +23,9 @@ impl File {
         File { path, name }
     }
 
-    // TODO:  for older version with html content;
     pub fn read_content(&self) -> Result<String, FileError> {
         let content = fs::read_to_string(&self.path)?;
         Ok(content)
-        // let is_html_content = is_html(&content);
-        // match is_html_content {
-        //     true => {
-        //         println!(
-        //             "Converting HTML content to Markdown for file: {}",
-        //             self.name
-        //         );
-        //         let converter = HtmlToMarkdown::builder()
-        //             .skip_tags(vec!["script", "style"])
-        //             .build();
-        //         let result = converter
-        //             .convert(&content)
-        //             .map_err(|e| FileError::ContentConversionError(e.to_string()))?;
-        //         Ok(result)
-        //     }
-        //     false => Ok(content),
-        // }
     }
 
     #[allow(dead_code)]

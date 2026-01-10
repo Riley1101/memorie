@@ -69,8 +69,6 @@
       console.log('Grammar check result:', result);
     });
   }
-
-  console.log(editorState.grammarChecks);
 </script>
 
 <div class="flex h-screen w-full bg-background">
