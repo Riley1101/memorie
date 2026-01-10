@@ -20,6 +20,7 @@ pub enum ChatMode {
     Autocomplete,
     Grammar,
     EditAction,
+    RagChat,
 }
 
 /// Convert ChatMode to its string representation.
@@ -30,6 +31,7 @@ impl ChatMode {
             ChatMode::Autocomplete => "Autocomplete",
             ChatMode::Grammar => "Grammar",
             ChatMode::EditAction => "EditAction",
+            ChatMode::RagChat => "RagChat",
         }
     }
 }

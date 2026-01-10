@@ -375,9 +375,7 @@
     </DropdownMenu.Root>
 
     <div class="ml-auto text-xs font-mono text-muted-foreground md:flex items-center gap-2 hidden">
-      <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">:</kbd> command
-      <span class="mx-2">|</span>
-      <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">ESC</kbd> cancel
+      <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">:</kbd> menu
     </div>
   </div>
 </div>

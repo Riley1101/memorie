@@ -159,10 +159,6 @@ async fn run_chat_worker(
             }
         }
     } else if mode == ChatMode::EditAction {
-        println!(
-            "Chat edit action: {:?}",
-            edit_action.clone().unwrap().as_str()
-        );
         let edit_action = if let Some(action) = edit_action {
             action
         } else {
@@ -229,6 +225,41 @@ async fn run_chat_worker(
             )
             .unwrap();
         app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
+    } else if mode == ChatMode::RagChat {
+        let mut rag_chat_session = model.run_chat(&"").await.map_err(|e| e.to_string())?;
+
+        let mut stream = rag_chat_session.add_message(message);
+
+        let mut response = String::new();
+
+        app_handle
+            .emit(ChatEvents::RagChatInit.as_str(), "")
+            .map_err(|e| e.to_string())?;
+
+        loop {
+            tokio::select! {
+                _ = cancellation_token.cancelled() => {
+                    return Err("RAG Chat cancelled".to_string());
+                }
+                token = stream.next() => {
+                    match token {
+                        Some(token) => {
+                            response.push_str(&token);
+                            app_handle
+                                .emit(
+                                    ChatEvents::RagChatInProgress.as_str(),
+                                    ChatStreamInProgress { content: &token },
+                                )
+                                .unwrap();
+                        }
+                        None => {
+                            app_handle.emit(ChatEvents::RagChatCompleted.as_str(), "").unwrap();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     } else {
         let chat_session = model.run_autocomplete().await.map_err(|e| e.to_string())?;
         let stream = chat_session(&message);
@@ -267,9 +298,15 @@ pub enum ChatEvents {
     Completed,
     AutoComplete,
     GrammarCheck,
+
     EditActionStart,
     EditActionInProgress,
     EditActionCompleted,
+
+    RagChatInit,
+    RagChatInProgress,
+    RagChatCompleted,
+
     Error,
 }
 
@@ -279,12 +316,17 @@ impl ChatEvents {
             ChatEvents::EditActionStart => "chat-edit-action-start",
             ChatEvents::EditActionInProgress => "chat-edit-action-in-progress",
             ChatEvents::EditActionCompleted => "chat-edit-action-completed",
+
             ChatEvents::Init => "chat-init",
             ChatEvents::AutoComplete => "chat-autocomplete",
             ChatEvents::GrammarCheck => "chat-grammar-check",
             ChatEvents::InProgress => "chat-in-progress",
             ChatEvents::Completed => "chat-completed",
             ChatEvents::Error => "chat-error",
+
+            ChatEvents::RagChatInit => "rag-chat-init",
+            ChatEvents::RagChatInProgress => "rag-chat-in-progress",
+            ChatEvents::RagChatCompleted => "rag-chat-completed",
         }
     }
 }

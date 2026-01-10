@@ -195,12 +195,23 @@ pub struct TextChunk {
     pub is_dirty: bool,
 
     pub embedding: Option<Vec<f32>>,
+
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 impl TextChunk {
     pub fn get_thing_id(&self) -> Option<Thing> {
         self.id.clone()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub parent: Thing,
+    pub content: String,
+    pub sequence: usize,
+    pub title: String,
 }
 
 // -------------------------------------------------------
@@ -214,7 +225,7 @@ pub trait MemoryDocumentAnalysisExt {
         &self,
         query: &str,
         limit: usize,
-    ) -> Result<Vec<TextChunk>, MemoryError>;
+    ) -> Result<Vec<SearchResult>, MemoryError>;
     async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk>;
     async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument>;
     async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk>;
@@ -230,30 +241,60 @@ impl MemoryDocumentAnalysisExt for Memory {
         &self,
         query: &str,
         limit: usize,
-    ) -> Result<Vec<TextChunk>, MemoryError> {
+    ) -> Result<Vec<SearchResult>, MemoryError> {
         let db = &self.db;
 
         let query_embedding = self.generate_embedding(query).await?;
-
-        println!(
-            ">> Searching for top {} chunks matching query: '{:?}'",
-            limit, query_embedding
-        );
+        let threshold = 0.7;
 
         let sql = r#"
     SELECT *, vector::similarity::cosine(embedding, $query_vec) AS score 
     FROM chunk 
     WHERE embedding IS NOT NONE 
-    ORDER BY score DESC 
+    AND vector::similarity::cosine(embedding, $query_vec) > $threshold
+    ORDER BY score DESC, created_at DESC 
     LIMIT $limit
 "#;
         let mut response = db
             .query(sql)
             .bind(("query_vec", query_embedding))
             .bind(("limit", limit))
+            .bind(("threshold", threshold))
             .await?;
 
-        let results: Vec<TextChunk> = response.take(0)?;
+        let chunks: Vec<TextChunk> = response.take(0)?;
+
+        let mut parent_ids: Vec<Thing> = chunks.iter().map(|c| c.parent.clone()).collect();
+        parent_ids.sort();
+        parent_ids.dedup();
+
+        let mut doc_map: HashMap<Thing, String> = HashMap::new();
+        if !parent_ids.is_empty() {
+            let sql_docs = "SELECT * FROM $ids";
+            let mut doc_response = db.query(sql_docs).bind(("ids", parent_ids)).await?;
+            let note_documents: Vec<NoteDocument> = doc_response.take(0)?;
+
+            for doc in note_documents {
+                if let Some(id) = doc.id {
+                    doc_map.insert(id, doc.title);
+                }
+            }
+        }
+        let results: Vec<SearchResult> = chunks
+            .into_iter()
+            .map(|c| {
+                let title = doc_map
+                    .get(&c.parent)
+                    .cloned()
+                    .unwrap_or_else(|| "Unknown Document".to_string());
+                SearchResult {
+                    parent: c.parent,
+                    content: c.content,
+                    sequence: c.sequence,
+                    title,
+                }
+            })
+            .collect();
         Ok(results)
     }
 
@@ -313,10 +354,6 @@ impl MemoryDocumentAnalysisExt for Memory {
                 .replace('\n', " ");
 
             if let Some(old_chunk) = old_chunk_map.remove(&new_hash) {
-                // We found a chunk in the DB with the exact same hash.
-                // We preserve the 'grammar_check' and 'id'.
-                // We only update 'sequence' (in case the paragraph moved up/down).
-
                 if old_chunk.sequence != i {
                     let _: Vec<TextChunk> = db
                         .upsert(CHUNK_TABLE)
@@ -329,6 +366,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                             correction: old_chunk.correction,
                             is_dirty: false,
                             embedding: old_chunk.embedding,
+                            created_at: old_chunk.created_at,
                         })
                         .await
                         .unwrap();
@@ -346,8 +384,6 @@ impl MemoryDocumentAnalysisExt for Memory {
                         vec![]
                     }
                 };
-                // No hash match found. This is a new paragraph or an edit.
-                // Create a new chunk and mark is_dirty = true.
                 let _: Option<TextChunk> = db
                     .create(CHUNK_TABLE)
                     .content(TextChunk {
@@ -359,6 +395,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                         correction: None,
                         is_dirty: true,
                         embedding: Some(embedding),
+                        created_at: Utc::now().timestamp(),
                     })
                     .await
                     .unwrap();

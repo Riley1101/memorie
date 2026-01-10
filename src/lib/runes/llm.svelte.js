@@ -18,6 +18,10 @@ const LLM_EVENTS = {
   EDIT_ACTION_START: 'chat-edit-action-start',
   EDIT_ACTION_IN_PROGRESS: 'chat-edit-action-in-progress',
   EDIT_ACTION_COMPLETED: 'chat-edit-action-completed',
+
+  RAG_CHAT_INIT: 'rag-chat-init',
+  RAG_CHAT_IN_PROGRESS: 'rag-chat-in-progress',
+  RAG_CHAT_COMPLETED: 'rag-chat-completed',
 };
 
 const LLM_INVOKE = {
@@ -54,6 +58,12 @@ export class LlmManager {
   /** @type boolean - indicates if models are loaded **/
   modelsLoaded = $state(false);
 
+  /** @type boolean - loading state **/
+  isRAGLoading = $state(false);
+
+  /** @type Message[] - array of RAG Response messages **/
+  ragMessages = $state([]);
+
   /** @type Message[] - array of messages **/
   messages = $state([]);
 
@@ -85,6 +95,14 @@ export class LlmManager {
       }
     });
 
+    await listen(LLM_EVENTS.RAG_CHAT_INIT, (response) => {
+      if (response.event === 'rag-chat-in-progress') {
+        this.isRAGLoading = true;
+        this.ragMessages.push({ role: 'user', content: response.payload.message });
+        this.ragMessages.push({ role: 'assistant', content: '' });
+      }
+    });
+
     await listen(LLM_EVENTS.EDIT_ACTION_START, (response) => {
       if (response.event === 'chat-edit-action-start') {
         this.editActionInProgress = true;
@@ -98,6 +116,16 @@ export class LlmManager {
         const lastMessage = this.messages[this.messages.length - 1];
         if (lastMessage.role === 'assistant') {
           lastMessage.content += JSON.stringify(chunk);
+        }
+      }
+    });
+
+    this.unlistenChunk = await listen(LLM_EVENTS.RAG_CHAT_IN_PROGRESS, (event) => {
+      const chunk = /** @type {string} */ (event.payload.content);
+      if (this.ragMessages.length > 0) {
+        const lastMessage = this.ragMessages[this.ragMessages.length - 1];
+        if (lastMessage.role === 'assistant') {
+          lastMessage.content += chunk;
         }
       }
     });
@@ -130,6 +158,22 @@ export class LlmManager {
         this.editActionInProgress = false;
       }
     });
+
+    // Listener for when the RAG chat is complete
+    this.unlistenDone = await listen(LLM_EVENTS.RAG_CHAT_COMPLETED, (response) => {
+      if (response.event === 'rag-chat-completed') {
+        this.isRAGLoading = false;
+      }
+    });
+
+    // Listener for errors
+    this.unlistenDone = await listen(LLM_EVENTS.Error, (response) => {
+      console.error('LLM Error:', response.payload.message);
+      this.error = `An error occurred: ${response.payload.message}`;
+      this.isLoading = false;
+      this.editActionInProgress = false;
+    });
+
   }
 
   /**
@@ -190,6 +234,33 @@ export class LlmManager {
   }
 
   /**
+   * Sends a RAG (Retrieval-Augmented Generation) message to the Rust backend.
+   * @param {string} prompt The user's message.
+   */
+  async sendRagMessage(prompt) {
+    if (this.isRAGLoading || !prompt.trim()) {
+      return;
+    }
+    this.isRAGLoading = true;
+    this.error = null;
+
+    this.ragMessages.push({ role: 'user', content: prompt });
+    this.ragMessages.push({ role: 'assistant', content: '' });
+    try {
+      /** @type {string} processId */
+      return invoke('search_documents', {
+        query: prompt,
+      })
+
+    } catch (e) {
+      console.error(e);
+      this.error = `An error occurred: ${e}`;
+      this.isRAGLoading = false;
+      this.ragMessages.pop();
+    }
+  }
+
+  /**
    * Cancels the ongoing LLM message generation.
    * @returns {Promise<void>}
    */
@@ -202,6 +273,10 @@ export class LlmManager {
         this.messages[this.messages.length - 1].content += '\n\nCancelled by user.';
       }
     }
+  }
+
+  newRagSession() {
+    this.ragMessages = [];
   }
 
   /**

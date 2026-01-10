@@ -1,10 +1,11 @@
 use super::fs::{self, File};
 use super::memory::{MemoryDocumentAnalysisExt, NoteDocument, UserMemoryExt};
+use super::prompts::RAG_CHAT_PROMPT;
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
 use crate::llm::ModelType;
-use crate::memory::TextChunk;
+use crate::memory::{SearchResult, TextChunk};
 use crate::utils::{ChatMode, EditAction};
 use tauri::State;
 use tokio_util::sync::CancellationToken;
@@ -243,18 +244,52 @@ pub async fn get_document_context(
 pub async fn search_documents(
     query: String,
     state: State<'_, AppState>,
-) -> Result<Response<Vec<String>>, String> {
+) -> Result<Response<Vec<SearchResult>>, String> {
     let memory = state.memory.lock().await;
-    let chunks = memory
-        .search_documents(&query, 5)
+    let search_results = memory
+        .search_documents(&query, 2)
         .await
         .map_err(|e| e.to_string())?;
-    if !chunks.is_empty() {
-        let contents: Vec<String> = chunks.into_iter().map(|c| c.content).collect();
-        let response = Response::success(contents);
-        return Ok(response);
-    }
-    Ok(Response::success(Vec::new()))
+
+    let job_id = Uuid::new_v4();
+    let cancellation_token = CancellationToken::new();
+
+    let context = search_results
+        .iter()
+        .map(|res| res.content.clone())
+        .collect::<Vec<String>>()
+        .join("\n---\n");
+
+    let message = format!(
+        "Search query: {}",
+        RAG_CHAT_PROMPT
+        .replace("{context}", &context)
+        .replace("{query}", &query)
+    );
+
+    let job = Job {
+        id: job_id,
+        edit_action: None,
+        mode: ChatMode::RagChat,
+        message,
+        cancellation_token: cancellation_token.clone(),
+    };
+
+    state
+        .workers
+        .cancellation_tokens
+        .insert(job_id, cancellation_token);
+
+    state.workers.statuses.insert(job_id, JobStatus::Queued);
+
+    state
+        .workers
+        .sender
+        .send(job)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(Response::success(search_results))
 }
 
 /**

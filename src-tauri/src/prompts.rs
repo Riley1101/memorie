@@ -63,3 +63,10 @@ Task: Simplify text to a 6th-grade reading level.
 Constraints: Short sentences, simple words, no jargon.
 Input:
 "#;
+
+pub const RAG_CHAT_PROMPT: &str = r#"
+You are an AI assistant that provides answers based on the provided CONTEXT. Use the context
+to inform your responses, and if the answer is not found within the context, respond with "I don't know."
+Take a look at the following context:\n\nCONTEXT:\n{context}\n\n
+Now, answer the following question based on the above context:\n\nQUESTION:\n{query}
+"#;

@@ -7,10 +7,21 @@
   import { sanitizeMarkdown } from '$lib/utils';
   import SparkleIcon from '@lucide/svelte/icons/sparkles';
   import UserIcon from '@lucide/svelte/icons/user-round';
+
+  /** @type {{ type?: "rag" | "chat"}} */
+  let { type = 'chat' } = $props();
+
+  let messages = $derived(() => {
+    if (type === 'rag') {
+      return llmManager.ragMessages;
+    }
+    return llmManager.messages;
+  });
+
 </script>
 
 <Chat.List class="dark">
-  {#each llmManager.messages as message, index (index)}
+  {#each messages() as message, index (index)}
     <Chat.Bubble variant={message.role === 'user' ? 'sent' : 'received'}>
       <Chat.BubbleAvatar class="items-center justify-center text-muted-foreground">
         {#if message.role === 'user'}

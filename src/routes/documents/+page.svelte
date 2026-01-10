@@ -3,7 +3,7 @@
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
 </script>
 
-<div class="container mx-auto max-w-3xl w-full h-dvh flex flex-col pt-8">
+<div class="p-4 container mx-auto max-w-3xl w-full h-dvh flex flex-col">
   <h2 class="text-4xl py-8">Documents</h2>
   <div class="overflow-hidden">
     <ScrollArea type="scroll" class="h-full">
