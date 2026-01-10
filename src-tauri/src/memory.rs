@@ -1,7 +1,7 @@
 use super::{error::MemoryError, responses::Response, utils};
 use chrono::Utc;
 use kalosm::sound::ModelLoadingProgress;
-use rbert::Bert;
+use rbert::{Bert, EmbedderExt};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -128,6 +128,23 @@ impl Memory {
             }
         }
     }
+
+    /// Helper function to generate an embedding vector for a given text
+    pub async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, MemoryError> {
+        match &self.embedding_model {
+            Some(model) => {
+                let embeddings = model
+                    .embed(text)
+                    .await?
+                    .vector()
+                    .into_iter()
+                    .copied()
+                    .collect();
+                Ok(embeddings)
+            }
+            None => Err(MemoryError::ModelNotLoaded),
+        }
+    }
 }
 
 // -------------------------------------------------------
@@ -176,6 +193,8 @@ pub struct TextChunk {
     content_hash: String,
     correction: Option<String>,
     pub is_dirty: bool,
+
+    pub embedding: Option<Vec<f32>>,
 }
 
 impl TextChunk {
@@ -273,6 +292,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                             content_hash: new_hash,
                             correction: old_chunk.correction,
                             is_dirty: false,
+                            embedding: old_chunk.embedding,
                         })
                         .await
                         .unwrap();
@@ -283,6 +303,13 @@ impl MemoryDocumentAnalysisExt for Memory {
                     );
                 }
             } else {
+                let embedding = match self.generate_embedding(segment).await {
+                    Ok(emb) => emb,
+                    Err(e) => {
+                        println!("Failed to generate embedding: {:?}", e);
+                        vec![] 
+                    }
+                };
                 // No hash match found. This is a new paragraph or an edit.
                 // Create a new chunk and mark is_dirty = true.
                 let _: Option<TextChunk> = db
@@ -295,6 +322,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                         content_hash: new_hash,
                         correction: None,
                         is_dirty: true,
+                        embedding: Some(embedding),
                     })
                     .await
                     .unwrap();
