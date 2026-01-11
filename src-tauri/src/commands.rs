@@ -224,7 +224,6 @@ pub async fn get_document_context(
                 let thing_id = document.get_thing_id();
                 match thing_id {
                     Some(id) => {
-                        println!("Fetching document chunks for document ID: {}", id);
                         let result = memory.get_dirty_document_chunk(id).await;
                         return Ok(Response::success(result));
                     }

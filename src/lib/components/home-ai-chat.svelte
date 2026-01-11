@@ -30,7 +30,7 @@
   {#each result?.data as item}
     <Item.Root variant="outline" size="sm">
       {#snippet child({ props })}
-        <a href="#/" {...props}>
+        <a href={`/${item.title}`} {...props}>
           <Item.Media>
             <FileIcon class="size-4 text-muted-foreground" />
           </Item.Media>

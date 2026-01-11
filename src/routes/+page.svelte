@@ -6,7 +6,6 @@
   import * as InputGroup from '$lib/components/ui/input-group';
   import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
   import HomeFavourites from '$lib/components/home-favourites.svelte';
-  import { invoke } from '@tauri-apps/api/core';
   import HomeAiChat from '@/components/home-ai-chat.svelte';
   import { llmManager } from '@/runes/llm.svelte';
 
@@ -27,9 +26,6 @@
    * @property {string} title - The title of the result.
    */
 
-  /** @type {boolean} */
-  let isLoading = $state(false);
-
   /** @type {string} */
   let commandInput = $state('');
 
@@ -37,9 +33,7 @@
   let result = $state(null);
 
   async function handleSubmit() {
-    isLoading = true;
     llmManager.sendRagMessage(commandInput).then((res) => {
-      isLoading = false;
 
       result = res;
     });
@@ -75,7 +69,7 @@
       <InputGroup.Addon align="block-end">
         <Separator orientation="vertical" class="!h-4" />
         <InputGroup.Button
-          disabled={isLoading}
+          disabled={llmManager.isRAGLoading}
           onclick={() => {
             handleSubmit();
           }}
@@ -83,7 +77,7 @@
           class="ml-auto rounded-full"
           size="icon-xs"
         >
-          {#if isLoading}
+          {#if llmManager.isRAGLoading}
             <LoadingCircle class="animate-spin size-4" />
           {:else}
             <ArrowUpIcon class="size-4" />
