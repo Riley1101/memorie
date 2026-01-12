@@ -2,6 +2,7 @@
   import * as Item from '$lib/components/ui/item/index.js';
   import FileIcon from '@lucide/svelte/icons/file';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+  import { resolve } from '$app/paths';
 
   /**
    * Represents the structure of the "Thing" parent object.
@@ -27,10 +28,10 @@
 </script>
 
 <div class="flex flex-col gap-2">
-  {#each result?.data as item}
+  {#each result?.data as item, index (item.title + index)}
     <Item.Root variant="outline" size="sm">
       {#snippet child({ props })}
-        <a href={`/${item.title}`} {...props}>
+        <a href={resolve(`/${item.title}`)} {...props}>
           <Item.Media>
             <FileIcon class="size-4 text-muted-foreground" />
           </Item.Media>

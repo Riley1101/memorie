@@ -4,9 +4,8 @@
   import { appState } from '$lib/runes/app.svelte.js';
   import { cn } from '$lib/utils';
   import { fileManager } from '@/runes/fs.svelte.js';
-  import { goto } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { invalidateAll } from '$app/navigation';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
@@ -16,40 +15,33 @@
   import { Button } from '$lib/components/ui/button/index.js';
 
   /**
-   * @type {{fileName?:string ,body?: string , currentVersion?: number}}
+   * @typedef {Object} Props
+   * @property {string} [fileName]
+   * @property {number} [currentVersion]
    */
-  let data = $props();
 
-  let fileName = $derived(data.fileName);
+  /** @type {Props} */
+  let { fileName, currentVersion = 0 } = $props();
+
+  // Runes & State
   let isThinking = $derived(llmManager.isLoading);
+  let isHistoryVisible = $state(false); // Changed to state if you intend to toggle it
+  let isCommandMode = $state(false);
+  let input = $state('');
+  let selectedIndex = $state(0);
+  let inputRef = $state(/** @type {HTMLInputElement | null} */ (null));
+  let blurTimeout = $state(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
 
   const BLUR_DELAY = 200;
 
   /**
-   * @description Handles the save action for the editor content.
-   */
-  function onSave() {
-    if (editorState.editor) {
-      const markdown = editorState.editor.action(getMarkdown());
-      if (fileName) {
-        fileManager.createNewFile(fileName, markdown);
-        invalidateAll();
-      }
-    }
-  }
-
-  /**
    * @typedef {Object} Command
    * @property {string} cmd - The command string (e.g., ":w").
-   * @property {string} description - A brief description of the command.
-   * @property {string} action - An identifier for the action to take.
-   * @property {string} [shortcut] - Optional keyboard shortcut display.
+   * @property {string} description - A brief description.
+   * @property {string} action - Action identifier.
+   * @property {string} [shortcutLabel] - Visual shortcut display (e.g. '⌘S').
+   * @property {string} [key] - The actual key to listen for with Meta/Ctrl (e.g., 's').
    */
-
-  /**
-   * @type {boolean}
-   */
-  let isHistoryVisible = false;
 
   /** @type {Command[]} */
   const commands = [
@@ -57,132 +49,99 @@
       cmd: ':c',
       description: 'Create Document Context',
       action: 'createDocumentContext',
-      shortcut: '⌘C',
+      shortcutLabel: '⌘C',
+      key: 'c'
     },
-    { cmd: ':u', description: 'Toggle history sidebar', action: 'toggleHistory', shortcut: '⌘U' },
-    { cmd: ':w', description: 'Save file', action: 'save', shortcut: '⌘S' },
-    { cmd: ':wq', description: 'Save and close file', action: 'saveAndClose', shortcut: '⌘W' },
-    { cmd: ':q', description: 'Close file', action: 'close', shortcut: '⌘Q' },
-    { cmd: ':b', description: 'Toggle Sidebar', action: 'sidebar', shortcut: '⌘B' },
-    { cmd: ':ai', description: 'Toggle AI Chat', action: 'aichat', shortcut: '⌘A' },
+    {
+      cmd: ':u',
+      description: 'Toggle history sidebar',
+      action: 'toggleHistory',
+      shortcutLabel: '⌘U',
+      key: 'u'
+    },
+    {
+      cmd: ':w',
+      description: 'Save file',
+      action: 'save',
+      shortcutLabel: '⌘S',
+      key: 's'
+    },
+    {
+      cmd: ':wq',
+      description: 'Save and close file',
+      action: 'saveAndClose',
+      shortcutLabel: '⌘W', // Changed from ⌘W for close to standard close
+      key: 'w' // usually ⌘W closes tabs/windows
+    },
+    {
+      cmd: ':q',
+      description: 'Close file',
+      action: 'close',
+      shortcutLabel: '⌘Q',
+      key: 'q'
+    },
+    {
+      cmd: ':b',
+      description: 'Toggle Sidebar',
+      action: 'sidebar',
+      shortcutLabel: '⌘B',
+      key: 'b'
+    },
+    {
+      cmd: ':ai',
+      description: 'Toggle AI Chat',
+      action: 'aichat',
+      shortcutLabel: '⌘A',
+      key: 'a'
+    },
   ];
 
-  const quickCommands = [
-    // { cmd: ':s', label: 'Analyze', icon: '⌘S' },
-    // { cmd: ':b', label: 'Sidebar', icon: '⌘B' },
-    // { cmd: ':u', label: 'History', icon: '⌘U' },
-    // { cmd: ':w', label: 'Save', icon: '⌘S' },
-    // { cmd: ':ai', label: 'AI', icon: '⌘c' },
-  ];
+  // Subset of commands to show as quick buttons
+  const quickCommands = commands.filter(c => [':w', ':b', ':u', ':ai'].includes(c.cmd));
 
-  let isCommandMode = $state(false);
-  let input = $state('');
-  let selectedIndex = $state(0);
-  let inputRef = $state(/** @type {HTMLInputElement | null} */ (null));
-
+  // Derived Suggestions
   let suggestions = $derived.by(() => {
-    if (input === ':') {
-      return commands;
-    }
+    if (input === ':') return commands;
+
+    // Simple fuzzy match on command or description
     if (input.length > 1) {
+      const term = input.toLowerCase();
+      // Remove leading ':' for search if present to allow searching by name
+      const searchTerm = term.startsWith(':') ? term.slice(1) : term;
+
       return commands.filter(
         (cmd) =>
-          cmd.cmd.startsWith(input) ||
-          cmd.description.toLowerCase().includes(input.slice(1).toLowerCase())
+          cmd.cmd.toLowerCase().startsWith(term) ||
+          cmd.description.toLowerCase().includes(searchTerm)
       );
     }
     return [];
   });
 
+  // Reset selection when suggestions change
   $effect(() => {
-    if (suggestions.length > 0 && selectedIndex >= suggestions.length) {
-      selectedIndex = 0;
+    // Just accessing suggestions to track dependency
+    suggestions;
+    selectedIndex = 0;
+  });
+
+  // Focus Input Effect
+  $effect(() => {
+    if (isCommandMode && inputRef) {
+      tick().then(() => inputRef?.focus());
     }
   });
 
   /**
-   * GLOBAL KEYDOWN HANDLER (Capture Phase)
-   * Using { capture: trues} ensures we see the event before the editor (Milkdown/ProseMirror)
-   * can swallow it. This fixes the Cmd+B conflict.
+   * Actions
    */
-  $effect(() => {
-    /**
-     * @param {KeyboardEvent} e
-     */
-    const handleCaptureKeyDown = (e) => {
-      // 1. Handle Escape globally
-      if (e.key === 'Escape') {
-        if (appState.ui.isChatOpen) {
-          appState.toggleAiChat(false);
-          e.preventDefault();
-          return;
-        }
-        if (isCommandMode) {
-          isCommandMode = false;
-          input = '';
-          e.preventDefault();
-          return;
-        }
-        if (editorState.editMode) {
-          editorState.setEditMode(false);
-          editorState?.editor?.commands?.blur();
-          e.preventDefault();
-          return;
-        }
-      }
-
-      if (
-        !editorState.editMode &&
-        e.key === ':' &&
-        !isCommandMode &&
-        document.activeElement?.tagName !== 'INPUT'
-      ) {
-        e.preventDefault();
-        isCommandMode = true;
-        input = ':';
-        return;
-      }
-      if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
-        editorState.setEditMode(true);
-        editorState?.editor?.commands?.focus();
-        return;
-      }
-
-      const isShortcut = e.metaKey || e.ctrlKey;
-      if (isShortcut && !isCommandMode && document.activeElement?.tagName !== 'INPUT') {
-        const keyMap = {
-          s: ':s',
-          u: ':u',
-          s: ':w',
-          w: ':wq',
-          q: ':q',
-          b: ':b',
-          t: ':ai',
-        };
-
-        const command = keyMap[e.key.toLowerCase()];
-        if (command) {
-          e.preventDefault();
-          e.stopPropagation(); // Stop editor from seeing this event
-          executeCommand(command);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleCaptureKeyDown, { capture: true });
-
-    return () => {
-      window.removeEventListener('keydown', handleCaptureKeyDown, { capture: true });
-    };
-  });
-
-  $effect(() => {
-    if (isCommandMode && inputRef) {
-      tick().then(() => {
-        inputRef?.focus();
-      });
+  function onSave() {
+    if (editorState.editor && fileName) {
+      const markdown = editorState.editor.action(getMarkdown());
+      fileManager.createNewFile(fileName, markdown);
+      invalidateAll();
     }
-  });
+  }
 
   /**
    * @param {string} cmd
@@ -205,141 +164,181 @@
         appState.toggleAiChat(!appState.ui.isChatOpen);
         break;
       case 'save':
-        if (fileName) {
-          onSave();
-        }
+        onSave();
         break;
       case 'close':
         goto(resolve('/'));
         break;
       case 'saveAndClose':
-        if (fileName) {
-          onSave();
-          goto(resolve('/'));
-        }
+        onSave();
+        goto(resolve('/'));
         break;
     }
 
+    closeCommandMode();
+  }
+
+  function closeCommandMode() {
     isCommandMode = false;
     input = '';
-  }
-
-  /**
-   * @param {string} cmd
-   */
-  function handleQuickCommand(cmd) {
-    executeCommand(cmd);
-  }
-
-  /**
-   * @param {SubmitEvent} e
-   */
-  function handleSubmit(e) {
-    e.preventDefault();
-    if (suggestions.length > 0) {
-      executeCommand(suggestions[selectedIndex].cmd);
-    } else {
-      executeCommand(input);
+    // Optional: Return focus to editor
+    if (editorState.editMode) {
+      editorState.editor?.commands?.focus();
     }
   }
 
   /**
-   * @param {KeyboardEvent} e
+   * KEYDOWN HANDLER (Global Capture)
    */
+  $effect(() => {
+    /** @param {KeyboardEvent} e */
+    const handleCaptureKeyDown = (e) => {
+      // 1. Handle Escape Priority
+      if (e.key === 'Escape') {
+        if (isCommandMode) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeCommandMode();
+          return;
+        }
+        if (appState.ui.isChatOpen) {
+          appState.toggleAiChat(false);
+          e.preventDefault();
+          return;
+        }
+        if (editorState.editMode) {
+          editorState.setEditMode(false);
+          editorState?.editor?.commands?.blur();
+          e.preventDefault();
+          return;
+        }
+      }
+
+      // 2. Trigger Command Mode with ':'
+      if (
+        !editorState.editMode &&
+        e.key === ':' &&
+        !isCommandMode &&
+        document.activeElement?.tagName !== 'INPUT'
+      ) {
+        e.preventDefault();
+        isCommandMode = true;
+        input = ':';
+        return;
+      }
+
+      // 3. Trigger Edit Mode with 'i' (Vim-like)
+      if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
+        editorState.setEditMode(true);
+        editorState?.editor?.commands?.focus();
+        return;
+      }
+
+      // 4. Handle Shortcuts (Cmd/Ctrl + Key)
+      const isShortcut = e.metaKey || e.ctrlKey;
+      if (isShortcut && !isCommandMode) {
+        // Find command by defined key mapping
+        const match = commands.find(c => c.key === e.key.toLowerCase());
+        if (match) {
+          e.preventDefault();
+          e.stopPropagation();
+          executeCommand(match.cmd);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleCaptureKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleCaptureKeyDown, { capture: true });
+    };
+  });
+
+  // Input Handling
+  /** @param {KeyboardEvent} e */
   function handleInputKeyDown(e) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (suggestions.length > 0) {
-        selectedIndex = (selectedIndex + 1) % suggestions.length;
-      }
+      selectedIndex = (selectedIndex + 1) % suggestions.length;
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (suggestions.length > 0) {
-        selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
-      }
+      selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      if (suggestions.length > 0) {
+      if (suggestions[selectedIndex]) {
         input = suggestions[selectedIndex].cmd;
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (suggestions[selectedIndex]) {
+        executeCommand(suggestions[selectedIndex].cmd);
+      } else {
+        // Allow executing exact match even if not selected
+        executeCommand(input);
       }
     }
   }
 
-  let blurTimeout = $state(/** @type {NodeJS.Timeout | null} */ (null));
-
   function handleBlur() {
     blurTimeout = setTimeout(() => {
-      isCommandMode = false;
-      input = '';
+      closeCommandMode();
     }, BLUR_DELAY);
   }
 
   function handleFocus() {
-    if (blurTimeout !== null) {
+    if (blurTimeout) {
       clearTimeout(blurTimeout);
       blurTimeout = null;
     }
   }
 </script>
 
-{#if isCommandMode && suggestions.length > 0}
-  <div
-    class="mx-auto max-w-2xl bg-background border border-border rounded-t-lg shadow-lg"
-    role="listbox"
-  >
-    <div class="max-h-48 overflow-y-auto">
-      {#each suggestions as suggestion, index (suggestion.cmd)}
-        <button
-          onclick={() => executeCommand(suggestion.cmd)}
-          onfocus={handleFocus}
-          class="w-full px-4 py-2 text-left text-sm font-mono flex items-center justify-between transition-colors"
-          class:bg-muted={index === selectedIndex}
-          class:text-foreground={index === selectedIndex}
-          class:text-muted-foreground={index !== selectedIndex}
-          role="option"
-          aria-selected={index === selectedIndex}
-        >
-          <span class="font-semibold">{suggestion.cmd}</span>
-          <span class="text-xs">{suggestion.description}</span>
-        </button>
-      {/each}
-    </div>
-  </div>
-{/if}
+<div class="relative bg-background border-t border-border z-40">
 
-<div class="bg-background border-t border-border">
-  <div class="flex items-center px-4 py-2">
-    <div class="w-full flex items-center gap-4 text-xs font-mono text-muted-foreground">
-      <div class="flex items-center gap-1">
-        <AiSparkleIcon class={cn('size-3', isThinking ? 'animate-pulse' : '')} />
-        <span
-          class:text-green-500={isHistoryVisible}
-          class:text-muted-foreground={!isHistoryVisible}
-        >
-          {isHistoryVisible ? 'HISTORY' : `Version ${data?.currentVersion ?? 0} `}
-        </span>
-      </div>
-
-      <div class="items-center gap-2 hidden md:flex">
-        {#each quickCommands as qCmd (qCmd.cmd)}
+  {#if isCommandMode && suggestions.length > 0}
+    <div
+      class="absolute bottom-full left-0 right-0 mb-1 mx-4 max-w-2xl md:mx-auto bg-popover border border-border rounded-lg shadow-xl overflow-hidden z-50"
+      role="listbox"
+    >
+      <div class="max-h-64 overflow-y-auto p-1">
+        {#each suggestions as suggestion, index (suggestion.cmd)}
           <button
-            onclick={() => handleQuickCommand(qCmd.cmd)}
-            class="group flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono bg-muted/50 hover:bg-muted border border-border/50 rounded transition-all hover:border-primary/50"
+            onclick={() => executeCommand(suggestion.cmd)}
+            onfocus={handleFocus}
+            class={cn(
+              "w-full px-3 py-2 text-left text-sm font-mono flex items-center justify-between rounded-sm transition-colors",
+              index === selectedIndex ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+            )}
+            role="option"
+            aria-selected={index === selectedIndex}
           >
-            <span class="text-foreground group-hover:text-primary transition-colors"
-              >{qCmd.label}</span
-            >
-            <span
-              class="text-[10px] text-muted-foreground/70 group-hover:text-primary/70 transition-colors"
-              >{qCmd.icon}</span
-            >
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-foreground">{suggestion.cmd}</span>
+              <span class="text-xs opacity-80">{suggestion.description}</span>
+            </div>
+            {#if suggestion.shortcutLabel}
+              <kbd class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                {suggestion.shortcutLabel}
+              </kbd>
+            {/if}
           </button>
         {/each}
       </div>
     </div>
+  {/if}
 
-    {#if isCommandMode}
-      <form onsubmit={handleSubmit} class="flex-1 ml-4">
+  <div class="flex items-center px-4 py-2 h-10">
+
+    <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground shrink-0">
+      <div class="flex items-center gap-1.5">
+        <AiSparkleIcon class={cn('size-3.5', isThinking ? 'animate-pulse text-yellow-400' : '')} />
+        <span class={cn("transition-colors", isHistoryVisible ? "text-green-500 font-bold" : "")}>
+          {isHistoryVisible ? 'HISTORY' : `v${currentVersion}`}
+        </span>
+      </div>
+    </div>
+
+    <div class="flex-1 flex items-center px-4 overflow-hidden">
+      {#if isCommandMode}
         <input
           bind:this={inputRef}
           type="text"
@@ -347,35 +346,59 @@
           onkeydown={handleInputKeyDown}
           onblur={handleBlur}
           onfocus={handleFocus}
-          placeholder="Enter command..."
-          class="w-full bg-transparent font-mono text-sm outline-none text-foreground"
+          placeholder="Type command..."
+          class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full"
           aria-label="Command input"
         />
-      </form>
-    {/if}
-
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        {#snippet child({ props })}
-          <Button {...props} variant="ghost" size="sm" class="md:hidden">
-            <MenuIcon class="size-3" />
-          </Button>
-        {/snippet}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content class="dark w-56" align="start">
-        <DropdownMenu.Group>
+      {:else}
+        <div class="hidden md:flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
           {#each quickCommands as qCmd (qCmd.cmd)}
-            <DropdownMenu.Item onclick={() => handleQuickCommand(qCmd.cmd)}>
-              <span class="font-mono text-sm">{qCmd.label}</span>
-              <DropdownMenu.Shortcut>{qCmd.icon}</DropdownMenu.Shortcut>
-            </DropdownMenu.Item>
+            <button
+              onclick={() => executeCommand(qCmd.cmd)}
+              class="group flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono bg-muted/30 hover:bg-muted border border-transparent hover:border-border rounded transition-all"
+              title={qCmd.description}
+            >
+              <span class="text-muted-foreground group-hover:text-foreground transition-colors">
+                {qCmd.description}
+              </span>
+              <span class="text-[9px] text-muted-foreground/50 group-hover:text-primary/70">
+                {qCmd.shortcutLabel}
+              </span>
+            </button>
           {/each}
-        </DropdownMenu.Group>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        </div>
+      {/if}
+    </div>
 
-    <div class="ml-auto text-xs font-mono text-muted-foreground md:flex items-center gap-2 hidden">
-      <kbd class="px-1.5 py-0.5 bg-muted rounded text-xs">:</kbd> menu
+    <div class="shrink-0">
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          {#snippet child({ props })}
+            <Button {...props} variant="ghost" size="icon" class="h-6 w-6 md:hidden">
+              <MenuIcon class="size-3.5" />
+            </Button>
+          {/snippet}
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content class="dark w-56 mr-2" align="end">
+          <DropdownMenu.Group>
+            {#each quickCommands as qCmd (qCmd.cmd)}
+              <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)}>
+                <span class="font-mono text-sm flex-1">{qCmd.description}</span>
+                <DropdownMenu.Shortcut>{qCmd.shortcutLabel}</DropdownMenu.Shortcut>
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Group>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+
+      {#if !isCommandMode}
+        <div class="hidden md:flex items-center gap-2 text-[10px] font-mono text-muted-foreground opacity-70">
+          <span class="flex items-center gap-1">
+            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">:</kbd>
+            <span>cmd</span>
+          </span>
+        </div>
+      {/if}
     </div>
   </div>
 </div>

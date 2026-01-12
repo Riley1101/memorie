@@ -8,6 +8,7 @@
   import HomeFavourites from '$lib/components/home-favourites.svelte';
   import HomeAiChat from '@/components/home-ai-chat.svelte';
   import { llmManager } from '@/runes/llm.svelte';
+  import AiChat from '@/components/ai-chat.svelte';
 
   /**
    * Represents the structure of the "Thing" parent object.
@@ -40,10 +41,10 @@
   }
 </script>
 
-<div class="p-4 overflow-hidden container mx-auto max-w-3xl w-full h-dvh grid grid-rows-[1fr_auto]">
-  <div class="overflow-hidden">
+<div class="p-4 overflow-hidden container max-w-3xl mx-auto w-full h-dvh grid grid-rows-[1fr_auto]">
+  <div class="overflow-hidden ">
     <ScrollArea type="scroll" class="h-full">
-      {#if commandInput === ''}
+      {#if commandInput === '' && llmManager.ragMessages.length === 0}
         <h2 class="py-8 text-4xl">Start writing down your thoughts</h2>
         <HomeFavourites />
       {:else}
@@ -52,7 +53,8 @@
       {/if}
     </ScrollArea>
   </div>
-
+<AiChat type="rag"/>
+  <!--
   <div class="flex flex-col gap-2">
     <InputGroup.Root>
       <InputGroup.Textarea
@@ -87,4 +89,6 @@
       </InputGroup.Addon>
     </InputGroup.Root>
   </div>
+  -->
+
 </div>

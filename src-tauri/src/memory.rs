@@ -15,6 +15,8 @@ use surrealdb::Surreal;
 const DOCUMENT_TABLE: &str = "documents";
 const CHUNK_TABLE: &str = "chunk";
 
+const CHUNK_SIZE_LIMIT: usize = 1000;
+
 /// Splits text by double newline (paragraphs).
 /// This is more stable than fixed - character chunking for editors.
 fn split_by_paragraph(text: &str) -> Vec<&str> {
@@ -22,6 +24,41 @@ fn split_by_paragraph(text: &str) -> Vec<&str> {
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+fn chunk_text(text: &str) -> Vec<String> {
+    let mut chunks = Vec::new();
+    let mut current_chunk = String::new();
+
+    // Split by double newlines first to preserve paragraph structure
+    let paragraphs = text.split("\n\n");
+
+    for paragraph in paragraphs {
+        let trimmed = paragraph.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Check if adding this paragraph would exceed the limit
+        // We add 2 to account for the "\n\n" separator we might add
+        if !current_chunk.is_empty()
+            && (current_chunk.len() + trimmed.len() + 2 > CHUNK_SIZE_LIMIT)
+        {
+            chunks.push(current_chunk.clone());
+            current_chunk.clear();
+        }
+
+        if !current_chunk.is_empty() {
+            current_chunk.push_str("\n\n");
+        }
+        current_chunk.push_str(trimmed);
+    }
+
+    if !current_chunk.is_empty() {
+        chunks.push(current_chunk);
+    }
+
+    chunks
 }
 
 /// Generates a SHA256 hash of the text content.
@@ -245,7 +282,7 @@ impl MemoryDocumentAnalysisExt for Memory {
         let db = &self.db;
 
         let query_embedding = self.generate_embedding(query).await?;
-        let threshold = 0.7;
+        let threshold = 0.6;
 
         let sql = r#"
     SELECT *, vector::similarity::cosine(embedding, $query_vec) AS score 
@@ -329,7 +366,7 @@ impl MemoryDocumentAnalysisExt for Memory {
         );
 
         let parent_id = note_document.as_ref().and_then(|doc| doc.id.clone());
-        let new_segments = split_by_paragraph(&embedding_document.body);
+        let new_segments = chunk_text(&embedding_document.body);
         let sql = "SELECT * FROM chunk WHERE parent = $id";
         let mut response = db.query(sql).bind(("id", parent_id.clone())).await.unwrap();
         let existing_chunks: Vec<TextChunk> = response.take(0).unwrap();

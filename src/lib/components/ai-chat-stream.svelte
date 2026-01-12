@@ -1,46 +1,79 @@
 <script>
-  /* eslint svelte/no-at-html-tags: "warn" */
+  import {
+    Message,
+    MessageAction,
+    MessageActions,
+    MessageContent,
+    MessageResponse,
+  } from "$lib/components/ai-elements/new-message/index.js";
 
-  import { llmManager } from '@/runes/llm.svelte.js';
-  import * as Chat from '$lib/components/ui/chat';
-  import { marked } from 'marked';
-  import { sanitizeMarkdown } from '$lib/utils';
-  import SparkleIcon from '@lucide/svelte/icons/sparkles';
-  import UserIcon from '@lucide/svelte/icons/user-round';
+  import Copy from "@lucide/svelte/icons/copy";
+  import RefreshCcw from "@lucide/svelte/icons/refresh-ccw";
+  import { llmManager } from "@/runes/llm.svelte";
+  import LoaderIcon from "@lucide/svelte/icons/loader-2";
 
-  /** @type {{ type?: "rag" | "chat"}} */
-  let { type = 'chat' } = $props();
+  /**
+   * @type {{ type?: "rag" | "chat" }}
+   */
+  let { type = "chat"} = $props();
 
-  let messages = $derived(() => {
-    if (type === 'rag') {
+  let messages = $derived(()=>{
+    if (type === "rag") {
       return llmManager.ragMessages;
+    } else {
+      return llmManager.messages;
     }
-    return llmManager.messages;
   });
+
+  function handleCopy(content) {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+  }
+
+  function handleRetry(index) {
+    console.log("Retrying message at index:", index);
+  }
 
 </script>
 
-<Chat.List class="dark">
+<div class="flex flex-col gap-6 p-4">
   {#each messages() as message, index (index)}
-    <Chat.Bubble variant={message.role === 'user' ? 'sent' : 'received'}>
-      <Chat.BubbleAvatar class="items-center justify-center text-muted-foreground">
-        {#if message.role === 'user'}
-          <UserIcon class="size-4" />
-        {:else}
-          <SparkleIcon class="size-4" />
-        {/if}
-      </Chat.BubbleAvatar>
-      {#if message.role === 'assistant' && message.content === ''}
-        <Chat.BubbleMessage typing={true} />
-      {:else}
-        <Chat.BubbleMessage class="text-foreground prose dark:prose-invert prose-sm max-w-auto p-3">
-          {@html marked(sanitizeMarkdown(message.content))}
-        </Chat.BubbleMessage>
-      {/if}
-    </Chat.Bubble>
-  {/each}
-</Chat.List>
+    <Message from={message.role}>
 
-{#if llmManager.error}
-  <p class="error">{llmManager.error}</p>
-{/if}
+      <MessageContent>
+        {#if message.role === "assistant"}
+          {#if message.content === ""}
+            <div class="flex items-center gap-2 text-muted-foreground">
+              <LoaderIcon class="size-4 animate-spin" />
+              <span class="text-xs">Thinking...</span>
+            </div>
+          {:else}
+            <MessageResponse content={message.content} />
+          {/if}
+        {:else}
+          <div class="whitespace-pre-wrap">{message.content}</div>
+        {/if}
+      </MessageContent>
+
+      {#if message.role === "assistant" && message.content !== ""}
+        <MessageActions>
+          <MessageAction
+            label="Retry"
+            onclick={() => handleRetry(index)}
+            tooltip="Regenerate response"
+          >
+            <RefreshCcw class="size-3.5" />
+          </MessageAction>
+
+          <MessageAction
+            label="Copy"
+            onclick={() => handleCopy(message.content)}
+            tooltip="Copy to clipboard"
+          >
+            <Copy class="size-3.5" />
+          </MessageAction>
+        </MessageActions>
+      {/if}
+    </Message>
+  {/each}
+</div>

@@ -260,7 +260,7 @@ pub async fn search_documents(
         .join("\n---\n");
 
     let message = format!(
-        "Search query: {}",
+        "{}",
         RAG_CHAT_PROMPT
         .replace("{context}", &context)
         .replace("{query}", &query)
