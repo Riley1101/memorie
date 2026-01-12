@@ -46,6 +46,14 @@
   function handleStop() {
     llmManager.cancelMessage();
   }
+
+  function handleNewSession() {
+    if (type === 'rag') {
+      llmManager.newRagSession();
+      return;
+    }
+    llmManager.newSession();
+  }
 </script>
 
 <div class="flex flex-col gap-2 dark">
@@ -79,7 +87,7 @@
             <PromptInputActionAddAttachments />
             <button
               class="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
-              onclick={() => llmManager.newSession()}
+              onclick={handleNewSession}
             >
               <PlusIcon class="size-4" />
               <span>New Session</span>

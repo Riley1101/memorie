@@ -1,10 +1,8 @@
 <script>
   import { resolve } from '$app/paths';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-  import HouseIcon from '@lucide/svelte/icons/house';
   import FileStackIcon from '@lucide/svelte/icons/file-stack';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
-  import { appState } from '$lib/runes/app.svelte.js';
 </script>
 
 <Sidebar.Menu>
@@ -12,8 +10,8 @@
     <Sidebar.MenuButton>
       {#snippet child({ props })}
         <a href={resolve('/')} {...props}>
-          <HouseIcon />
-          <span>Home</span>
+          <SparklesIcon />
+          AI Search
         </a>
       {/snippet}
     </Sidebar.MenuButton>
@@ -24,12 +22,6 @@
           <span>Documents</span>
         </a>
       {/snippet}
-    </Sidebar.MenuButton>
-  </Sidebar.MenuItem>
-  <Sidebar.MenuItem>
-    <Sidebar.MenuButton onclick={() => appState.toggleAiChat(!appState.ui.isChatOpen)}>
-      <SparklesIcon />
-      AI Search
     </Sidebar.MenuButton>
   </Sidebar.MenuItem>
 </Sidebar.Menu>

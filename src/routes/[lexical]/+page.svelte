@@ -1,11 +1,11 @@
 <script>
   import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+  import MenuIcon from '@lucide/svelte/icons/menu';
   import MarkdownEditor from '$lib/components/md-editor.svelte';
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
   import EditorOutline from '$lib/components/editor-outline.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
-  import HomeIcon from '@lucide/svelte/icons/home';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
@@ -95,11 +95,14 @@
   <div class="w-full h-full flex flex-1 flex-col">
     <main class="h-full flex-1 overflow-hidden">
       <ScrollArea class="flex-1 h-full" type="scroll">
-        <a href="/">
-          <Button variant="ghost" size="sm" class="mx-6 mt-6 text-neutral-500">
-            <HomeIcon class="h-4 w-4" />
-          </Button>
-        </a>
+        <Button
+          onclick={()=>appState.toggleSidebar(!appState.ui.isSidebarOpen)}
+          variant="ghost"
+          size="sm"
+          class="mx-6 mt-6 text-neutral-500"
+        >
+          <MenuIcon class="size-4" />
+        </Button>
         <div class="mx-auto max-w-4xl px-6 pb-8">
           <MarkdownEditor {fileName} {body} />
         </div>

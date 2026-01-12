@@ -52,11 +52,5 @@
         </DropdownMenu.Root>
       </Sidebar.MenuItem>
     {/each}
-    <Sidebar.MenuItem>
-      <Sidebar.MenuButton class="text-sidebar-foreground/70">
-        <EllipsisIcon />
-        <span>More</span>
-      </Sidebar.MenuButton>
-    </Sidebar.MenuItem>
   </Sidebar.Menu>
 </Sidebar.Group>
