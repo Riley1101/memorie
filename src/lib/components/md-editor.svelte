@@ -66,7 +66,7 @@
       </span>
     </div>
   </div>
-  {#key content}
+  {#key originalFileName}
     <Editor defaultValue={content} {onSave} />
   {/key}
 </div>

@@ -240,18 +240,36 @@
   $effect(() => {
     /** @param {KeyboardEvent} e */
     const handleCaptureKeyDown = (e) => {
-      // 0. Prevent browser default Tab behavior in insert mode
+      // 0. Handle Tab in edit mode - support list indentation vs space insertion
       if (e.key === 'Tab' && editorState.editMode) {
-        e.preventDefault();
-        // Optionally insert tab/spaces in editor
         const editor = editorState?.editor;
         if (editor) {
+          let inList = false;
+          editor.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const { state } = view;
+            const fromPos = state.selection['$from'];
+            // Check if we are inside a list to let Milkdown's keymap handle it
+            for (let d = fromPos.depth; d > 0; d--) {
+              if (fromPos.node(d).type.name.includes('list')) {
+                inList = true;
+                break;
+              }
+            }
+          });
+
+          // If in a list, let the event through so Milkdown's keymap handles indent/outdent
+          if (inList) return;
+
+          // Otherwise, manual override: prevent focus leak and insert 2 spaces
+          e.preventDefault();
           editor.action((ctx) => {
             const view = ctx.get(editorViewCtx);
             const { state, dispatch } = view;
-            // Insert 2 spaces for tab
             dispatch(state.tr.insertText('  '));
           });
+        } else {
+          e.preventDefault();
         }
         return;
       }
@@ -497,7 +515,7 @@
                   <qCmd.icon />
                 </DropdownMenu.Icon>
                 <span class="font-mono text-sm flex-1">{qCmd.description}</span>
-                <DropdownMenu.Shortcut>{qCmd.shortcutLabel}</DropdownMenu.Shortcut>
+                <DropdownMenu.Shortcut class="">{qCmd.shortcutLabel}</DropdownMenu.Shortcut>
               </DropdownMenu.Item>
             {/each}
           </DropdownMenu.Group>
