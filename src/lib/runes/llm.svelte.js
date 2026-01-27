@@ -201,9 +201,10 @@ export class LlmManager {
    * Sends a user's prompt to the Rust backend to start the LLM stream.
    * @param {string} prompt The user's message.
    * @param {string} [mode] The mode of the chat (default is "Normal").
+   * @param {string} [additionalContext] Optional context to prepend to the message.
    * @returns {Promise<void>}
    */
-  async sendMessage(prompt, mode = 'Normal') {
+  async sendMessage(prompt, mode = 'Normal', additionalContext = '') {
     if (this.isLoading || !prompt.trim()) {
       return;
     }
@@ -214,9 +215,14 @@ export class LlmManager {
     this.messages.push({ role: 'assistant', content: '' });
 
     try {
+      let messageToSend = prompt;
+      if (additionalContext) {
+        messageToSend = `Context:\n${additionalContext}\n\nQuestion:\n${prompt}`;
+      }
+
       /** @type {string} processId */
       this.workerId = await invoke(LLM_INVOKE.CHAT, {
-        message: prompt,
+        message: messageToSend,
         mode,
       });
     } catch (e) {

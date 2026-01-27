@@ -282,7 +282,8 @@
         !editorState.editMode &&
         e.key === ':' &&
         !isCommandMode &&
-        document.activeElement?.tagName !== 'INPUT'
+        !appState.ui.isChatOpen &&
+        !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
       ) {
         e.preventDefault();
         isCommandMode = true;
@@ -292,7 +293,13 @@
 
       // 3. Trigger Edit Mode with Vim-like keys
       // 'i' - Insert at cursor
-      if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
+      if (
+        e.key === 'i' &&
+        !editorState.editMode &&
+        !isCommandMode &&
+        !appState.ui.isChatOpen &&
+        !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
+      ) {
         e.preventDefault();
         editorState.setEditMode(true);
         tick().then(() => {

@@ -16,11 +16,15 @@
   import PlusIcon from '@lucide/svelte/icons/plus';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
+  import { Toggle } from '$lib/components/ui/toggle/index.js';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import { Tooltip, TooltipTrigger, TooltipContent } from '$lib/components/ui/tooltip/index.js';
 
   /** @type {{type ?: "chat" | "rag"}} */
   let { type = "chat"} = $props();
 
   let text = $state('');
+  let includeContext = $state(false);
   let context = $derived(memoryManager.context);
 
   /**
@@ -39,7 +43,9 @@
       await llmManager.sendRagMessage(finalPrompt);
       return;
     }
-    await llmManager.sendMessage(finalPrompt);
+
+    const additionalContext = includeContext ? memoryManager.context.content : '';
+    await llmManager.sendMessage(finalPrompt, 'Normal', additionalContext);
   }
 
   function handleStop() {
@@ -85,7 +91,7 @@
           <PromptInputActionMenuContent>
             <PromptInputActionAddAttachments />
             <button
-              class="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              class="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
               onclick={handleNewSession}
             >
               <PlusIcon class="size-4" />
@@ -94,6 +100,21 @@
           </PromptInputActionMenuContent>
         </PromptInputActionMenu>
 
+        <Tooltip class="" arrowClasses="" portalProps={{}}>
+          <TooltipTrigger class="">
+            <Toggle
+              size="sm"
+              class="size-8 p-0 rounded-lg data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+              bind:pressed={includeContext}
+              aria-label="Include current document as context"
+            >
+              <FileText class="size-4" />
+            </Toggle>
+          </TooltipTrigger>
+          <TooltipContent class="">
+            Include Current Document Context
+          </TooltipContent>
+        </Tooltip>
 
       </PromptInputTools>
 

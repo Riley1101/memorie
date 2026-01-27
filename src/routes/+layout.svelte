@@ -11,6 +11,8 @@
   import { onDestroy, onMount } from 'svelte';
   import { isMod } from '$lib/keyboard.svelte.js';
 
+  import { TooltipProvider } from '$lib/components/ui/tooltip/index.js';
+
   let { children } = $props();
 
   onMount(() => {
@@ -27,25 +29,27 @@
   });
 </script>
 
-<div class="{appState.ui.theme} font-writer font-normal w-full h-screen">
-  <Sidebar.Provider
-    bind:open={
-      () => appState.ui.isSidebarOpen,
-      (newOpen) => {
-        appState.toggleSidebar(newOpen);
+<TooltipProvider>
+  <div class="{appState.ui.theme} font-writer font-normal w-full h-screen">
+    <Sidebar.Provider
+      bind:open={
+        () => appState.ui.isSidebarOpen,
+        (newOpen) => {
+          appState.toggleSidebar(newOpen);
+        }
       }
-    }
-  >
-    <SidebarLeft />
-    <Sidebar.Inset>
-      <div class="flex flex-1 flex-col gap-4 text-foreground overflow-hidden relative">
-        {@render children()}
-      </div>
-    </Sidebar.Inset>
-  </Sidebar.Provider>
-  <Cmdk />
-  <ShortcutsHelp />
-</div>
+    >
+      <SidebarLeft />
+      <Sidebar.Inset>
+        <div class="flex flex-1 flex-col gap-4 text-foreground overflow-hidden relative">
+          {@render children()}
+        </div>
+      </Sidebar.Inset>
+    </Sidebar.Provider>
+    <Cmdk />
+    <ShortcutsHelp />
+  </div>
+</TooltipProvider>
 
 <svelte:window
   onkeydown={(e) => {
