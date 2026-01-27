@@ -75,6 +75,30 @@ pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(),
 }
 
 #[tauri::command]
+pub async fn rename_file(
+    old_name: String,
+    new_name: String,
+    state: State<'_, AppState>,
+) -> Result<File, String> {
+    let config = state.config.lock().await;
+
+    let old_path = config.content_directory.join(&old_name);
+    let result = fs::rename_file(&old_path, &new_name).map_err(|e| e.to_string())?;
+
+    let mut undo_tree = state.undotree.lock().await;
+    undo_tree.rename_entry(&old_name, &new_name);
+    undo_tree
+        .save(&config.undotree_dir)
+        .map_err(|e| e.to_string())?;
+
+    // Rename in memory database
+    let memory = state.memory.lock().await;
+    memory.rename_document(&old_name, &new_name).await.map_err(|e| e.to_string())?;
+
+    Ok(result)
+}
+
+#[tauri::command]
 pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<String, String> {
     let undo_tree = state.undotree.lock().await;
 

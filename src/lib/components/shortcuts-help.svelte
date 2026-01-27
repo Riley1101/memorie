@@ -1,18 +1,19 @@
 <script>
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
+  import { MOD_LABEL } from '$lib/keyboard.svelte.js';
 
   const shortcuts = [
-    { key: '⌘ + K', description: 'Search documents by title' },
-    { key: '⌘ + L', description: 'Toggle AI Chat' },
-    { key: '⌘ + B', description: 'Toggle Sidebar' },
-    { key: '⌘ + U', description: 'Toggle History Sidebar' },
-    { key: '⌘ + S', description: 'Save current document (Vim :w)' },
-    { key: '⌘ + W', description: 'Save and Close document (Vim :wq)' },
-    { key: '⌘ + Q', description: 'Close document (Vim :q)' },
-    { key: '⌘ + H', description: 'Show this help modal' },
-    { key: '⌃ + Z', description: 'Undo (Back one version)' },
-    { key: '⌃ + ⇧ + Z / ⌃ + Y', description: 'Redo (Forward to latest branch)' },
+    { key: `${MOD_LABEL} + K`, description: 'Search documents by title' },
+    { key: `${MOD_LABEL} + L`, description: 'Toggle AI Chat' },
+    { key: `${MOD_LABEL} + B`, description: 'Toggle Sidebar' },
+    { key: `${MOD_LABEL} + U`, description: 'Toggle History Sidebar' },
+    { key: `${MOD_LABEL} + S`, description: 'Save current document (Vim :w)' },
+    { key: `${MOD_LABEL} + W`, description: 'Save and Close document (Vim :wq)' },
+    { key: `${MOD_LABEL} + Q`, description: 'Close document (Vim :q)' },
+    { key: `${MOD_LABEL} + H`, description: 'Show this help modal' },
+    { key: `${MOD_LABEL} + Z`, description: 'Undo (Back one version)' },
+    { key: `${MOD_LABEL} + ⇧ + Z / ${MOD_LABEL} + Y`, description: 'Redo (Forward to latest branch)' },
     { key: ':', description: 'Enter Command Mode' },
     { key: 'i', description: 'Enter Insert Mode (Edit document)' },
     { key: 'Esc', description: 'Exit Insert/Command Mode' },

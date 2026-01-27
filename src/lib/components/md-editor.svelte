@@ -4,30 +4,49 @@
   import { fileManager } from '$lib/runes/fs.svelte.js';
   import { formatTimeAgo } from '@/utils.js';
   import Editor from './editor.svelte';
-  import { invalidateAll } from '$app/navigation';
+  import { invalidateAll, goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
 
   /**
    * @type {{fileName?:string ,body?: string }}
    */
   let data = $props();
-  let fileName = $derived(data.fileName);
+  let originalFileName = $derived(data.fileName);
   let content = $derived(data.body);
 
+  let editedFileName = $state(data.fileName || "");
+
   $effect(() => {
-    editorState.setName(fileName);
+    editedFileName = data.fileName || "";
+  });
+
+  $effect(() => {
+    editorState.setName(editedFileName);
   });
 
   /**
    * @description Handles the save action for the editor content.
    * @param {string} content - The content to be saved.
    */
-  function onSave(content) {
-    if (editorState.editor) {
-      if (fileName) {
-        fileManager.createNewFile(fileName, content);
-        invalidateAll();
+  async function onSave(content) {
+    if (!editorState.editor) return;
+    if (!editedFileName) return;
+
+    if (originalFileName && editedFileName !== originalFileName) {
+      // Process rename
+      const oldName = originalFileName;
+      const newName = editedFileName.endsWith('.md') ? editedFileName : `${editedFileName}.md`;
+
+      if (oldName !== newName) {
+        await fileManager.renameFile(oldName, newName);
+        goto(resolve(`/${newName}`));
+        return;
       }
     }
+
+    // Standard save (update existing or create new if none existed)
+    await fileManager.createNewFile(editedFileName, content);
+    invalidateAll();
   }
 </script>
 
@@ -36,7 +55,7 @@
     <Input
       type="text"
       placeholder="Start writing ..."
-      bind:value={fileName}
+      bind:value={editedFileName}
       class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none md:4xl mb-4 p-0 md:text-2xl md:mt-6"
     ></Input>
     <div class="ml-auto flex items-center text-xs shrink-0 text-muted-foreground">

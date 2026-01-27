@@ -138,6 +138,57 @@ class FileManager {
       console.error(err);
     }
   }
+
+  /**
+   * Deletes a file and refreshes the file list.
+   * @async
+   * @param {string} fileName - The name of the file to delete.
+   * @returns {Promise<void>}
+   */
+  async deleteFile(fileName) {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('delete_file', { name: fileName });
+      await this.getRecents();
+    } catch (err) {
+      this.errorMessage = `Failed to delete file "${fileName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Renames a file and refreshes the file list.
+   * @async
+   * @param {string} oldName - The current name of the file.
+   * @param {string} newName - The new name for the file.
+   * @returns {Promise<void>}
+   */
+  async renameFile(oldName, newName) {
+    if (!newName || !newName.trim()) {
+      this.errorMessage = 'New file name cannot be empty.';
+      return;
+    }
+
+    const finalNewName = newName.endsWith('.md') ? newName : `${newName}.md`;
+    if (oldName === finalNewName) return;
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('rename_file', { oldName, newName: finalNewName });
+      await this.getRecents();
+    } catch (err) {
+      this.errorMessage = `Failed to rename file from "${oldName}" to "${finalNewName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
 }
 
 /**

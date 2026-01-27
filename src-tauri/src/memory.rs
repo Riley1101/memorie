@@ -266,6 +266,7 @@ pub trait MemoryDocumentAnalysisExt {
     async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk>;
     async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument>;
     async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk>;
+    async fn rename_document(&self, old_title: &str, new_title: &str) -> Result<(), MemoryError>;
 }
 
 /// Implements the MemoryDocumentAnalysisExt trait for the Memory struct.
@@ -469,6 +470,17 @@ impl MemoryDocumentAnalysisExt for Memory {
             }
         }
         note_document
+    }
+
+    async fn rename_document(&self, old_title: &str, new_title: &str) -> Result<(), MemoryError> {
+        let db = &self.db;
+        let mut response = db
+            .query("UPDATE documents SET title = $new_title WHERE title = $old_title")
+            .bind(("old_title", old_title.to_string()))
+            .bind(("new_title", new_title.to_string()))
+            .await?;
+        response.check()?;
+        Ok(())
     }
 }
 

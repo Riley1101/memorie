@@ -22,6 +22,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
+  import { isMod, MOD_KEY } from '$lib/keyboard.svelte.js';
 
   /**
    * @typedef {Object} Props
@@ -66,7 +67,7 @@
       cmd: ':u',
       description: 'Undo (Back one version)',
       action: 'undo',
-      shortcutLabel: '⌃Z',
+      shortcutLabel: `${MOD_KEY}Z`,
       key: 'z',
       icon: UndoIcon,
     },
@@ -74,7 +75,7 @@
       cmd: ':redo',
       description: 'Redo (Forward to latest branch)',
       action: 'redo',
-      shortcutLabel: '⌃⇧Z',
+      shortcutLabel: `${MOD_KEY}⇧Z`,
       key: 'Y',
       icon: RedoIcon,
     },
@@ -82,7 +83,7 @@
       cmd: ':history',
       description: 'Toggle history sidebar',
       action: 'toggleHistory',
-      shortcutLabel: '⌘U',
+      shortcutLabel: `${MOD_KEY}U`,
       key: 'u',
       icon: HistoryIcon,
     },
@@ -90,7 +91,7 @@
       cmd: ':h',
       description: 'Show shortcuts help',
       action: 'help',
-      shortcutLabel: '⌘H',
+      shortcutLabel: `${MOD_KEY}H`,
       key: 'h',
       icon: HelpIcon,
     },
@@ -105,7 +106,7 @@
       cmd: ':w',
       description: 'Save file',
       action: 'save',
-      shortcutLabel: '⌘S',
+      shortcutLabel: `${MOD_KEY}S`,
       key: 's',
       icon: SaveIcon,
     },
@@ -113,21 +114,21 @@
       cmd: ':wq',
       description: 'Save and close file',
       action: 'saveAndClose',
-      shortcutLabel: '⌘W',
+      shortcutLabel: `${MOD_KEY}W`,
       key: 'w'
     },
     {
       cmd: ':q',
       description: 'Close file',
       action: 'close',
-      shortcutLabel: '⌘Q',
+      shortcutLabel: `${MOD_KEY}Q`,
       key: 'q'
     },
     {
       cmd: ':b',
       description: 'Toggle Sidebar',
       action: 'sidebar',
-      shortcutLabel: '⌘B',
+      shortcutLabel: `${MOD_KEY}B`,
       key: 'b',
       icon: SidebarIcon,
     },
@@ -135,7 +136,7 @@
       cmd: ':ai',
       description: 'Toggle AI Chat',
       action: 'aichat',
-      shortcutLabel: '⌘L',
+      shortcutLabel: `${MOD_KEY}L`,
       key: 'l',
       icon: AiSparkleIcon,
     },
@@ -319,10 +320,8 @@
       }
 
       // 4. Handle Shortcuts
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-      
-      // Special check for Ctrl+Z (Undo) and Ctrl+Shift+Z / Ctrl+Y (Redo)
-      if (e.ctrlKey && !isCommandMode) {
+      if (isMod(e) && !isCommandMode) {
+        // Special check for Z (Undo) and Shift+Z / Y (Redo)
         if (e.key.toLowerCase() === 'z') {
            e.preventDefault();
            e.stopPropagation();
@@ -339,24 +338,8 @@
            executeCommand(':redo');
            return;
         }
-      }
 
-      if (isCmdOrCtrl && !isCommandMode) {
-        // Special case for Cmd+U (History)
-        if (e.key.toLowerCase() === 'u' && e.metaKey) {
-          e.preventDefault();
-          e.stopPropagation();
-          executeCommand(':history');
-          return;
-        }
-        // Special case for Cmd+H (Help)
-        if (e.key.toLowerCase() === 'h' && e.metaKey) {
-          e.preventDefault();
-          e.stopPropagation();
-          executeCommand(':h');
-          return;
-        }
-        // Find command by defined key mapping
+        // Handle other mapped keys
         const match = commands.find(c => c.key === e.key.toLowerCase());
         if (match) {
           e.preventDefault();
@@ -533,7 +516,7 @@
             <span>cmd</span>
           </span>
           <span class="flex items-center gap-1 ml-2">
-            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">⌘K</kbd>
+            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">{MOD_KEY}K</kbd>
             <span>search</span>
           </span>
         </div>

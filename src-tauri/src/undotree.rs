@@ -113,6 +113,12 @@ impl UndoTree {
         history.redo_stack.clear();
     }
 
+    pub fn rename_entry(&mut self, old_name: &str, new_name: &str) {
+        if let Some(history) = self.entries.remove(old_name) {
+            self.entries.insert(new_name.to_string(), history);
+        }
+    }
+
     pub fn get_history(&self, file_name: &str) -> Option<&History> {
         self.entries.get(file_name)
     }

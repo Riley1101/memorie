@@ -90,6 +90,12 @@ pub fn delete_file(file: &File) -> Result<(), FileError> {
     Ok(())
 }
 
+pub fn rename_file(old_path: &Path, new_name: &str) -> Result<File, FileError> {
+    let new_path = old_path.parent().unwrap_or(Path::new("")).join(new_name);
+    fs::rename(old_path, &new_path)?;
+    Ok(File::new(new_path))
+}
+
 #[cfg(test)]
 mod fs_tests {
     use super::*;

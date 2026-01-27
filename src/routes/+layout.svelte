@@ -9,6 +9,7 @@
   import { fileManager } from '$lib/runes/fs.svelte';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { onDestroy, onMount } from 'svelte';
+  import { isMod } from '$lib/keyboard.svelte.js';
 
   let { children } = $props();
 
@@ -44,7 +45,7 @@
 
 <svelte:window
   onkeydown={(e) => {
-    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'k' && isMod(e)) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
     }

@@ -10,6 +10,7 @@
   import Button from './ui/button/button.svelte';
   import { formatFileName } from '@/utils';
   import { Input } from '@/components/ui/input/index.js';
+  import * as Dialog from '$lib/components/ui/dialog/index.js';
 
   /**
    * @type {{
@@ -22,6 +23,8 @@
 
   let keyword = $state('');
   let limit = $derived(propsLimit);
+  let isDeleteDialogOpen = $state(false);
+  let itemToDelete = $state(null);
 
   let filteredFavourites = $derived(() => {
     return favourites
@@ -36,29 +39,48 @@
   function createNewFile() {
     fileManager.createNewFile(keyword).then(() => {});
   }
+
+  function handleDeleteClick(item) {
+    itemToDelete = item;
+    isDeleteDialogOpen = true;
+  }
+
+  async function handleConfirmDelete() {
+    if (itemToDelete) {
+      await fileManager.deleteFile(itemToDelete.name);
+      isDeleteDialogOpen = false;
+      itemToDelete = null;
+    }
+  }
+
+  function handleCancelDelete() {
+    isDeleteDialogOpen = false;
+    itemToDelete = null;
+  }
 </script>
 
 <div class="flex flex-col">
-  <Input bind:value={keyword} placeholder="Search or create new writing" class="px-2 mb-8" />
+  <Input bind:value={keyword} type="text" placeholder="Search or create new writing" class="px-2 mb-8" />
   <div class="grid grid-cols-2 gap-4">
     {#if filteredFavourites().length === 0}
       <Item.Root
         variant="outline"
+        size="default"
         class="flex text-muted-foreground items-center cursor-pointer hover:text-white p-3"
       >
         {#snippet child({ props })}
           <button class="unset" onclick={createNewFile} {...props}>
-            <Item.Media>
+            <Item.Media class="">
               <FileIcon class="size-5" />
             </Item.Media>
-            <Item.Content>
-              <Item.Title>
+            <Item.Content class="">
+              <Item.Title class="">
                 <span class="capitalize">
                   Create <span class="text-bold lowercase">{keyword}.md</span></span
                 >
               </Item.Title>
             </Item.Content>
-            <Item.Actions>
+            <Item.Actions class="">
               <PlusIcon class="size-4" />
             </Item.Actions>
           </button>
@@ -69,26 +91,32 @@
     {#each filteredFavourites() as item (item.path)}
       <Item.Root
         variant="outline"
+        size="default"
         class="flex text-muted-foreground items-center cursor-pointer hover:text-white p-3"
       >
         {#snippet child({ props })}
           <a href={resolve(`/${item.name}`)} {...props}>
-            <Item.Media>
+            <Item.Media class="">
               <FileIcon class="size-5" />
             </Item.Media>
-            <Item.Content>
-              <Item.Title>
+            <Item.Content class="">
+              <Item.Title class="">
                 <span class="capitalize"> {formatFileName(item.name)}</span>
               </Item.Title>
             </Item.Content>
-            <Item.Actions>
+            <Item.Actions class="">
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
                   <EllipsisIcon class="size-4" />
                 </DropdownMenu.Trigger>
-                <DropdownMenu.Content class="dark w-56 rounded-lg" side="right" align="start">
-                  <DropdownMenu.Item>
-                    <Trash2Icon class="text-muted-foreground" />
+                <DropdownMenu.Content class="dark w-56 rounded-lg" side="right" align="start" portalProps={{}}>
+                  <DropdownMenu.Item
+                    onclick={() => handleDeleteClick(item)}
+                    variant="destructive"
+                    inset={false}
+                    class=""
+                  >
+                    <Trash2Icon class="size-4" />
                     <span>Delete</span>
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
@@ -99,5 +127,20 @@
       </Item.Root>
     {/each}
   </div>
-  <Button onclick={loadMore} class="mt-4 ml-auto" variant="outline">More</Button>
+  <Button onclick={loadMore} class="mt-4 ml-auto" variant="outline" disabled={false}>More</Button>
 </div>
+
+<Dialog.Root bind:open={isDeleteDialogOpen}>
+  <Dialog.Content class="sm:max-w-[425px]" portalProps={{}}>
+    <Dialog.Header class="">
+      <Dialog.Title class="">Delete Document</Dialog.Title>
+      <Dialog.Description class="text-base">
+        Are you sure you want to delete <span class="font-bold text-foreground">"{itemToDelete?.name}"</span>? This action cannot be undone.
+      </Dialog.Description>
+    </Dialog.Header>
+    <Dialog.Footer class="">
+      <Button variant="outline" onclick={handleCancelDelete} class="" disabled={false}>Cancel</Button>
+      <Button variant="destructive" onclick={handleConfirmDelete} class="" disabled={false}>Delete</Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
