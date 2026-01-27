@@ -251,6 +251,22 @@
   $effect(() => {
     /** @param {KeyboardEvent} e */
     const handleCaptureKeyDown = (e) => {
+      // 0. Prevent browser default Tab behavior in insert mode
+      if (e.key === 'Tab' && editorState.editMode) {
+        e.preventDefault();
+        // Optionally insert tab/spaces in editor
+        const editor = editorState?.editor;
+        if (editor) {
+          editor.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const { state, dispatch } = view;
+            // Insert 2 spaces for tab
+            dispatch(state.tr.insertText('  '));
+          });
+        }
+        return;
+      }
+      
       // 1. Handle Escape Priority
       if (e.key === 'Escape') {
         if (isCommandMode) {

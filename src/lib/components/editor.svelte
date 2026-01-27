@@ -27,14 +27,19 @@
   const DEBOUNCE_SAVE_MS = 2000;
 
   // Reactive effect to force ProseMirror view update when editMode changes
+  // Also ensures focus is in editor when entering insert mode
   $effect(() => {
-    const _mode = editorState.editMode; // Subscribe to editMode changes
+    const mode = editorState.editMode;
     if (editorInstance && isReady) {
       tick().then(() => {
         editorInstance.action((ctx) => {
           const view = ctx.get(editorViewCtx);
           // Force re-evaluation of editable state by updating view
           view.updateState(view.state);
+          // If entering insert mode, ensure editor is focused
+          if (mode && !view.hasFocus()) {
+            view.focus();
+          }
         });
       });
     }
@@ -86,15 +91,22 @@
             }
           });
           
-          // Add focus listener to enter insert mode on click
+          // Focus listener - only clear blur timeout, don't auto-enter insert mode
+          // User must press 'i' to enter insert mode
           ctx.get(listenerCtx).focus(() => {
             // Clear any pending blur timeout to prevent flicker
             if (blurTimeout) {
               clearTimeout(blurTimeout);
               blurTimeout = null;
             }
+            // If not in edit mode, immediately blur to prevent interaction
             if (!editorState.editMode) {
-              editorState.setEditMode(true);
+              tick().then(() => {
+                editorInstance?.action((c) => {
+                  const view = c.get(editorViewCtx);
+                  view.dom.blur();
+                });
+              });
             }
           });
           
@@ -141,7 +153,15 @@
 <main
   class="prose dark:prose-invert prose-stone prose-lg max-w-none w-full font-writer prose-p:my-2"
 >
-    <div use:editorAttachment={defaultValue}></div>
+    <div 
+      use:editorAttachment={defaultValue}
+      role="textbox"
+      ondblclick={() => {
+        if (!editorState.editMode) {
+          editorState.setEditMode(true);
+        }
+      }}
+    ></div>
 </main>
 
 <style>

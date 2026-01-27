@@ -282,7 +282,7 @@ impl MemoryDocumentAnalysisExt for Memory {
         let db = &self.db;
 
         let query_embedding = self.generate_embedding(query).await?;
-        let threshold = 0.6;
+        let threshold = 0.3;
 
         let sql = r#"
     SELECT *, vector::similarity::cosine(embedding, $query_vec) AS score 
