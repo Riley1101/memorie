@@ -54,9 +54,10 @@
   <div class="flex items-center w-full">
     <Input
       type="text"
-      placeholder="Start writing ..."
+      placeholder="Untitled"
       bind:value={editedFileName}
-      class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none md:4xl mb-4 p-0 md:text-2xl md:mt-6"
+      disabled={false}
+      class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none text-3xl md:text-5xl font-normal mb-8 p-0 mt-8 md:mt-12 placeholder:opacity-20"
     ></Input>
     <div class="ml-auto flex items-center text-xs shrink-0 text-muted-foreground">
       <span class="lowercase first-letter:uppercase">

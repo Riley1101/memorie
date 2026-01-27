@@ -10,6 +10,7 @@ class AppState {
    *   isSidebarOpen: boolean,
    *   isCommandMenuOpen: boolean,
    *   isHelpModalOpen: boolean,
+   *   theme: 'dark' | 'light',
    * }}
    */
   ui = $state({
@@ -18,6 +19,7 @@ class AppState {
     isSidebarOpen: false,
     isCommandMenuOpen: false,
     isHelpModalOpen: false,
+    theme: 'dark',
   });
 
   /**
@@ -75,6 +77,19 @@ class AppState {
       ...this.ui,
       isHelpModalOpen: state,
     };
+  }
+
+  /**
+   * @param {'dark' | 'light'} theme
+   */
+  setTheme(theme) {
+    this.ui = {
+      ...this.ui,
+      theme,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', theme);
+    }
   }
 }
 

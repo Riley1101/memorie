@@ -96,26 +96,12 @@
       icon: HelpIcon,
     },
     {
-      cmd: ':help',
-      description: 'Show shortcuts help',
-      action: 'help',
-      shortcutLabel: '',
-      key: ''
-    },
-    {
       cmd: ':w',
       description: 'Save file',
       action: 'save',
       shortcutLabel: `${MOD_KEY}S`,
       key: 's',
       icon: SaveIcon,
-    },
-    {
-      cmd: ':wq',
-      description: 'Save and close file',
-      action: 'saveAndClose',
-      shortcutLabel: `${MOD_KEY}W`,
-      key: 'w'
     },
     {
       cmd: ':q',
@@ -147,13 +133,14 @@
   let suggestions = $derived.by(() => {
     if (input === ':') return commands;
 
-    if (input.length > 1) {
+    if (input.length >= 1) {
       const term = input.toLowerCase();
       const searchTerm = term.startsWith(':') ? term.slice(1) : term;
 
       return commands.filter(
         (cmd) =>
           cmd.cmd.toLowerCase().startsWith(term) ||
+          cmd.cmd.toLowerCase().slice(1).startsWith(searchTerm) ||
           cmd.description.toLowerCase().includes(searchTerm)
       );
     }
@@ -187,7 +174,8 @@
    * @param {string} cmd
    */
   async function executeCommand(cmd) {
-    const command = commands.find((c) => c.cmd === cmd);
+    // Match either full command (like ":w") or the part without colon (like "w")
+    const command = commands.find((c) => c.cmd === cmd || c.cmd.slice(1) === cmd);
     if (!command) return;
 
     switch (command.action) {

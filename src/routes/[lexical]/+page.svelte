@@ -60,7 +60,7 @@
    * @param {ChunkItem} item
    */
   function handleChunkPress(item) {
-    const id = String(item.id.id.String);
+    const id = String(item.id.id);
     invoke('update_text_chunk', {
       id,
       correction: 'Please fix the grammar in this text.',
@@ -98,11 +98,12 @@
           onclick={()=>appState.toggleSidebar(!appState.ui.isSidebarOpen)}
           variant="ghost"
           size="sm"
+          disabled={false}
           class="mx-6 mt-6 text-neutral-500"
         >
-          <MenuIcon class="size-4" />
+          <MenuIcon class="size-4 opacity-20 hover:opacity-100 transition-opacity" />
         </Button>
-        <div class="mx-auto max-w-4xl px-6 pb-8">
+        <div class="mx-auto max-w-3xl px-6 pb-24">
             <MarkdownEditor {fileName} {body} />
         </div>
       </ScrollArea>

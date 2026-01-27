@@ -14,6 +14,10 @@
   let { children } = $props();
 
   onMount(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      appState.setTheme(savedTheme);
+    }
     fileManager.getRecents();
     llmManager.setupModels();
   });
@@ -23,7 +27,7 @@
   });
 </script>
 
-<div class="dark font-writer font-normal w-full h-screen">
+<div class="{appState.ui.theme} font-writer font-normal w-full h-screen">
   <Sidebar.Provider
     bind:open={
       () => appState.ui.isSidebarOpen,
