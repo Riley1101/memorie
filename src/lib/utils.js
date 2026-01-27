@@ -57,6 +57,8 @@ export function sanitizeMarkdown(md) {
  * @returns {string}
  */
 export function formatTimeAgo(date) {
+  if (!date) return '';
+  
   const seconds = Math.floor((new Date() - date) / 1000);
 
   if (seconds < 5) {

@@ -10,7 +10,15 @@
   import { memoryManager } from '@/runes/memory.svelte';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
   import MenuIcon from '@lucide/svelte/icons/menu';
+  import SaveIcon from '@lucide/svelte/icons/save';
+  import HistoryIcon from '@lucide/svelte/icons/history';
+  import UndoIcon from '@lucide/svelte/icons/undo-2';
+  import RedoIcon from '@lucide/svelte/icons/redo-2';
+  import SidebarIcon from '@lucide/svelte/icons/panel-left';
+  import HelpIcon from '@lucide/svelte/icons/help-circle';
   import { getMarkdown } from '@milkdown/kit/utils';
+  import { editorViewCtx } from '@milkdown/kit/core';
+  import { TextSelection } from '@milkdown/kit/prose/state';
   import { invoke } from '@tauri-apps/api/core';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -42,6 +50,7 @@
    * @property {string} action - Action identifier.
    * @property {string} [shortcutLabel] - Visual shortcut display (e.g. '⌘S').
    * @property {string} [key] - The actual key to listen for with Meta/Ctrl (e.g., 's').
+   * @property {import("svelte").Component} [icon] - Icon component.
    */
 
   /** @type {Command[]} */
@@ -58,28 +67,32 @@
       description: 'Undo (Back one version)',
       action: 'undo',
       shortcutLabel: '⌃Z',
-      key: 'z'
+      key: 'z',
+      icon: UndoIcon,
     },
     {
       cmd: ':redo',
       description: 'Redo (Forward to latest branch)',
       action: 'redo',
-      shortcutLabel: '⌃⇧Z / ⌃Y',
-      key: 'Y'
+      shortcutLabel: '⌃⇧Z',
+      key: 'Y',
+      icon: RedoIcon,
     },
     {
       cmd: ':history',
       description: 'Toggle history sidebar',
       action: 'toggleHistory',
       shortcutLabel: '⌘U',
-      key: 'u'
+      key: 'u',
+      icon: HistoryIcon,
     },
     {
       cmd: ':h',
       description: 'Show shortcuts help',
       action: 'help',
       shortcutLabel: '⌘H',
-      key: 'h'
+      key: 'h',
+      icon: HelpIcon,
     },
     {
       cmd: ':help',
@@ -93,7 +106,8 @@
       description: 'Save file',
       action: 'save',
       shortcutLabel: '⌘S',
-      key: 's'
+      key: 's',
+      icon: SaveIcon,
     },
     {
       cmd: ':wq',
@@ -114,18 +128,20 @@
       description: 'Toggle Sidebar',
       action: 'sidebar',
       shortcutLabel: '⌘B',
-      key: 'b'
+      key: 'b',
+      icon: SidebarIcon,
     },
     {
       cmd: ':ai',
       description: 'Toggle AI Chat',
       action: 'aichat',
       shortcutLabel: '⌘L',
-      key: 'l'
+      key: 'l',
+      icon: AiSparkleIcon,
     },
   ];
 
-  const quickCommands = commands.filter(c => [':w', ':b', ':u', ':ai'].includes(c.cmd));
+  const quickCommands = commands.filter(c => [ ':redo', ':w', ':b', ':ai', ':h'].includes(c.cmd));
 
   let suggestions = $derived.by(() => {
     if (input === ':') return commands;
@@ -269,10 +285,20 @@
         return;
       }
 
-      // 3. Trigger Edit Mode with 'i' (Vim-like)
+      // 3. Trigger Edit Mode with Vim-like keys
+      // 'i' - Insert at cursor
       if (e.key === 'i' && !editorState.editMode && !isCommandMode) {
+        e.preventDefault();
         editorState.setEditMode(true);
-        editorState?.editor?.commands?.focus();
+        tick().then(() => {
+          const editor = editorState?.editor;
+          if (editor) {
+            editor.action((ctx) => {
+              const view = ctx.get(editorViewCtx);
+              view.focus();
+            });
+          }
+        });
         return;
       }
 
@@ -428,19 +454,32 @@
           aria-label="Command input"
         />
       {:else}
-        <div class="hidden md:flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+        <div class="hidden md:flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-200">
+          <div class="flex items-center gap-2 pr-2 border-r border-muted-foreground/20">
+            <span class={cn(
+              "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all tracking-wider",
+              editorState.editMode 
+                ? "bg-blue-500/20 text-blue-500 border border-blue-500/30" 
+                : "bg-muted text-muted-foreground border border-transparent"
+            )}>
+              {editorState.editMode ? 'INSERT' : 'NORMAL'}
+            </span>
+          </div>
+
           {#each quickCommands as qCmd (qCmd.cmd)}
             <button
               onclick={() => executeCommand(qCmd.cmd)}
-              class="group flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-mono bg-muted/30 hover:bg-muted border border-transparent hover:border-border rounded transition-all"
+              class="group flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 transition-all border border-transparent hover:border-border/50"
               title={qCmd.description}
             >
-              <span class="text-muted-foreground group-hover:text-foreground transition-colors">
-                {qCmd.description}
-              </span>
-              <span class="text-[9px] text-muted-foreground/50 group-hover:text-primary/70">
-                {qCmd.shortcutLabel}
-              </span>
+              {#if qCmd.icon}
+                <qCmd.icon class="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              {/if}
+              {#if qCmd.shortcutLabel}
+                <span class="text-[10px] font-mono text-muted-foreground/60 group-hover:text-foreground transition-colors">
+                  {qCmd.shortcutLabel}
+                </span>
+              {/if}
             </button>
           {/each}
         </div>
@@ -460,6 +499,9 @@
           <DropdownMenu.Group>
             {#each quickCommands as qCmd (qCmd.cmd)}
               <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)}>
+                <DropdownMenu.Icon>
+                  <qCmd.icon />
+                </DropdownMenu.Icon>
                 <span class="font-mono text-sm flex-1">{qCmd.description}</span>
                 <DropdownMenu.Shortcut>{qCmd.shortcutLabel}</DropdownMenu.Shortcut>
               </DropdownMenu.Item>

@@ -15,7 +15,7 @@
     { key: '⌃ + ⇧ + Z / ⌃ + Y', description: 'Redo (Forward to latest branch)' },
     { key: ':', description: 'Enter Command Mode' },
     { key: 'i', description: 'Enter Insert Mode (Edit document)' },
-    { key: 'Esc', description: 'Exit Command Mode / Close Modal' },
+    { key: 'Esc', description: 'Exit Insert/Command Mode' },
   ];
 </script>
 

@@ -1,5 +1,7 @@
 <script>
+  import { tick } from 'svelte';
   import { defaultValueCtx, Editor, rootCtx, editorViewOptionsCtx } from '@milkdown/core';
+  import { editorViewCtx } from '@milkdown/kit/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { memoryManager } from '$lib/runes/memory.svelte';
@@ -18,8 +20,25 @@
   let isReady = $state(false);
 
   let editorInstance = $state(null);
-
+  
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let blurTimeout = null;
+  const BLUR_DELAY_MS = 150;
   const DEBOUNCE_SAVE_MS = 2000;
+
+  // Reactive effect to force ProseMirror view update when editMode changes
+  $effect(() => {
+    const _mode = editorState.editMode; // Subscribe to editMode changes
+    if (editorInstance && isReady) {
+      tick().then(() => {
+        editorInstance.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          // Force re-evaluation of editable state by updating view
+          view.updateState(view.state);
+        });
+      });
+    }
+  });
 
   /**
    * Trigger the auto-save mechanism with debouncing.
@@ -66,6 +85,29 @@
               triggerAutoSave(markdown)
             }
           });
+          
+          // Add focus listener to enter insert mode on click
+          ctx.get(listenerCtx).focus(() => {
+            // Clear any pending blur timeout to prevent flicker
+            if (blurTimeout) {
+              clearTimeout(blurTimeout);
+              blurTimeout = null;
+            }
+            if (!editorState.editMode) {
+              editorState.setEditMode(true);
+            }
+          });
+          
+          // Add blur listener to exit insert mode when focus leaves editor
+          ctx.get(listenerCtx).blur(() => {
+            // Use a small delay to prevent flicker on internal focus changes
+            blurTimeout = setTimeout(() => {
+              if (editorState.editMode) {
+                editorState.setEditMode(false);
+              }
+            }, BLUR_DELAY_MS);
+          });
+          
           ctx.set(rootCtx, dom)
           ctx.set(defaultValueCtx, initialValue)
           ctx.set(editorViewOptionsCtx, {
