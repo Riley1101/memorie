@@ -46,7 +46,9 @@
       </span>
     </div>
   </div>
-  <Editor defaultValue={content} {onSave} />
+  {#key content}
+    <Editor defaultValue={content} {onSave} />
+  {/key}
 </div>
 
 <style>

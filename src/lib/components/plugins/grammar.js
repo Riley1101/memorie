@@ -11,7 +11,7 @@ import GrammarBox from './GrammarBox.svelte';
  *
  * @returns {Plugin} - The Milkdown plugin for grammar correction.
  */
-export const grammarPlugin = $prose((_ctx) => {
+export const grammarPlugin = $prose(() => {
   return new Plugin({
     state: {
       init(_, { doc }) {
@@ -80,7 +80,6 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
 
                 view.dispatch(tr.replaceWith(start, end, view.state.schema.text(fixedText)));
               };
-
               mount(GrammarBox, {
                 target: container,
                 props: {

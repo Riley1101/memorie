@@ -70,8 +70,8 @@
       cmd: ':wq',
       description: 'Save and close file',
       action: 'saveAndClose',
-      shortcutLabel: '⌘W', // Changed from ⌘W for close to standard close
-      key: 'w' // usually ⌘W closes tabs/windows
+      shortcutLabel: '⌘W',
+      key: 'w'
     },
     {
       cmd: ':q',
@@ -96,17 +96,13 @@
     },
   ];
 
-  // Subset of commands to show as quick buttons
   const quickCommands = commands.filter(c => [':w', ':b', ':u', ':ai'].includes(c.cmd));
 
-  // Derived Suggestions
   let suggestions = $derived.by(() => {
     if (input === ':') return commands;
 
-    // Simple fuzzy match on command or description
     if (input.length > 1) {
       const term = input.toLowerCase();
-      // Remove leading ':' for search if present to allow searching by name
       const searchTerm = term.startsWith(':') ? term.slice(1) : term;
 
       return commands.filter(
@@ -118,14 +114,11 @@
     return [];
   });
 
-  // Reset selection when suggestions change
   $effect(() => {
-    // Just accessing suggestions to track dependency
     suggestions;
     selectedIndex = 0;
   });
 
-  // Focus Input Effect
   $effect(() => {
     if (isCommandMode && inputRef) {
       tick().then(() => inputRef?.focus());
@@ -137,6 +130,7 @@
    */
   function onSave() {
     if (editorState.editor && fileName) {
+      console.log("Saving file:", fileName);
       const markdown = editorState.editor.action(getMarkdown());
       fileManager.createNewFile(fileName, markdown);
       invalidateAll();

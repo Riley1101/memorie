@@ -64,9 +64,8 @@
     invoke('update_text_chunk', {
       id,
       correction: 'Please fix the grammar in this text.',
-    }).then((result) => {
+    }).then(() => {
       syncGrammarChecks(fileName);
-      console.log('Grammar check result:', result);
     });
   }
 </script>
@@ -104,13 +103,13 @@
           <MenuIcon class="size-4" />
         </Button>
         <div class="mx-auto max-w-4xl px-6 pb-8">
-          <MarkdownEditor {fileName} {body} />
+            <MarkdownEditor {fileName} {body} />
         </div>
       </ScrollArea>
     </main>
 
     <footer class="bg-background">
-      <EditorCommandbar {fileName} {body} currentVersion={history?.current || 0} />
+      <EditorCommandbar {fileName} currentVersion={history?.current || 0} />
     </footer>
   </div>
 
