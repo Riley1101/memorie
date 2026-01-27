@@ -37,6 +37,7 @@ const LLM_INVOKE = {
  * @typedef {object} Message
  * @property {MessageRole} role - The role of the message sender.
  * @property {string} content - The text content of the message.
+ * @property {any[]} [references] - Optional array of referenced articles.
  */
 
 /**
@@ -267,16 +268,23 @@ export class LlmManager {
     this.ragMessages.push({ role: 'assistant', content: '' });
 
     try {
-      /** @type {string} processId */
-      return invoke('search_documents', {
+      /** @type {any} response */
+      const response = await invoke('search_documents', {
         query: prompt,
-      })
+      });
 
+      const lastMessage = this.ragMessages[this.ragMessages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        lastMessage.references = response.data;
+      }
+
+      return response;
     } catch (e) {
       console.error(e);
       this.error = `An error occurred: ${e}`;
       this.isRAGLoading = false;
       this.ragMessages.pop();
+      this.ragMessages.pop(); // Also remove user message on error
     }
   }
 
