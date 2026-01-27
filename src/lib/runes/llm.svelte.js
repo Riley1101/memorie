@@ -73,11 +73,8 @@ export class LlmManager {
   /** @type string | null - error message **/
   error = $state(null);
 
-  /** @type Function | null - function to unlisten chunk events **/
-  unlistenChunk = null;
-
-  /** @type Function | null - function to unlisten chunk events **/
-  unlistenDone = null;
+  /** @type {Function[]} - array of unlisten functions **/
+  unlisteners = $state([]);
 
   /**
    * Sets up Tauri event listeners to receive streaming data from the Rust backend.
@@ -89,90 +86,113 @@ export class LlmManager {
       this.modelsLoaded = true;
     });
 
-    await listen(LLM_EVENTS.CHAT_INIT, (response) => {
-      if (response.event === 'chat-in-progress') {
-        this.isLoading = true;
-      }
-    });
-
-    await listen(LLM_EVENTS.RAG_CHAT_INIT, (response) => {
-      if (response.event === 'rag-chat-in-progress') {
-        this.isRAGLoading = true;
-        this.ragMessages.push({ role: 'user', content: response.payload.message });
-        this.ragMessages.push({ role: 'assistant', content: '' });
-      }
-    });
-
-    await listen(LLM_EVENTS.EDIT_ACTION_START, (response) => {
-      if (response.event === 'chat-edit-action-start') {
-        this.editActionInProgress = true;
-        this.editActionContent = '';
-      }
-    });
-
-    await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
-      const chunk = /** @type {string} */ (event.payload.response);
-      if (this.messages.length > 0) {
-        const lastMessage = this.messages[this.messages.length - 1];
-        if (lastMessage.role === 'assistant') {
-          lastMessage.content += JSON.stringify(chunk);
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.CHAT_INIT, (response) => {
+        if (response.event === 'chat-in-progress') {
+          this.isLoading = true;
         }
-      }
-    });
+      })
+    );
 
-    this.unlistenChunk = await listen(LLM_EVENTS.RAG_CHAT_IN_PROGRESS, (event) => {
-      const chunk = /** @type {string} */ (event.payload.content);
-      if (this.ragMessages.length > 0) {
-        const lastMessage = this.ragMessages[this.ragMessages.length - 1];
-        if (lastMessage.role === 'assistant') {
-          lastMessage.content += chunk;
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.RAG_CHAT_INIT, (response) => {
+        if (response.event === 'rag-chat-in-progress') {
+          this.isRAGLoading = true;
+          this.ragMessages.push({ role: 'user', content: response.payload.message });
+          this.ragMessages.push({ role: 'assistant', content: '' });
         }
-      }
-    });
+      })
+    );
 
-    this.unlistenChunk = await listen(LLM_EVENTS.CHAT_IN_PROGRESS, (event) => {
-      const chunk = /** @type {string} */ (event.payload.content);
-      if (this.messages.length > 0) {
-        const lastMessage = this.messages[this.messages.length - 1];
-        if (lastMessage.role === 'assistant') {
-          lastMessage.content += chunk;
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.EDIT_ACTION_START, (response) => {
+        if (response.event === 'chat-edit-action-start') {
+          this.editActionInProgress = true;
+          this.editActionContent = '';
         }
-      }
-    });
+      })
+    );
 
-    this.unlistenChunk = await listen(LLM_EVENTS.EDIT_ACTION_IN_PROGRESS, (event) => {
-      const chunk = /** @type {string} */ (event.payload.content);
-      this.editActionContent = this.editActionContent + chunk;
-    });
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
+        const chunk = /** @type {string} */ (event.payload.response);
+        if (this.messages.length > 0) {
+          const lastMessage = this.messages[this.messages.length - 1];
+          if (lastMessage.role === 'assistant') {
+            lastMessage.content += chunk;
+          }
+        }
+      })
+    );
+
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.RAG_CHAT_IN_PROGRESS, (event) => {
+        const chunk = /** @type {string} */ (event.payload.content);
+        if (this.ragMessages.length > 0) {
+          const lastMessage = this.ragMessages[this.ragMessages.length - 1];
+          if (lastMessage.role === 'assistant') {
+            lastMessage.content += chunk;
+          }
+        }
+      })
+    );
+
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.CHAT_IN_PROGRESS, (event) => {
+        const chunk = /** @type {string} */ (event.payload.content);
+        if (this.messages.length > 0) {
+          const lastMessage = this.messages[this.messages.length - 1];
+          if (lastMessage.role === 'assistant') {
+            lastMessage.content += chunk;
+          }
+        }
+      })
+    );
+
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.EDIT_ACTION_IN_PROGRESS, (event) => {
+        const chunk = /** @type {string} */ (event.payload.content);
+        this.editActionContent = this.editActionContent + chunk;
+      })
+    );
 
     // Listener for when the stream is complete
-    this.unlistenDone = await listen(LLM_EVENTS.COMPLETED, (response) => {
-      if (response.event === 'chat-completed') {
-        this.isLoading = false;
-      }
-    });
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.COMPLETED, (response) => {
+        if (response.event === 'chat-completed') {
+          this.isLoading = false;
+        }
+      })
+    );
 
     // Listener for when the edit action is complete
-    this.unlistenDone = await listen(LLM_EVENTS.EDIT_ACTION_COMPLETED, (response) => {
-      if (response.event === 'chat-edit-action-completed') {
-        this.editActionInProgress = false;
-      }
-    });
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.EDIT_ACTION_COMPLETED, (response) => {
+        if (response.event === 'chat-edit-action-completed') {
+          this.editActionInProgress = false;
+        }
+      })
+    );
 
     // Listener for when the RAG chat is complete
-    this.unlistenDone = await listen(LLM_EVENTS.RAG_CHAT_COMPLETED, (response) => {
-      if (response.event === 'rag-chat-completed') {
-        this.isRAGLoading = false;
-      }
-    });
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.RAG_CHAT_COMPLETED, (response) => {
+        if (response.event === 'rag-chat-completed') {
+          this.isRAGLoading = false;
+        }
+      })
+    );
 
     // Listener for errors
-    this.unlistenDone = await listen(LLM_EVENTS.Error, (response) => {
-      console.error('LLM Error:', response.payload.message);
-      this.error = `An error occurred: ${response.payload.message}`;
-      this.isLoading = false;
-      this.editActionInProgress = false;
-    });
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.Error, (response) => {
+        console.error('LLM Error:', response.payload.message);
+        this.error = `An error occurred: ${response.payload.message}`;
+        this.isLoading = false;
+        this.editActionInProgress = false;
+        this.isRAGLoading = false;
+      })
+    );
 
   }
 
@@ -243,9 +263,9 @@ export class LlmManager {
     }
     this.isRAGLoading = true;
     this.error = null;
-
     this.ragMessages.push({ role: 'user', content: prompt });
     this.ragMessages.push({ role: 'assistant', content: '' });
+
     try {
       /** @type {string} processId */
       return invoke('search_documents', {
@@ -300,12 +320,8 @@ export class LlmManager {
    * Cleans up the event listeners. Call this when the component is destroyed.
    */
   destroy() {
-    if (this.unlistenChunk) {
-      this.unlistenChunk();
-    }
-    if (this.unlistenDone) {
-      this.unlistenDone();
-    }
+    this.unlisteners.forEach((unlisten) => unlisten());
+    this.unlisteners = [];
   }
 }
 

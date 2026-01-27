@@ -28,13 +28,12 @@
    * @param {{ text: string, files: File[] }} message
    */
   async function handleSubmit(message) {
-    const rawText = message.text;
+    const rawText = message.text?.trim();
     const attachments = message.files;
     if (!rawText && (!attachments || attachments.length === 0)) return;
+    
     let finalPrompt = rawText || '';
-    if (context) {
-      finalPrompt = `${finalPrompt}`;
-    }
+    
     text = '';
     if (type === 'rag') {
       await llmManager.sendRagMessage(finalPrompt);

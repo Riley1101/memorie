@@ -10,41 +10,14 @@
   import { llmManager } from '@/runes/llm.svelte';
   import AiChat from '@/components/ai-chat.svelte';
 
-  /**
-   * Represents the structure of the "Thing" parent object.
-   * (Update this definition based on your actual Rust struct for Thing)
-   * @typedef {Object} Thing
-   */
-
-  /**
-   * Represents a result returned from a search query.
-   * Corresponds to the Rust struct `SearchResult`.
-   *
-   * @typedef {Object} SearchResult
-   * @property {Thing} parent - The parent entity associated with this result.
-   * @property {string} content - The main textual content found.
-   * @property {number} sequence - The sequence index (usize maps to number in JS).
-   * @property {string} title - The title of the result.
-   */
-
-  /** @type {string} */
-  let commandInput = $state('');
-
-  /** @type {{data: SearchResult[]}|null} */
+  /** @type {{data: any[]}|null} */
   let result = $state(null);
-
-  async function handleSubmit() {
-    llmManager.sendRagMessage(commandInput).then((res) => {
-
-      result = res;
-    });
-  }
 </script>
 
 <div class="p-4 overflow-hidden container max-w-3xl mx-auto w-full h-dvh grid grid-rows-[1fr_auto]">
   <div class="overflow-hidden ">
     <ScrollArea type="scroll" class="h-full">
-      {#if commandInput === '' && llmManager.ragMessages.length === 0}
+      {#if llmManager.ragMessages.length === 0 && !llmManager.isRAGLoading}
         <h2 class="py-8 text-4xl">Start writing down your thoughts</h2>
         <HomeFavourites />
       {:else}

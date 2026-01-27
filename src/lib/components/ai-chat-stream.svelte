@@ -17,13 +17,7 @@
    */
   let { type = "chat"} = $props();
 
-  let messages = $derived(()=>{
-    if (type === "rag") {
-      return llmManager.ragMessages;
-    } else {
-      return llmManager.messages;
-    }
-  });
+  let messages = $derived(type === "rag" ? llmManager.ragMessages : llmManager.messages);
 
   function handleCopy(content) {
     if (!content) return;
@@ -31,13 +25,14 @@
   }
 
   function handleRetry(index) {
+    // TODO: Implement retry logic in llmManager
     console.log("Retrying message at index:", index);
   }
 
 </script>
 
 <div class="flex flex-col gap-6 p-4">
-  {#each messages() as message, index (index)}
+  {#each messages as message, index (index)}
     <Message from={message.role}>
 
       <MessageContent>

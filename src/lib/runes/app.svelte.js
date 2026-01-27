@@ -5,15 +5,19 @@ class AppState {
   /**
    * @public
    * @type {{
-   * isChatOpen: boolean,
-   * isHistoryOpen: boolean
-   * isSidebarOpen: boolean
+   *   isChatOpen: boolean,
+   *   isHistoryOpen: boolean,
+   *   isSidebarOpen: boolean,
+   *   isCommandMenuOpen: boolean,
+   *   isHelpModalOpen: boolean,
    * }}
    */
   ui = $state({
     isChatOpen: false,
     isHistoryOpen: false,
     isSidebarOpen: false,
+    isCommandMenuOpen: false,
+    isHelpModalOpen: false,
   });
 
   /**
@@ -51,6 +55,25 @@ class AppState {
     this.ui = {
       ...this.ui,
       isSidebarOpen: state,
+    };
+  }
+
+  /**
+   * @public
+   * Function to toggle the command menu visibility.
+   * @param {boolean} state - The desired state of the command menu (open or closed).
+   */
+  toggleCommandMenu(state) {
+    this.ui = {
+      ...this.ui,
+      isCommandMenuOpen: state,
+    };
+  }
+
+  toggleHelpModal(state) {
+    this.ui = {
+      ...this.ui,
+      isHelpModalOpen: state,
     };
   }
 }

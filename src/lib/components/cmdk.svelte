@@ -1,31 +1,49 @@
 <script>
   import CirclePlusIcon from '@lucide/svelte/icons/circle-plus';
-  import SearchIcon from '@lucide/svelte/icons/search';
+  import FileTextIcon from '@lucide/svelte/icons/file-text';
   import * as Command from '$lib/components/ui/command/index.js';
+  import { appState } from '$lib/runes/app.svelte.js';
+  import { fileManager } from '$lib/runes/fs.svelte.js';
+  import { goto } from '$app/navigation';
+
+  function handleSelect(fileName) {
+    appState.toggleCommandMenu(false);
+    goto(`/${encodeURIComponent(fileName)}`);
+  }
+
+  function handleCreateNew() {
+    appState.toggleCommandMenu(false);
+    // Logic for creating new writing could go here, for now just placeholder
+    console.log("Create new writing triggered");
+  }
 </script>
 
-<Command.Root class=" border shadow-md md:min-w-[450px]">
-  <Command.Input placeholder="Enter command" />
-  <Command.List>
-    <Command.Empty class="p-0">
-      <Command.Item>
-        <CirclePlusIcon class="size-4" />
-        <span>Create a new writing</span>
-        <Command.Shortcut>⌘N</Command.Shortcut>
-      </Command.Item>
-    </Command.Empty>
+<Command.Dialog 
+  open={appState.ui.isCommandMenuOpen}
+  onOpenChange={(v) => appState.toggleCommandMenu(v)}
+  title="Search Documents"
+  description="Search documents by title or perform actions"
+  portalProps={{}}
+>
+  <Command.Input placeholder="Search documents..." class="" />
+  <Command.List class="">
+    <Command.Empty class="">No results found.</Command.Empty>
+    
+    <Command.Group heading="Documents" class="" value="">
+      {#each fileManager.files as file}
+        <Command.Item onSelect={() => handleSelect(file.name)} class="">
+          <FileTextIcon class="size-4 mr-2" />
+          <span>{file.name}</span>
+        </Command.Item>
+      {/each}
+    </Command.Group>
 
-    <Command.Group heading="Suggestions">
-      <Command.Item>
-        <CirclePlusIcon class="size-4" />
+    <Command.Group heading="Actions" class="" value="">
+      <Command.Item onSelect={handleCreateNew} class="">
+        <CirclePlusIcon class="size-4 mr-2" />
         <span>Create a new writing</span>
-        <Command.Shortcut>⌘N</Command.Shortcut>
-      </Command.Item>
-      <Command.Item>
-        <SearchIcon />
-        <span>Search</span>
-        <Command.Shortcut>⌘S</Command.Shortcut>
+        <Command.Shortcut class="">⌘N</Command.Shortcut>
       </Command.Item>
     </Command.Group>
   </Command.List>
-</Command.Root>
+</Command.Dialog>

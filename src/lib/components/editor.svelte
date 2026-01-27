@@ -1,11 +1,12 @@
 <script>
-  import { defaultValueCtx, Editor, rootCtx } from '@milkdown/core';
+  import { defaultValueCtx, Editor, rootCtx, editorViewOptionsCtx } from '@milkdown/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { memoryManager } from '$lib/runes/memory.svelte';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
+  import { clipboard } from '@milkdown/kit/plugin/clipboard'
 
   /**
    * @type {{ defaultValue?: string, onSave?: (markdown: string) => void }}
@@ -67,11 +68,15 @@
           });
           ctx.set(rootCtx, dom)
           ctx.set(defaultValueCtx, initialValue)
+          ctx.set(editorViewOptionsCtx, {
+            editable: () => editorState.editMode
+          })
         })
         .use(listener)
         .use(grammarPlugin)
         .use(commonmark)
         .use(gfm)
+        .use(clipboard)
         .create()
         .then((editor) => {
           if (editor) {

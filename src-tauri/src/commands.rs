@@ -333,3 +333,35 @@ pub async fn goto_file_version(
         Ok(None)
     }
 }
+
+#[tauri::command]
+pub async fn undo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let config = state.config.lock().await;
+    let mut undo_tree = state.undotree.lock().await;
+
+    let result = undo_tree.undo(&name).map(|s| s.to_string());
+
+    if result.is_some() {
+        undo_tree
+            .save(&config.undotree_dir)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn redo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let config = state.config.lock().await;
+    let mut undo_tree = state.undotree.lock().await;
+
+    let result = undo_tree.redo_latest_branch(&name).map(|s| s.to_string());
+
+    if result.is_some() {
+        undo_tree
+            .save(&config.undotree_dir)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(result)
+}

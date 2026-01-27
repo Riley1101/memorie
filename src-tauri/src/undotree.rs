@@ -130,6 +130,38 @@ impl UndoTree {
         Some(history.nodes[target_index.0].content.as_str())
     }
 
+    pub fn undo(&mut self, file_name: &str) -> Option<&str> {
+        let history = self.entries.get_mut(file_name)?;
+        let current_index = history.current?;
+        let parent_index = history.nodes[current_index.0].parent?;
+
+        history.redo_stack.push(current_index);
+        history.current = Some(parent_index);
+
+        Some(history.nodes[parent_index.0].content.as_str())
+    }
+
+    pub fn redo_latest_branch(&mut self, file_name: &str) -> Option<&str> {
+        let history = self.entries.get_mut(file_name)?;
+
+        // 1. Try session redo stack first
+        if let Some(redo_index) = history.redo_stack.pop() {
+            history.current = Some(redo_index);
+            return Some(history.nodes[redo_index.0].content.as_str());
+        }
+
+        // 2. Otherwise, look for the latest child of current node
+        let current_index = history.current?;
+        let latest_children = history.get_latest_children(current_index);
+
+        if let Some(&latest_child) = latest_children.first() {
+            history.current = Some(latest_child);
+            return Some(history.nodes[latest_child.0].content.as_str());
+        }
+
+        None
+    }
+
     // Generate a Graphviz DOT string for visualization
     pub fn to_dot(&self, file_name: &str) -> String {
         let history = match self.entries.get(file_name) {

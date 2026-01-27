@@ -35,6 +35,7 @@ class MemoryManager {
       })
       .catch((err) => {
         console.error('Error creating context:', err);
+        throw err;
       });
   }
 

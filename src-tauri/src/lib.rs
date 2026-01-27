@@ -94,6 +94,8 @@ pub async fn run() {
             commands::search_documents,
             commands::get_chat_sessions,
             commands::goto_file_version,
+            commands::undo_file,
+            commands::redo_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

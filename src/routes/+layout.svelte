@@ -2,6 +2,8 @@
   import '../app.css';
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
   import SidebarLeft from '$lib/components/sidebar-left.svelte';
+  import Cmdk from '$lib/components/cmdk.svelte';
+  import ShortcutsHelp from '$lib/components/shortcuts-help.svelte';
 
   import { appState } from '@/runes/app.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte';
@@ -36,7 +38,18 @@
       </div>
     </Sidebar.Inset>
   </Sidebar.Provider>
+  <Cmdk />
+  <ShortcutsHelp />
 </div>
+
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
+    }
+  }}
+/>
 
 <style>
   /**

@@ -11,6 +11,7 @@
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
   import MenuIcon from '@lucide/svelte/icons/menu';
   import { getMarkdown } from '@milkdown/kit/utils';
+  import { invoke } from '@tauri-apps/api/core';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
 
@@ -49,15 +50,43 @@
       cmd: ':c',
       description: 'Create Document Context',
       action: 'createDocumentContext',
-      shortcutLabel: '⌘C',
-      key: 'c'
+      shortcutLabel: '', // No global shortcut to avoid conflict with Cmd+C
+      key: ''
     },
     {
       cmd: ':u',
+      description: 'Undo (Back one version)',
+      action: 'undo',
+      shortcutLabel: '⌃Z',
+      key: 'z'
+    },
+    {
+      cmd: ':redo',
+      description: 'Redo (Forward to latest branch)',
+      action: 'redo',
+      shortcutLabel: '⌃⇧Z / ⌃Y',
+      key: 'Y'
+    },
+    {
+      cmd: ':history',
       description: 'Toggle history sidebar',
       action: 'toggleHistory',
       shortcutLabel: '⌘U',
       key: 'u'
+    },
+    {
+      cmd: ':h',
+      description: 'Show shortcuts help',
+      action: 'help',
+      shortcutLabel: '⌘H',
+      key: 'h'
+    },
+    {
+      cmd: ':help',
+      description: 'Show shortcuts help',
+      action: 'help',
+      shortcutLabel: '',
+      key: ''
     },
     {
       cmd: ':w',
@@ -91,8 +120,8 @@
       cmd: ':ai',
       description: 'Toggle AI Chat',
       action: 'aichat',
-      shortcutLabel: '⌘A',
-      key: 'a'
+      shortcutLabel: '⌘L',
+      key: 'l'
     },
   ];
 
@@ -140,7 +169,7 @@
   /**
    * @param {string} cmd
    */
-  function executeCommand(cmd) {
+  async function executeCommand(cmd) {
     const command = commands.find((c) => c.cmd === cmd);
     if (!command) return;
 
@@ -166,6 +195,25 @@
       case 'saveAndClose':
         onSave();
         goto(resolve('/'));
+        break;
+      case 'undo':
+        try {
+          await invoke('undo_file', { name: fileName });
+          await invalidateAll();
+        } catch (e) {
+          console.error("Undo failed:", e);
+        }
+        break;
+      case 'redo':
+        try {
+          await invoke('redo_file', { name: fileName });
+          await invalidateAll();
+        } catch (e) {
+          console.error("Redo failed:", e);
+        }
+        break;
+      case 'help':
+        appState.toggleHelpModal(!appState.ui.isHelpModalOpen);
         break;
     }
 
@@ -228,9 +276,44 @@
         return;
       }
 
-      // 4. Handle Shortcuts (Cmd/Ctrl + Key)
-      const isShortcut = e.metaKey || e.ctrlKey;
-      if (isShortcut && !isCommandMode) {
+      // 4. Handle Shortcuts
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      
+      // Special check for Ctrl+Z (Undo) and Ctrl+Shift+Z / Ctrl+Y (Redo)
+      if (e.ctrlKey && !isCommandMode) {
+        if (e.key.toLowerCase() === 'z') {
+           e.preventDefault();
+           e.stopPropagation();
+           if (e.shiftKey) {
+             executeCommand(':redo');
+           } else {
+             executeCommand(':u');
+           }
+           return;
+        }
+        if (e.key.toLowerCase() === 'y') {
+           e.preventDefault();
+           e.stopPropagation();
+           executeCommand(':redo');
+           return;
+        }
+      }
+
+      if (isCmdOrCtrl && !isCommandMode) {
+        // Special case for Cmd+U (History)
+        if (e.key.toLowerCase() === 'u' && e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          executeCommand(':history');
+          return;
+        }
+        // Special case for Cmd+H (Help)
+        if (e.key.toLowerCase() === 'h' && e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          executeCommand(':h');
+          return;
+        }
         // Find command by defined key mapping
         const match = commands.find(c => c.key === e.key.toLowerCase());
         if (match) {
@@ -390,6 +473,10 @@
           <span class="flex items-center gap-1">
             <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">:</kbd>
             <span>cmd</span>
+          </span>
+          <span class="flex items-center gap-1 ml-2">
+            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">⌘K</kbd>
+            <span>search</span>
           </span>
         </div>
       {/if}
