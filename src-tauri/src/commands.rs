@@ -316,6 +316,15 @@ pub async fn search_documents(
 }
 
 /**
+ *  Config Commands
+ */
+#[tauri::command]
+pub async fn get_config(state: State<'_, AppState>) -> Result<super::config::AppConfig, String> {
+    let config = state.config.lock().await;
+    Ok(serde_json::from_str(&serde_json::to_string(&*config).unwrap()).unwrap())
+}
+
+/**
  *  Memory Commands
  */
 #[tauri::command]

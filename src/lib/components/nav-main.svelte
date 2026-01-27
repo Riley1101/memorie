@@ -5,9 +5,14 @@
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
 </script>
 
-<Sidebar.Menu>
-  <Sidebar.MenuItem>
-    <Sidebar.MenuButton>
+<Sidebar.Menu class="">
+  <Sidebar.MenuItem class="">
+    <Sidebar.MenuButton
+      class=""
+      tooltipContent="AI Search"
+      tooltipContentProps={{}}
+      children={undefined}
+    >
       {#snippet child({ props })}
         <a href={resolve('/')} {...props}>
           <SparklesIcon />
@@ -15,7 +20,12 @@
         </a>
       {/snippet}
     </Sidebar.MenuButton>
-    <Sidebar.MenuButton>
+    <Sidebar.MenuButton
+      class=""
+      tooltipContent="Documents"
+      tooltipContentProps={{}}
+      children={undefined}
+    >
       {#snippet child({ props })}
         <a href={resolve('/documents')} {...props}>
           <FileStackIcon />

@@ -94,6 +94,7 @@ pub async fn run() {
             commands::get_document_context,
             commands::search_documents,
             commands::get_chat_sessions,
+            commands::get_config,
             commands::goto_file_version,
             commands::undo_file,
             commands::redo_file,

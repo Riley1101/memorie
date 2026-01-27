@@ -40,10 +40,15 @@ impl Model {
         &mut self,
         model_type: ModelType,
     ) -> Result<Response<ModelLoadingResponse>, LlamaError> {
-        if self.auto_complete_model.is_none() {
-            let root_dir = self.base_path.clone().join("models/");
-            let modal_path = PathBuf::from(root_dir);
-            let cache = Cache::new(modal_path);
+        let is_already_loaded = match &model_type {
+            ModelType::Chat => self.chat_model.is_some(),
+            ModelType::AutoComplete => self.auto_complete_model.is_some(),
+        };
+
+        if !is_already_loaded {
+            let model_path = &self.name;
+            let cache_dir = model_path.parent().unwrap_or(&self.base_path);
+            let cache = Cache::new(cache_dir.to_path_buf());
 
             let source = match &model_type {
                 ModelType::Chat => LlamaSource::qwen_2_5_1_5b_instruct().with_cache(cache),
