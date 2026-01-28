@@ -217,7 +217,7 @@ export class LlmManager {
     try {
       let messageToSend = prompt;
       if (additionalContext) {
-        messageToSend = `Context:\n${additionalContext}\n\nQuestion:\n${prompt}`;
+        messageToSend = `<context>\n${additionalContext}\n</context>\n\n<question>\n${prompt}\n</question>`;
       }
 
       /** @type {string} processId */

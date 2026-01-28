@@ -20,6 +20,13 @@
     if (savedTheme === 'light' || savedTheme === 'dark') {
       appState.setTheme(savedTheme);
     }
+    const savedFontSize = localStorage.getItem('fontSize');
+    if (savedFontSize) {
+      const size = parseInt(savedFontSize);
+      if (!isNaN(size)) {
+        appState.setFontSize(size);
+      }
+    }
     fileManager.getRecents();
     llmManager.setupModels();
   });
@@ -56,6 +63,16 @@
     if (e.key === 'k' && isMod(e)) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
+    }
+
+    if (isMod(e)) {
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        appState.increaseFontSize();
+      } else if (e.key === '-') {
+        e.preventDefault();
+        appState.decreaseFontSize();
+      }
     }
   }}
 />

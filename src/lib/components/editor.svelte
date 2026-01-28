@@ -9,6 +9,7 @@
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
   import { clipboard } from '@milkdown/kit/plugin/clipboard'
+  import { appState } from '@/runes/app.svelte.js';
 
   /**
    * @type {{ defaultValue?: string, onSave?: (markdown: string) => void }}
@@ -152,10 +153,12 @@
 
 <main
   class="prose dark:prose-invert prose-stone prose-lg max-w-none w-full font-writer prose-p:my-2"
+  style="font-size: {appState.ui.fontSize}px;"
 >
     <div 
       use:editorAttachment={defaultValue}
       role="textbox"
+      tabindex="0"
       ondblclick={() => {
         if (!editorState.editMode) {
           editorState.setEditMode(true);

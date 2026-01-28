@@ -11,6 +11,7 @@ class AppState {
    *   isCommandMenuOpen: boolean,
    *   isHelpModalOpen: boolean,
    *   theme: 'dark' | 'light',
+   *   fontSize: number,
    * }}
    */
   ui = $state({
@@ -20,7 +21,54 @@ class AppState {
     isCommandMenuOpen: false,
     isHelpModalOpen: false,
     theme: 'dark',
+    fontSize: 18,
   });
+
+  /**
+   * @public
+   *
+   * Increases the font size by 2px.
+   */
+  increaseFontSize() {
+    this.ui = {
+      ...this.ui,
+      fontSize: Math.min(this.ui.fontSize + 2, 40),
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fontSize', this.ui.fontSize.toString());
+    }
+  }
+
+  /**
+   * @public
+   *
+   * Decreases the font size by 2px.
+   */
+  decreaseFontSize() {
+    this.ui = {
+      ...this.ui,
+      fontSize: Math.max(this.ui.fontSize - 2, 12),
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fontSize', this.ui.fontSize.toString());
+    }
+  }
+
+  /**
+   * @public
+   *
+   * Sets the font size directly.
+   * @param {number} size
+   */
+  setFontSize(size) {
+    this.ui = {
+      ...this.ui,
+      fontSize: size,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fontSize', size.toString());
+    }
+  }
 
   /**
    * @public

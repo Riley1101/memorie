@@ -240,7 +240,6 @@
   $effect(() => {
     /** @param {KeyboardEvent} e */
     const handleCaptureKeyDown = (e) => {
-      // 0. Handle Tab in edit mode - support list indentation vs space insertion
       if (e.key === 'Tab' && editorState.editMode) {
         const editor = editorState?.editor;
         if (editor) {
@@ -249,7 +248,6 @@
             const view = ctx.get(editorViewCtx);
             const { state } = view;
             const fromPos = state.selection['$from'];
-            // Check if we are inside a list to let Milkdown's keymap handle it
             for (let d = fromPos.depth; d > 0; d--) {
               if (fromPos.node(d).type.name.includes('list')) {
                 inList = true;
@@ -258,10 +256,8 @@
             }
           });
 
-          // If in a list, let the event through so Milkdown's keymap handles indent/outdent
           if (inList) return;
 
-          // Otherwise, manual override: prevent focus leak and insert 2 spaces
           e.preventDefault();
           editor.action((ctx) => {
             const view = ctx.get(editorViewCtx);
@@ -274,7 +270,6 @@
         return;
       }
       
-      // 1. Handle Escape Priority
       if (e.key === 'Escape') {
         if (isCommandMode) {
           e.preventDefault();
@@ -387,7 +382,6 @@
       if (suggestions[selectedIndex]) {
         executeCommand(suggestions[selectedIndex].cmd);
       } else {
-        // Allow executing exact match even if not selected
         executeCommand(input);
       }
     }
