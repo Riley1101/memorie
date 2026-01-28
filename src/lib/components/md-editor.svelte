@@ -2,6 +2,7 @@
   import { Input } from '@/components/ui/input/index.js';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte.js';
+  import { appState } from '$lib/runes/app.svelte.js';
   import { formatTimeAgo } from '@/utils.js';
   import Editor from './editor.svelte';
   import { invalidateAll, goto } from '$app/navigation';
@@ -66,7 +67,7 @@
       </span>
     </div>
   </div>
-  {#key originalFileName}
+  {#key originalFileName + appState.ui.editorVersion}
     <Editor defaultValue={content} {onSave} />
   {/key}
 </div>

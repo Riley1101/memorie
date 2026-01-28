@@ -4,6 +4,7 @@
   import { editorViewCtx } from '@milkdown/kit/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
+  import { exitCodeBlockPlugin } from '$lib/components/plugins/exit-code-block';
   import { memoryManager } from '$lib/runes/memory.svelte';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
@@ -129,6 +130,7 @@
         })
         .use(listener)
         .use(grammarPlugin)
+        .use(exitCodeBlockPlugin)
         .use(commonmark)
         .use(gfm)
         .use(clipboard)

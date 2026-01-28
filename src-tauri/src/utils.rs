@@ -1,7 +1,8 @@
 use super::error::FileError;
 use super::prompts::{
-    CORRECT_GRAMMAR_PROMPT, IMPROVE_CLARITY_PROMPT, MAKE_FORMAL_PROMPT, PROMPT_EXPANSION_PROMPT,
-    SIMPLIFY_PROMPT,
+    CORRECT_GRAMMAR_PROMPT, IMPROVE_CLARITY_PROMPT, LENGTH_EXPAND_PROMPT, LENGTH_SHORTEN_PROMPT,
+    LOGICAL_FLOW_PROMPT, MAKE_FORMAL_PROMPT, PROMPT_EXPANSION_PROMPT, SIMPLIFY_PROMPT,
+    STYLE_CREATIVE_PROMPT, TONE_ACADEMIC_PROMPT, TONE_FRIENDLY_PROMPT,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -44,6 +45,12 @@ pub enum EditAction {
     MakeFormal,
     Simplify,
     PromptExpansion,
+    ToneFriendly,
+    ToneAcademic,
+    LengthExpand,
+    LengthShorten,
+    StyleCreative,
+    LogicalFlow,
 }
 
 impl EditAction {
@@ -54,6 +61,12 @@ impl EditAction {
             EditAction::ImproveClarity => "ImproveClarity",
             EditAction::MakeFormal => "MakeFormal",
             EditAction::Simplify => "Simplify",
+            EditAction::ToneFriendly => "ToneFriendly",
+            EditAction::ToneAcademic => "ToneAcademic",
+            EditAction::LengthExpand => "LengthExpand",
+            EditAction::LengthShorten => "LengthShorten",
+            EditAction::StyleCreative => "StyleCreative",
+            EditAction::LogicalFlow => "LogicalFlow",
         }
     }
 
@@ -64,6 +77,12 @@ impl EditAction {
             EditAction::ImproveClarity => IMPROVE_CLARITY_PROMPT,
             EditAction::MakeFormal => MAKE_FORMAL_PROMPT,
             EditAction::Simplify => SIMPLIFY_PROMPT,
+            EditAction::ToneFriendly => TONE_FRIENDLY_PROMPT,
+            EditAction::ToneAcademic => TONE_ACADEMIC_PROMPT,
+            EditAction::LengthExpand => LENGTH_EXPAND_PROMPT,
+            EditAction::LengthShorten => LENGTH_SHORTEN_PROMPT,
+            EditAction::StyleCreative => STYLE_CREATIVE_PROMPT,
+            EditAction::LogicalFlow => LOGICAL_FLOW_PROMPT,
         }
     }
 }

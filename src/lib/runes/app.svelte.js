@@ -12,6 +12,7 @@ class AppState {
    *   isHelpModalOpen: boolean,
    *   theme: 'dark' | 'light',
    *   fontSize: number,
+   *   editorVersion: number,
    * }}
    */
   ui = $state({
@@ -22,6 +23,7 @@ class AppState {
     isHelpModalOpen: false,
     theme: 'dark',
     fontSize: 18,
+    editorVersion: 0,
   });
 
   /**
@@ -138,6 +140,18 @@ class AppState {
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme', theme);
     }
+  }
+
+  /**
+   * @public
+   *
+   * Increments the editor version to force a re-mount.
+   */
+  incrementEditorVersion() {
+    this.ui = {
+      ...this.ui,
+      editorVersion: this.ui.editorVersion + 1,
+    };
   }
 }
 

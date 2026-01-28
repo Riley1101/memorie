@@ -4,6 +4,7 @@
   import { invalidateAll } from '$app/navigation';
   import Button from '$lib/components/ui/button/button.svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { appState } from '$lib/runes/app.svelte.js';
 
   /**
    * @typedef {Object} Node
@@ -54,6 +55,7 @@
         nodeId: nodeId,
       });
       await invalidateAll();
+      appState.incrementEditorVersion();
     } catch (error) {
       console.error(`Failed to navigate to version ${nodeId}:`, error);
     } finally {

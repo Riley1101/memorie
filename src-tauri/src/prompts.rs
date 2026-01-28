@@ -25,20 +25,22 @@ Example: Input: "She dont know where is the book at." Output: { "corrections": "
 pub const INSERTION_GUARDRAILS: &str = r#"
 Strict Rules for output text:
 1. Output ONLY the modified text.
-2. Do NOT include conversational filler, introductory remarks, or quotes.
-3. Preserve existing Markdown (bold, italics, links).
-4. If the text already meets the criteria, return it exactly as provided.
-5. Always response just with the edited text, no explanations.
+2. Do NOT include conversational filler, introductory remarks, apologies, or quotes.
+3. Absolutely NO phrases like "Sure!", "Here is...", or "Updated text:".
+4. Preserve existing Markdown (bold, italics, links).
+5. If the text already meets the criteria, return it exactly as provided.
+6. Your response must contain NOTHING but the target text.
 "#;
 
 pub const EDIT_ACTION_BASE_PROMPT: &str = r#"
-Role: AI assistant for writing improvements.\nTask: Perform the specified editing action on the provided text according to the given constraints.\nOutput: The fully edited text only, without any additional commentary or explanation.\n
-Strict Rules for output text:
+Role: AI assistant for writing improvements.
+Task: Perform the specified editing action on the provided text.
+Strict Rules for output:
 1. Output ONLY the modified text.
-2. Do NOT include conversational filler, introductory remarks, or quotes.
-3. Preserve existing Markdown (bold, italics, links).
-4. If the text already meets the criteria, return it exactly as provided.
-5. Always response just with the edited text, no explanations.
+2. NO conversational filler, NO introductory remarks, NO explanations.
+3. Absolutely NO phrases like "Sure!", "Here is...", or "I've updated the text:".
+4. Preserve existing Markdown formatting.
+5. Your response must contain 100% target content and 0% meta-commentary.
 "#;
 
 pub const PROMPT_EXPANSION_PROMPT: &str = r#""#;
@@ -64,6 +66,36 @@ Input:
 pub const SIMPLIFY_PROMPT: &str = r#"
 Task: Simplify text to a 6th-grade reading level.
 Constraints: Short sentences, simple words, no jargon.
+Input:
+"#;
+
+pub const TONE_FRIENDLY_PROMPT: &str = r#"
+Task: Rewrite to be warm and friendly.
+Input:
+"#;
+
+pub const TONE_ACADEMIC_PROMPT: &str = r#"
+Task: Rewrite in a scholarly, objective tone.
+Input:
+"#;
+
+pub const LENGTH_EXPAND_PROMPT: &str = r#"
+Task: Elaborate with more detail and examples.
+Input:
+"#;
+
+pub const LENGTH_SHORTEN_PROMPT: &str = r#"
+Task: Condense significantly while keeping essential points.
+Input:
+"#;
+
+pub const STYLE_CREATIVE_PROMPT: &str = r#"
+Task: Rewrite with vibrant imagery and expressive language.
+Input:
+"#;
+
+pub const LOGICAL_FLOW_PROMPT: &str = r#"
+Task: Restructure for better clarity and sequential logic.
 Input:
 "#;
 

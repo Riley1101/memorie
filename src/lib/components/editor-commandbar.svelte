@@ -16,6 +16,8 @@
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import HouseIcon from '@lucide/svelte/icons/house';
   import HelpIcon from '@lucide/svelte/icons/help-circle';
+  import ScissorsIcon from '@lucide/svelte/icons/scissors';
+  import MaximizeIcon from '@lucide/svelte/icons/maximize';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { editorViewCtx } from '@milkdown/kit/core';
   import { TextSelection } from '@milkdown/kit/prose/state';
@@ -126,6 +128,24 @@
       key: 'l',
       icon: AiSparkleIcon,
     },
+    {
+      cmd: ':shorten',
+      description: 'AI Shorten',
+      action: 'aiShorten',
+      icon: ScissorsIcon,
+    },
+    {
+      cmd: ':expand',
+      description: 'AI Expand',
+      action: 'aiExpand',
+      icon: MaximizeIcon,
+    },
+    {
+      cmd: ':polish',
+      description: 'AI Polish',
+      action: 'aiPolish',
+      icon: AiSparkleIcon,
+    },
   ];
 
   const quickCommands = commands.filter(c => [ ':redo', ':w', ':ai', ':h'].includes(c.cmd));
@@ -214,6 +234,7 @@
         try {
           await invoke('undo_file', { name: fileName });
           await invalidateAll();
+          appState.incrementEditorVersion();
         } catch (e) {
           console.error("Undo failed:", e);
         }
@@ -222,6 +243,7 @@
         try {
           await invoke('redo_file', { name: fileName });
           await invalidateAll();
+          appState.incrementEditorVersion();
         } catch (e) {
           console.error("Redo failed:", e);
         }
@@ -229,6 +251,39 @@
       case 'help':
         appState.toggleHelpModal(!appState.ui.isHelpModalOpen);
         break;
+      case 'aiShorten':
+      case 'aiExpand':
+      case 'aiPolish': {
+        const actionMap = {
+          'aiShorten': 'LengthShorten',
+          'aiExpand': 'LengthExpand',
+          'aiPolish': 'CorrectGrammar'
+        };
+        const milkdownAction = actionMap[command.action];
+        
+        // Get text from selection if possible, otherwise use full document
+        let textToEdit = '';
+        if (editorState.editor) {
+          editorState.editor.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const { state } = view;
+            const { from, to } = state.selection;
+            if (from !== to) {
+              textToEdit = state.doc.textBetween(from, to, ' ');
+            } else {
+              // Fallback to full doc if no selection? 
+              // Actually, GrammarBox works per-paragraph. 
+              // For now, let's just use selection if available.
+              textToEdit = getMarkdown()(ctx);
+            }
+          });
+        }
+        
+        if (textToEdit) {
+          llmManager.sendEditActionMessage(textToEdit, milkdownAction);
+        }
+        break;
+      }
     }
 
     closeCommandMode();

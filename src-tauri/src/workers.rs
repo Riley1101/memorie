@@ -175,7 +175,7 @@ async fn run_chat_worker(
                 message
             )
         };
-        let prompt = prompt.lines().map(|s| s.trim()).collect::<String>();
+        let prompt = prompt.lines().map(|s| s.trim()).collect::<Vec<_>>().join("\n");
 
         let mut chat_session = model.run_chat(&"").await.map_err(|e| e.to_string())?;
 
