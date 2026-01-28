@@ -25,23 +25,30 @@
   onOpenChange={(v) => appState.toggleHelpModal(v)}
 >
   <Dialog.Content class="sm:max-w-[500px]" portalProps={{}}>
-    <Dialog.Header class="">
+    <Dialog.Header class="sr-only">
       <Dialog.Title class="">Keyboard Shortcuts</Dialog.Title>
       <Dialog.Description class="">
         List of all available shortcuts and commands in Memorie.
       </Dialog.Description>
     </Dialog.Header>
 
-    <div class="grid gap-4 py-4">
-      <div class="border rounded-md overflow-hidden font-mono text-sm">
-        <div class="grid grid-cols-[1fr_2fr] bg-muted/50 border-b p-2 font-bold">
-          <span>Shortcut</span>
-          <span>Action</span>
-        </div>
+    <div class="grid gap-2 py-2">
+      <div class="space-y-1.5">
         {#each shortcuts as { key, description }}
-          <div class="grid grid-cols-[1fr_2fr] p-2 border-b last:border-0 hover:bg-accent/50 transition-colors">
-            <span class="text-primary font-bold">{key}</span>
-            <span class="text-muted-foreground">{description}</span>
+          <div class="flex items-center justify-between text-[11px] font-mono hover:bg-accent/50 p-1 px-2 rounded-sm transition-colors group">
+            <span class="text-muted-foreground group-hover:text-foreground transition-colors">{description}</span>
+            <div class="flex gap-1 items-center">
+              {#each key.split(' / ') as part, i}
+                {#if i > 0}<span class="text-[9px] opacity-40">or</span>{/if}
+                <div class="flex gap-0.5">
+                  {#each part.split(' + ') as k}
+                    <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[9px] font-medium text-muted-foreground">
+                      {k}
+                    </kbd>
+                  {/each}
+                </div>
+              {/each}
+            </div>
           </div>
         {/each}
       </div>

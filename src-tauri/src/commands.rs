@@ -51,7 +51,10 @@ pub async fn update_file(
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
 
-    let file_to_update = File { path, name };
+    let last_modified = std::fs::metadata(&path).and_then(|m: std::fs::Metadata| m.modified()).ok()
+        .and_then(|t: std::time::SystemTime| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+        .map(|d: std::time::Duration| d.as_secs()).unwrap_or(0);
+    let file_to_update = File { path, name, last_modified };
 
     let result = fs::update_file(&file_to_update, content).map_err(|e| e.to_string());
 
@@ -69,7 +72,10 @@ pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(),
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
 
-    let file_to_delete = File { path, name };
+    let last_modified = std::fs::metadata(&path).and_then(|m: std::fs::Metadata| m.modified()).ok()
+        .and_then(|t: std::time::SystemTime| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+        .map(|d: std::time::Duration| d.as_secs()).unwrap_or(0);
+    let file_to_delete = File { path, name, last_modified };
 
     fs::delete_file(&file_to_delete).map_err(|e| e.to_string())
 }
@@ -116,7 +122,10 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
 
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
-    let file = File { path, name };
+    let last_modified = std::fs::metadata(&path).and_then(|m: std::fs::Metadata| m.modified()).ok()
+        .and_then(|t: std::time::SystemTime| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+        .map(|d: std::time::Duration| d.as_secs()).unwrap_or(0);
+    let file = File { path, name, last_modified };
     file.read_content().map_err(|e| e.to_string())
 }
 

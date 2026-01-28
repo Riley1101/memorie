@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
  * @typedef {Object} FileEntry
  * @property {string} name - The display name of the file.
  * @property {string} path - The full, absolute path to the file.
+ * @property {number} last_modified - The unix timestamp of when the file was last modified.
  */
 
 const rs_commands = {

@@ -460,35 +460,18 @@
           aria-label="Command input"
         />
       {:else}
-        <div class="hidden md:flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-200">
-          <div class="flex items-center gap-2 pr-2 border-r border-muted-foreground/20">
-            <span class={cn(
-              "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all tracking-wider",
-              editorState.editMode 
-                ? "bg-blue-500/20 text-blue-500 border border-blue-500/30" 
-                : "bg-muted text-muted-foreground border border-transparent"
-            )}>
-              {editorState.editMode ? 'INSERT' : 'NORMAL'}
-            </span>
-          </div>
-
-          {#each quickCommands as qCmd (qCmd.cmd)}
-            <button
-              onclick={() => executeCommand(qCmd.cmd)}
-              class="group flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 transition-all border border-transparent hover:border-border/50"
-              title={qCmd.description}
-            >
-              {#if qCmd.icon}
-                <qCmd.icon class="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-              {/if}
-              {#if qCmd.shortcutLabel}
-                <span class="text-[10px] font-mono text-muted-foreground/60 group-hover:text-foreground transition-colors">
-                  {qCmd.shortcutLabel}
-                </span>
-              {/if}
-            </button>
-          {/each}
-        </div>
+      <div class="flex items-center gap-2 pr-2 border-r border-muted-foreground/20 ml-2">
+        <span class={cn(
+          "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all tracking-wider",
+          editorState.editMode 
+            ? "bg-blue-500/20 text-blue-500 border border-blue-500/30" 
+            : "bg-muted text-muted-foreground border border-transparent"
+        )}>
+          {editorState.editMode ? 'INSERT' : 'NORMAL'}
+        </span>
+      </div>
+      
+      <!-- Command input area -->
       {/if}
     </div>
 
@@ -518,6 +501,13 @@
 
       {#if !isCommandMode}
         <div class="hidden md:flex items-center gap-2 text-[10px] font-mono text-muted-foreground opacity-70">
+          <button 
+            onclick={() => executeCommand(':h')}
+            class="flex items-center gap-1.5 hover:text-foreground transition-colors mr-2"
+          >
+            <HelpIcon class="size-3.5" />
+            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">{MOD_KEY}H</kbd>
+          </button>
           <span class="flex items-center gap-1">
             <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">:</kbd>
             <span>cmd</span>

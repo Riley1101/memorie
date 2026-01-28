@@ -11,16 +11,23 @@ const DEFAULT_EXTENSION: &str = "md";
 pub struct File {
     pub path: PathBuf,
     pub name: String,
+    pub last_modified: u64,
 }
 
 impl File {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new(path: PathBuf, modified: Option<SystemTime>) -> Self {
         let name = path
             .file_name()
             .and_then(OsStr::to_str)
             .unwrap_or("")
             .to_string();
-        File { path, name }
+        
+        let last_modified = modified
+            .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        File { path, name, last_modified }
     }
 
     pub fn read_content(&self) -> Result<String, FileError> {
@@ -53,7 +60,7 @@ pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
 
     let files = files_with_mod_time
         .into_iter()
-        .map(|(path, _)| File::new(path))
+        .map(|(path, mod_time)| File::new(path, Some(mod_time)))
         .collect();
 
     Ok(files)
@@ -67,7 +74,9 @@ pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
         let path = entry.path();
 
         if path.is_file() && path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION) {
-            files.push(File::new(path));
+            let metadata = entry.metadata()?;
+            let modified = metadata.modified().ok();
+            files.push(File::new(path, modified));
         }
     }
 
@@ -77,7 +86,8 @@ pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
 
 pub fn create_file(path: &Path, content: &str) -> Result<File, FileError> {
     fs::write(path, content)?;
-    Ok(File::new(path.to_path_buf()))
+    let modified = fs::metadata(path)?.modified().ok();
+    Ok(File::new(path.to_path_buf(), modified))
 }
 
 pub fn update_file(file: &File, content: &str) -> Result<File, FileError> {
@@ -93,7 +103,8 @@ pub fn delete_file(file: &File) -> Result<(), FileError> {
 pub fn rename_file(old_path: &Path, new_name: &str) -> Result<File, FileError> {
     let new_path = old_path.parent().unwrap_or(Path::new("")).join(new_name);
     fs::rename(old_path, &new_path)?;
-    Ok(File::new(new_path))
+    let modified = fs::metadata(&new_path)?.modified().ok();
+    Ok(File::new(new_path, modified))
 }
 
 #[cfg(test)]

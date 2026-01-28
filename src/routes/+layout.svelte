@@ -31,13 +31,28 @@
     llmManager.setupModels();
   });
 
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      const html = document.documentElement;
+      if (appState.ui.theme === 'dark') {
+        html.classList.add('dark');
+        document.body.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+        document.body.classList.remove('dark');
+      }
+    }
+  });
+
   onDestroy(() => {
     llmManager.destroy();
   });
 </script>
 
+<svelte:body />
+
 <TooltipProvider>
-  <div class="{appState.ui.theme} font-writer font-normal w-full h-screen">
+  <div class="{appState.ui.theme} font-writer font-normal w-full h-screen bg-background text-foreground">
     <Sidebar.Provider
       bind:open={
         () => appState.ui.isSidebarOpen,
@@ -48,7 +63,7 @@
     >
       <SidebarLeft />
       <Sidebar.Inset>
-        <div class="flex flex-1 flex-col gap-4 text-foreground overflow-hidden relative">
+        <div class="w-full h-full flex flex-1 flex-col gap-4 text-foreground overflow-hidden relative">
           {@render children()}
         </div>
       </Sidebar.Inset>

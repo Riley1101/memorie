@@ -9,27 +9,14 @@
   <Sidebar.MenuItem class="">
     <Sidebar.MenuButton
       class=""
-      tooltipContent="AI Search"
-      tooltipContentProps={{}}
-      children={undefined}
-    >
-      {#snippet child({ props })}
-        <a href={resolve('/')} {...props}>
-          <SparklesIcon />
-          AI Search
-        </a>
-      {/snippet}
-    </Sidebar.MenuButton>
-    <Sidebar.MenuButton
-      class=""
       tooltipContent="Documents"
       tooltipContentProps={{}}
       children={undefined}
     >
       {#snippet child({ props })}
-        <a href={resolve('/documents')} {...props}>
+        <a href={resolve('/')} {...props}>
           <FileStackIcon />
-          <span>Documents</span>
+          Documents
         </a>
       {/snippet}
     </Sidebar.MenuButton>
