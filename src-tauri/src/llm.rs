@@ -145,9 +145,8 @@ impl Model {
 
         let session_cache_path = self.base_path.clone().join("chat.llama");
 
-        let model = self.get_model(ModelType::AutoComplete).await?;
-
-        let mut chat = model.chat();
+        let model = self.get_model(ModelType::Chat).await?;
+        let mut chat = model.chat().with_system_prompt(prompt);
 
         if let Some(old_session) = std::fs::read(&session_cache_path)
             .ok()
