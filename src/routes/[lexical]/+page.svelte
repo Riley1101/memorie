@@ -1,23 +1,24 @@
 <script>
   import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
-  import MenuIcon from '@lucide/svelte/icons/menu';
+  import HouseIcon from '@lucide/svelte/icons/house';
   import MarkdownEditor from '$lib/components/md-editor.svelte';
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
   import EditorOutline from '$lib/components/editor-outline.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
+  import { goto } from '$app/navigation';
 
   let { data } = $props();
 
   /**
    * @typedef {Object} RecordPointer
    * @property {string} tb - The table name (e.g., 'chunk', 'documents').
-   * @property {{String:string}} id - The record identifier wrapper.
+   * @property {string} id - The record identifier wrapper.
    */
 
   /**
@@ -95,13 +96,13 @@
     <main class="h-full flex-1 overflow-hidden">
       <ScrollArea class="flex-1 h-full" type="scroll">
         <Button
-          onclick={()=>appState.toggleSidebar(!appState.ui.isSidebarOpen)}
+          onclick={()=>goto('/')}
           variant="ghost"
           size="sm"
           disabled={false}
-          class="mx-6 mt-6 text-neutral-500"
+          class="mx-4 mt-8 md:mx-6 md:mt-6 text-neutral-500"
         >
-          <MenuIcon class="size-4 opacity-20 hover:opacity-100 transition-opacity" />
+          <HouseIcon class="size-4 opacity-20 hover:opacity-100 transition-opacity" />
         </Button>
         <div class="mx-auto max-w-3xl px-6 pb-24">
             <MarkdownEditor {fileName} {body} />

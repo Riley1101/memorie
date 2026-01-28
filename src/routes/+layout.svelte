@@ -1,7 +1,5 @@
 <script>
   import '../app.css';
-  import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-  import SidebarLeft from '$lib/components/sidebar-left.svelte';
   import Cmdk from '$lib/components/cmdk.svelte';
   import ShortcutsHelp from '$lib/components/shortcuts-help.svelte';
 
@@ -52,22 +50,8 @@
 <svelte:body />
 
 <TooltipProvider>
-  <div class="{appState.ui.theme} font-writer font-normal w-full h-screen bg-background text-foreground">
-    <Sidebar.Provider
-      bind:open={
-        () => appState.ui.isSidebarOpen,
-        (newOpen) => {
-          appState.toggleSidebar(newOpen);
-        }
-      }
-    >
-      <SidebarLeft />
-      <Sidebar.Inset>
-        <div class="w-full h-full flex flex-1 flex-col gap-4 text-foreground overflow-hidden relative">
-          {@render children()}
-        </div>
-      </Sidebar.Inset>
-    </Sidebar.Provider>
+  <div class="{appState.ui.theme} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative">
+      {@render children()}
     <Cmdk />
     <ShortcutsHelp />
   </div>

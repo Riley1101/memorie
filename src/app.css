@@ -184,19 +184,22 @@
   }
 
   .markdown {
-    @apply prose prose-stone dark:prose-invert max-w-none prose-lg 
+    @apply prose prose-stone dark:prose-invert max-w-none 
+    font-writer
     prose-headings:font-normal prose-headings:tracking-tight 
-    prose-h1:text-4xl prose-h1:mt-12 prose-h1:mb-8
-    prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
-    prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
-    prose-p:text-lg prose-p:leading-relaxed prose-p:mb-6
-    prose-a:text-primary prose-a:underline-offset-4 hover:prose-a:decoration-2
-    prose-blockquote:italic prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:pl-6
-    prose-ul:list-disc prose-ul:pl-6
-    prose-ol:list-decimal prose-ol:pl-6
-    prose-code:bg-muted/50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none
-    prose-pre:bg-muted/30 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-md
-    text-foreground/90;
+    prose-h1:text-[2.5em] prose-h1:mt-[1.5em] prose-h1:mb-[1em]
+    prose-h2:text-[1.8em] prose-h2:mt-[1.2em] prose-h2:mb-[0.8em]
+    prose-h3:text-[1.4em] prose-h3:mt-[1em] prose-h3:mb-[0.6em]
+    prose-p:text-[1em] prose-p:leading-[1.75] prose-p:mb-[1.5em]
+    prose-a:text-foreground prose-a:underline prose-a:underline-offset-4 prose-a:decoration-border hover:prose-a:decoration-primary
+    prose-blockquote:italic prose-blockquote:border-l prose-blockquote:border-foreground/30 prose-blockquote:pl-[1.5em] prose-blockquote:text-foreground/80
+    prose-ul:list-disc prose-ul:pl-[2em] prose-ul:my-[1.5em]
+    prose-ol:list-decimal prose-ol:pl-[2em] prose-ol:my-[1.5em]
+    prose-li:my-[0.5em]
+    prose-code:bg-muted/30 prose-code:px-[0.4em] prose-code:py-[0.1em] prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-normal prose-code:text-[0.9em]
+    prose-pre:bg-muted/10 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-pre:p-[1.5em]
+    prose-hr:border-border/60 prose-hr:my-[4em]
+    text-foreground/95;
   }
 
   /* Typora-style writing surface */

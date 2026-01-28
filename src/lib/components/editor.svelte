@@ -152,7 +152,7 @@
 </script>
 
 <main
-  class="prose dark:prose-invert prose-stone prose-lg max-w-none w-full font-writer prose-p:my-2"
+  class="markdown w-full"
   style="font-size: {appState.ui.fontSize}px;"
 >
     <div 

@@ -14,7 +14,7 @@
   import HistoryIcon from '@lucide/svelte/icons/history';
   import UndoIcon from '@lucide/svelte/icons/undo-2';
   import RedoIcon from '@lucide/svelte/icons/redo-2';
-  import SidebarIcon from '@lucide/svelte/icons/panel-left';
+  import HouseIcon from '@lucide/svelte/icons/house';
   import HelpIcon from '@lucide/svelte/icons/help-circle';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { editorViewCtx } from '@milkdown/kit/core';
@@ -112,11 +112,11 @@
     },
     {
       cmd: ':b',
-      description: 'Toggle Sidebar',
+      description: 'Go Home',
       action: 'sidebar',
       shortcutLabel: `${MOD_KEY}B`,
       key: 'b',
-      icon: SidebarIcon,
+      icon: HouseIcon,
     },
     {
       cmd: ':ai',
@@ -128,7 +128,7 @@
     },
   ];
 
-  const quickCommands = commands.filter(c => [ ':redo', ':w', ':b', ':ai', ':h'].includes(c.cmd));
+  const quickCommands = commands.filter(c => [ ':redo', ':w', ':ai', ':h'].includes(c.cmd));
 
   let suggestions = $derived.by(() => {
     if (input === ':') return commands;
@@ -137,12 +137,21 @@
       const term = input.toLowerCase();
       const searchTerm = term.startsWith(':') ? term.slice(1) : term;
 
-      return commands.filter(
+      // Tier 1: Direct matches (command string starts with term or searchTerm)
+      const directMatches = commands.filter(
         (cmd) =>
           cmd.cmd.toLowerCase().startsWith(term) ||
-          cmd.cmd.toLowerCase().slice(1).startsWith(searchTerm) ||
+          cmd.cmd.toLowerCase().slice(1).startsWith(searchTerm)
+      );
+
+      // Tier 2: Description matches (description contains searchTerm)
+      const descriptionMatches = commands.filter(
+        (cmd) =>
+          !directMatches.includes(cmd) &&
           cmd.description.toLowerCase().includes(searchTerm)
       );
+
+      return [...directMatches, ...descriptionMatches];
     }
     return [];
   });
@@ -186,7 +195,7 @@
         appState.toggleChatHistory();
         break;
       case 'sidebar':
-        appState.toggleSidebar(!appState.ui.isSidebarOpen);
+        goto(resolve('/'));
         break;
       case 'aichat':
         appState.toggleAiChat(!appState.ui.isChatOpen);
@@ -230,7 +239,10 @@
     input = '';
     // Optional: Return focus to editor
     if (editorState.editMode) {
-      editorState.editor?.commands?.focus();
+      editorState.editor?.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        view.focus();
+      });
     }
   }
 
@@ -284,7 +296,10 @@
         }
         if (editorState.editMode) {
           editorState.setEditMode(false);
-          editorState?.editor?.commands?.blur();
+          editorState?.editor?.action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            view.dom.blur();
+          });
           e.preventDefault();
           return;
         }
@@ -480,18 +495,18 @@
         <DropdownMenu.Trigger>
           {#snippet child({ props })}
             <Button {...props} variant="ghost" size="icon" class="h-6 w-6 md:hidden">
-              <MenuIcon class="size-3.5" />
+              <HouseIcon class="size-3.5" />
             </Button>
           {/snippet}
         </DropdownMenu.Trigger>
-        <DropdownMenu.Content class="dark w-56 mr-2" align="end">
+        <DropdownMenu.Content class="dark w-56 mr-2" align="end" portalProps={{}}>
           <DropdownMenu.Group>
             {#each quickCommands as qCmd (qCmd.cmd)}
-              <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)}>
-                <DropdownMenu.Icon>
-                  <qCmd.icon />
-                </DropdownMenu.Icon>
-                <span class="font-mono text-sm flex-1">{qCmd.description}</span>
+              <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)} class="" inset={false}>
+                <div class="flex items-center gap-2 flex-1">
+                  <qCmd.icon class="size-3.5" />
+                  <span class="font-mono text-sm">{qCmd.description}</span>
+                </div>
                 <DropdownMenu.Shortcut class="">{qCmd.shortcutLabel}</DropdownMenu.Shortcut>
               </DropdownMenu.Item>
             {/each}
