@@ -45,7 +45,7 @@ jobs:
 
       - uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ACTION_TOKEN }}
         with:
           tagName: ${{ github.event.inputs.version || 'v__VERSION__' }}
           releaseName: "memoire ${{ github.event.inputs.version || 'v__VERSION__' }}"
