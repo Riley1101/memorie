@@ -10,6 +10,7 @@
   import { isMod } from '$lib/keyboard.svelte.js';
 
   import { TooltipProvider } from '$lib/components/ui/tooltip/index.js';
+  import { cn } from '$lib/utils';
 
   let { children } = $props();
 
@@ -59,6 +60,20 @@
 
 <svelte:window
   onkeydown={(e) => {
+    if (e.key === 'Backspace') {
+      const target = e.target;
+      const isInput = 
+        target instanceof HTMLElement && (
+          target.tagName === 'INPUT' || 
+          target.tagName === 'TEXTAREA' || 
+          target.isContentEditable
+        );
+      
+      if (!isInput) {
+        e.preventDefault();
+      }
+    }
+
     if (e.key === 'k' && isMod(e)) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);

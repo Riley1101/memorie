@@ -91,7 +91,7 @@
 </script>
 
 <div class="flex flex-col w-full pb-20 font-writer">
-  <div class="sticky top-0 bg-background/95 backdrop-blur-sm z-10 pt-4 pb-6">
+  <div class="sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-4 pb-6">
     <div class="relative group w-full">
         <Input 
             bind:value={keyword} 
@@ -116,7 +116,7 @@
   <div class="space-y-12 mt-4">
     {#each groupedFiles() as group (group.id)}
       <div class="relative">
-        <div class="flex items-center gap-4 mb-6 sticky top-18 z-10 py-1 bg-background/95 backdrop-blur-sm">
+        <div class="z-10 flex items-center gap-4 mb-6 sticky top-18 py-1 bg-background/95 backdrop-blur-sm">
             <h3 class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-background pr-3">
                 {group.label}
             </h3>

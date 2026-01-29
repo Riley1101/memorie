@@ -474,7 +474,7 @@ impl MemoryDocumentAnalysisExt for Memory {
 
     async fn rename_document(&self, old_title: &str, new_title: &str) -> Result<(), MemoryError> {
         let db = &self.db;
-        let mut response = db
+        let response = db
             .query("UPDATE documents SET title = $new_title WHERE title = $old_title")
             .bind(("old_title", old_title.to_string()))
             .bind(("new_title", new_title.to_string()))

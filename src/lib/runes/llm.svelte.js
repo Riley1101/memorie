@@ -59,6 +59,15 @@ export class LlmManager {
   /** @type boolean - indicates if models are loaded **/
   modelsLoaded = $state(false);
 
+  /** @type number - model loading progress **/
+  loadingProgress = $state(0);
+
+  /** @type string | null - model loading status **/
+  loadingStatus = $state(null);
+
+  /** @type boolean - indicates if load_models command is running **/
+  isLoadModelsInProgress = $state(false);
+
   /** @type boolean - loading state **/
   isRAGLoading = $state(false);
 
@@ -77,15 +86,31 @@ export class LlmManager {
   /** @type {Function[]} - array of unlisten functions **/
   unlisteners = $state([]);
 
+  /** @type {Array<{name: string, downloaded: boolean}>} - model status list **/
+  modelStatuses = $state([]);
+
   /**
    * Sets up Tauri event listeners to receive streaming data from the Rust backend.
    */
   async setupModels() {
     this.modelsLoaded = false;
 
-    await invoke('load_models').then(() => {
-      this.modelsLoaded = true;
-    });
+    this.unlisteners.push(
+      await listen('model-progress', (event) => {
+        this.loadingStatus = event.payload.status;
+        this.loadingProgress = event.payload.progress;
+      })
+    );
+
+    // Initial check of what we have on disk
+    await this.checkModels();
+
+    // Auto-load if models are already downloaded
+    const anyDownloaded = this.modelStatuses.some(m => m.downloaded);
+    if (anyDownloaded) {
+      console.log('Models found on disk, auto-loading...');
+      this.loadModels();
+    }
 
     this.unlisteners.push(
       await listen(LLM_EVENTS.CHAT_INIT, (response) => {
@@ -198,6 +223,38 @@ export class LlmManager {
   }
 
   /**
+   * Checks the status of AI models on the local machine.
+   * Updates modelStatuses with the results.
+   */
+  async checkModels() {
+    try {
+      this.modelStatuses = await invoke('check_models');
+    } catch (e) {
+      console.error('Failed to check models:', e);
+    }
+  }
+
+  async loadModels() {
+    if (this.isLoadModelsInProgress) return;
+    
+    this.isLoadModelsInProgress = true;
+    this.modelsLoaded = false;
+
+    try {
+      await invoke('load_models');
+      this.modelsLoaded = true;
+      await this.checkModels(); // Refresh status after load/download
+    } catch (e) {
+      console.error('Failed to load models:', e);
+      this.error = `Model initialization failed: ${e}`;
+    } finally {
+      this.isLoadModelsInProgress = false;
+      this.loadingStatus = null;
+      this.loadingProgress = 0;
+    }
+  }
+
+  /**
    * Sends a user's prompt to the Rust backend to start the LLM stream.
    * @param {string} prompt The user's message.
    * @param {string} [mode] The mode of the chat (default is "Normal").
@@ -281,8 +338,10 @@ export class LlmManager {
 
       const lastMessage = this.ragMessages[this.ragMessages.length - 1];
       if (lastMessage && lastMessage.role === 'assistant') {
-        lastMessage.references = response.data;
+        lastMessage.references = response.data.results;
       }
+
+      this.workerId = response.data.job_id;
 
       return response;
     } catch (e) {
@@ -303,8 +362,18 @@ export class LlmManager {
       let status = await invoke(LLM_INVOKE.CANCEL_CHAT, { jobId: this.workerId });
       if (status) {
         this.isLoading = false;
+        this.editActionInProgress = false;
+        this.isRAGLoading = false;
         this.workerId = null;
-        this.messages[this.messages.length - 1].content += '\n\nCancelled by user.';
+        
+        if (this.messages.length > 0 && this.messages[this.messages.length - 1].role === 'assistant') {
+          this.messages[this.messages.length - 1].content += '\n\nCancelled by user.';
+        }
+        
+        if (this.editActionContent !== null) {
+          this.editActionContent += '\n\nCancelled by user.';
+          this.newEditActionSession();
+        }
       }
     }
   }

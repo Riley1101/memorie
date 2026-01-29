@@ -123,7 +123,7 @@ async fn run_chat_worker(
     let response = String::new();
 
     if mode == ChatMode::Normal {
-        let mut chat_session = model.run_chat(&"").await.map_err(|e| e.to_string())?;
+        let mut chat_session = model.run_chat(&"", app_handle.clone()).await.map_err(|e| e.to_string())?;
 
         // TODO! Add sampler
         let mut stream = chat_session.add_message(message);
@@ -177,7 +177,7 @@ async fn run_chat_worker(
         };
         let prompt = prompt.lines().map(|s| s.trim()).collect::<Vec<_>>().join("\n");
 
-        let mut chat_session = model.run_chat(&"").await.map_err(|e| e.to_string())?;
+        let mut chat_session = model.run_chat(&"", app_handle.clone()).await.map_err(|e| e.to_string())?;
 
         let mut stream = chat_session.add_message(prompt);
 
@@ -212,9 +212,17 @@ async fn run_chat_worker(
             }
         }
     } else if mode == ChatMode::Grammar {
-        let grammar_check_session = model.run_grammar_check().await.map_err(|e| e.to_string())?;
-        let stream = grammar_check_session(&message);
-        let result = stream.await.map_err(|e| e.to_string())?;
+        let grammar_check_session = model.run_grammar_check(app_handle.clone()).await.map_err(|e| e.to_string())?;
+        
+        let result = tokio::select! {
+            _ = cancellation_token.cancelled() => {
+                return Err("Grammar check cancelled".to_string());
+            }
+            res = grammar_check_session(&message) => {
+                res.map_err(|e| e.to_string())?
+            }
+        };
+
         app_handle
             .emit(
                 ChatEvents::GrammarCheck.as_str(),
@@ -226,7 +234,7 @@ async fn run_chat_worker(
             .unwrap();
         app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
     } else if mode == ChatMode::RagChat {
-        let mut rag_chat_session = model.run_chat(&"").await.map_err(|e| e.to_string())?;
+        let mut rag_chat_session = model.run_chat(&"", app_handle.clone()).await.map_err(|e| e.to_string())?;
 
         let mut stream = rag_chat_session.add_message(message);
 
@@ -261,7 +269,7 @@ async fn run_chat_worker(
             }
         }
     } else {
-        let chat_session = model.run_autocomplete().await.map_err(|e| e.to_string())?;
+        let chat_session = model.run_autocomplete(app_handle.clone()).await.map_err(|e| e.to_string())?;
         let stream = chat_session(&message);
         let result = stream.await.map_err(|e| e.to_string())?;
         app_handle

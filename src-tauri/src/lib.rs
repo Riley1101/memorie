@@ -84,6 +84,7 @@ pub async fn run() {
             commands::update_file,
             commands::delete_file,
             commands::rename_file,
+            commands::check_models,
             commands::load_models,
             commands::run_chat,
             commands::cancel_chat,

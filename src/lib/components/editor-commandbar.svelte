@@ -26,6 +26,8 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import { isMod, MOD_KEY } from '$lib/keyboard.svelte.js';
 
+  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+
   /**
    * @typedef {Object} Props
    * @property {string} [fileName]
@@ -508,8 +510,58 @@
   <div class="flex items-center px-4 py-2 h-10">
 
     <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground shrink-0">
-      <div class="flex items-center gap-1.5">
-        <AiSparkleIcon class={cn('size-3.5', isThinking ? 'animate-pulse text-yellow-400' : '')} />
+      <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-1.5">
+          <!-- Merged AI Icon & Status -->
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <button 
+                  {...props}
+                  class="flex items-center gap-1.5 group/ai transition-all hover:scale-105 active:scale-95"
+                  onclick={() => {
+                    if (!llmManager.modelsLoaded) {
+                      const isDownloaded = llmManager.modelStatuses.some(m => m.downloaded);
+                      if (isDownloaded) {
+                        llmManager.loadModels();
+                      } else if (confirm('Download AI Models for local intelligence? (approx 1.5GB)')) {
+                        llmManager.loadModels();
+                      }
+                    }
+                  }}
+                >
+                  <AiSparkleIcon class={cn(
+                    'size-3.5 transition-colors', 
+                    (isThinking || llmManager.isLoadModelsInProgress) ? 'animate-pulse' : '',
+                    !llmManager.modelsLoaded ? 'text-amber-500' : 'text-primary'
+                  )} />
+                  
+                  {#if llmManager.isLoadModelsInProgress}
+                    <span class="text-[9px] text-primary animate-pulse tabular-nums">
+                      {llmManager.loadingProgress}%
+                    </span>
+                  {/if}
+                </button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content 
+              side="top" 
+              align="start" 
+              class="text-[10px] uppercase font-mono tracking-widest bg-amber-500 text-black border-amber-600 font-bold px-2 py-1"
+              portalProps={{}}
+              arrowClasses="bg-amber-500 border-amber-600"
+            >
+              {#if llmManager.isLoadModelsInProgress}
+                Downloading Intelligence...
+              {:else if !llmManager.modelsLoaded}
+                Recommend to download the model for local intelligence
+              {:else}
+                AI Intelligence Ready
+              {/if}
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </div>
+
         <span class={cn("transition-colors", isHistoryVisible ? "text-green-500 font-bold" : "")}>
           {isHistoryVisible ? 'HISTORY' : `v${currentVersion}`}
         </span>

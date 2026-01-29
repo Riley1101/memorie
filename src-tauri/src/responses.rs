@@ -1,5 +1,7 @@
 use kalosm::language::{Parse, Schema};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use crate::memory::SearchResult;
 
 #[derive(Serialize, Deserialize)]
 pub struct Response<T> {
@@ -29,6 +31,12 @@ impl<T> Response<T> {
             error: Some(error_msg),
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SearchResponse {
+    pub results: Vec<SearchResult>,
+    pub job_id: Uuid,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]

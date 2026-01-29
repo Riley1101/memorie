@@ -120,6 +120,7 @@
 
       <PromptInputSubmit
         status={llmManager.isLoading ? "streaming" : "ready"}
+        onclick={handleStop}
       />
     </PromptInputToolbar>
   </PromptInput>

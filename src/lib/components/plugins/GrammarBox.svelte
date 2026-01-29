@@ -8,6 +8,7 @@
   import { Textarea } from '$lib/components/ui/textarea/index.js';
   import { llmManager } from '@/runes/llm.svelte.js';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
+  import SquareIcon from '@lucide/svelte/icons/square';
   import { cn } from '$lib/utils';
   
   /**
@@ -92,8 +93,8 @@
             {/if}
           </div>
           
-          {#if llmManager.editActionContent}
-            <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2">
+            {#if llmManager.editActionContent && !llmManager.editActionInProgress}
               <Button 
                 onclick={handleAccept} 
                 size="sm" 
@@ -103,17 +104,23 @@
                 <CheckIcon class="size-3.5 mr-1.5" />
                 Apply changes
               </Button>
-              <Button 
-                onclick={() => llmManager.newEditActionSession()} 
-                variant="ghost" 
-                size="sm" 
-                disabled={false}
-                class="h-8 px-3 text-muted-foreground hover:text-foreground rounded-full text-xs transition-colors"
-              >
-                Discard
-              </Button>
-            </div>
-          {/if}
+            {/if}
+            <Button 
+              onclick={() => {
+                if (llmManager.editActionInProgress) {
+                  llmManager.cancelMessage();
+                } else {
+                  llmManager.newEditActionSession();
+                }
+              }} 
+              variant="ghost" 
+              size="sm" 
+              disabled={false}
+              class="h-8 px-3 text-muted-foreground hover:text-foreground rounded-full text-xs transition-colors"
+            >
+              Discard
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ use super::prompts::RAG_CHAT_PROMPT;
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
-use crate::llm::ModelType;
+use crate::llm::{ModelStatus, ModelType};
 use crate::memory::{SearchResult, TextChunk};
 use crate::utils::{ChatMode, EditAction};
 use tauri::State;
@@ -138,18 +138,21 @@ pub async fn get_file_history(
     Ok(undo_tree.get_history(&name).cloned())
 }
 
-/**
- *  LLM Commands
- */
 #[tauri::command]
-pub async fn load_models(state: State<'_, AppState>) -> Result<String, String> {
+pub async fn check_models(state: State<'_, AppState>) -> Result<Vec<ModelStatus>, String> {
+    let model = state.model.lock().await;
+    Ok(model.check_models().await)
+}
+
+#[tauri::command]
+pub async fn load_models(handle: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     let mut model = state.model.lock().await;
     model
-        .download_or_load_model(ModelType::Chat)
+        .download_or_load_model(ModelType::Chat, handle.clone())
         .await
         .map_err(|e| e.to_string())?;
     model
-        .download_or_load_model(ModelType::AutoComplete)
+        .download_or_load_model(ModelType::AutoComplete, handle)
         .await
         .map_err(|e| e.to_string())?;
     Ok("Model loaded successfully.".to_string())
@@ -276,7 +279,7 @@ pub async fn get_document_context(
 pub async fn search_documents(
     query: String,
     state: State<'_, AppState>,
-) -> Result<Response<Vec<SearchResult>>, String> {
+) -> Result<Response<super::responses::SearchResponse>, String> {
     let memory = state.memory.lock().await;
     let search_results = memory
         .search_documents(&query, 2)
@@ -321,7 +324,10 @@ pub async fn search_documents(
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(Response::success(search_results))
+    Ok(Response::success(super::responses::SearchResponse {
+        results: search_results,
+        job_id,
+    }))
 }
 
 /**
