@@ -1,5 +1,4 @@
 name: 'Release'
-
 on:
   workflow_dispatch:
     inputs:
@@ -7,7 +6,6 @@ on:
         description: 'Version tag (e.g. v0.1.0). If empty, uses version from tauri.conf.json'
         required: false
         default: ''
-
 jobs:
   publish:
     permissions:
@@ -16,33 +14,26 @@ jobs:
       fail-fast: false
       matrix:
         platform: [macos-latest, windows-latest, ubuntu-latest]
-
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
-
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-
       - name: install bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
-
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev
       - name: install frontend dependencies
         run: bun install
-
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.ACTION_TOKEN }}
