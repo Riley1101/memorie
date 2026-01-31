@@ -48,6 +48,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 sha2 = "0.10.9"
 hex = {version = "0.4.3", features = ["serde"] }
 tauri-plugin-log = "=2.8.0"
+fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 
 [dev-dependencies]
 tempfile = "3.23.0"
