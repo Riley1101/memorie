@@ -89,6 +89,18 @@ export class LlmManager {
   /** @type {Array<{name: string, downloaded: boolean}>} - model status list **/
   modelStatuses = $state([]);
 
+  /** @type {Array<{id: string, name: string, model_type: string, downloaded: boolean}>} - supported models with types **/
+  supportedModels = $state([]);
+
+  /** @type {string | null} - id of model currently being downloaded **/
+  downloadingModelId = $state(null);
+
+  /** @type {{ modelName: string, at: number } | null} - set when a model download completes (shown in command bar, cleared after 5s) **/
+  lastDownloadSuccess = $state(null);
+
+  /** @type {ReturnType<typeof setTimeout> | null} - timeout to clear lastDownloadSuccess **/
+  _downloadSuccessClearTimeout = null;
+
   /**
    * Sets up Tauri event listeners to receive streaming data from the Rust backend.
    */
@@ -231,6 +243,55 @@ export class LlmManager {
       this.modelStatuses = await invoke('check_models');
     } catch (e) {
       console.error('Failed to check models:', e);
+    }
+  }
+
+  /**
+   * Fetches the list of supported Kalosm models with types and download status.
+   */
+  async fetchSupportedModels() {
+    try {
+      this.supportedModels = await invoke('get_supported_models');
+    } catch (e) {
+      console.error('Failed to fetch supported models:', e);
+    }
+  }
+
+  /**
+   * Downloads a model by id. Shows progress via model-progress events.
+   * @param {string} modelId - e.g. 'qwen_2_5_1_5b_instruct'
+   */
+  /**
+   * Starts a model download in the background. Progress is shown in the command bar.
+   * On success, shows an alert in the command bar and refreshes model lists.
+   */
+  async downloadModel(modelId) {
+    if (this.downloadingModelId) return;
+    this.downloadingModelId = modelId;
+    this.error = null;
+    this.lastDownloadSuccess = null;
+    if (this._downloadSuccessClearTimeout) {
+      clearTimeout(this._downloadSuccessClearTimeout);
+      this._downloadSuccessClearTimeout = null;
+    }
+    try {
+      await invoke('download_model', { modelId });
+      await this.fetchSupportedModels();
+      await this.checkModels();
+      const modelName = this.supportedModels.find((m) => m.id === modelId)?.name ?? modelId;
+      this.lastDownloadSuccess = { modelName, at: Date.now() };
+      this._downloadSuccessClearTimeout = setTimeout(() => {
+        this.lastDownloadSuccess = null;
+        this._downloadSuccessClearTimeout = null;
+      }, 5000);
+    } catch (e) {
+      const msg = e?.toString?.() ?? String(e);
+      console.error('Download failed:', msg);
+      this.error = `Download failed: ${msg}`;
+    } finally {
+      this.downloadingModelId = null;
+      this.loadingProgress = 0;
+      this.loadingStatus = null;
     }
   }
 

@@ -38,7 +38,7 @@ export const grammarPlugin = $prose(() => {
 });
 
 /**
- * Creates decorations for selected paragraphs in the document.
+ * Creates a decoration for the last selected paragraph only (single AI box per selection).
  *
  * @param {import("prosemirror-model").Node} doc - The ProseMirror document node.
  * @param {number} selFrom - The start position of the selection.
@@ -51,7 +51,8 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
    */
   const decos = [];
 
-  let sequence = 0;
+  /** @type {{ node: import("prosemirror-model").Node, pos: number } | null} */
+  let lastSelected = null;
 
   doc.descendants((node, pos) => {
     if (node.type.name === 'paragraph') {
@@ -61,47 +62,46 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
       const isSelected = selFrom !== null && pos < selTo && nodeEnd > selFrom;
 
       if (isSelected) {
-        const container = document.createElement('div');
-        const currentSequence = sequence;
-
-        decos.push(
-          Decoration.widget(
-            nodeEnd,
-            (view, getPos) => {
-              /**
-               * Handles the fix action from the GrammarBox.
-               * @param {string} fixedText - The corrected text to replace the original paragraph content.
-               */
-              const handleFix = (fixedText) => {
-                const { tr } = view.state;
-
-                const start = (getPos() || 0) - node.nodeSize + 1;
-                const end = (getPos() || 0) - 1;
-
-                view.dispatch(tr.replaceWith(start, end, view.state.schema.text(fixedText)));
-              };
-              mount(GrammarBox, {
-                target: container,
-                props: {
-                  sequence: currentSequence,
-                  originalText: node.textContent,
-                  onFix: handleFix,
-                },
-              });
-              return container;
-            },
-            {
-              side: 1,
-              block: true,
-              key: `grammar-${pos}`,
-            }
-          )
-        );
+        lastSelected = { node, pos };
       }
-      sequence++;
+      return true;
     }
     return true;
   });
+
+  if (lastSelected) {
+    const { node, pos } = lastSelected;
+    const nodeEnd = pos + node.nodeSize;
+    const container = document.createElement('div');
+
+    decos.push(
+      Decoration.widget(
+        nodeEnd,
+        (view, getPos) => {
+          const handleFix = (fixedText) => {
+            const { tr } = view.state;
+            const start = (getPos() || 0) - node.nodeSize + 1;
+            const end = (getPos() || 0) - 1;
+            view.dispatch(tr.replaceWith(start, end, view.state.schema.text(fixedText)));
+          };
+          mount(GrammarBox, {
+            target: container,
+            props: {
+              sequence: 0,
+              originalText: node.textContent,
+              onFix: handleFix,
+            },
+          });
+          return container;
+        },
+        {
+          side: 1,
+          block: true,
+          key: `grammar-${pos}`,
+        }
+      )
+    );
+  }
 
   return DecorationSet.create(doc, decos);
 }

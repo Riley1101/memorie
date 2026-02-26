@@ -511,6 +511,20 @@
 
     <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground shrink-0">
       <div class="flex items-center gap-2.5">
+        <!-- Success alert: model downloaded (from Settings or background) -->
+        {#if llmManager.lastDownloadSuccess}
+          <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-medium animate-in fade-in duration-200">
+            <span class="size-3 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[8px] leading-none">✓</span>
+            {llmManager.lastDownloadSuccess.modelName} downloaded
+          </span>
+        {/if}
+        <!-- Background download in progress (from Settings) -->
+        {#if llmManager.downloadingModelId && !llmManager.isLoadModelsInProgress}
+          <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[10px] tabular-nums">
+            <span class="size-2.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+            Downloading {(llmManager.supportedModels.find(m => m.id === llmManager.downloadingModelId)?.name) ?? llmManager.downloadingModelId}… {llmManager.loadingProgress}%
+          </span>
+        {/if}
         <div class="flex items-center gap-1.5">
           <!-- Merged AI Icon & Status -->
           <Tooltip.Root>
@@ -553,6 +567,8 @@
             >
               {#if llmManager.isLoadModelsInProgress}
                 Downloading Intelligence...
+              {:else if llmManager.downloadingModelId}
+                Model downloading in background
               {:else if !llmManager.modelsLoaded}
                 Recommend to download the model for local intelligence
               {:else}
