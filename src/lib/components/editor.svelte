@@ -171,11 +171,12 @@
 
 <style>
     main :global(.ProseMirror) {
-        min-height: 200px;
+        min-height: 280px;
         text-wrap: wrap;
         outline: none;
         position: relative;
-        padding-bottom: 50vh;
+        padding-top: var(--writer-editor-pt, 0.5rem);
+        padding-bottom: var(--writer-editor-pb, 50vh);
     }
 
     main :global(.milkdown) {

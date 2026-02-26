@@ -95,17 +95,17 @@
   <div class="w-full h-full flex flex-1 flex-col">
     <main class="h-full flex-1 overflow-hidden">
       <ScrollArea class="flex-1 h-full" type="scroll">
-        <Button
-          onclick={()=>goto('/')}
-          variant="ghost"
-          size="sm"
-          disabled={false}
-          class="mx-4 mt-8 md:mx-6 md:mt-6 text-neutral-500"
-        >
-          <HouseIcon class="size-4 opacity-20 hover:opacity-100 transition-opacity" />
-        </Button>
-        <div class="mx-auto max-w-3xl px-6 pb-24">
-            <MarkdownEditor {fileName} {body} />
+        <div class="writing-surface pb-24">
+          <Button
+            onclick={()=>goto('/')}
+            variant="ghost"
+            size="sm"
+            disabled={false}
+            class="-ml-1 mt-2 mb-4 text-neutral-500"
+          >
+            <HouseIcon class="size-4 opacity-20 hover:opacity-100 transition-opacity" />
+          </Button>
+          <MarkdownEditor {fileName} {body} />
         </div>
       </ScrollArea>
     </main>

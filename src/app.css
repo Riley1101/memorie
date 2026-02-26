@@ -167,6 +167,15 @@
   --shadow-2xl: var(--shadow-2xl);
 
   --font-writer: 'EB Garamond', var(--font-serif);
+
+  /* Writing experience: consistent spacing (4px base) */
+  --writer-padding-x: 1.5rem;   /* 24px - horizontal page padding */
+  --writer-padding-y: 1.5rem;   /* 24px - vertical block padding */
+  --writer-gap-title: 0.75rem;  /* 12px - between title row and editor */
+  --writer-gap-body: 1.25rem;  /* 20px - paragraph / block spacing */
+  --writer-editor-pt: 0.5rem;   /* 8px - top padding inside editor */
+  --writer-editor-pb: 50vh;     /* scroll cushion */
+  --writer-content-max: 48rem;   /* max-w-3xl */
 }
 
 @layer base {
@@ -187,23 +196,72 @@
     @apply prose prose-stone dark:prose-invert max-w-none 
     font-writer
     prose-headings:font-normal prose-headings:tracking-tight 
-    prose-h1:text-[2.5em] prose-h1:mt-[1.5em] prose-h1:mb-[1em]
-    prose-h2:text-[1.8em] prose-h2:mt-[1.2em] prose-h2:mb-[0.8em]
-    prose-h3:text-[1.4em] prose-h3:mt-[1em] prose-h3:mb-[0.6em]
-    prose-p:text-[1em] prose-p:leading-[1.75] prose-p:mb-[1.5em]
+    prose-h1:text-[2.5em] prose-h1:mb-[0.75em]
+    prose-h2:text-[1.8em] prose-h2:mt-[1.25em] prose-h2:mb-[0.6em]
+    prose-h3:text-[1.4em] prose-h3:mt-[1em] prose-h3:mb-[0.5em]
+    prose-p:text-[1em] prose-p:leading-[1.75] prose-p:mb-[1.25em]
     prose-a:text-foreground prose-a:underline prose-a:underline-offset-4 prose-a:decoration-border hover:prose-a:decoration-primary
-    prose-blockquote:italic prose-blockquote:border-l prose-blockquote:border-foreground/30 prose-blockquote:pl-[1.5em] prose-blockquote:text-foreground/80
-    prose-ul:list-disc prose-ul:pl-[2em] prose-ul:my-[1.5em]
-    prose-ol:list-decimal prose-ol:pl-[2em] prose-ol:my-[1.5em]
-    prose-li:my-[0.5em]
-    prose-code:bg-muted/30 prose-code:px-[0.4em] prose-code:py-[0.1em] prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-normal prose-code:text-[0.9em]
-    prose-pre:bg-muted/10 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-pre:p-[1.5em]
-    prose-hr:border-border/60 prose-hr:my-[4em]
+    prose-blockquote:italic prose-blockquote:border-l prose-blockquote:border-foreground/30 prose-blockquote:pl-[1.5em] prose-blockquote:py-[0.25em] prose-blockquote:text-foreground/80 prose-blockquote:my-[1.25em]
+    prose-ul:list-disc prose-ul:pl-[2em] prose-ul:my-[1.25em]
+    prose-ol:list-decimal prose-ol:pl-[2em] prose-ol:my-[1.25em]
+    prose-li:my-[0.375em]
+    prose-code:bg-muted/30 prose-code:px-[0.35em] prose-code:py-[0.15em] prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-normal prose-code:text-[0.9em]
+    prose-pre:bg-muted/10 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-pre:p-[1.25em] prose-pre:my-[1.25em]
+    prose-hr:border-border/60 prose-hr:my-[2.5em]
     text-foreground/95;
   }
 
-  /* Typora-style writing surface */
+  /* Writing surface: single container for editor page */
   .writing-surface {
-    @apply max-w-3xl mx-auto px-6 py-12 md:py-24;
+    max-width: var(--writer-content-max);
+    margin-inline: auto;
+    padding-inline: var(--writer-padding-x);
+    padding-block: var(--writer-padding-y);
+  }
+
+  /* Command bar: align horizontal padding with writing surface */
+  .command-bar__inner {
+    padding-inline: var(--writer-padding-x);
+    padding-block: 0.5rem;
+  }
+
+  /* Writing area title (input is inside a component, so global) */
+  .writing-area .writing-area__title {
+    flex: 1;
+    height: auto;
+    border: none;
+    background: transparent;
+    font-family: var(--font-writer);
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+    color: var(--foreground);
+  }
+  @media (min-width: 768px) {
+    .writing-area .writing-area__title {
+      font-size: 2.5rem;
+    }
+  }
+  .writing-area .writing-area__title:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border-color: transparent;
+  }
+  .writing-area .writing-area__title::placeholder {
+    opacity: 0.35;
+    color: var(--muted-foreground);
+  }
+  .dark .writing-area .writing-area__title {
+    background: transparent;
+  }
+  .writing-area .writing-area__status {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    padding-top: 0.375rem;
   }
 }

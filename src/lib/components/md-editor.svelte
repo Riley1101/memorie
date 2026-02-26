@@ -8,6 +8,19 @@
   import { invalidateAll, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
 
+  /** Strip .md for display */
+  function stripMd(name) {
+    if (!name || typeof name !== 'string') return '';
+    return name.replace(/\.md$/i, '').trim();
+  }
+
+  /** Ensure filename has .md for save/route */
+  function ensureMd(name) {
+    if (!name || !name.trim()) return '';
+    const n = name.trim();
+    return n.endsWith('.md') ? n : `${n}.md`;
+  }
+
   /**
    * @type {{fileName?:string ,body?: string }}
    */
@@ -15,14 +28,15 @@
   let originalFileName = $derived(data.fileName);
   let content = $derived(data.body);
 
-  let editedFileName = $state(data.fileName || "");
+  /** Display-only title (no .md); user edits this */
+  let displayTitle = $state(stripMd(data.fileName || ''));
 
   $effect(() => {
-    editedFileName = data.fileName || "";
+    displayTitle = stripMd(data.fileName || '');
   });
 
   $effect(() => {
-    editorState.setName(editedFileName);
+    editorState.setName(ensureMd(displayTitle));
   });
 
   /**
@@ -31,53 +45,65 @@
    */
   async function onSave(content) {
     if (!editorState.editor) return;
-    if (!editedFileName) return;
+    const filePath = ensureMd(displayTitle);
+    if (!filePath) return;
 
-    if (originalFileName && editedFileName !== originalFileName) {
-      // Process rename
-      const oldName = originalFileName;
-      const newName = editedFileName.endsWith('.md') ? editedFileName : `${editedFileName}.md`;
-
-      if (oldName !== newName) {
-        await fileManager.renameFile(oldName, newName);
-        goto(resolve(`/${newName}`));
-        return;
-      }
+    if (originalFileName && filePath !== originalFileName) {
+      await fileManager.renameFile(originalFileName, filePath);
+      goto(resolve(`/${filePath}`));
+      return;
     }
 
-    // Standard save (update existing or create new if none existed)
-    await fileManager.createNewFile(editedFileName, content);
+    await fileManager.createNewFile(filePath, content);
     invalidateAll();
   }
 </script>
 
-<div class="p-4 pb-0">
-  <div class="flex items-center w-full">
+<div class="writing-area">
+  <div class="writing-area__header">
     <Input
       type="text"
       placeholder="Untitled"
-      bind:value={editedFileName}
+      bind:value={displayTitle}
       disabled={false}
-      class="h-auto border-none bg-transparent dark:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none text-3xl md:text-5xl font-normal mb-8 p-0 mt-8 md:mt-12 placeholder:opacity-20"
+      class="writing-area__title border-none !bg-transparent h-auto !text-4xl"
     ></Input>
-    <div class="ml-auto flex items-center text-xs shrink-0 text-muted-foreground">
+    <div class="writing-area__status">
       <span class="lowercase first-letter:uppercase">
         {editorState.saveStatus.status}
         {formatTimeAgo(editorState.saveStatus.lastSaved)}
       </span>
     </div>
   </div>
-  {#key originalFileName + appState.ui.editorVersion}
-    <Editor defaultValue={content} {onSave} />
-  {/key}
+  <div class="writing-area__body">
+    {#key originalFileName + appState.ui.editorVersion}
+      <Editor defaultValue={content} {onSave} />
+    {/key}
+  </div>
 </div>
 
 <style>
+  .writing-area {
+    padding-bottom: 0;
+  }
+
+  .writing-area__header {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    gap: 1rem;
+    margin-bottom: var(--writer-gap-title, 0.75rem);
+  }
+
+  .writing-area__body {
+    margin-top: 0;
+  }
+
   :global(.ProseMirror:focus) {
     outline: none;
   }
 
   :global(.ProseMirror) {
-    min-height: 300px;
+    min-height: 280px;
   }
 </style>

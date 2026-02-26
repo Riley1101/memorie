@@ -473,7 +473,7 @@
   }
 </script>
 
-<div class="relative bg-background border-t border-border z-40">
+<div class="relative bg-background border-t border-border z-40 command-bar">
 
   {#if isCommandMode && suggestions.length > 0}
     <div
@@ -507,7 +507,7 @@
     </div>
   {/if}
 
-  <div class="flex items-center px-4 py-2 h-10">
+  <div class="flex items-center command-bar__inner h-10">
 
     <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground shrink-0">
       <div class="flex items-center gap-2.5">
