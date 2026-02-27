@@ -3,7 +3,7 @@
   import Cmdk from '$lib/components/cmdk.svelte';
   import ShortcutsHelp from '$lib/components/shortcuts-help.svelte';
 
-  import { appState } from '@/runes/app.svelte.js';
+  import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '@/runes/app.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { onDestroy, onMount } from 'svelte';
@@ -18,6 +18,14 @@
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light' || savedTheme === 'dark') {
       appState.setTheme(savedTheme);
+    }
+    const savedPalette = localStorage.getItem('themePalette');
+    if (savedPalette && THEME_PALETTES.includes(savedPalette)) {
+      appState.setThemePalette(savedPalette);
+    }
+    const savedStyleFlavour = localStorage.getItem('styleFlavour');
+    if (savedStyleFlavour && STYLE_FLAVOURS.includes(savedStyleFlavour)) {
+      appState.setStyleFlavour(savedStyleFlavour);
     }
     const savedFontSize = localStorage.getItem('fontSize');
     if (savedFontSize) {
@@ -43,6 +51,16 @@
     }
   });
 
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      const flavour = appState.ui.styleFlavour;
+      for (const f of STYLE_FLAVOURS) {
+        document.body.classList.remove(`style-${f}`);
+      }
+      document.body.classList.add(`style-${flavour}`);
+    }
+  });
+
   onDestroy(() => {
     llmManager.destroy();
   });
@@ -51,7 +69,7 @@
 <svelte:body />
 
 <TooltipProvider>
-  <div class="{appState.ui.theme} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative">
+  <div class="{appState.ui.theme} {appState.ui.themePalette !== 'default' ? `theme-${appState.ui.themePalette}` : ''} style-{appState.ui.styleFlavour} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative">
       {@render children()}
     <Cmdk />
     <ShortcutsHelp />

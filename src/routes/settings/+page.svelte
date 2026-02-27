@@ -8,7 +8,7 @@
   import SunIcon from '@lucide/svelte/icons/sun';
   import MoonIcon from '@lucide/svelte/icons/moon';
   import HomeIcon from '@lucide/svelte/icons/home';
-  import { appState } from '$lib/runes/app.svelte.js';
+  import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { goto } from '$app/navigation';
   import { llmManager } from '$lib/runes/llm.svelte.js';
@@ -20,13 +20,13 @@
   });
 </script>
 
-<div class="w-full h-full flex flex-col p-8 md:p-12 max-w-3xl mx-auto overflow-hidden">
+<div class="page-container w-full h-full flex flex-col overflow-hidden">
   <div class="flex items-center justify-between mb-8">
     <h2 class="text-5xl font-normal text-foreground">Settings</h2>
     <Button 
       variant="ghost" 
       size="icon"
-      class="opacity-20 hover:opacity-100 transition-opacity"
+      class="text-muted-foreground hover:text-foreground transition-colors"
       onclick={() => goto('/')}
       disabled={false}
     >
@@ -42,14 +42,14 @@
           <div class="flex items-center gap-2 mb-6">
             <h3 class="text-2xl font-normal">Appearance</h3>
           </div>
-          <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex items-center justify-between">
+          <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p class="text-lg font-normal">Theme</p>
               <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                 Switch between light and dark interface.
               </p>
             </div>
-            <div class="flex bg-muted/40 p-1 rounded-md border border-border/50">
+            <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
               <Button 
                 variant={appState.ui.theme === 'light' ? 'secondary' : 'ghost'} 
                 size="sm" 
@@ -70,6 +70,65 @@
                 <MoonIcon class="size-3.5" />
                 Dark
               </Button>
+            </div>
+          </div>
+
+          <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
+            <p class="text-lg font-normal">Color palette</p>
+            <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
+              Accent and primary colors (shadcn-style).
+            </p>
+            <div class="flex flex-wrap gap-2">
+              {#each THEME_PALETTES as palette}
+                <button
+                  type="button"
+                  onclick={() => appState.setThemePalette(palette)}
+                  class="flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium transition-colors
+                    {appState.ui.themePalette === palette
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background hover:bg-accent border-border'}"
+                >
+                  <span
+                    class="size-3.5 rounded-full shrink-0
+                      {palette === 'default' ? 'bg-neutral-500' : ''}
+                      {palette === 'zinc' ? 'bg-zinc-500' : ''}
+                      {palette === 'slate' ? 'bg-slate-500' : ''}
+                      {palette === 'rose' ? 'bg-rose-500' : ''}
+                      {palette === 'blue' ? 'bg-blue-500' : ''}
+                      {palette === 'green' ? 'bg-green-500' : ''}
+                      {palette === 'violet' ? 'bg-violet-500' : ''}"
+                    aria-hidden="true"
+                  ></span>
+                  <span class="capitalize">{palette}</span>
+                </button>
+              {/each}
+            </div>
+          </div>
+
+          <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
+            <p class="text-lg font-normal">Writing style</p>
+            <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
+              Typography, spacing, and surface.
+            </p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              {#each STYLE_FLAVOURS as flavour}
+                <button
+                  type="button"
+                  onclick={() => appState.setStyleFlavour(flavour)}
+                  class="flex flex-col items-start gap-0.5 p-3 rounded-md border text-left transition-colors
+                    {appState.ui.styleFlavour === flavour
+                      ? 'bg-primary/10 text-primary border-primary/40'
+                      : 'bg-background hover:bg-accent border-border'}"
+                >
+                  <span class="font-medium capitalize">{flavour}</span>
+                  <span class="text-xs text-muted-foreground">
+                    {flavour === 'default' ? 'Classic serif, balanced width' : ''}
+                    {flavour === 'minimal' ? 'Sans-serif, spacious, clean' : ''}
+                    {flavour === 'paper' ? 'Warm paper surface, serif' : ''}
+                    {flavour === 'technical' ? 'Compact, sharp, code-friendly' : ''}
+                  </span>
+                </button>
+              {/each}
             </div>
           </div>
         </section>
@@ -145,10 +204,10 @@
                         <div class="flex items-center gap-2 mt-1">
                           <span
                             class="inline-flex px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider {model.model_type === 'chat'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              ? 'bg-success/10 text-success border border-success/20'
                               : model.model_type === 'reasoning'
-                                ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'}"
+                                ? 'bg-primary/10 text-primary border border-primary/20'
+                                : 'bg-warning/10 text-warning border border-warning/20'}"
                           >
                             {model.model_type}
                           </span>
@@ -156,9 +215,9 @@
                       </div>
                       <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                         {#if model.downloaded}
-                          <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-                            <div class="size-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                            <span class="text-[10px] uppercase tracking-wider font-bold text-blue-500">Downloaded</span>
+                          <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20">
+                            <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
+                            <span class="text-[10px] uppercase tracking-wider font-bold text-info">Downloaded</span>
                           </div>
                           {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
                           {#if !isDefault}

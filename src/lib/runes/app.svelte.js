@@ -2,6 +2,12 @@
  * Application state management for the AI chat interface and other UI elements.
  */
 class AppState {
+  /** @type {'default' | 'zinc' | 'slate' | 'rose' | 'blue' | 'green' | 'violet'} */
+  static THEME_PALETTES = ['default', 'zinc', 'slate', 'rose', 'blue', 'green', 'violet'];
+
+  /** @type {'default' | 'minimal' | 'paper' | 'technical'} */
+  static STYLE_FLAVOURS = ['default', 'minimal', 'paper', 'technical'];
+
   /**
    * @public
    * @type {{
@@ -11,6 +17,8 @@ class AppState {
    *   isCommandMenuOpen: boolean,
    *   isHelpModalOpen: boolean,
    *   theme: 'dark' | 'light',
+   *   themePalette: string,
+   *   styleFlavour: string,
    *   fontSize: number,
    *   editorVersion: number,
    * }}
@@ -22,6 +30,8 @@ class AppState {
     isCommandMenuOpen: false,
     isHelpModalOpen: false,
     theme: 'dark',
+    themePalette: 'default',
+    styleFlavour: 'default',
     fontSize: 18,
     editorVersion: 0,
   });
@@ -143,6 +153,34 @@ class AppState {
   }
 
   /**
+   * @param {string} palette - One of default, zinc, slate, rose, blue, green, violet
+   */
+  setThemePalette(palette) {
+    const next = AppState.THEME_PALETTES.includes(palette) ? palette : 'default';
+    this.ui = {
+      ...this.ui,
+      themePalette: next,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('themePalette', next);
+    }
+  }
+
+  /**
+   * @param {string} flavour - One of default, minimal, paper, technical
+   */
+  setStyleFlavour(flavour) {
+    const next = AppState.STYLE_FLAVOURS.includes(flavour) ? flavour : 'default';
+    this.ui = {
+      ...this.ui,
+      styleFlavour: next,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('styleFlavour', next);
+    }
+  }
+
+  /**
    * @public
    *
    * Increments the editor version to force a re-mount.
@@ -156,3 +194,5 @@ class AppState {
 }
 
 export let appState = new AppState();
+export const THEME_PALETTES = AppState.THEME_PALETTES;
+export const STYLE_FLAVOURS = AppState.STYLE_FLAVOURS;

@@ -66,7 +66,7 @@
       placeholder="Untitled"
       bind:value={displayTitle}
       disabled={false}
-      class="writing-area__title border-none !bg-transparent h-auto !text-4xl"
+      class="writing-area__title border-none !bg-transparent h-auto !text-4xl !shadow-none px-0"
     ></Input>
     <div class="writing-area__status">
       <span class="lowercase first-letter:uppercase">

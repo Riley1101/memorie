@@ -101,9 +101,9 @@
             variant="ghost"
             size="sm"
             disabled={false}
-            class="-ml-1 mt-2 mb-4 text-neutral-500"
+            class="-ml-1 mt-2 mb-4 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <HouseIcon class="size-4 opacity-20 hover:opacity-100 transition-opacity" />
+            <HouseIcon class="size-4" />
           </Button>
           <MarkdownEditor {fileName} {body} />
         </div>
