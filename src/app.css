@@ -23,6 +23,12 @@
   --accent-foreground: oklch(0 0 0);
   --destructive: oklch(0.63 0.19 23.03);
   --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.55 0.18 145);
+  --success-foreground: oklch(0.98 0 0);
+  --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.2 0.05 75);
+  --info: oklch(0.55 0.22 264);
+  --info-foreground: oklch(0.98 0 0);
   --border: oklch(0.92 0 0);
   --input: oklch(0.94 0 0);
   --ring: oklch(0 0 0);
@@ -78,6 +84,12 @@
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.69 0.2 23.91);
   --destructive-foreground: oklch(0 0 0);
+  --success: oklch(0.72 0.19 145);
+  --success-foreground: oklch(0.15 0.02 145);
+  --warning: oklch(0.8 0.15 75);
+  --warning-foreground: oklch(0.2 0.05 75);
+  --info: oklch(0.7 0.2 264);
+  --info-foreground: oklch(0.15 0.02 264);
   --border: oklch(0.26 0 0);
   --input: oklch(0.32 0 0);
   --ring: oklch(0.72 0 0);
@@ -114,6 +126,109 @@
   --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.45);
 }
 
+/* Theme palettes (shadcn-style). Use .theme-{name}; .dark applies dark mode. */
+.theme-zinc {
+  --primary: oklch(0.45 0.02 264);
+  --primary-foreground: oklch(0.98 0 0);
+  --ring: oklch(0.45 0.02 264);
+  --border: oklch(0.91 0.01 264);
+  --input: oklch(0.91 0.01 264);
+  --accent: oklch(0.93 0.01 264);
+}
+.dark.theme-zinc {
+  --primary: oklch(0.98 0 0);
+  --primary-foreground: oklch(0.2 0.01 264);
+  --ring: oklch(0.72 0.02 264);
+  --border: oklch(0.28 0.01 264);
+  --input: oklch(0.28 0.01 264);
+  --accent: oklch(0.28 0.01 264);
+}
+
+.theme-slate {
+  --primary: oklch(0.45 0.03 252);
+  --primary-foreground: oklch(0.98 0 0);
+  --ring: oklch(0.45 0.03 252);
+  --border: oklch(0.91 0.02 252);
+  --input: oklch(0.91 0.02 252);
+  --accent: oklch(0.93 0.02 252);
+}
+.dark.theme-slate {
+  --primary: oklch(0.98 0 0);
+  --primary-foreground: oklch(0.2 0.02 252);
+  --ring: oklch(0.72 0.03 252);
+  --border: oklch(0.28 0.02 252);
+  --input: oklch(0.28 0.02 252);
+  --accent: oklch(0.28 0.02 252);
+}
+
+.theme-rose {
+  --primary: oklch(0.55 0.2 12);
+  --primary-foreground: oklch(0.98 0 0);
+  --ring: oklch(0.55 0.2 12);
+  --border: oklch(0.91 0.02 12);
+  --input: oklch(0.91 0.02 12);
+  --accent: oklch(0.94 0.03 12);
+}
+.dark.theme-rose {
+  --primary: oklch(0.75 0.18 12);
+  --primary-foreground: oklch(0.2 0.05 12);
+  --ring: oklch(0.75 0.18 12);
+  --border: oklch(0.32 0.04 12);
+  --input: oklch(0.32 0.04 12);
+  --accent: oklch(0.32 0.04 12);
+}
+
+.theme-blue {
+  --primary: oklch(0.55 0.22 264);
+  --primary-foreground: oklch(0.98 0 0);
+  --ring: oklch(0.55 0.22 264);
+  --border: oklch(0.91 0.02 264);
+  --input: oklch(0.91 0.02 264);
+  --accent: oklch(0.93 0.03 264);
+}
+.dark.theme-blue {
+  --primary: oklch(0.7 0.2 264);
+  --primary-foreground: oklch(0.15 0.02 264);
+  --ring: oklch(0.7 0.2 264);
+  --border: oklch(0.28 0.04 264);
+  --input: oklch(0.28 0.04 264);
+  --accent: oklch(0.32 0.06 264);
+}
+
+.theme-green {
+  --primary: oklch(0.55 0.18 145);
+  --primary-foreground: oklch(0.98 0 0);
+  --ring: oklch(0.55 0.18 145);
+  --border: oklch(0.91 0.02 145);
+  --input: oklch(0.91 0.02 145);
+  --accent: oklch(0.93 0.03 145);
+}
+.dark.theme-green {
+  --primary: oklch(0.72 0.19 145);
+  --primary-foreground: oklch(0.15 0.02 145);
+  --ring: oklch(0.72 0.19 145);
+  --border: oklch(0.28 0.04 145);
+  --input: oklch(0.28 0.04 145);
+  --accent: oklch(0.28 0.04 145);
+}
+
+.theme-violet {
+  --primary: oklch(0.55 0.25 292);
+  --primary-foreground: oklch(0.98 0 0);
+  --ring: oklch(0.55 0.25 292);
+  --border: oklch(0.91 0.02 292);
+  --input: oklch(0.91 0.02 292);
+  --accent: oklch(0.93 0.04 292);
+}
+.dark.theme-violet {
+  --primary: oklch(0.75 0.2 292);
+  --primary-foreground: oklch(0.15 0.02 292);
+  --ring: oklch(0.75 0.2 292);
+  --border: oklch(0.28 0.04 292);
+  --input: oklch(0.28 0.04 292);
+  --accent: oklch(0.32 0.06 292);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -131,6 +246,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -167,6 +288,129 @@
   --shadow-2xl: var(--shadow-2xl);
 
   --font-writer: 'EB Garamond', var(--font-serif);
+
+  /* Writing experience: consistent spacing (4px base). Overridden by .style-* flavour. */
+  --writer-padding-x: 1.5rem;
+  --writer-padding-y: 1.5rem;
+  --writer-gap-title: 0.75rem;
+  --writer-gap-body: 1.25rem;
+  --writer-editor-pt: 0.5rem;
+  --writer-editor-pb: 50vh;
+  --writer-content-max: 48rem;
+  --writer-surface-bg: transparent;
+  --writer-surface-shadow: none;
+  --writer-prose-leading: 1.75;
+  /* App-wide (overridden by .style-* flavour) */
+  --app-page-padding: 2rem;
+}
+
+/* Stylistic themes. Apply .style-{name} on root layout. Affects entire app. */
+.style-default {
+  --font-writer: 'EB Garamond', var(--font-serif);
+  --radius: 0rem;
+  --writer-content-max: 48rem;
+  --writer-padding-x: 1.5rem;
+  --writer-padding-y: 1.5rem;
+  --writer-prose-leading: 1.75;
+  --writer-surface-bg: transparent;
+  --writer-surface-shadow: none;
+  --app-page-padding: 2rem;
+}
+
+.style-minimal {
+  --font-writer: var(--font-sans);
+  --radius: 0.375rem;
+  --writer-content-max: 56rem;
+  --writer-padding-x: 2rem;
+  --writer-padding-y: 2rem;
+  --writer-prose-leading: 1.7;
+  --writer-surface-bg: transparent;
+  --writer-surface-shadow: none;
+  --app-page-padding: 2.5rem;
+}
+.style-minimal .markdown {
+  @apply prose-headings:font-medium;
+}
+.style-minimal .writing-area .writing-area__title {
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.style-paper {
+  --font-writer: 'EB Garamond', var(--font-serif);
+  --radius: 0.25rem;
+  --writer-content-max: 44rem;
+  --writer-padding-x: 2.5rem;
+  --writer-padding-y: 2.5rem;
+  --writer-prose-leading: 1.8;
+  --writer-surface-bg: oklch(0.98 0.005 85);
+  --writer-surface-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
+  --app-page-padding: 2.25rem;
+}
+.dark.style-paper {
+  --writer-surface-bg: oklch(0.14 0.01 85);
+  --writer-surface-shadow: 0 1px 3px oklch(0 0 0 / 0.2);
+}
+.style-paper .writing-surface {
+  background: var(--writer-surface-bg);
+  box-shadow: var(--writer-surface-shadow);
+  border-radius: 2px;
+}
+.style-paper .markdown :global(code) {
+  border-radius: 3px;
+}
+.style-paper .page-container {
+  border-radius: 2px;
+}
+
+.style-technical {
+  --font-writer: var(--font-sans);
+  --radius: 0rem;
+  --writer-content-max: 42rem;
+  --writer-padding-x: 1.25rem;
+  --writer-padding-y: 1.25rem;
+  --writer-prose-leading: 1.65;
+  --writer-surface-bg: transparent;
+  --writer-surface-shadow: none;
+  --app-page-padding: 1.5rem;
+}
+.style-technical .markdown {
+  @apply prose-headings:font-semibold prose-headings:tracking-tight;
+}
+.style-technical .markdown :global(code) {
+  font-size: 0.875em;
+}
+.style-technical .writing-area .writing-area__title {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 1.75rem;
+}
+@media (min-width: 768px) {
+  .style-technical .writing-area .writing-area__title {
+    font-size: 2rem;
+  }
+}
+
+/* Modals and AI sidebar (drawer): use theme radius, font, and surface (paper) */
+body [data-slot="dialog-content"] {
+  border-radius: var(--radius);
+}
+body [data-slot="sheet-content"] {
+  border-radius: var(--radius);
+}
+body [data-slot="drawer-content"] {
+  font-family: var(--font-writer);
+  border-radius: var(--radius);
+}
+body.style-paper [data-slot="dialog-content"],
+body.style-paper [data-slot="sheet-content"],
+body.style-paper [data-slot="drawer-content"] {
+  background: var(--writer-surface-bg);
+  box-shadow: var(--writer-surface-shadow);
+}
+body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="right"],
+body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"] {
+  border-width: 0;
 }
 
 @layer base {
@@ -187,23 +431,140 @@
     @apply prose prose-stone dark:prose-invert max-w-none 
     font-writer
     prose-headings:font-normal prose-headings:tracking-tight 
-    prose-h1:text-[2.5em] prose-h1:mt-[1.5em] prose-h1:mb-[1em]
-    prose-h2:text-[1.8em] prose-h2:mt-[1.2em] prose-h2:mb-[0.8em]
-    prose-h3:text-[1.4em] prose-h3:mt-[1em] prose-h3:mb-[0.6em]
-    prose-p:text-[1em] prose-p:leading-[1.75] prose-p:mb-[1.5em]
+    prose-h1:text-[2.5em] prose-h1:mb-[0.75em]
+    prose-h2:text-[1.8em] prose-h2:mt-[1.25em] prose-h2:mb-[0.6em]
+    prose-h3:text-[1.4em] prose-h3:mt-[1em] prose-h3:mb-[0.5em]
+    prose-p:text-[1em] prose-p:mb-[1.25em]
     prose-a:text-foreground prose-a:underline prose-a:underline-offset-4 prose-a:decoration-border hover:prose-a:decoration-primary
-    prose-blockquote:italic prose-blockquote:border-l prose-blockquote:border-foreground/30 prose-blockquote:pl-[1.5em] prose-blockquote:text-foreground/80
-    prose-ul:list-disc prose-ul:pl-[2em] prose-ul:my-[1.5em]
-    prose-ol:list-decimal prose-ol:pl-[2em] prose-ol:my-[1.5em]
-    prose-li:my-[0.5em]
-    prose-code:bg-muted/30 prose-code:px-[0.4em] prose-code:py-[0.1em] prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-normal prose-code:text-[0.9em]
-    prose-pre:bg-muted/10 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-pre:p-[1.5em]
-    prose-hr:border-border/60 prose-hr:my-[4em]
+    prose-blockquote:italic prose-blockquote:border-l prose-blockquote:border-foreground/30 prose-blockquote:pl-[1.5em] prose-blockquote:py-[0.25em] prose-blockquote:text-foreground/80 prose-blockquote:my-[1.25em]
+    prose-ul:list-disc prose-ul:pl-[2em] prose-ul:my-[1.25em]
+    prose-ol:list-decimal prose-ol:pl-[2em] prose-ol:my-[1.25em]
+    prose-li:my-[0.375em]
+    prose-code:bg-muted/30 prose-code:px-[0.35em] prose-code:py-[0.15em] prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-normal prose-code:text-[0.9em]
+    prose-pre:bg-muted/10 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-pre:p-[1.25em] prose-pre:my-[1.25em]
+    prose-hr:border-border/60 prose-hr:my-[2.5em]
     text-foreground/95;
   }
+  .markdown p {
+    line-height: var(--writer-prose-leading, 1.75);
+  }
 
-  /* Typora-style writing surface */
+  /* Markdown tables: borders, spacing, header, horizontal auto-scroll when wide */
+  .markdown :global(table) {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin-block: 1.5em;
+    font-size: 0.95em;
+  }
+  .markdown :global(thead),
+  .markdown :global(tbody) {
+    display: table-row-group;
+  }
+  .markdown :global(tr) {
+    display: table-row;
+  }
+  .markdown :global(th),
+  .markdown :global(td) {
+    display: table-cell;
+  }
+  .markdown :global(thead) {
+    border-bottom: 2px solid var(--border);
+  }
+  .markdown :global(th) {
+    font-weight: 600;
+    text-align: left;
+    padding: 0.6em 0.875em;
+    background: var(--muted);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .markdown :global(tbody tr) {
+    border-bottom: 1px solid var(--border);
+  }
+  .markdown :global(tbody tr:hover) {
+    background: var(--accent);
+  }
+  .markdown :global(td) {
+    padding: 0.6em 0.875em;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .markdown :global(td:first-child),
+  .markdown :global(th:first-child) {
+    padding-inline-start: 0.875em;
+  }
+  .markdown :global(td:last-child),
+  .markdown :global(th:last-child) {
+    padding-inline-end: 0.875em;
+  }
+
+  /* Writing surface: single container for editor page */
   .writing-surface {
-    @apply max-w-3xl mx-auto px-6 py-12 md:py-24;
+    max-width: var(--writer-content-max);
+    margin-inline: auto;
+    padding-inline: var(--writer-padding-x);
+    padding-block: var(--writer-padding-y);
+  }
+
+  /* Command bar: align horizontal padding with writing surface */
+  .command-bar__inner {
+    padding-inline: var(--writer-padding-x);
+    padding-block: 0.5rem;
+  }
+
+  /* Page container for home, settings, etc. Uses flavour’s --app-page-padding */
+  .page-container {
+    padding: var(--app-page-padding, 2rem);
+    max-width: 48rem;
+    margin-inline: auto;
+  }
+  @media (min-width: 768px) {
+    .page-container {
+      padding: var(--app-page-padding, 2rem);
+    }
+  }
+
+  /* Writing area title (input is inside a component, so global) */
+  .writing-area .writing-area__title {
+    flex: 1;
+    height: auto;
+    border: none;
+    background: transparent;
+    font-family: var(--font-writer);
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+    color: var(--foreground);
+  }
+  @media (min-width: 768px) {
+    .writing-area .writing-area__title {
+      font-size: 2.5rem;
+    }
+  }
+  .writing-area .writing-area__title:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border-color: transparent;
+  }
+  .writing-area .writing-area__title::placeholder {
+    opacity: 0.35;
+    color: var(--muted-foreground);
+  }
+  .dark .writing-area .writing-area__title {
+    background: transparent;
+  }
+  .writing-area .writing-area__status {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    padding-top: 0.375rem;
   }
 }

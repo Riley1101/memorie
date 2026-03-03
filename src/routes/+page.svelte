@@ -6,12 +6,12 @@
   import { llmManager } from '$lib/runes/llm.svelte.js';
 </script>
 
-  <div class="w-full h-full flex flex-col p-8 md:p-12 max-w-3xl mx-auto overflow-hidden">
+  <div class="page-container w-full h-full flex flex-col overflow-hidden">
     <div class="flex items-center justify-between mb-8">
       <h2 class="text-5xl font-normal text-foreground">Documents</h2>
       <button 
         onclick={()=>goto('/settings')}
-        class="opacity-20 hover:opacity-100 transition-opacity"
+        class="text-muted-foreground hover:text-foreground transition-colors"
       >
         <SettingIcon class="size-5" />
       </button>

@@ -9,6 +9,9 @@ pub struct AppConfig {
     pub content_directory: PathBuf,
     pub undotree_dir: PathBuf,
     pub default_llm_model: PathBuf,
+    /// Selected model preset id (e.g. "qwen_2_5_1_5b_instruct"). Used when loading chat/autocomplete.
+    #[serde(default)]
+    pub default_llm_model_id: Option<String>,
 }
 
 impl AppConfig {
@@ -19,6 +22,7 @@ impl AppConfig {
             content_directory: app_dir.join("content"),
             undotree_dir: app_dir.join("history"),
             default_llm_model: app_dir.join("models").join("default_model.gguf"),
+            default_llm_model_id: Some("qwen_2_5_1_5b_instruct".to_string()),
         })
     }
 
@@ -65,6 +69,13 @@ impl AppConfig {
         }
 
         Ok(config)
+    }
+
+    /// Save config to the given path (e.g. config.yaml).
+    pub fn save(&self, path: &str) -> Result<(), ConfigurationError> {
+        let yaml_str = serde_yaml::to_string(self)?;
+        fs::write(path, yaml_str)?;
+        Ok(())
     }
 }
 

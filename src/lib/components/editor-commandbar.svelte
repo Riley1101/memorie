@@ -473,7 +473,7 @@
   }
 </script>
 
-<div class="relative bg-background border-t border-border z-40">
+<div class="relative bg-background border-t border-border z-40 command-bar">
 
   {#if isCommandMode && suggestions.length > 0}
     <div
@@ -507,10 +507,24 @@
     </div>
   {/if}
 
-  <div class="flex items-center px-4 py-2 h-10">
+  <div class="flex items-center command-bar__inner h-10">
 
     <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground shrink-0">
       <div class="flex items-center gap-2.5">
+        <!-- Success alert: model downloaded (from Settings or background) -->
+        {#if llmManager.lastDownloadSuccess}
+          <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-success/15 text-success border border-success/30 text-[10px] font-medium animate-in fade-in duration-200">
+            <span class="size-3 rounded-full bg-success flex items-center justify-center text-success-foreground text-[8px] leading-none">✓</span>
+            {llmManager.lastDownloadSuccess.modelName} downloaded
+          </span>
+        {/if}
+        <!-- Background download in progress (from Settings) -->
+        {#if llmManager.downloadingModelId && !llmManager.isLoadModelsInProgress}
+          <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-warning/15 text-warning border border-warning/30 text-[10px] tabular-nums">
+            <span class="size-2.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+            Downloading {(llmManager.supportedModels.find(m => m.id === llmManager.downloadingModelId)?.name) ?? llmManager.downloadingModelId}… {llmManager.loadingProgress}%
+          </span>
+        {/if}
         <div class="flex items-center gap-1.5">
           <!-- Merged AI Icon & Status -->
           <Tooltip.Root>
@@ -533,7 +547,7 @@
                   <AiSparkleIcon class={cn(
                     'size-3.5 transition-colors', 
                     (isThinking || llmManager.isLoadModelsInProgress) ? 'animate-pulse' : '',
-                    !llmManager.modelsLoaded ? 'text-amber-500' : 'text-primary'
+                    !llmManager.modelsLoaded ? 'text-warning' : 'text-primary'
                   )} />
                   
                   {#if llmManager.isLoadModelsInProgress}
@@ -547,12 +561,14 @@
             <Tooltip.Content 
               side="top" 
               align="start" 
-              class="text-[10px] uppercase font-mono tracking-widest bg-amber-500 text-black border-amber-600 font-bold px-2 py-1"
+              class="text-[10px] uppercase font-mono tracking-widest bg-warning text-warning-foreground border-warning font-bold px-2 py-1"
               portalProps={{}}
-              arrowClasses="bg-amber-500 border-amber-600"
+              arrowClasses="bg-warning border-warning"
             >
               {#if llmManager.isLoadModelsInProgress}
                 Downloading Intelligence...
+              {:else if llmManager.downloadingModelId}
+                Model downloading in background
               {:else if !llmManager.modelsLoaded}
                 Recommend to download the model for local intelligence
               {:else}
@@ -562,7 +578,7 @@
           </Tooltip.Root>
         </div>
 
-        <span class={cn("transition-colors", isHistoryVisible ? "text-green-500 font-bold" : "")}>
+        <span class={cn("transition-colors", isHistoryVisible ? "text-success font-bold" : "")}>
           {isHistoryVisible ? 'HISTORY' : `v${currentVersion}`}
         </span>
       </div>
@@ -586,7 +602,7 @@
         <span class={cn(
           "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all tracking-wider",
           editorState.editMode 
-            ? "bg-blue-500/20 text-blue-500 border border-blue-500/30" 
+            ? "bg-info/20 text-info border border-info/30" 
             : "bg-muted text-muted-foreground border border-transparent"
         )}>
           {editorState.editMode ? 'INSERT' : 'NORMAL'}

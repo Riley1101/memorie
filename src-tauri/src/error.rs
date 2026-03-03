@@ -1,3 +1,4 @@
+use kalosm_common::CacheError;
 use kalosm_llama::LlamaSourceError;
 use rbert::{BertError, BertLoadingError};
 use thiserror::Error;
@@ -31,8 +32,14 @@ pub enum LlamaError {
     #[error("Llama source error: error loading model")]
     LlamaSource(#[from] LlamaSourceError),
 
+    #[error("Model download/cache error: {0}")]
+    Cache(#[from] CacheError),
+
     #[error("Llama chat error: {0}")]
     LlamaChat(String),
+
+    #[error("Unknown model id: {0}")]
+    UnknownModel(String),
 
     #[error("Error getting ModelPath path: {0}")]
     FilePathError(#[from] FileError),

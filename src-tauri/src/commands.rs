@@ -4,7 +4,7 @@ use super::prompts::RAG_CHAT_PROMPT;
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
-use crate::llm::{ModelStatus, ModelType};
+use crate::llm::{download_model_to_cache, ModelStatus, ModelType, SupportedModel};
 use crate::memory::{SearchResult, TextChunk};
 use crate::utils::{ChatMode, EditAction};
 use tauri::State;
@@ -145,14 +145,42 @@ pub async fn check_models(state: State<'_, AppState>) -> Result<Vec<ModelStatus>
 }
 
 #[tauri::command]
+pub async fn get_supported_models(state: State<'_, AppState>) -> Result<Vec<SupportedModel>, String> {
+    let model = state.model.lock().await;
+    Ok(model.get_supported_models().await)
+}
+
+#[tauri::command]
+pub async fn download_model(
+    model_id: String,
+    handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let cache_dir = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("models");
+    download_model_to_cache(&model_id, cache_dir, handle)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn load_models(handle: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
+    let model_id = {
+        let config = state.config.lock().await;
+        config
+            .default_llm_model_id
+            .as_deref()
+            .unwrap_or("qwen_2_5_1_5b_instruct")
+            .to_string()
+    };
     let mut model = state.model.lock().await;
     model
-        .download_or_load_model(ModelType::Chat, handle.clone())
+        .download_or_load_model_by_id(&model_id, ModelType::Chat, handle.clone())
         .await
         .map_err(|e| e.to_string())?;
     model
-        .download_or_load_model(ModelType::AutoComplete, handle)
+        .download_or_load_model_by_id(&model_id, ModelType::AutoComplete, handle)
         .await
         .map_err(|e| e.to_string())?;
     Ok("Model loaded successfully.".to_string())
@@ -337,6 +365,23 @@ pub async fn search_documents(
 pub async fn get_config(state: State<'_, AppState>) -> Result<super::config::AppConfig, String> {
     let config = state.config.lock().await;
     Ok(serde_json::from_str(&serde_json::to_string(&*config).unwrap()).unwrap())
+}
+
+#[tauri::command]
+pub async fn set_default_llm_model(
+    model_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+    let mut config = state.config.lock().await;
+    config.default_llm_model_id = Some(model_id);
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /**
