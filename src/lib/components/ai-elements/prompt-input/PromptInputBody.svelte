@@ -1,7 +1,7 @@
 <script>
 	import { cn } from "$lib/utils";
 
-	let { class: className, children, ...props } = $props();
+	let { class: className = undefined, children = undefined, ...props } = $props();
 </script>
 
 <div class={cn(className, "flex flex-col")} {...props}>

@@ -5,8 +5,8 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		portalProps,
+		class: className = undefined,
+		portalProps = undefined,
 		children,
 		...restProps
 	} = $props();

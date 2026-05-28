@@ -3,7 +3,7 @@
 	import PromptInputButton from "./PromptInputButton.svelte";
 	import PlusIcon from "./PlusIcon.svelte";
 
-	let { class: className, children, ...props } = $props();
+	let { class: className = undefined, children = undefined, ...props } = $props();
 </script>
 
 <DropdownMenu.Trigger>

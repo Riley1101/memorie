@@ -447,8 +447,13 @@ export class LlmManager {
    * @public
    *  Clear message array and start a new chart
    */
-  newSession() {
+  async newSession() {
     this.messages = [];
+    try {
+      await invoke('clear_chat_session');
+    } catch (e) {
+      console.error('Failed to clear chat session:', e);
+    }
   }
 
   /**

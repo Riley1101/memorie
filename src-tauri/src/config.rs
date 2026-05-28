@@ -12,6 +12,8 @@ pub struct AppConfig {
     /// Selected model preset id (e.g. "qwen_2_5_1_5b_instruct"). Used when loading chat/autocomplete.
     #[serde(default)]
     pub default_llm_model_id: Option<String>,
+    #[serde(default)]
+    pub system_prompt: Option<String>,
 }
 
 impl AppConfig {
@@ -23,6 +25,7 @@ impl AppConfig {
             undotree_dir: app_dir.join("history"),
             default_llm_model: app_dir.join("models").join("default_model.gguf"),
             default_llm_model_id: Some("qwen_2_5_1_5b_instruct".to_string()),
+            system_prompt: None,
         })
     }
 

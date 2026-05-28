@@ -50,7 +50,7 @@
                 <div class="w-full text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider mb-1">
                   Sources
                 </div>
-                {#each message.references as ref}
+                {#each message.references as ref (ref.title)}
                   <div class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-secondary/20 text-xs text-muted-foreground border border-border/40 hover:bg-secondary/40 transition-colors cursor-default">
                     <FileText class="size-3.5 opacity-60" />
                     <span>{ref.title}</span>

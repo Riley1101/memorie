@@ -29,7 +29,7 @@
   class="absolute top-0 right-0 h-dvh"
 >
   <Drawer.Content
-    class="dark min-w-1/2 text-foreground font-writer h-full flex flex-col bg-background/95 backdrop-blur-sm"
+    class="{appState.ui.theme} min-w-1/2 text-foreground font-writer h-full flex flex-col bg-background/95 backdrop-blur-sm"
   >
     <ScrollArea class="h-dvh overflow-hidden flex-1 grow shrink-0">
       <AiChatStream />

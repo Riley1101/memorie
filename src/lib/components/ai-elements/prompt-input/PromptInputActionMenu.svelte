@@ -1,7 +1,7 @@
 <script>
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 
-	let { open = $bindable(false), children, ...props } = $props();
+	let { open = $bindable(false), children = undefined, ...props } = $props();
 </script>
 
 <DropdownMenu.Root bind:open {...props}>

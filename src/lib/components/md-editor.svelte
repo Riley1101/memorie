@@ -29,6 +29,7 @@
   let content = $derived(data.body);
 
   /** Display-only title (no .md); user edits this */
+  /* eslint-disable-next-line svelte/prefer-writable-derived */
   let displayTitle = $state(stripMd(data.fileName || ''));
 
   $effect(() => {

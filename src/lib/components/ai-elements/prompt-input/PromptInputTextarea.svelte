@@ -4,10 +4,10 @@
 	import { getAttachmentsContext } from "./attachments-context.svelte.js";
 
 	let {
-		class: className,
+		class: className = undefined,
 		placeholder = "What would you like to know?",
 		value = $bindable(""),
-		onchange,
+		onchange = undefined,
 		...props
 	} = $props();
 

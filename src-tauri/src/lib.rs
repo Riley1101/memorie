@@ -99,6 +99,8 @@ pub async fn run() {
             commands::get_chat_sessions,
             commands::get_config,
             commands::set_default_llm_model,
+            commands::set_system_prompt,
+            commands::clear_chat_session,
             commands::goto_file_version,
             commands::undo_file,
             commands::redo_file,

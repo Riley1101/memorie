@@ -5,10 +5,11 @@
   import { appState } from '$lib/runes/app.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte.js';
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
 
   function handleSelect(fileName) {
     appState.toggleCommandMenu(false);
-    goto(`/${encodeURIComponent(fileName)}`);
+    goto(resolve(`/${encodeURIComponent(fileName)}`));
   }
 
   function handleCreateNew() {
@@ -30,7 +31,7 @@
     <Command.Empty class="">No results found.</Command.Empty>
     
     <Command.Group heading="Documents" class="" value="">
-      {#each fileManager.files as file}
+      {#each fileManager.files as file (file.name)}
         <Command.Item onSelect={() => handleSelect(file.name)} class="">
           <FileTextIcon class="size-4 mr-2" />
           <span>{file.name}</span>

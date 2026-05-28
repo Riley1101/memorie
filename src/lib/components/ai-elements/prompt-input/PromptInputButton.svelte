@@ -1,7 +1,7 @@
 <script>
 	import { cn } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button";
-	let { variant = "ghost", class: className, size, children, ...props } = $props();
+	let { variant = "ghost", class: className = undefined, size = undefined, children = undefined, ...props } = $props();
 
 	let hasMultipleChildren = $derived.by(() => {
 		// In Svelte, we can't easily count children like in React, so we'll default to checking if size is provided

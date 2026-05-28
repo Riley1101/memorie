@@ -267,19 +267,21 @@ pub async fn download_model_to_cache(
 pub struct Model {
     name: PathBuf,
     chat_model: Option<Llama>,
+    loaded_chat_model_id: Option<String>,
     auto_complete_model: Option<Llama>,
+    loaded_autocomplete_model_id: Option<String>,
     base_path: PathBuf,
 }
 
 impl Model {
-    pub fn new(name: PathBuf) -> Self {
-        let root_dir = utils::get_app_dir().expect("Failed to get app directory");
-
+    pub fn new(default_model: PathBuf) -> Self {
         Model {
-            name,
+            name: default_model,
             chat_model: None,
+            loaded_chat_model_id: None,
             auto_complete_model: None,
-            base_path: root_dir,
+            loaded_autocomplete_model_id: None,
+            base_path: utils::get_app_dir().unwrap(),
         }
     }
 
@@ -291,8 +293,8 @@ impl Model {
         handle: tauri::AppHandle,
     ) -> Result<Response<ModelLoadingResponse>, LlamaError> {
         let is_already_loaded = match &model_type {
-            ModelType::Chat => self.chat_model.is_some(),
-            ModelType::AutoComplete => self.auto_complete_model.is_some(),
+            ModelType::Chat => self.chat_model.is_some() && self.loaded_chat_model_id.as_deref() == Some(model_id),
+            ModelType::AutoComplete => self.auto_complete_model.is_some() && self.loaded_autocomplete_model_id.as_deref() == Some(model_id),
         };
 
         if !is_already_loaded {
@@ -354,8 +356,14 @@ impl Model {
                 })
                 .await?;
             match &model_type {
-                ModelType::Chat => self.chat_model = Some(loaded_model),
-                ModelType::AutoComplete => self.auto_complete_model = Some(loaded_model),
+                ModelType::Chat => {
+                    self.chat_model = Some(loaded_model);
+                    self.loaded_chat_model_id = Some(model_id.to_string());
+                }
+                ModelType::AutoComplete => {
+                    self.auto_complete_model = Some(loaded_model);
+                    self.loaded_autocomplete_model_id = Some(model_id.to_string());
+                }
             }
         }
 
@@ -430,10 +438,11 @@ impl Model {
 
     pub async fn get_model(
         &mut self,
+        model_id: &str,
         model_type: ModelType,
         handle: tauri::AppHandle,
     ) -> Result<&Llama, LlamaError> {
-        self.download_or_load_model(model_type.clone(), handle).await?;
+        self.download_or_load_model_by_id(model_id, model_type.clone(), handle).await?;
         match &model_type {
             ModelType::Chat => Ok(self.chat_model.as_ref().unwrap()),
             ModelType::AutoComplete => Ok(self.auto_complete_model.as_ref().unwrap()),
@@ -448,9 +457,10 @@ impl Model {
     /// A Result containing the Chat instance or a LlamaError
     pub async fn run_autocomplete(
         &mut self,
+        model_id: &str,
         handle: tauri::AppHandle,
     ) -> Result<Task<Llama, ArcParser<AutoCompleteResponse>>, LlamaError> {
-        let model = self.get_model(ModelType::AutoComplete, handle).await?;
+        let model = self.get_model(model_id, ModelType::AutoComplete, handle).await?;
 
         let task = model
             .task(TEXT_COMPLETION.to_string())
@@ -486,6 +496,7 @@ impl Model {
     /// A Result containing the Chat instance or a LlamaError
     pub async fn run_chat(
         &mut self,
+        model_id: &str,
         sys_prompt: &str,
         handle: tauri::AppHandle,
     ) -> Result<Chat<Llama>, LlamaError> {
@@ -497,7 +508,7 @@ impl Model {
 
         let session_cache_path = self.base_path.clone().join("chat.llama");
 
-        let model = self.get_model(ModelType::Chat, handle).await?;
+        let model = self.get_model(model_id, ModelType::Chat, handle).await?;
         let mut chat = model.chat().with_system_prompt(prompt);
 
         if let Some(old_session) = std::fs::read(&session_cache_path)
@@ -510,6 +521,17 @@ impl Model {
         Ok(chat)
     }
 
+    /// Save the current chat session to disk so it can be resumed later.
+    pub fn save_chat_session(&self, chat: &mut Chat<Llama>) -> Result<(), LlamaError> {
+        let session_cache_path = self.base_path.clone().join("chat.llama");
+        if let Ok(session) = chat.session() {
+            if let Ok(bytes) = session.to_bytes() {
+                let _ = std::fs::write(&session_cache_path, bytes);
+            }
+        }
+        Ok(())
+    }
+
     /// Load or create a grammar check session with the models
     /// First tries to load a previous session from Cache
     /// If no previous session is found, creates a new chat session with a grammar check system
@@ -518,9 +540,10 @@ impl Model {
     /// A Result containing the Chat instance or a LlamaError
     pub async fn run_grammar_check(
         &mut self,
+        model_id: &str,
         handle: tauri::AppHandle,
     ) -> Result<Task<Llama, ArcParser<GrammarCheckResponse>>, LlamaError> {
-        let model = self.get_model(ModelType::Chat, handle).await?;
+        let model = self.get_model(model_id, ModelType::Chat, handle).await?;
 
         let task = model
             .task(GRAMMAR_CHECK_PROMPT.to_string())

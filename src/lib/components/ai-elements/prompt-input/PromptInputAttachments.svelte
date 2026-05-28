@@ -3,7 +3,7 @@
 	import { watch } from "runed";
 	import { getAttachmentsContext } from "./attachments-context.svelte.js";
 
-	let { class: className, children, ...props } = $props();
+	let { class: className = undefined, children = undefined, ...props } = $props();
 
 	let attachments = getAttachmentsContext();
 	let height = $state(0);

@@ -9,7 +9,6 @@
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
-  import MenuIcon from '@lucide/svelte/icons/menu';
   import SaveIcon from '@lucide/svelte/icons/save';
   import HistoryIcon from '@lucide/svelte/icons/history';
   import UndoIcon from '@lucide/svelte/icons/undo-2';
@@ -20,7 +19,6 @@
   import MaximizeIcon from '@lucide/svelte/icons/maximize';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { editorViewCtx } from '@milkdown/kit/core';
-  import { TextSelection } from '@milkdown/kit/prose/state';
   import { invoke } from '@tauri-apps/api/core';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -622,7 +620,7 @@
             </Button>
           {/snippet}
         </DropdownMenu.Trigger>
-        <DropdownMenu.Content class="dark w-56 mr-2" align="end" portalProps={{}}>
+        <DropdownMenu.Content class="{appState.ui.theme} w-56 mr-2" align="end" portalProps={{}}>
           <DropdownMenu.Group>
             {#each quickCommands as qCmd (qCmd.cmd)}
               <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)} class="" inset={false}>

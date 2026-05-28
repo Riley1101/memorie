@@ -6,7 +6,7 @@
 	import PaperclipIcon from "./PaperclipIcon.svelte";
 	import XIcon from "./XIcon.svelte";
 
-	let { data, class: className, ...props } = $props();
+	let { data, class: className = undefined, ...props } = $props();
 
 	let attachments = getAttachmentsContext();
 

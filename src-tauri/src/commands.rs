@@ -384,6 +384,40 @@ pub async fn set_default_llm_model(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn set_system_prompt(
+    prompt: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+    let mut config = state.config.lock().await;
+    config.system_prompt = if prompt.trim().is_empty() { None } else { Some(prompt) };
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    
+    // Clear the chat session cache so the new system prompt takes effect immediately
+    let session_cache_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("chat.llama");
+    let _ = std::fs::remove_file(session_cache_path);
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn clear_chat_session() -> Result<(), String> {
+    let session_cache_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("chat.llama");
+    // Ignore errors if the file doesn't exist
+    let _ = std::fs::remove_file(session_cache_path);
+    Ok(())
+}
+
 /**
  *  Memory Commands
  */

@@ -41,7 +41,7 @@
 
     <div class="px-2 py-4 max-h-[70vh] overflow-y-auto">
       <div class="space-y-0.5">
-        {#each shortcuts as { key, description, icon }}
+        {#each shortcuts as { key, description, icon } (description)}
           <div class="flex items-center justify-between px-4 py-2 hover:bg-muted/30 rounded-lg transition-all group">
             <div class="flex items-center gap-3">
               {#if icon}
@@ -53,10 +53,10 @@
             </div>
             
             <div class="flex gap-1.5 items-center">
-              {#each key.split(' / ') as part, i}
+              {#each key.split(' / ') as part, i (part + i)}
                 {#if i > 0}<span class="text-[10px] text-muted-foreground/30 font-sans italic">or</span>{/if}
                 <div class="flex gap-1">
-                  {#each part.split(' + ') as k}
+                  {#each part.split(' + ') as k, j (k + j)}
                     <kbd class="min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded border border-border/60 bg-muted/10 text-muted-foreground/80 font-sans text-[10px] font-medium shadow-sm">
                       {k}
                     </kbd>

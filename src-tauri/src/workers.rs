@@ -123,7 +123,15 @@ async fn run_chat_worker(
     let response = String::new();
 
     if mode == ChatMode::Normal {
-        let mut chat_session = model.run_chat(&"", app_handle.clone()).await.map_err(|e| e.to_string())?;
+        let (sys_prompt, model_id) = {
+            let config = state.config.lock().await;
+            (
+                config.system_prompt.clone().unwrap_or_default(),
+                config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string())
+            )
+        };
+        println!("INFO: Starting chat with System Prompt: {:?}", sys_prompt);
+        let mut chat_session = model.run_chat(&model_id, &sys_prompt, app_handle.clone()).await.map_err(|e| e.to_string())?;
 
         // TODO! Add sampler
         let mut stream = chat_session.add_message(message);
@@ -151,6 +159,7 @@ async fn run_chat_worker(
                                 .unwrap();
                         }
                         None => {
+                            let _ = model.save_chat_session(&mut chat_session);
                             app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
                             break;
                         }
@@ -177,7 +186,11 @@ async fn run_chat_worker(
         };
         let prompt = prompt.lines().map(|s| s.trim()).collect::<Vec<_>>().join("\n");
 
-        let mut chat_session = model.run_chat(&"", app_handle.clone()).await.map_err(|e| e.to_string())?;
+        let model_id = {
+            let config = state.config.lock().await;
+            config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string())
+        };
+        let mut chat_session = model.run_chat(&model_id, &"", app_handle.clone()).await.map_err(|e| e.to_string())?;
 
         let mut stream = chat_session.add_message(prompt);
 
@@ -212,7 +225,11 @@ async fn run_chat_worker(
             }
         }
     } else if mode == ChatMode::Grammar {
-        let grammar_check_session = model.run_grammar_check(app_handle.clone()).await.map_err(|e| e.to_string())?;
+        let model_id = {
+            let config = state.config.lock().await;
+            config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string())
+        };
+        let grammar_check_session = model.run_grammar_check(&model_id, app_handle.clone()).await.map_err(|e| e.to_string())?;
         
         let result = tokio::select! {
             _ = cancellation_token.cancelled() => {
@@ -234,7 +251,11 @@ async fn run_chat_worker(
             .unwrap();
         app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
     } else if mode == ChatMode::RagChat {
-        let mut rag_chat_session = model.run_chat(&"", app_handle.clone()).await.map_err(|e| e.to_string())?;
+        let model_id = {
+            let config = state.config.lock().await;
+            config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string())
+        };
+        let mut rag_chat_session = model.run_chat(&model_id, &"", app_handle.clone()).await.map_err(|e| e.to_string())?;
 
         let mut stream = rag_chat_session.add_message(message);
 
@@ -269,7 +290,11 @@ async fn run_chat_worker(
             }
         }
     } else {
-        let chat_session = model.run_autocomplete(app_handle.clone()).await.map_err(|e| e.to_string())?;
+        let model_id = {
+            let config = state.config.lock().await;
+            config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string())
+        };
+        let chat_session = model.run_autocomplete(&model_id, app_handle.clone()).await.map_err(|e| e.to_string())?;
         let stream = chat_session(&message);
         let result = stream.await.map_err(|e| e.to_string())?;
         app_handle

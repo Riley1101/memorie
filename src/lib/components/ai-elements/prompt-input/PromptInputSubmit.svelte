@@ -7,11 +7,11 @@
 	import XIcon from "./XIcon.svelte";
 
 	let {
-		class: className,
+		class: className = undefined,
 		variant = "default",
 		size = "icon",
 		status,
-		children,
+		children = undefined,
 		...props
 	} = $props();
 

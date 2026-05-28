@@ -25,7 +25,6 @@
 
   let text = $state('');
   let includeContext = $state(false);
-  let context = $derived(memoryManager.context);
 
   /**
    * Handles the submission from the PromptInput component.
@@ -61,7 +60,7 @@
   }
 </script>
 
-<div class="flex flex-col gap-2 dark">
+<div class="flex flex-col gap-2">
   <PromptInput
     onSubmit={handleSubmit}
     onStop={handleStop}
@@ -119,7 +118,7 @@
       </PromptInputTools>
 
       <PromptInputSubmit
-        status={llmManager.isLoading ? "streaming" : "ready"}
+        status={(type === 'rag' ? llmManager.isRAGLoading : llmManager.isLoading) ? "streaming" : "ready"}
         onclick={handleStop}
       />
     </PromptInputToolbar>

@@ -11,6 +11,7 @@
   import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { llmManager } from '$lib/runes/llm.svelte.js';
 
   onMount(() => {
@@ -27,7 +28,7 @@
       variant="ghost" 
       size="icon"
       class="text-muted-foreground hover:text-foreground transition-colors"
-      onclick={() => goto('/')}
+      onclick={() => goto(resolve('/'))}
       disabled={false}
     >
       <HomeIcon class="size-5" />
@@ -79,7 +80,7 @@
               Accent and primary colors (shadcn-style).
             </p>
             <div class="flex flex-wrap gap-2">
-              {#each THEME_PALETTES as palette}
+              {#each THEME_PALETTES as palette (palette)}
                 <button
                   type="button"
                   onclick={() => appState.setThemePalette(palette)}
@@ -111,7 +112,7 @@
               Typography, spacing, and surface.
             </p>
             <div class="grid gap-2 sm:grid-cols-2">
-              {#each STYLE_FLAVOURS as flavour}
+              {#each STYLE_FLAVOURS as flavour (flavour)}
                 <button
                   type="button"
                   onclick={() => appState.setStyleFlavour(flavour)}
@@ -197,7 +198,7 @@
               
               <div class="space-y-3 mt-2">
                 {#if llmManager.supportedModels.length > 0}
-                  {#each llmManager.supportedModels as model}
+                  {#each llmManager.supportedModels as model (model.id)}
                     <div class="flex items-center justify-between gap-3 p-3 rounded-md bg-background/50 border border-border/50">
                       <div class="flex flex-col min-w-0 flex-1">
                         <span class="text-sm font-medium truncate">{model.name}</span>
@@ -265,6 +266,28 @@
               <p class="text-base text-muted-foreground mt-6 italic opacity-70">
                 Models are stored locally in your app directory. Chat, reasoning, and coding models are supported. Only downloaded models can be set as default.
               </p>
+            </div>
+
+            <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+              <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                <CpuIcon class="size-4 opacity-50" />
+                <span class="text-xs font-mono uppercase tracking-widest opacity-50">System Prompt</span>
+              </div>
+              <p class="text-sm text-muted-foreground">
+                Set the instructions that guide the behavior of the AI in the sidebar chat.
+              </p>
+              
+              <div class="flex flex-col gap-2 mt-2">
+                <textarea
+                  class="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="e.g. You are a helpful AI assistant..."
+                  value={configManager.config?.system_prompt ?? ''}
+                  onchange={(e) => {
+                    const val = e.currentTarget.value;
+                    configManager.setSystemPrompt(val);
+                  }}
+                ></textarea>
+              </div>
             </div>
           </div>
         </section>

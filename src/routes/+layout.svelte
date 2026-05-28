@@ -10,7 +10,6 @@
   import { isMod } from '$lib/keyboard.svelte.js';
 
   import { TooltipProvider } from '$lib/components/ui/tooltip/index.js';
-  import { cn } from '$lib/utils';
 
   let { children } = $props();
 
@@ -18,6 +17,8 @@
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light' || savedTheme === 'dark') {
       appState.setTheme(savedTheme);
+    } else {
+      appState.setTheme('dark');
     }
     const savedPalette = localStorage.getItem('themePalette');
     if (savedPalette && THEME_PALETTES.includes(savedPalette)) {

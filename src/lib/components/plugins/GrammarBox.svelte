@@ -8,8 +8,8 @@
   import { Textarea } from '$lib/components/ui/textarea/index.js';
   import { llmManager } from '@/runes/llm.svelte.js';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
-  import SquareIcon from '@lucide/svelte/icons/square';
   import { cn } from '$lib/utils';
+  import { appState } from '$lib/runes/app.svelte.js';
   
   /**
    * @typedef {Object} GrammarBoxProps
@@ -144,7 +144,7 @@
         {/snippet}
       </DropdownMenu.Trigger>
       
-      <DropdownMenu.Content portalProps={{}} class="w-72 dark p-2 border border-border/40 shadow-2xl rounded-xl backdrop-blur-xl bg-background/95" align="start">
+      <DropdownMenu.Content portalProps={{}} class="w-72 {appState.ui.theme} p-2 border border-border/40 shadow-2xl rounded-xl backdrop-blur-xl bg-background/95" align="start">
         <div class="flex flex-col gap-2.5 p-1">
           <div class="relative group">
             <Textarea
@@ -166,13 +166,13 @@
           <div class="h-px bg-border/20 mx-1"></div>
           
           <div class="max-h-[300px] overflow-y-auto pr-1">
-            {#each suggestionCategories as category}
+            {#each suggestionCategories as category (category.name)}
               <div class="mt-2 first:mt-0">
                 <div class="px-1 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest pl-2 mb-1">
                   {category.name}
                 </div>
                 <div class="grid grid-cols-1 gap-0.5">
-                  {#each category.items as item}
+                  {#each category.items as item (item.command)}
                     <DropdownMenu.Item
                       closeOnSelect={true}
                       inset={false}

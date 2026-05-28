@@ -7,11 +7,12 @@
   import EditorOutline from '$lib/components/editor-outline.svelte';
   import Button from '$lib/components/ui/button/button.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
 
   let { data } = $props();
 
@@ -97,7 +98,7 @@
       <ScrollArea class="flex-1 h-full" type="scroll">
         <div class="writing-surface pb-24">
           <Button
-            onclick={()=>goto('/')}
+            onclick={()=>goto(resolve('/'))}
             variant="ghost"
             size="sm"
             disabled={false}

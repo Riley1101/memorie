@@ -1,5 +1,4 @@
 <script>
-  import * as Item from '$lib/components/ui/item/index.js';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { fileManager } from '@/runes/fs.svelte';
   import { resolve } from '$app/paths';
@@ -11,7 +10,8 @@
   import { formatFileName } from '@/utils';
   import { Input } from '@/components/ui/input/index.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
-  import { cn } from '$lib/utils';
+  import { SvelteDate } from 'svelte/reactivity';
+  import { appState } from '$lib/runes/app.svelte.js';
 
   let keyword = $state('');
   let isDeleteDialogOpen = $state(false);
@@ -35,18 +35,18 @@
       { id: 'older', label: 'Older', files: [] }
     ];
 
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfYesterday = new Date(startOfToday);
+    const now = new SvelteDate();
+    const startOfToday = new SvelteDate(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new SvelteDate(startOfToday);
     startOfYesterday.setDate(startOfYesterday.getDate() - 1);
     
-    const startOfWeek = new Date(startOfToday);
+    const startOfWeek = new SvelteDate(startOfToday);
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
     
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = new SvelteDate(now.getFullYear(), now.getMonth(), 1);
 
     files.forEach(file => {
-      const d = new Date(file.last_modified * 1000);
+      const d = new SvelteDate(file.last_modified * 1000);
       if (d >= startOfToday) groups[0].files.push(file);
       else if (d >= startOfYesterday) groups[1].files.push(file);
       else if (d >= startOfWeek) groups[2].files.push(file);
@@ -154,7 +154,7 @@
                                     <EllipsisIcon class="size-3.5" />
                                 </Button>
                             </DropdownMenu.Trigger>
-                            <DropdownMenu.Content class="dark w-40 rounded-lg" align="end" portalProps={{}}>
+                            <DropdownMenu.Content class="{appState.ui.theme} w-40 rounded-lg" align="end" portalProps={{}}>
                                 <DropdownMenu.Item
                                     onclick={(e) => { e.preventDefault(); handleDeleteClick(item); }}
                                     variant="destructive"

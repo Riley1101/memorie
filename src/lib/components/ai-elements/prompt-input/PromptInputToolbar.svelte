@@ -1,7 +1,7 @@
 <script>
 	import { cn } from "$lib/utils";
 
-	let { class: className, children, ...props } = $props();
+	let { class: className = undefined, children = undefined, ...props } = $props();
 </script>
 
 <div class={cn("flex items-center justify-between p-1", className)} {...props}>

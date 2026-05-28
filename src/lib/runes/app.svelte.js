@@ -2,10 +2,10 @@
  * Application state management for the AI chat interface and other UI elements.
  */
 class AppState {
-  /** @type {'default' | 'zinc' | 'slate' | 'rose' | 'blue' | 'green' | 'violet'} */
+  /** @type {('default' | 'zinc' | 'slate' | 'rose' | 'blue' | 'green' | 'violet')[]} */
   static THEME_PALETTES = ['default', 'zinc', 'slate', 'rose', 'blue', 'green', 'violet'];
 
-  /** @type {'default' | 'minimal' | 'paper' | 'technical'} */
+  /** @type {('default' | 'minimal' | 'paper' | 'technical')[]} */
   static STYLE_FLAVOURS = ['default', 'minimal', 'paper', 'technical'];
 
   /**

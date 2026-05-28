@@ -6,7 +6,8 @@ class ConfigManager {
    *   content_directory: string,
    *   undotree_dir: string,
    *   default_llm_model: string,
-   *   default_llm_model_id?: string | null
+   *   default_llm_model_id?: string | null,
+   *   system_prompt?: string | null
    * } | null}
    */
   config = $state(null);
@@ -34,6 +35,17 @@ class ConfigManager {
       await this.getConfig();
     } catch (err) {
       console.error('Failed to set default model:', err);
+      this.error = err;
+    }
+  }
+
+  /** Set the system prompt used for the AI chat. */
+  async setSystemPrompt(prompt) {
+    try {
+      await invoke('set_system_prompt', { prompt });
+      await this.getConfig();
+    } catch (err) {
+      console.error('Failed to set system prompt:', err);
       this.error = err;
     }
   }

@@ -5,17 +5,17 @@
 	import { AttachmentsContext, setAttachmentsContext } from "./attachments-context.svelte.js";
 
 	let {
-		class: className,
-		accept,
-		multiple,
-		globalDrop,
-		syncHiddenInput,
+		class: className = undefined,
+		accept = undefined,
+		multiple = undefined,
+		globalDrop = undefined,
+		syncHiddenInput = undefined,
 		clearOnSubmit = true,
-		maxFiles,
-		maxFileSize,
-		onError,
+		maxFiles = undefined,
+		maxFileSize = undefined,
+		onError = undefined,
 		onSubmit,
-		children,
+		children = undefined,
 		...props
 	} = $props();
 
@@ -140,7 +140,7 @@
 		let text = (formData.get("message")) || "";
 
 		// Convert blob URLs to data URLs asynchronously
-		let filesPromises = attachmentsContext.files.map(async ({ id, ...item }) => {
+		let filesPromises = attachmentsContext.files.map(async (item) => {
 			if (item.url && item.url.startsWith("blob:")) {
 				return {
 					...item,
