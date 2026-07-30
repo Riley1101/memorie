@@ -1,6 +1,6 @@
 use super::{error::MemoryError, responses::Response, utils};
 use chrono::Utc;
-use kalosm::sound::ModelLoadingProgress;
+use kalosm::language::ModelLoadingProgress;
 use rbert::{Bert, EmbedderExt};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
