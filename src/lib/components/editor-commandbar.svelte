@@ -17,6 +17,8 @@
   import HelpIcon from '@lucide/svelte/icons/help-circle';
   import ScissorsIcon from '@lucide/svelte/icons/scissors';
   import MaximizeIcon from '@lucide/svelte/icons/maximize';
+  import TerminalIcon from '@lucide/svelte/icons/square-terminal';
+  import SearchIcon from '@lucide/svelte/icons/search';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { editorViewCtx } from '@milkdown/kit/core';
   import { invoke } from '@tauri-apps/api/core';
@@ -37,7 +39,6 @@
 
   // Runes & State
   let isThinking = $derived(llmManager.isLoading);
-  let isHistoryVisible = $state(false); // Changed to state if you intend to toggle it
   let isCommandMode = $state(false);
   let input = $state('');
   let selectedIndex = $state(0);
@@ -218,6 +219,7 @@
         goto(resolve('/'));
         break;
       case 'aichat':
+        console.debug('[DEBUG aichat] isChatOpen before=%s -> requesting=%s', appState.ui.isChatOpen, !appState.ui.isChatOpen);
         appState.toggleAiChat(!appState.ui.isChatOpen);
         break;
       case 'save':
@@ -398,6 +400,9 @@
       }
 
       // 4. Handle Shortcuts
+      if (isMod(e) && isCommandMode) {
+        console.debug('[DEBUG shortcut blocked] key=%s isCommandMode=%s', e.key, isCommandMode);
+      }
       if (isMod(e) && !isCommandMode) {
         // Special check for Z (Undo) and Shift+Z / Y (Redo)
         if (e.key.toLowerCase() === 'z') {
@@ -419,6 +424,7 @@
 
         // Handle other mapped keys
         const match = commands.find(c => c.key === e.key.toLowerCase());
+        console.debug('[DEBUG shortcut match] key=%s matched=%s', e.key, match?.cmd);
         if (match) {
           e.preventDefault();
           e.stopPropagation();
@@ -471,7 +477,8 @@
   }
 </script>
 
-<div class="relative bg-background border-t border-border z-40 command-bar">
+<div class="relative bg-background z-40 command-bar">
+  <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
 
   {#if isCommandMode && suggestions.length > 0}
     <div
@@ -505,117 +512,117 @@
     </div>
   {/if}
 
-  <div class="flex items-center command-bar__inner h-10">
-
-    <div class="flex items-center gap-4 text-xs font-mono text-muted-foreground shrink-0">
-      <div class="flex items-center gap-2.5">
-        <!-- Success alert: model downloaded (from Settings or background) -->
-        {#if llmManager.lastDownloadSuccess}
-          <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-success/15 text-success border border-success/30 text-[10px] font-medium animate-in fade-in duration-200">
-            <span class="size-3 rounded-full bg-success flex items-center justify-center text-success-foreground text-[8px] leading-none">✓</span>
-            {llmManager.lastDownloadSuccess.modelName} downloaded
-          </span>
-        {/if}
-        <!-- Background download in progress (from Settings) -->
-        {#if llmManager.downloadingModelId && !llmManager.isLoadModelsInProgress}
-          <span class="flex items-center gap-1.5 px-2 py-1 rounded bg-warning/15 text-warning border border-warning/30 text-[10px] tabular-nums">
-            <span class="size-2.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-            Downloading {(llmManager.supportedModels.find(m => m.id === llmManager.downloadingModelId)?.name) ?? llmManager.downloadingModelId}… {llmManager.loadingProgress}%
-          </span>
-        {/if}
-        <div class="flex items-center gap-1.5">
-          <!-- Merged AI Icon & Status -->
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <button 
-                  {...props}
-                  class="flex items-center gap-1.5 group/ai transition-all hover:scale-105 active:scale-95"
-                  onclick={() => {
-                    if (!llmManager.modelsLoaded) {
-                      const isDownloaded = llmManager.modelStatuses.some(m => m.downloaded);
-                      if (isDownloaded) {
-                        llmManager.loadModels();
-                      } else if (confirm('Download AI Models for local intelligence? (approx 1.5GB)')) {
-                        llmManager.loadModels();
-                      }
-                    }
-                  }}
-                >
-                  <AiSparkleIcon class={cn(
-                    'size-3.5 transition-colors', 
-                    (isThinking || llmManager.isLoadModelsInProgress) ? 'animate-pulse' : '',
-                    !llmManager.modelsLoaded ? 'text-warning' : 'text-primary'
-                  )} />
-                  
-                  {#if llmManager.isLoadModelsInProgress}
-                    <span class="text-[9px] text-primary animate-pulse tabular-nums">
-                      {llmManager.loadingProgress}%
-                    </span>
-                  {/if}
-                </button>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content 
-              side="top" 
-              align="start" 
-              class="text-[10px] uppercase font-mono tracking-widest bg-warning text-warning-foreground border-warning font-bold px-2 py-1"
-              portalProps={{}}
-              arrowClasses="bg-warning border-warning"
-            >
-              {#if llmManager.isLoadModelsInProgress}
-                Downloading Intelligence...
-              {:else if llmManager.downloadingModelId}
-                Model downloading in background
-              {:else if !llmManager.modelsLoaded}
-                Recommend to download the model for local intelligence
-              {:else}
-                AI Intelligence Ready
-              {/if}
-            </Tooltip.Content>
-          </Tooltip.Root>
-        </div>
-
-        <span class={cn("transition-colors", isHistoryVisible ? "text-success font-bold" : "")}>
-          {isHistoryVisible ? 'HISTORY' : `v${currentVersion}`}
-        </span>
-      </div>
+  {#if isCommandMode}
+    <!-- Command-line mode: takes over the whole statusline, like vim's ":" prompt -->
+    <div class="flex items-center command-bar__inner h-8">
+      <span class="font-mono text-sm text-muted-foreground px-2 shrink-0">:</span>
+      <input
+        bind:this={inputRef}
+        type="text"
+        bind:value={input}
+        onkeydown={handleInputKeyDown}
+        onblur={handleBlur}
+        onfocus={handleFocus}
+        placeholder="Type command..."
+        class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full"
+        aria-label="Command input"
+      />
     </div>
-
-    <div class="flex-1 flex items-center px-4 overflow-hidden">
-      {#if isCommandMode}
-        <input
-          bind:this={inputRef}
-          type="text"
-          bind:value={input}
-          onkeydown={handleInputKeyDown}
-          onblur={handleBlur}
-          onfocus={handleFocus}
-          placeholder="Type command..."
-          class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full"
-          aria-label="Command input"
-        />
-      {:else}
-      <div class="flex items-center gap-2 pr-2 border-r border-muted-foreground/20 ml-2">
+  {:else}
+    <div class="flex items-stretch command-bar__inner h-9 text-[11px] font-mono">
+      <!-- File/version state -->
+      <div class="flex items-center gap-2 px-3.5 text-muted-foreground/80 shrink-0">
         <span class={cn(
-          "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all tracking-wider",
-          editorState.editMode 
-            ? "bg-info/20 text-info border border-info/30" 
-            : "bg-muted text-muted-foreground border border-transparent"
+          "tracking-wide transition-colors",
+          appState.ui.isHistoryOpen ? "text-success font-semibold" : ""
         )}>
-          {editorState.editMode ? 'INSERT' : 'NORMAL'}
+          {appState.ui.isHistoryOpen ? 'HISTORY' : `v${currentVersion}`}
         </span>
       </div>
-      
-      <!-- Command input area -->
-      {/if}
-    </div>
 
-    <div class="shrink-0">
+      <div class="flex-1"></div>
+
+      <!-- Shortcut icons: hover for label + keys -->
+      <div class="hidden md:flex items-center gap-1 px-2 text-muted-foreground/60 shrink-0">
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button {...props} onclick={() => executeCommand(':h')} class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors">
+                <HelpIcon class="size-3.5" />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="top" portalProps={{}}>Shortcuts help · {MOD_KEY}H</Tooltip.Content>
+        </Tooltip.Root>
+
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button {...props} onclick={() => { isCommandMode = true; input = ':'; }} class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors">
+                <TerminalIcon class="size-3.5" />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="top" portalProps={{}}>Command palette · :</Tooltip.Content>
+        </Tooltip.Root>
+
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button {...props} onclick={() => appState.toggleCommandMenu(true)} class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors">
+                <SearchIcon class="size-3.5" />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="top" portalProps={{}}>Search · {MOD_KEY}K</Tooltip.Content>
+        </Tooltip.Root>
+
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button
+                {...props}
+                onclick={() => {
+                  if (!llmManager.modelsLoaded) {
+                    const isDownloaded = llmManager.modelStatuses.some(m => m.downloaded);
+                    if (isDownloaded) {
+                      llmManager.loadModels();
+                    } else if (confirm('Download AI Models for local intelligence? (approx 1.5GB)')) {
+                      llmManager.loadModels();
+                    }
+                  } else {
+                    appState.toggleAiChat(!appState.ui.isChatOpen);
+                  }
+                }}
+                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
+                <AiSparkleIcon class={cn(
+                  'size-3.5 transition-colors',
+                  (isThinking || llmManager.isLoadModelsInProgress) ? 'animate-pulse' : '',
+                  !llmManager.modelsLoaded ? 'text-warning' : ''
+                )} />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="top" portalProps={{}}>
+            {#if llmManager.isLoadModelsInProgress}
+              Downloading intelligence... {llmManager.loadingProgress}%
+            {:else if llmManager.downloadingModelId}
+              Model downloading in background
+            {:else if !llmManager.modelsLoaded}
+              Click to download local AI model
+            {:else}
+              AI chat · {MOD_KEY}L
+            {/if}
+          </Tooltip.Content>
+        </Tooltip.Root>
+      </div>
+
+      <!-- Mobile overflow menu -->
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           {#snippet child({ props })}
-            <Button {...props} variant="ghost" size="icon" class="h-6 w-6 md:hidden">
+            <Button {...props} variant="ghost" size="icon" class="h-7 w-7 rounded-none md:hidden shrink-0">
               <HouseIcon class="size-3.5" />
             </Button>
           {/snippet}
@@ -634,26 +641,6 @@
           </DropdownMenu.Group>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
-
-      {#if !isCommandMode}
-        <div class="hidden md:flex items-center gap-2 text-[10px] font-mono text-muted-foreground opacity-70">
-          <button 
-            onclick={() => executeCommand(':h')}
-            class="flex items-center gap-1.5 hover:text-foreground transition-colors mr-2"
-          >
-            <HelpIcon class="size-3.5" />
-            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">{MOD_KEY}H</kbd>
-          </button>
-          <span class="flex items-center gap-1">
-            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">:</kbd>
-            <span>cmd</span>
-          </span>
-          <span class="flex items-center gap-1 ml-2">
-            <kbd class="pointer-events-none inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">{MOD_KEY}K</kbd>
-            <span>search</span>
-          </span>
-        </div>
-      {/if}
     </div>
-  </div>
+  {/if}
 </div>

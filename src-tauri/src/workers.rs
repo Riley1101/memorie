@@ -159,7 +159,7 @@ async fn run_chat_worker(
                                 .unwrap();
                         }
                         None => {
-                            let _ = model.save_chat_session(&mut chat_session);
+                            let _ = model.save_chat_session(&model_id, &mut chat_session);
                             app_handle.emit(ChatEvents::Completed.as_str(), "").unwrap();
                             break;
                         }

@@ -5,7 +5,6 @@
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
   import EditorOutline from '$lib/components/editor-outline.svelte';
-  import Button from '$lib/components/ui/button/button.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
@@ -13,6 +12,7 @@
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { formatTimeAgo } from '@/utils.js';
 
   let { data } = $props();
 
@@ -74,12 +74,12 @@
 
 <div class="flex h-screen w-full bg-background">
   <aside
-    class="border-r bg-card transition-all duration-300 ease-in-out h-dvh
+    class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md
     {appState.ui.isHistoryOpen ? 'w-60' : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isHistoryOpen}
       <div class="flex h-full flex-col">
-        <div class="border-b px-4 py-3">
+        <div class="px-4 py-3">
           <h2 class="font-semibold text-sm">History</h2>
         </div>
         <ScrollArea class="flex-1 h-full" type="scroll">
@@ -94,31 +94,41 @@
   </aside>
 
   <div class="w-full h-full flex flex-1 flex-col">
+    <header class="relative flex items-center command-bar__inner h-9 text-[11px] font-mono shrink-0">
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
+      <button
+        onclick={() => goto(resolve('/'))}
+        class="flex items-center justify-center size-7 -ml-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+      >
+        <HouseIcon class="size-3.5" />
+      </button>
+      <div class="flex-1 flex justify-center pointer-events-none">
+        <span class="text-muted-foreground select-none truncate max-w-xs">
+          {editorState.name}
+        </span>
+      </div>
+      <span class="text-muted-foreground/70 lowercase first-letter:uppercase tracking-wide">
+        {editorState.saveStatus.status}
+        {formatTimeAgo(editorState.saveStatus.lastSaved)}
+      </span>
+    </header>
+
     <main class="h-full flex-1 overflow-hidden">
       <ScrollArea class="flex-1 h-full" type="scroll">
         <div class="writing-surface pb-24">
-          <Button
-            onclick={()=>goto(resolve('/'))}
-            variant="ghost"
-            size="sm"
-            disabled={false}
-            class="-ml-1 mt-2 mb-4 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <HouseIcon class="size-4" />
-          </Button>
           <MarkdownEditor {fileName} {body} />
         </div>
       </ScrollArea>
     </main>
 
-    <footer class="bg-background">
+    <footer>
       <EditorCommandbar {fileName} currentVersion={history?.current || 0} />
     </footer>
   </div>
 
-  <aside class="hidden w-72 border-l bg-card overflow-hidden">
+  <aside class="hidden w-72 overflow-hidden bg-background/90 backdrop-blur-md">
     <div class="flex h-full flex-col">
-      <div class="border-b px-4 py-3">
+      <div class="px-4 py-3">
         <h2 class="font-semibold text-sm">Outline</h2>
       </div>
       <ScrollArea class="flex-1 h-full" type="scroll">
