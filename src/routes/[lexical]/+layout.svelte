@@ -2,6 +2,7 @@
   import AiChat from '$lib/components/ai-chat.svelte';
   import AiChatStream from '$lib/components/ai-chat-stream.svelte';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
+  import ScrollFade from '$lib/components/scroll-fade.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
   import * as Drawer from '$lib/components/ui/drawer/index.js';
@@ -32,9 +33,11 @@
     data-testid="ai-drawer-content"
     class="{appState.ui.theme} min-w-1/2 text-foreground font-writer h-full flex flex-col bg-background/95 backdrop-blur-sm"
   >
-    <ScrollArea data-testid="ai-drawer-scroll" class="h-dvh overflow-hidden flex-1 grow shrink-0">
-      <AiChatStream />
-    </ScrollArea>
+    <ScrollFade class="h-dvh overflow-hidden flex-1 grow shrink-0">
+      <ScrollArea data-testid="ai-drawer-scroll" class="h-full">
+        <AiChatStream />
+      </ScrollArea>
+    </ScrollFade>
     <Drawer.Footer data-testid="ai-drawer-footer" class="">
       <AiChat />
     </Drawer.Footer>

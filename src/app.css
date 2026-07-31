@@ -439,16 +439,16 @@
   }
 }
 
-/* Modals and AI sidebar (drawer): use theme radius, font, and surface (paper) */
+/* Modals and AI sidebar (drawer): match the rounded-xl radius used app-wide (writing cards, popups) */
 body [data-slot="dialog-content"] {
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
 }
 body [data-slot="sheet-content"] {
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
 }
 body [data-slot="drawer-content"] {
   font-family: var(--font-writer);
-  border-radius: var(--radius);
+  /* radius handled per-side by the component's own rounded-*-xl classes */
 }
 body.style-paper [data-slot="dialog-content"],
 body.style-paper [data-slot="sheet-content"],
