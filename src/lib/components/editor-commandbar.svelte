@@ -193,7 +193,6 @@
    */
   function onSave() {
     if (editorState.editor && fileName) {
-      console.log("Saving file:", fileName);
       const markdown = editorState.editor.action(getMarkdown());
       fileManager.createNewFile(fileName, markdown);
       invalidateAll();
@@ -219,7 +218,6 @@
         goto(resolve('/'));
         break;
       case 'aichat':
-        console.debug('[DEBUG aichat] isChatOpen before=%s -> requesting=%s', appState.ui.isChatOpen, !appState.ui.isChatOpen);
         appState.toggleAiChat(!appState.ui.isChatOpen);
         break;
       case 'save':
@@ -400,9 +398,6 @@
       }
 
       // 4. Handle Shortcuts
-      if (isMod(e) && isCommandMode) {
-        console.debug('[DEBUG shortcut blocked] key=%s isCommandMode=%s', e.key, isCommandMode);
-      }
       if (isMod(e) && !isCommandMode) {
         // Special check for Z (Undo) and Shift+Z / Y (Redo)
         if (e.key.toLowerCase() === 'z') {
@@ -424,7 +419,6 @@
 
         // Handle other mapped keys
         const match = commands.find(c => c.key === e.key.toLowerCase());
-        console.debug('[DEBUG shortcut match] key=%s matched=%s', e.key, match?.cmd);
         if (match) {
           e.preventDefault();
           e.stopPropagation();

@@ -7,9 +7,9 @@
 	import DialogPortal from "./dialog-portal.svelte";
 	let {
 		ref = $bindable(null),
-		class: className,
-		portalProps,
-		children,
+		class: className = undefined,
+		portalProps = undefined,
+		children = undefined,
 		showCloseButton = true,
 		...restProps
 	} = $props();

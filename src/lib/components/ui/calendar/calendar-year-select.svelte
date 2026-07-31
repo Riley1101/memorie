@@ -3,7 +3,7 @@
   import { cn } from '$lib/utils.js';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 
-  let { ref = $bindable(null), class: className, value, ...restProps } = $props();
+  let { ref = $bindable(null), class: className = undefined, value, ...restProps } = $props();
 </script>
 
 <span

@@ -12,7 +12,7 @@
     PromptInputActionMenuTrigger,
     PromptInputActionMenuContent,
     PromptInputActionAddAttachments,
-  } from "$lib/components/ai-elements/prompt-input/index.js";
+  } from '$lib/components/ai-elements/prompt-input/index.js';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
@@ -21,7 +21,7 @@
   import { Tooltip, TooltipTrigger, TooltipContent } from '$lib/components/ui/tooltip/index.js';
 
   /** @type {{type ?: "chat" | "rag"}} */
-  let { type = "chat"} = $props();
+  let { type = 'chat' } = $props();
 
   let text = $state('');
   let includeContext = $state(false);
@@ -34,9 +34,9 @@
     const rawText = message.text?.trim();
     const attachments = message.files;
     if (!rawText && (!attachments || attachments.length === 0)) return;
-    
+
     let finalPrompt = rawText || '';
-    
+
     text = '';
     if (type === 'rag') {
       await llmManager.sendRagMessage(finalPrompt);
@@ -84,7 +84,6 @@
 
     <PromptInputToolbar>
       <PromptInputTools>
-
         <PromptInputActionMenu>
           <PromptInputActionMenuTrigger />
           <PromptInputActionMenuContent>
@@ -110,15 +109,14 @@
               <FileText class="size-4" />
             </Toggle>
           </TooltipTrigger>
-          <TooltipContent class="">
-            Include Current Writing Context
-          </TooltipContent>
+          <TooltipContent class="">Include Current Writing Context</TooltipContent>
         </Tooltip>
-
       </PromptInputTools>
 
       <PromptInputSubmit
-        status={(type === 'rag' ? llmManager.isRAGLoading : llmManager.isLoading) ? "streaming" : "ready"}
+        status={(type === 'rag' ? llmManager.isRAGLoading : llmManager.isLoading)
+          ? 'streaming'
+          : 'ready'}
         onclick={handleStop}
       />
     </PromptInputToolbar>

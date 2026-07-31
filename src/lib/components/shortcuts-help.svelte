@@ -45,7 +45,8 @@
           <div class="flex items-center justify-between px-4 py-2 hover:bg-muted/30 rounded-lg transition-all group">
             <div class="flex items-center gap-3">
               {#if icon}
-                <svelte:component this={icon} class="size-3.5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                {@const Icon = icon}
+                <Icon class="size-3.5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
               {:else}
                 <div class="size-3.5"></div>
               {/if}

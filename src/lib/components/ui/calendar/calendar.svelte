@@ -7,7 +7,8 @@
     ref = $bindable(null),
     value = $bindable(),
     placeholder = $bindable(),
-    class: className,
+    class: className = undefined,
+    /** @type {"short" | "long" | "narrow"} */
     weekdayFormat = 'short',
     buttonVariant = 'ghost',
     captionLayout = 'label',
@@ -15,6 +16,7 @@
     months: monthsProp,
     years,
     monthFormat: monthFormatProp,
+    /** @type {"numeric" | "2-digit" | ((year: number) => string)} */
     yearFormat = 'numeric',
     day,
     disableDaysOutsideMonth = false,
