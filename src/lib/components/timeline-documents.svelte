@@ -2,6 +2,7 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { fileManager } from '@/runes/fs.svelte';
   import { resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
@@ -63,6 +64,15 @@
     return groups.filter(g => g.files.length > 0);
   });
 
+  function handleSearchKeydown(e) {
+    if (e.key !== 'Enter') return;
+    if (filteredFiles.length > 0) {
+      goto(resolve(`/${encodeURIComponent(filteredFiles[0].name)}`));
+    } else if (keyword) {
+      createNewFile();
+    }
+  }
+
   function createNewFile() {
     fileManager.createNewFile(keyword || 'Untitled', '', activeBinder).then(() => {
       keyword = '';
@@ -102,6 +112,8 @@
           <Input
               bind:value={keyword}
               type="text"
+              autofocus
+              onkeydown={handleSearchKeydown}
               placeholder="Search or start something new..."
               class="pl-10 h-10 bg-muted/20 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/10 transition-all text-base placeholder:text-muted-foreground/50 rounded-lg"
           />
