@@ -8,7 +8,9 @@
   import SunIcon from '@lucide/svelte/icons/sun';
   import MoonIcon from '@lucide/svelte/icons/moon';
   import HomeIcon from '@lucide/svelte/icons/home';
-  import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '$lib/runes/app.svelte.js';
+  import AlignJustifyIcon from '@lucide/svelte/icons/align-justify';
+  import Rows3Icon from '@lucide/svelte/icons/rows-3';
+  import { appState, THEME_PALETTES } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -74,6 +76,37 @@
             </div>
           </div>
 
+          <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-lg font-normal">Density</p>
+              <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                Overall text size and spacing across the app.
+              </p>
+            </div>
+            <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+              <Button
+                variant={appState.ui.density === 'default' ? 'secondary' : 'ghost'}
+                size="sm"
+                class="gap-2 px-3 h-8 text-xs font-medium"
+                onclick={() => appState.setDensity('default')}
+                disabled={false}
+              >
+                <Rows3Icon class="size-3.5" />
+                Default
+              </Button>
+              <Button
+                variant={appState.ui.density === 'compact' ? 'secondary' : 'ghost'}
+                size="sm"
+                class="gap-2 px-3 h-8 text-xs font-medium"
+                onclick={() => appState.setDensity('compact')}
+                disabled={false}
+              >
+                <AlignJustifyIcon class="size-3.5" />
+                Compact
+              </Button>
+            </div>
+          </div>
+
           <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
             <p class="text-lg font-normal">Color palette</p>
             <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
@@ -101,33 +134,6 @@
                     aria-hidden="true"
                   ></span>
                   <span class="capitalize">{palette}</span>
-                </button>
-              {/each}
-            </div>
-          </div>
-
-          <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
-            <p class="text-lg font-normal">Writing style</p>
-            <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
-              Typography, spacing, and surface.
-            </p>
-            <div class="grid gap-2 sm:grid-cols-2">
-              {#each STYLE_FLAVOURS as flavour (flavour)}
-                <button
-                  type="button"
-                  onclick={() => appState.setStyleFlavour(flavour)}
-                  class="flex flex-col items-start gap-0.5 p-3 rounded-md border text-left transition-colors
-                    {appState.ui.styleFlavour === flavour
-                      ? 'bg-primary/10 text-primary border-primary/40'
-                      : 'bg-background hover:bg-accent border-border'}"
-                >
-                  <span class="font-medium capitalize">{flavour}</span>
-                  <span class="text-xs text-muted-foreground">
-                    {flavour === 'default' ? 'Classic serif, balanced width' : ''}
-                    {flavour === 'minimal' ? 'Sans-serif, spacious, clean' : ''}
-                    {flavour === 'paper' ? 'Warm paper surface, serif' : ''}
-                    {flavour === 'technical' ? 'Compact, sharp, code-friendly' : ''}
-                  </span>
                 </button>
               {/each}
             </div>

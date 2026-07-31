@@ -1,9 +1,7 @@
 <script>
-  import { Input } from '@/components/ui/input/index.js';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { formatTimeAgo } from '@/utils.js';
   import Editor from './editor.svelte';
   import { invalidateAll, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -61,21 +59,6 @@
 </script>
 
 <div class="writing-area">
-  <div class="writing-area__header">
-    <Input
-      type="text"
-      placeholder="Untitled"
-      bind:value={displayTitle}
-      disabled={false}
-      class="writing-area__title border-none !bg-transparent h-auto !text-4xl !shadow-none px-0"
-    ></Input>
-    <div class="writing-area__status">
-      <span class="lowercase first-letter:uppercase">
-        {editorState.saveStatus.status}
-        {formatTimeAgo(editorState.saveStatus.lastSaved)}
-      </span>
-    </div>
-  </div>
   <div class="writing-area__body">
     {#key originalFileName + appState.ui.editorVersion}
       <Editor defaultValue={content} {onSave} />
@@ -86,14 +69,6 @@
 <style>
   .writing-area {
     padding-bottom: 0;
-  }
-
-  .writing-area__header {
-    display: flex;
-    align-items: flex-start;
-    width: 100%;
-    gap: 1rem;
-    margin-bottom: var(--writer-gap-title, 0.75rem);
   }
 
   .writing-area__body {

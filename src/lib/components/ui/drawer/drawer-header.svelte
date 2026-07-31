@@ -1,6 +1,5 @@
 <script>
 	import { cn } from "$lib/utils.js";
-
 	let {
 		ref = $bindable(null),
 		class: className,
@@ -12,7 +11,7 @@
 <div
 	bind:this={ref}
 	data-slot="drawer-header"
-	class={cn("flex flex-col gap-1.5 p-4", className)}
+	class={cn("gap-0.5 p-4 group-data-[vaul-drawer-direction=bottom]/drawer-content:text-center group-data-[vaul-drawer-direction=top]/drawer-content:text-center md:gap-0.5 md:text-left flex flex-col", className)}
 	{...restProps}
 >
 	{@render children?.()}

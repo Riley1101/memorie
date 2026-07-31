@@ -5,8 +5,11 @@ class AppState {
   /** @type {('default' | 'zinc' | 'slate' | 'rose' | 'blue' | 'green' | 'violet')[]} */
   static THEME_PALETTES = ['default', 'zinc', 'slate', 'rose', 'blue', 'green', 'violet'];
 
-  /** @type {('default' | 'minimal' | 'paper' | 'technical')[]} */
-  static STYLE_FLAVOURS = ['default', 'minimal', 'paper', 'technical'];
+  /** @type {('default' | 'compact')[]} */
+  static DENSITY_MODES = ['default', 'compact'];
+
+  /** Preset base font size (px) per density mode. */
+  static DENSITY_FONT_SIZE = { default: 20, compact: 16 };
 
   /**
    * @public
@@ -18,7 +21,7 @@ class AppState {
    *   isHelpModalOpen: boolean,
    *   theme: 'dark' | 'light',
    *   themePalette: string,
-   *   styleFlavour: string,
+   *   density: 'default' | 'compact',
    *   fontSize: number,
    *   editorVersion: number,
    * }}
@@ -31,8 +34,9 @@ class AppState {
     isHelpModalOpen: false,
     theme: 'dark',
     themePalette: 'default',
-    styleFlavour: 'default',
-    fontSize: 18,
+    styleFlavour: 'minimal',
+    density: 'default',
+    fontSize: AppState.DENSITY_FONT_SIZE.default,
     editorVersion: 0,
   });
 
@@ -90,6 +94,7 @@ class AppState {
    * @returns {void}
    */
   toggleAiChat(state) {
+    console.debug('[DEBUG toggleAiChat] setting isChatOpen=%s', state);
     this.ui = {
       ...this.ui,
       isChatOpen: state,
@@ -167,16 +172,18 @@ class AppState {
   }
 
   /**
-   * @param {string} flavour - One of default, minimal, paper, technical
+   * @param {string} density - One of default, compact. Sets overall app text size and spacing.
    */
-  setStyleFlavour(flavour) {
-    const next = AppState.STYLE_FLAVOURS.includes(flavour) ? flavour : 'default';
+  setDensity(density) {
+    const next = AppState.DENSITY_MODES.includes(density) ? density : 'default';
     this.ui = {
       ...this.ui,
-      styleFlavour: next,
+      density: next,
+      fontSize: AppState.DENSITY_FONT_SIZE[next],
     };
     if (typeof window !== 'undefined') {
-      localStorage.setItem('styleFlavour', next);
+      localStorage.setItem('density', next);
+      localStorage.setItem('fontSize', this.ui.fontSize.toString());
     }
   }
 
@@ -195,4 +202,4 @@ class AppState {
 
 export let appState = new AppState();
 export const THEME_PALETTES = AppState.THEME_PALETTES;
-export const STYLE_FLAVOURS = AppState.STYLE_FLAVOURS;
+export const DENSITY_MODES = AppState.DENSITY_MODES;

@@ -506,7 +506,7 @@ impl Model {
             sys_prompt.to_string()
         };
 
-        let session_cache_path = self.base_path.clone().join("chat.llama");
+        let session_cache_path = self.base_path.clone().join(format!("chat-{model_id}.llama"));
 
         let model = self.get_model(model_id, ModelType::Chat, handle).await?;
         let mut chat = model.chat().with_system_prompt(prompt);
@@ -522,8 +522,8 @@ impl Model {
     }
 
     /// Save the current chat session to disk so it can be resumed later.
-    pub fn save_chat_session(&self, chat: &mut Chat<Llama>) -> Result<(), LlamaError> {
-        let session_cache_path = self.base_path.clone().join("chat.llama");
+    pub fn save_chat_session(&self, model_id: &str, chat: &mut Chat<Llama>) -> Result<(), LlamaError> {
+        let session_cache_path = self.base_path.clone().join(format!("chat-{model_id}.llama"));
         if let Ok(session) = chat.session() {
             if let Ok(bytes) = session.to_bytes() {
                 let _ = std::fs::write(&session_cache_path, bytes);

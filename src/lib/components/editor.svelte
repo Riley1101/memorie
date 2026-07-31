@@ -11,6 +11,7 @@
   import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
   import { clipboard } from '@milkdown/kit/plugin/clipboard'
   import { appState } from '@/runes/app.svelte.js';
+  import { openUrl } from '@tauri-apps/plugin-opener';
 
   /**
    * @type {{ defaultValue?: string, onSave?: (markdown: string) => void }}
@@ -157,14 +158,23 @@
   class="markdown w-full"
   style="font-size: {appState.ui.fontSize}px;"
 >
-    <div 
+    <div
       use:editorAttachment={defaultValue}
       role="textbox"
       tabindex="0"
+      spellcheck="false"
+      class="outline-none focus:outline-none focus-visible:outline-none"
       ondblclick={() => {
         if (!editorState.editMode) {
           editorState.setEditMode(true);
         }
+      }}
+      onclick={(e) => {
+        const link = /** @type {HTMLElement} */ (e.target).closest('a[href]');
+        if (!link) return;
+        e.preventDefault();
+        const href = link.getAttribute('href');
+        if (href) openUrl(href);
       }}
     ></div>
 </main>
@@ -178,6 +188,11 @@
         padding-top: var(--writer-editor-pt, 0.5rem);
         padding-bottom: var(--writer-editor-pb, 50vh);
     }
+
+    main :global([role='textbox']) {
+        outline: none;
+    }
+
 
     main :global(.milkdown) {
         overflow: visible !important;

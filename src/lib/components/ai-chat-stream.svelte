@@ -5,7 +5,7 @@
     MessageActions,
     MessageContent,
     MessageResponse,
-  } from "$lib/components/ai-elements/new-message/index.js";
+  } from "$lib/components/ai-elements/message/index.js";
 
   import Copy from "@lucide/svelte/icons/copy";
   import RefreshCcw from "@lucide/svelte/icons/refresh-ccw";
