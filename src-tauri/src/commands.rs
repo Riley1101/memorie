@@ -31,7 +31,8 @@ pub async fn create_file(
 ) -> Result<File, String> {
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
-    let result = fs::create_file(&path, &content).map_err(|e| e.to_string())?;
+    let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
+    let result = fs::create_file(&path, &content, folder).map_err(|e| e.to_string())?;
 
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.add_change(&name, &content);
@@ -54,7 +55,8 @@ pub async fn update_file(
     let last_modified = std::fs::metadata(&path).and_then(|m: std::fs::Metadata| m.modified()).ok()
         .and_then(|t: std::time::SystemTime| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
         .map(|d: std::time::Duration| d.as_secs()).unwrap_or(0);
-    let file_to_update = File { path, name, last_modified };
+    let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
+    let file_to_update = File { path, name, last_modified, folder };
 
     let result = fs::update_file(&file_to_update, content).map_err(|e| e.to_string());
 
@@ -75,7 +77,8 @@ pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(),
     let last_modified = std::fs::metadata(&path).and_then(|m: std::fs::Metadata| m.modified()).ok()
         .and_then(|t: std::time::SystemTime| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
         .map(|d: std::time::Duration| d.as_secs()).unwrap_or(0);
-    let file_to_delete = File { path, name, last_modified };
+    let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
+    let file_to_delete = File { path, name, last_modified, folder };
 
     fs::delete_file(&file_to_delete).map_err(|e| e.to_string())
 }
@@ -125,8 +128,21 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     let last_modified = std::fs::metadata(&path).and_then(|m: std::fs::Metadata| m.modified()).ok()
         .and_then(|t: std::time::SystemTime| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
         .map(|d: std::time::Duration| d.as_secs()).unwrap_or(0);
-    let file = File { path, name, last_modified };
+    let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
+    let file = File { path, name, last_modified, folder };
     file.read_content().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_binders(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let config = state.config.lock().await;
+    fs::list_binders(&config.content_directory).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn create_binder(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+    fs::create_binder(&config.content_directory, &name).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

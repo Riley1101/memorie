@@ -22,15 +22,15 @@
 <Command.Dialog 
   open={appState.ui.isCommandMenuOpen}
   onOpenChange={(v) => appState.toggleCommandMenu(v)}
-  title="Search Documents"
-  description="Search documents by title or perform actions"
+  title="Search Writings"
+  description="Search writings by title or perform actions"
   portalProps={{}}
 >
-  <Command.Input placeholder="Search documents..." class="" />
+  <Command.Input placeholder="Search writings..." class="" />
   <Command.List class="">
     <Command.Empty class="">No results found.</Command.Empty>
-    
-    <Command.Group heading="Documents" class="" value="">
+
+    <Command.Group heading="Writings" class="" value="">
       {#each fileManager.files as file (file.name)}
         <Command.Item onSelect={() => handleSelect(file.name)} class="">
           <FileTextIcon class="size-4 mr-2" />

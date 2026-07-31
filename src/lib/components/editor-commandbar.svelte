@@ -61,7 +61,7 @@
   const commands = [
     {
       cmd: ':c',
-      description: 'Create Document Context',
+      description: 'Create Writing Context',
       action: 'createDocumentContext',
       shortcutLabel: '', // No global shortcut to avoid conflict with Cmd+C
       key: ''

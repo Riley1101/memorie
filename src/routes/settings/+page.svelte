@@ -171,7 +171,7 @@
                 {configManager.config?.undotree_dir || 'Loading...'}
               </code>
               <p class="text-base text-muted-foreground mt-3 italic opacity-70">
-                Where document undo/redo history is stored.
+                Where writing undo/redo history is stored.
               </p>
             </div>
           </div>

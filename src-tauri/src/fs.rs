@@ -12,22 +12,32 @@ pub struct File {
     pub path: PathBuf,
     pub name: String,
     pub last_modified: u64,
+    pub folder: Option<String>,
 }
 
 impl File {
     pub fn new(path: PathBuf, modified: Option<SystemTime>) -> Self {
-        let name = path
+        Self::with_folder(path, modified, None)
+    }
+
+    pub fn with_folder(path: PathBuf, modified: Option<SystemTime>, folder: Option<String>) -> Self {
+        let base_name = path
             .file_name()
             .and_then(OsStr::to_str)
             .unwrap_or("")
             .to_string();
-        
+
+        let name = match &folder {
+            Some(dir) => format!("{}/{}", dir, base_name),
+            None => base_name,
+        };
+
         let last_modified = modified
             .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        File { path, name, last_modified }
+        File { path, name, last_modified, folder }
     }
 
     pub fn read_content(&self) -> Result<String, FileError> {
@@ -41,53 +51,103 @@ impl File {
     }
 }
 
-pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
-    let mut files_with_mod_time: Vec<(PathBuf, SystemTime)> = Vec::new();
+/// Scans `directory` for `.md` files, one level deep: top-level files (folder=None)
+/// plus files directly inside each top-level subdirectory (folder=Some(dir_name)).
+/// Binders are not nested, so sub-subdirectories are not scanned.
+fn scan_files(directory: &Path) -> Result<Vec<(PathBuf, SystemTime, Option<String>)>, FileError> {
+    let mut found = Vec::new();
 
     for entry in fs::read_dir(directory)? {
         let entry = entry?;
         let path = entry.path();
+        let metadata = entry.metadata()?;
 
         if path.is_file() && path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION) {
-            let metadata = entry.metadata()?;
-            let modified_time = metadata.modified()?;
-            files_with_mod_time.push((path, modified_time));
+            let modified = metadata.modified()?;
+            found.push((path, modified, None));
+        } else if metadata.is_dir() {
+            let dir_name = match path.file_name().and_then(OsStr::to_str) {
+                Some(n) if !n.starts_with('.') => n.to_string(),
+                _ => continue,
+            };
+
+            for sub_entry in fs::read_dir(&path)? {
+                let sub_entry = sub_entry?;
+                let sub_path = sub_entry.path();
+
+                if sub_path.is_file()
+                    && sub_path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION)
+                {
+                    let sub_metadata = sub_entry.metadata()?;
+                    let modified = sub_metadata.modified()?;
+                    found.push((sub_path, modified, Some(dir_name.clone())));
+                }
+            }
         }
     }
+
+    Ok(found)
+}
+
+pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
+    let mut files_with_mod_time = scan_files(directory)?;
 
     // Sort files by modification time in descending order
     files_with_mod_time.sort_by(|a, b| b.1.cmp(&a.1));
 
     let files = files_with_mod_time
         .into_iter()
-        .map(|(path, mod_time)| File::new(path, Some(mod_time)))
+        .map(|(path, mod_time, folder)| File::with_folder(path, Some(mod_time), folder))
         .collect();
 
     Ok(files)
 }
 
 pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
-    let mut files = Vec::new();
+    let found = scan_files(directory)?;
 
-    for entry in fs::read_dir(directory)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.is_file() && path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION) {
-            let metadata = entry.metadata()?;
-            let modified = metadata.modified().ok();
-            files.push(File::new(path, modified));
-        }
-    }
+    let mut files: Vec<File> = found
+        .into_iter()
+        .map(|(path, modified, folder)| File::with_folder(path, Some(modified), folder))
+        .collect();
 
     files.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(files)
 }
 
-pub fn create_file(path: &Path, content: &str) -> Result<File, FileError> {
+/// `folder`, if given, is the binder (top-level subdirectory) name the file lives in.
+pub fn create_file(path: &Path, content: &str, folder: Option<String>) -> Result<File, FileError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
     fs::write(path, content)?;
     let modified = fs::metadata(path)?.modified().ok();
-    Ok(File::new(path.to_path_buf(), modified))
+    Ok(File::with_folder(path.to_path_buf(), modified, folder))
+}
+
+pub fn list_binders(directory: &Path) -> Result<Vec<String>, FileError> {
+    let mut binders = Vec::new();
+
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            if let Some(name) = path.file_name().and_then(OsStr::to_str) {
+                if !name.starts_with('.') {
+                    binders.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    binders.sort();
+    Ok(binders)
+}
+
+pub fn create_binder(directory: &Path, name: &str) -> Result<(), FileError> {
+    fs::create_dir_all(directory.join(name))?;
+    Ok(())
 }
 
 pub fn update_file(file: &File, content: &str) -> Result<File, FileError> {
@@ -119,7 +179,7 @@ mod fs_tests {
         let content = "You should be able to read this.";
         fs::write(&file_path, content).unwrap();
 
-        let file = File::new(file_path);
+        let file = File::new(file_path, None);
         assert_eq!(file.name, "test_read.md");
         assert_eq!(file.read_content().unwrap(), content);
     }
@@ -127,11 +187,11 @@ mod fs_tests {
     #[test]
     fn test_file_extension() {
         let file_path = PathBuf::from("/tmp/test.md");
-        let file = File::new(file_path);
+        let file = File::new(file_path, None);
         assert_eq!(file.extension(), Some("md"));
 
         let no_ext_path = PathBuf::from("/tmp/test");
-        let no_ext_file = File::new(no_ext_path);
+        let no_ext_file = File::new(no_ext_path, None);
         assert_eq!(no_ext_file.extension(), None);
     }
 
@@ -141,7 +201,7 @@ mod fs_tests {
         let file_path = dir.path().join("test.md");
         let content = "Hello, World!";
 
-        let file = create_file(&file_path, content).unwrap();
+        let file = create_file(&file_path, content, None).unwrap();
 
         assert_eq!(file.name, "test.md");
         assert_eq!(file.path, file_path);
@@ -155,17 +215,48 @@ mod fs_tests {
     fn test_discover_files() {
         let dir = tempdir().unwrap();
 
-        create_file(&dir.path().join("a.md"), "content a").unwrap();
-        create_file(&dir.path().join("b.md"), "content b").unwrap();
+        create_file(&dir.path().join("a.md"), "content a", None).unwrap();
+        create_file(&dir.path().join("b.md"), "content b", None).unwrap();
 
-        create_file(&dir.path().join("c.txt"), "content c").unwrap();
-        fs::create_dir(dir.path().join("subfolder")).unwrap();
+        create_file(&dir.path().join("c.txt"), "content c", None).unwrap();
 
         let discovered = discover_files(dir.path()).unwrap();
 
         assert_eq!(discovered.len(), 2);
         assert_eq!(discovered[0].name, "a.md");
         assert_eq!(discovered[1].name, "b.md");
+    }
+
+    #[test]
+    fn test_discover_files_in_binder() {
+        let dir = tempdir().unwrap();
+
+        create_file(&dir.path().join("top.md"), "top level", None).unwrap();
+        fs::create_dir(dir.path().join("Binder")).unwrap();
+        create_file(
+            &dir.path().join("Binder").join("nested.md"),
+            "nested",
+            Some("Binder".to_string()),
+        )
+        .unwrap();
+
+        let discovered = discover_files(dir.path()).unwrap();
+
+        assert_eq!(discovered.len(), 2);
+        let nested = discovered.iter().find(|f| f.name == "Binder/nested.md").unwrap();
+        assert_eq!(nested.folder.as_deref(), Some("Binder"));
+        let top = discovered.iter().find(|f| f.name == "top.md").unwrap();
+        assert_eq!(top.folder, None);
+    }
+
+    #[test]
+    fn test_list_and_create_binder() {
+        let dir = tempdir().unwrap();
+        assert!(list_binders(dir.path()).unwrap().is_empty());
+
+        create_binder(dir.path(), "Ideas").unwrap();
+        let binders = list_binders(dir.path()).unwrap();
+        assert_eq!(binders, vec!["Ideas".to_string()]);
     }
 
     #[test]
@@ -182,7 +273,7 @@ mod fs_tests {
         let initial_content = "Initial content.";
         let updated_content = "This content has been updated.";
 
-        let file = create_file(&file_path, initial_content).unwrap();
+        let file = create_file(&file_path, initial_content, None).unwrap();
         let updated_file = update_file(&file, updated_content).unwrap();
 
         assert_eq!(file, updated_file);
@@ -196,7 +287,7 @@ mod fs_tests {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("delete_me.md");
 
-        let file = create_file(&file_path, "I am temporary.").unwrap();
+        let file = create_file(&file_path, "I am temporary.", None).unwrap();
         assert!(file.path.exists());
 
         delete_file(&file).unwrap();
@@ -210,11 +301,11 @@ mod fs_tests {
         let file_path3 = dir.path().join("c.md");
 
         // Create files with a small delay to ensure different modification times
-        create_file(&file_path1, "content a").unwrap();
+        create_file(&file_path1, "content a", None).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        create_file(&file_path2, "content b").unwrap();
+        create_file(&file_path2, "content b", None).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        create_file(&file_path3, "content c").unwrap();
+        create_file(&file_path3, "content c", None).unwrap();
 
         let recent_files = get_recent(dir.path()).unwrap();
 

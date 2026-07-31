@@ -36,6 +36,7 @@
       }
     }
     fileManager.getRecents();
+    fileManager.getBinders();
     llmManager.setupModels();
   });
 

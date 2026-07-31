@@ -105,13 +105,13 @@
               size="sm"
               class="size-8 p-0 rounded-lg data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
               bind:pressed={includeContext}
-              aria-label="Include current document as context"
+              aria-label="Include current writing as context"
             >
               <FileText class="size-4" />
             </Toggle>
           </TooltipTrigger>
           <TooltipContent class="">
-            Include Current Document Context
+            Include Current Writing Context
           </TooltipContent>
         </Tooltip>
 
