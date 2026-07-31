@@ -1,5 +1,6 @@
 <script>
   import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+  import ScrollFade from '$lib/components/scroll-fade.svelte';
   import HouseIcon from '@lucide/svelte/icons/house';
   import MarkdownEditor from '$lib/components/md-editor.svelte';
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
@@ -82,13 +83,15 @@
         <div class="px-4 py-3">
           <h2 class="font-semibold text-sm">History</h2>
         </div>
-        <ScrollArea class="flex-1 h-full" type="scroll">
-          {#if history}
-            <EditorHistory {fileName} {history} />
-          {:else}
-            <div class="p-4 text-sm text-muted-foreground">No history available</div>
-          {/if}
-        </ScrollArea>
+        <ScrollFade class="flex-1 h-full">
+          <ScrollArea class="h-full" type="scroll">
+            {#if history}
+              <EditorHistory {fileName} {history} />
+            {:else}
+              <div class="p-4 text-sm text-muted-foreground">No history available</div>
+            {/if}
+          </ScrollArea>
+        </ScrollFade>
       </div>
     {/if}
   </aside>
@@ -114,11 +117,13 @@
     </header>
 
     <main class="h-full flex-1 overflow-hidden">
-      <ScrollArea class="flex-1 h-full" type="scroll">
-        <div class="writing-surface pb-24">
-          <MarkdownEditor {fileName} {body} />
-        </div>
-      </ScrollArea>
+      <ScrollFade class="h-full" fadeSize="h-12">
+        <ScrollArea class="h-full" type="scroll">
+          <div class="writing-surface pb-24">
+            <MarkdownEditor {fileName} {body} />
+          </div>
+        </ScrollArea>
+      </ScrollFade>
     </main>
 
     <footer>
@@ -131,18 +136,20 @@
       <div class="px-4 py-3">
         <h2 class="font-semibold text-sm">Outline</h2>
       </div>
-      <ScrollArea class="flex-1 h-full" type="scroll">
-        <ul class="space-y-2">
-          {#each editorState.grammarChecks as chunk, index (index)}
-            <li>
-              <button onclick={() => handleChunkPress(chunk)} class="border p-1">
-                {chunk.content}
-              </button>
-            </li>
-          {/each}
-        </ul>
-        <EditorOutline {body} />
-      </ScrollArea>
+      <ScrollFade class="flex-1 h-full">
+        <ScrollArea class="h-full" type="scroll">
+          <ul class="space-y-2">
+            {#each editorState.grammarChecks as chunk, index (index)}
+              <li>
+                <button onclick={() => handleChunkPress(chunk)} class="border p-1">
+                  {chunk.content}
+                </button>
+              </li>
+            {/each}
+          </ul>
+          <EditorOutline {body} />
+        </ScrollArea>
+      </ScrollFade>
     </div>
   </aside>
 </div>

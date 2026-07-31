@@ -61,7 +61,7 @@
   const commands = [
     {
       cmd: ':c',
-      description: 'Create Document Context',
+      description: 'Create Writing Context',
       action: 'createDocumentContext',
       shortcutLabel: '', // No global shortcut to avoid conflict with Cmd+C
       key: ''
@@ -482,7 +482,7 @@
 
   {#if isCommandMode && suggestions.length > 0}
     <div
-      class="absolute bottom-full left-0 right-0 mb-1 mx-4 max-w-2xl md:mx-auto bg-popover border border-border rounded-lg shadow-xl overflow-hidden z-50"
+      class="absolute bottom-full left-0 right-0 mb-1 mx-4 max-w-2xl md:mx-auto bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50"
       role="listbox"
     >
       <div class="max-h-64 overflow-y-auto p-1">

@@ -21,7 +21,7 @@
 
 class EditorState {
   // --- STATE ---
-  name = $state('Untitled Document');
+  name = $state('Untitled Writing');
   content = $state('');
   /**
    * @public

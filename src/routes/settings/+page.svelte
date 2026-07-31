@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { configManager } from '$lib/runes/config.svelte.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
+  import ScrollFade from '$lib/components/scroll-fade.svelte';
   import { Separator } from '@/components/ui/separator/index.js';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import CpuIcon from '@lucide/svelte/icons/cpu';
@@ -37,7 +38,7 @@
     </Button>
   </div>
 
-  <div class="flex-1 overflow-hidden w-full">
+  <ScrollFade class="flex-1 overflow-hidden w-full">
     <ScrollArea type="scroll" class="w-full h-full">
       <div class="space-y-12 pr-4">
         <!-- Appearance Section -->
@@ -171,7 +172,7 @@
                 {configManager.config?.undotree_dir || 'Loading...'}
               </code>
               <p class="text-base text-muted-foreground mt-3 italic opacity-70">
-                Where document undo/redo history is stored.
+                Where writing undo/redo history is stored.
               </p>
             </div>
           </div>
@@ -299,5 +300,5 @@
         </section>
       </div>
     </ScrollArea>
-  </div>
+  </ScrollFade>
 </div>

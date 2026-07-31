@@ -2,9 +2,10 @@ import { invoke } from '@tauri-apps/api/core';
 
 /**
  * @typedef {Object} FileEntry
- * @property {string} name - The display name of the file.
+ * @property {string} name - The file's identifier, relative to the content directory (e.g. "note.md" or "Binder/note.md").
  * @property {string} path - The full, absolute path to the file.
  * @property {number} last_modified - The unix timestamp of when the file was last modified.
+ * @property {string|null} folder - The binder (top-level folder) name the file lives in, or null.
  */
 
 const rs_commands = {
@@ -13,6 +14,12 @@ const rs_commands = {
    */
   getRecents: async () => {
     return await invoke('list_recents');
+  },
+  /**
+   * @returns {Promise<string[]>}
+   */
+  getBinders: async () => {
+    return await invoke('list_binders');
   },
 };
 
@@ -42,6 +49,12 @@ class FileManager {
    * @type {string}
    */
   currentContent = $state('');
+
+  /**
+   * The list of all discovered binders (top-level folders).
+   * @type {string[]}
+   */
+  binders = $state([]);
 
   /**
    * A flag to indicate when an async operation is in progress.
@@ -74,19 +87,61 @@ class FileManager {
   }
 
   /**
+   * Fetches the list of binders (top-level folders) from the backend.
+   * @async
+   * @returns {Promise<void>}
+   */
+  async getBinders() {
+    try {
+      this.binders = await rs_commands.getBinders();
+    } catch (err) {
+      console.error(err);
+      this.errorMessage = `Failed to discover binders: ${err}`;
+    }
+  }
+
+  /**
+   * Creates a new binder (folder) and refreshes the binder list.
+   * @async
+   * @param {string} binderName - The name for the new binder.
+   * @returns {Promise<void>}
+   */
+  async createBinder(binderName) {
+    if (!binderName || !binderName.trim()) {
+      this.errorMessage = 'Binder name cannot be empty.';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('create_binder', { name: binderName.trim() });
+      await this.getBinders();
+    } catch (err) {
+      this.errorMessage = `Failed to create binder "${binderName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
    * Creates a new, empty .md file and refreshes the file list.
    * @async
    * @param {string} fileName - The name for the new file (without extension).
    * @param {string} [content=""] - Optional initial content for the new file.
+   * @param {string|null} [binder=null] - Optional binder (folder) to create the file in.
    * @returns {Promise<void>}
    */
-  async createNewFile(fileName, content = '') {
+  async createNewFile(fileName, content = '', binder = null) {
     if (!fileName || !fileName.trim()) {
       this.errorMessage = 'File name cannot be empty.';
       return;
     }
 
-    const finalFileName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+    const baseName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+    const finalFileName = binder ? `${binder}/${baseName}` : baseName;
 
     this.isLoading = true;
     this.errorMessage = '';

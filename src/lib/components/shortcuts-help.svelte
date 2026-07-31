@@ -12,12 +12,12 @@
   import TypeIcon from '@lucide/svelte/icons/type';
 
   const shortcuts = [
-    { key: `${MOD_LABEL} + K`, description: 'Search documents', icon: SearchIcon },
+    { key: `${MOD_LABEL} + K`, description: 'Search writings', icon: SearchIcon },
     { key: `${MOD_LABEL} + L`, description: 'Toggle AI Chat', icon: SparklesIcon },
     { key: `${MOD_LABEL} + B`, description: 'Go Home / Exit', icon: HouseIcon },
     { key: `${MOD_LABEL} + U`, description: 'Toggle History', icon: HistoryIcon },
-    { key: `${MOD_LABEL} + S`, description: 'Save document (:w)', icon: SaveIcon },
-    { key: `${MOD_LABEL} + Q`, description: 'Close document (:q)' },
+    { key: `${MOD_LABEL} + S`, description: 'Save writing (:w)', icon: SaveIcon },
+    { key: `${MOD_LABEL} + Q`, description: 'Close writing (:q)' },
     { key: `${MOD_LABEL} + Z`, description: 'Undo version', icon: UndoIcon },
     { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo version', icon: RedoIcon },
     { key: `${MOD_LABEL} + + / -`, description: 'Adjust Font Size', icon: TypeIcon },
