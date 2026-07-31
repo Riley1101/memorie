@@ -133,6 +133,41 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     file.read_content().map_err(|e| e.to_string())
 }
 
+/// Batched version of `read_file`: resolves and reads many files in one IPC
+/// round-trip, concurrently, instead of one `read_file` call per file.
+/// Skips the undo-tree override that `read_file` applies, so entries with
+/// unsaved undo history return on-disk content here.
+#[tauri::command]
+pub async fn read_files(
+    names: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<(String, Result<String, String>)>, String> {
+    let config = state.config.lock().await;
+    let content_dir = config.content_directory.clone();
+    drop(config);
+
+    let files: Vec<File> = names
+        .into_iter()
+        .map(|name| {
+            let path = content_dir.join(&name);
+            let last_modified = std::fs::metadata(&path)
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|t| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
+            File { path, name, last_modified, folder }
+        })
+        .collect();
+
+    let results = fs::read_contents_batch(files).await;
+    Ok(results
+        .into_iter()
+        .map(|(file, result)| (file.name, result.map_err(|e| e.to_string())))
+        .collect())
+}
+
 #[tauri::command]
 pub async fn list_binders(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     let config = state.config.lock().await;

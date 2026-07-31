@@ -13,6 +13,9 @@ pub enum FileError {
 
     #[error("Content conversion error: {0}")]
     ContentConversionError(String),
+
+    #[error("File too large to read ({0} bytes, limit {1} bytes)")]
+    FileTooLarge(u64, u64),
 }
 
 #[derive(Error, Debug)]

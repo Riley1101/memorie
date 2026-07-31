@@ -461,6 +461,15 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   border-width: 0;
 }
 
+/* Instant, no-motion UI: kill transitions/animations everywhere, including
+   shadcn/bits-ui's built-in animate-in/animate-out on dialogs, sheets, etc. */
+*,
+*::before,
+*::after {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
