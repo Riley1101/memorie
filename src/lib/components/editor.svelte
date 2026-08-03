@@ -3,6 +3,7 @@
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { exitCodeBlockPlugin } from '$lib/components/plugins/exit-code-block';
+  import { slashMenu } from '$lib/components/plugins/slash-menu.svelte.js';
   import { memoryManager } from '$lib/runes/memory.svelte';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
@@ -79,6 +80,7 @@
         .use(commonmark)
         .use(gfm)
         .use(clipboard)
+        .use(slashMenu)
         .create()
         .then((editor) => {
           if (editor) {
@@ -135,5 +137,9 @@
 
     main :global(.milkdown) {
         overflow: visible !important;
+    }
+
+    main :global(.slash-menu-portal[data-show='false']) {
+        display: none;
     }
 </style>
