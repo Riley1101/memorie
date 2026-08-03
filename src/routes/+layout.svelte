@@ -15,12 +15,15 @@
 
   onMount(() => {
     const savedTheme = localStorage.getItem('theme');
+
     if (savedTheme === 'light' || savedTheme === 'dark') {
       appState.setTheme(savedTheme);
     } else {
       appState.setTheme('dark');
     }
+
     const savedPalette = localStorage.getItem('themePalette');
+
     if (savedPalette && THEME_PALETTES.includes(savedPalette)) {
       appState.setThemePalette(savedPalette);
     }
@@ -55,8 +58,7 @@
 
   $effect(() => {
     if (typeof document !== 'undefined') {
-      document.documentElement.style.fontSize =
-        appState.ui.density === 'compact' ? '15px' : '18px';
+      document.documentElement.style.fontSize = appState.ui.density === 'compact' ? '15px' : '18px';
     }
   });
 
@@ -68,8 +70,13 @@
 <svelte:body />
 
 <TooltipProvider>
-  <div class="{appState.ui.theme} {appState.ui.themePalette !== 'default' ? `theme-${appState.ui.themePalette}` : ''} style-{appState.ui.styleFlavour} density-{appState.ui.density} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative">
-      {@render children()}
+  <div
+    class="{appState.ui.theme} {appState.ui.themePalette !== 'default'
+      ? `theme-${appState.ui.themePalette}`
+      : ''} style-{appState.ui.styleFlavour} density-{appState.ui
+      .density} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
+  >
+    {@render children()}
     <Cmdk />
     <ShortcutsHelp />
   </div>
@@ -79,13 +86,10 @@
   onkeydown={(e) => {
     if (e.key === 'Backspace') {
       const target = e.target;
-      const isInput = 
-        target instanceof HTMLElement && (
-          target.tagName === 'INPUT' || 
-          target.tagName === 'TEXTAREA' || 
-          target.isContentEditable
-        );
-      
+      const isInput =
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
       if (!isInput) {
         e.preventDefault();
       }

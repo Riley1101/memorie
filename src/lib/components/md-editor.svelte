@@ -22,16 +22,14 @@
   /**
    * @type {{fileName?:string ,body?: string }}
    */
-  let data = $props();
-  let originalFileName = $derived(data.fileName);
-  let content = $derived(data.body);
+  let { fileName: originalFileName, body: content } = $props();
 
   /** Display-only title (no .md); user edits this */
   /* eslint-disable-next-line svelte/prefer-writable-derived */
-  let displayTitle = $state(stripMd(data.fileName || ''));
+  let displayTitle = $state(stripMd(originalFileName || ''));
 
   $effect(() => {
-    displayTitle = stripMd(data.fileName || '');
+    displayTitle = stripMd(originalFileName || '');
   });
 
   $effect(() => {

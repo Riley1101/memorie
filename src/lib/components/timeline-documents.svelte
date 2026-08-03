@@ -2,6 +2,7 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { fileManager } from '@/runes/fs.svelte';
   import { resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
@@ -24,15 +25,15 @@
 
   let favourites = $derived(fileManager.files);
 
-  let filteredFiles = $derived(() => {
+  let filteredFiles = $derived.by(() => {
     return favourites.filter((item) =>
       item.name.toLowerCase().includes(keyword.toLowerCase()) &&
       (activeBinder === null || item.folder === activeBinder)
     );
   });
 
-  let groupedFiles = $derived(() => {
-    const files = filteredFiles();
+  let groupedFiles = $derived.by(() => {
+    const files = filteredFiles;
     const groups = [
       { id: 'today', label: 'Today', files: [] },
       { id: 'yesterday', label: 'Yesterday', files: [] },
@@ -62,6 +63,15 @@
 
     return groups.filter(g => g.files.length > 0);
   });
+
+  function handleSearchKeydown(e) {
+    if (e.key !== 'Enter') return;
+    if (filteredFiles.length > 0) {
+      goto(resolve(`/${encodeURIComponent(filteredFiles[0].name)}`));
+    } else if (keyword) {
+      createNewFile();
+    }
+  }
 
   function createNewFile() {
     fileManager.createNewFile(keyword || 'Untitled', '', activeBinder).then(() => {
@@ -102,12 +112,14 @@
           <Input
               bind:value={keyword}
               type="text"
+              autofocus
+              onkeydown={handleSearchKeydown}
               placeholder="Search or start something new..."
               class="pl-10 h-10 bg-muted/20 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/10 transition-all text-base placeholder:text-muted-foreground/50 rounded-lg"
           />
           <FileIcon class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors" />
 
-          {#if keyword && filteredFiles().length === 0}
+          {#if keyword && filteredFiles.length === 0}
               <button
                   onclick={createNewFile}
                   class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-primary/90 text-primary-foreground px-2.5 py-1 rounded-md text-xs font-medium hover:bg-primary transition-all animate-in fade-in scale-in-95"
@@ -122,7 +134,7 @@
   <ScrollFade class="flex-1 min-h-0">
   <ScrollArea type="scroll" class="h-full">
     <div class="space-y-12 pb-20 pr-2">
-      {#each groupedFiles() as group (group.id)}
+      {#each groupedFiles as group (group.id)}
         <div class="relative">
           <div class="z-10 flex items-center gap-4 mb-6 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
               <h3 class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-background pr-3">
@@ -189,7 +201,7 @@
         </div>
       {/each}
 
-      {#if filteredFiles().length === 0}
+      {#if filteredFiles.length === 0}
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
               <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
                   {#if activeBinder}

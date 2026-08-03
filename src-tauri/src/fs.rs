@@ -1,4 +1,5 @@
 use crate::error::FileError;
+use futures_util::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fs;
@@ -6,6 +7,8 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 const DEFAULT_EXTENSION: &str = "md";
+const MAX_READ_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+const READ_CONCURRENCY: usize = 24;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct File {
@@ -41,6 +44,10 @@ impl File {
     }
 
     pub fn read_content(&self) -> Result<String, FileError> {
+        let size = fs::metadata(&self.path)?.len();
+        if size > MAX_READ_BYTES {
+            return Err(FileError::FileTooLarge(size, MAX_READ_BYTES));
+        }
         let content = fs::read_to_string(&self.path)?;
         Ok(content)
     }
@@ -101,6 +108,25 @@ pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
         .collect();
 
     Ok(files)
+}
+
+/// Reads the content of many files concurrently, bounded to `READ_CONCURRENCY`
+/// in-flight reads at a time. Each file's read runs on the blocking threadpool
+/// since `File::read_content` is a synchronous std::fs call.
+pub async fn read_contents_batch(files: Vec<File>) -> Vec<(File, Result<String, FileError>)> {
+    stream::iter(files)
+        .map(|file| async move {
+            let result = tokio::task::spawn_blocking({
+                let file = file.clone();
+                move || file.read_content()
+            })
+            .await
+            .unwrap_or_else(|e| Err(FileError::ContentConversionError(e.to_string())));
+            (file, result)
+        })
+        .buffer_unordered(READ_CONCURRENCY)
+        .collect()
+        .await
 }
 
 pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
@@ -280,6 +306,17 @@ mod fs_tests {
 
         let read_content = updated_file.read_content().unwrap();
         assert_eq!(read_content, updated_content);
+    }
+
+    #[test]
+    fn test_read_content_too_large() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("big.md");
+        fs::write(&file_path, vec![b'a'; (MAX_READ_BYTES + 1) as usize]).unwrap();
+
+        let file = File::new(file_path, None);
+        let err = file.read_content().unwrap_err();
+        assert!(matches!(err, FileError::FileTooLarge(_, _)));
     }
 
     #[test]

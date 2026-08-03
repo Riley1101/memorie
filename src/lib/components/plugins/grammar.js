@@ -73,6 +73,15 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
     const { node, pos } = lastSelected;
     const nodeEnd = pos + node.nodeSize;
     const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.zIndex = '50';
+
+    /** @param {import("prosemirror-view").EditorView} view */
+    const reposition = (view) => {
+      const coords = view.coordsAtPos(Math.min(selTo, view.state.doc.content.size));
+      container.style.top = `${coords.bottom + 8}px`;
+      container.style.left = `${coords.left}px`;
+    };
 
     decos.push(
       Decoration.widget(
@@ -84,20 +93,34 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
             const end = (getPos() || 0) - 1;
             view.dispatch(tr.replaceWith(start, end, view.state.schema.text(fixedText)));
           };
+
+          reposition(view);
+          const onScrollOrResize = () => reposition(view);
+          window.addEventListener('scroll', onScrollOrResize, { capture: true, passive: true });
+          window.addEventListener('resize', onScrollOrResize);
+          container._cleanup = () => {
+            window.removeEventListener('scroll', onScrollOrResize, { capture: true });
+            window.removeEventListener('resize', onScrollOrResize);
+          };
+
           mount(GrammarBox, {
             target: container,
             props: {
               sequence: 0,
               originalText: node.textContent,
               onFix: handleFix,
+              view,
             },
           });
           return container;
         },
         {
           side: 1,
-          block: true,
-          key: `grammar-${pos}`,
+          // Include the selection range in the key so the widget (and its
+          // position) is recreated whenever the selection changes, even when
+          // it stays within the same paragraph.
+          key: `grammar-${pos}-${selFrom}-${selTo}`,
+          destroy: () => container._cleanup?.(),
         }
       )
     );

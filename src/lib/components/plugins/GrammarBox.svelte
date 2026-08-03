@@ -5,23 +5,51 @@
   import ChevrondownIcon from '@lucide/svelte/icons/chevron-down';
   import CheckIcon from '@lucide/svelte/icons/check';
   import SendIcon from '@lucide/svelte/icons/send';
+  import BoldIcon from '@lucide/svelte/icons/bold';
+  import ItalicIcon from '@lucide/svelte/icons/italic';
+  import StrikethroughIcon from '@lucide/svelte/icons/strikethrough';
+  import CodeIcon from '@lucide/svelte/icons/code';
   import { Textarea } from '$lib/components/ui/textarea/index.js';
   import { llmManager } from '@/runes/llm.svelte.js';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
   import { cn } from '$lib/utils';
   import { appState } from '$lib/runes/app.svelte.js';
-  
+  import { toggleMark } from '@milkdown/kit/prose/commands';
+
   /**
    * @typedef {Object} GrammarBoxProps
    * @property {string} originalText - The original text that needs grammar suggestions.
    * @property {(suggestion: string) => void} onFix - Callback function to apply the suggested fix.
    * @property {number} sequence - The sequence number of the text segment.
+   * @property {import('prosemirror-view').EditorView} [view] - The ProseMirror view, for applying inline marks.
    */
 
   /** @type {GrammarBoxProps} */
-  let { originalText, onFix } = $props();
+  let { originalText, onFix, view } = $props();
 
   let customPrompt = $state('');
+
+  const markButtons = [
+    { label: 'Bold', markName: 'strong', icon: BoldIcon },
+    { label: 'Italic', markName: 'emphasis', icon: ItalicIcon },
+    { label: 'Strikethrough', markName: 'strike_through', icon: StrikethroughIcon },
+    { label: 'Code', markName: 'inlineCode', icon: CodeIcon },
+  ];
+
+  /**
+   * Toggle a mark on the editor's current selection. The widget can stay mounted
+   * across selection changes within the same paragraph (ProseMirror dedupes the
+   * decoration by key), so the live selection is read from the view at click time
+   * rather than trusted from props.
+   * @param {string} markName
+   */
+  function applyMark(markName) {
+    if (!view) return;
+    const markType = view.state.schema.marks[markName];
+    if (!markType) return;
+    toggleMark(markType)(view.state, view.dispatch);
+    view.focus();
+  }
 
   function handleAccept() {
     if (llmManager.editActionContent) {
@@ -75,7 +103,7 @@
   ];
 </script>
 
-<div class="mt-4 mb-2 flex flex-col gap-3 not-prose select-none animate-in fade-in slide-in-from-top-2 duration-300">
+<div class="w-max max-w-sm flex flex-col gap-3 not-prose select-none animate-in fade-in slide-in-from-top-2 duration-300">
   
   {#if llmManager.editActionContent || llmManager.editActionInProgress}
     <div class="group relative bg-muted/40 backdrop-blur-sm border border-border/40 rounded-xl p-4 shadow-sm transition-all hover:shadow-md hover:bg-muted/50">
@@ -127,13 +155,29 @@
   {/if}
 
   <div class="flex items-center gap-2">
+    <div class="flex items-center gap-0.5 bg-background border border-border/40 rounded-full p-0.5 shadow-sm">
+      {#each markButtons as { label, markName, icon: Icon } (markName)}
+        <Button
+          variant="ghost"
+          size="icon"
+          title={label}
+          aria-label={label}
+          onmousedown={(e) => e.preventDefault()}
+          onclick={() => applyMark(markName)}
+          class="size-6 rounded-full text-muted-foreground/80 hover:text-foreground hover:bg-muted/50"
+        >
+          <Icon class="size-3.5" />
+        </Button>
+      {/each}
+    </div>
+
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
-          <Button 
-            {...props} 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            {...props}
+            variant="ghost"
+            size="sm"
             disabled={props.disabled ?? false}
             class="h-7 px-2.5 bg-background border border-border/40 hover:bg-muted/50 rounded-full text-[11px] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
           >

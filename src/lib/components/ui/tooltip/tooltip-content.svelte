@@ -4,12 +4,13 @@
 	import TooltipPortal from "./tooltip-portal.svelte";
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: className = undefined,
 		sideOffset = 0,
+		/** @type {"top" | "right" | "bottom" | "left"} */
 		side = "top",
-		children,
-		arrowClasses,
-		portalProps,
+		children = undefined,
+		arrowClasses = undefined,
+		portalProps = undefined,
 		...restProps
 	} = $props();
 </script>

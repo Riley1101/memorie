@@ -93,6 +93,7 @@ pub async fn run() {
             commands::run_chat,
             commands::cancel_chat,
             commands::read_file,
+            commands::read_files,
             commands::get_file_history,
             commands::create_document_context,
             commands::update_text_chunk,

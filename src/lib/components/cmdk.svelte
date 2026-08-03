@@ -35,15 +35,20 @@
   description="Search writings by title or perform actions"
   portalProps={{}}
 >
-  <Command.Input placeholder="Search writings..." class="" />
+  <Command.Input
+    placeholder="Search writings..."
+    class="border-border/20 bg-muted/10"
+  />
   <Command.List class="p-2">
-    <Command.Empty class="py-10">No results found.</Command.Empty>
+    <Command.Empty class="py-10 text-muted-foreground/60 font-sans"
+      >No results found.</Command.Empty
+    >
 
     <Command.Group heading="Writings" class="" value="">
       {#each fileManager.files as file (file.name)}
         <Command.Item
             onSelect={() => handleSelect(file.name)}
-            class="rounded-xl px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
+            class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
         >
           <div class="flex flex-col gap-0.5 min-w-0 font-writer">
             <span class="text-base font-normal truncate">{formatFileName(file.name.split('/').pop())}</span>
@@ -65,7 +70,7 @@
     </Command.Group>
 
     <Command.Group heading="Actions" class="" value="">
-      <Command.Item onSelect={handleCreateNew} class="rounded-xl px-3 py-2.5 aria-selected:bg-muted/40">
+      <Command.Item onSelect={handleCreateNew} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <CirclePlusIcon class="size-4 mr-2" />
         <span>Create a new writing</span>
         <Command.Shortcut class="">⌘N</Command.Shortcut>
