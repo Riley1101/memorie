@@ -37,12 +37,6 @@ class EditorState {
 
   /**
    * @public
-   * @type {boolean} - Indicates if the editor is in edit mode.
-   */
-  editMode = $state(false);
-
-  /**
-   * @public
    * @type {{lastSaved: null, status: string}}
    */
   saveStatus = $state({
@@ -64,14 +58,6 @@ class EditorState {
    */
   setSaveStatus(status) {
     this.saveStatus = { ...this.saveStatus, ...status };
-  }
-
-  /**
-   * Sets the edit mode.
-   * @param isEditMode boolean - True to enable edit mode, false to disable.
-   */
-  setEditMode(isEditMode) {
-    this.editMode = isEditMode;
   }
 
   /**

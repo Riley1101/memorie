@@ -21,9 +21,6 @@
     { key: `${MOD_LABEL} + Z`, description: 'Undo version', icon: UndoIcon },
     { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo version', icon: RedoIcon },
     { key: `${MOD_LABEL} + + / -`, description: 'Adjust Font Size', icon: TypeIcon },
-    { key: ':', description: 'Enter Command Mode' },
-    { key: 'i', description: 'Enter Insert Mode' },
-    { key: 'Esc', description: 'Exit Mode' },
   ];
 </script>
 

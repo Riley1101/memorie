@@ -1,7 +1,5 @@
 <script>
-  import { tick } from 'svelte';
-  import { defaultValueCtx, Editor, rootCtx, editorViewOptionsCtx } from '@milkdown/core';
-  import { editorViewCtx } from '@milkdown/kit/core';
+  import { defaultValueCtx, Editor, rootCtx } from '@milkdown/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { exitCodeBlockPlugin } from '$lib/components/plugins/exit-code-block';
@@ -23,30 +21,8 @@
   let isReady = $state(false);
 
   let editorInstance = $state(null);
-  
-  /** @type {ReturnType<typeof setTimeout> | null} */
-  let blurTimeout = null;
-  const BLUR_DELAY_MS = 150;
-  const DEBOUNCE_SAVE_MS = 2000;
 
-  // Reactive effect to force ProseMirror view update when editMode changes
-  // Also ensures focus is in editor when entering insert mode
-  $effect(() => {
-    const mode = editorState.editMode;
-    if (editorInstance && isReady) {
-      tick().then(() => {
-        editorInstance.action((ctx) => {
-          const view = ctx.get(editorViewCtx);
-          // Force re-evaluation of editable state by updating view
-          view.updateState(view.state);
-          // If entering insert mode, ensure editor is focused
-          if (mode && !view.hasFocus()) {
-            view.focus();
-          }
-        });
-      });
-    }
-  });
+  const DEBOUNCE_SAVE_MS = 2000;
 
   /**
    * Trigger the auto-save mechanism with debouncing.
@@ -93,41 +69,9 @@
               triggerAutoSave(markdown)
             }
           });
-          
-          // Focus listener - only clear blur timeout, don't auto-enter insert mode
-          // User must press 'i' to enter insert mode
-          ctx.get(listenerCtx).focus(() => {
-            // Clear any pending blur timeout to prevent flicker
-            if (blurTimeout) {
-              clearTimeout(blurTimeout);
-              blurTimeout = null;
-            }
-            // If not in edit mode, immediately blur to prevent interaction
-            if (!editorState.editMode) {
-              tick().then(() => {
-                editorInstance?.action((c) => {
-                  const view = c.get(editorViewCtx);
-                  view.dom.blur();
-                });
-              });
-            }
-          });
-          
-          // Add blur listener to exit insert mode when focus leaves editor
-          ctx.get(listenerCtx).blur(() => {
-            // Use a small delay to prevent flicker on internal focus changes
-            blurTimeout = setTimeout(() => {
-              if (editorState.editMode) {
-                editorState.setEditMode(false);
-              }
-            }, BLUR_DELAY_MS);
-          });
-          
+
           ctx.set(rootCtx, dom)
           ctx.set(defaultValueCtx, initialValue)
-          ctx.set(editorViewOptionsCtx, {
-            editable: () => editorState.editMode
-          })
         })
         .use(listener)
         .use(grammarPlugin)
@@ -164,11 +108,6 @@
       tabindex="0"
       spellcheck="false"
       class="outline-none focus:outline-none focus-visible:outline-none"
-      ondblclick={() => {
-        if (!editorState.editMode) {
-          editorState.setEditMode(true);
-        }
-      }}
       onclick={(e) => {
         const link = /** @type {HTMLElement} */ (e.target).closest('a[href]');
         if (!link) return;

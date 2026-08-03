@@ -26,7 +26,7 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import { isMod, MOD_KEY } from '$lib/keyboard.svelte.js';
 
-  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
   /**
    * @typedef {Object} Props
@@ -64,7 +64,7 @@
       description: 'Create Writing Context',
       action: 'createDocumentContext',
       shortcutLabel: '', // No global shortcut to avoid conflict with Cmd+C
-      key: ''
+      key: '',
     },
     {
       cmd: ':u',
@@ -111,7 +111,7 @@
       description: 'Close file',
       action: 'close',
       shortcutLabel: `${MOD_KEY}Q`,
-      key: 'q'
+      key: 'q',
     },
     {
       cmd: ':b',
@@ -129,27 +129,9 @@
       key: 'l',
       icon: AiSparkleIcon,
     },
-    {
-      cmd: ':shorten',
-      description: 'AI Shorten',
-      action: 'aiShorten',
-      icon: ScissorsIcon,
-    },
-    {
-      cmd: ':expand',
-      description: 'AI Expand',
-      action: 'aiExpand',
-      icon: MaximizeIcon,
-    },
-    {
-      cmd: ':polish',
-      description: 'AI Polish',
-      action: 'aiPolish',
-      icon: AiSparkleIcon,
-    },
   ];
 
-  const quickCommands = commands.filter(c => [ ':redo', ':w', ':ai', ':h'].includes(c.cmd));
+  const quickCommands = commands.filter((c) => [':redo', ':w', ':ai', ':h'].includes(c.cmd));
 
   let suggestions = $derived.by(() => {
     if (input === ':') return commands;
@@ -167,9 +149,7 @@
 
       // Tier 2: Description matches (description contains searchTerm)
       const descriptionMatches = commands.filter(
-        (cmd) =>
-          !directMatches.includes(cmd) &&
-          cmd.description.toLowerCase().includes(searchTerm)
+        (cmd) => !directMatches.includes(cmd) && cmd.description.toLowerCase().includes(searchTerm)
       );
 
       return [...directMatches, ...descriptionMatches];
@@ -236,7 +216,7 @@
           await invalidateAll();
           appState.incrementEditorVersion();
         } catch (e) {
-          console.error("Undo failed:", e);
+          console.error('Undo failed:', e);
         }
         break;
       case 'redo':
@@ -245,7 +225,7 @@
           await invalidateAll();
           appState.incrementEditorVersion();
         } catch (e) {
-          console.error("Redo failed:", e);
+          console.error('Redo failed:', e);
         }
         break;
       case 'help':
@@ -255,12 +235,12 @@
       case 'aiExpand':
       case 'aiPolish': {
         const actionMap = {
-          'aiShorten': 'LengthShorten',
-          'aiExpand': 'LengthExpand',
-          'aiPolish': 'CorrectGrammar'
+          aiShorten: 'LengthShorten',
+          aiExpand: 'LengthExpand',
+          aiPolish: 'CorrectGrammar',
         };
         const milkdownAction = actionMap[command.action];
-        
+
         // Get text from selection if possible, otherwise use full document
         let textToEdit = '';
         if (editorState.editor) {
@@ -271,14 +251,14 @@
             if (from !== to) {
               textToEdit = state.doc.textBetween(from, to, ' ');
             } else {
-              // Fallback to full doc if no selection? 
-              // Actually, GrammarBox works per-paragraph. 
+              // Fallback to full doc if no selection?
+              // Actually, GrammarBox works per-paragraph.
               // For now, let's just use selection if available.
               textToEdit = getMarkdown()(ctx);
             }
           });
         }
-        
+
         if (textToEdit) {
           llmManager.sendEditActionMessage(textToEdit, milkdownAction);
         }
@@ -292,13 +272,11 @@
   function closeCommandMode() {
     isCommandMode = false;
     input = '';
-    // Optional: Return focus to editor
-    if (editorState.editMode) {
-      editorState.editor?.action((ctx) => {
-        const view = ctx.get(editorViewCtx);
-        view.focus();
-      });
-    }
+    // Return focus to editor
+    editorState.editor?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.focus();
+    });
   }
 
   /**
@@ -307,7 +285,7 @@
   $effect(() => {
     /** @param {KeyboardEvent} e */
     const handleCaptureKeyDown = (e) => {
-      if (e.key === 'Tab' && editorState.editMode) {
+      if (e.key === 'Tab') {
         const editor = editorState?.editor;
         if (editor) {
           let inList = false;
@@ -336,7 +314,7 @@
         }
         return;
       }
-      
+
       if (e.key === 'Escape') {
         if (isCommandMode) {
           e.preventDefault();
@@ -349,76 +327,30 @@
           e.preventDefault();
           return;
         }
-        if (editorState.editMode) {
-          editorState.setEditMode(false);
-          editorState?.editor?.action((ctx) => {
-            const view = ctx.get(editorViewCtx);
-            view.dom.blur();
-          });
-          e.preventDefault();
-          return;
-        }
       }
 
-      // 2. Trigger Command Mode with ':'
-      if (
-        !editorState.editMode &&
-        e.key === ':' &&
-        !isCommandMode &&
-        !appState.ui.isChatOpen &&
-        !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
-      ) {
-        e.preventDefault();
-        isCommandMode = true;
-        input = ':';
-        return;
-      }
-
-      // 3. Trigger Edit Mode with Vim-like keys
-      // 'i' - Insert at cursor
-      if (
-        e.key === 'i' &&
-        !editorState.editMode &&
-        !isCommandMode &&
-        !appState.ui.isChatOpen &&
-        !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
-      ) {
-        e.preventDefault();
-        editorState.setEditMode(true);
-        tick().then(() => {
-          const editor = editorState?.editor;
-          if (editor) {
-            editor.action((ctx) => {
-              const view = ctx.get(editorViewCtx);
-              view.focus();
-            });
-          }
-        });
-        return;
-      }
-
-      // 4. Handle Shortcuts
+      // 2. Handle Shortcuts
       if (isMod(e) && !isCommandMode) {
         // Special check for Z (Undo) and Shift+Z / Y (Redo)
         if (e.key.toLowerCase() === 'z') {
-           e.preventDefault();
-           e.stopPropagation();
-           if (e.shiftKey) {
-             executeCommand(':redo');
-           } else {
-             executeCommand(':u');
-           }
-           return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.shiftKey) {
+            executeCommand(':redo');
+          } else {
+            executeCommand(':u');
+          }
+          return;
         }
         if (e.key.toLowerCase() === 'y') {
-           e.preventDefault();
-           e.stopPropagation();
-           executeCommand(':redo');
-           return;
+          e.preventDefault();
+          e.stopPropagation();
+          executeCommand(':redo');
+          return;
         }
 
         // Handle other mapped keys
-        const match = commands.find(c => c.key === e.key.toLowerCase());
+        const match = commands.find((c) => c.key === e.key.toLowerCase());
         if (match) {
           e.preventDefault();
           e.stopPropagation();
@@ -472,7 +404,9 @@
 </script>
 
 <div class="relative bg-background z-40 command-bar">
-  <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
+  <div
+    class="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-border to-transparent"
+  ></div>
 
   {#if isCommandMode && suggestions.length > 0}
     <div
@@ -485,8 +419,10 @@
             onclick={() => executeCommand(suggestion.cmd)}
             onfocus={handleFocus}
             class={cn(
-              "w-full px-3 py-2 text-left text-sm font-mono flex items-center justify-between rounded-sm transition-colors",
-              index === selectedIndex ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
+              'w-full px-3 py-2 text-left text-sm font-mono flex items-center justify-between rounded-sm transition-colors',
+              index === selectedIndex
+                ? 'bg-accent text-accent-foreground'
+                : 'text-muted-foreground hover:bg-muted'
             )}
             role="option"
             aria-selected={index === selectedIndex}
@@ -496,7 +432,9 @@
               <span class="text-xs opacity-80">{suggestion.description}</span>
             </div>
             {#if suggestion.shortcutLabel}
-              <kbd class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+              <kbd
+                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100"
+              >
                 {suggestion.shortcutLabel}
               </kbd>
             {/if}
@@ -526,10 +464,12 @@
     <div class="flex items-stretch command-bar__inner h-9 text-[11px] font-mono">
       <!-- File/version state -->
       <div class="flex items-center gap-2 px-3.5 text-muted-foreground/80 shrink-0">
-        <span class={cn(
-          "tracking-wide transition-colors",
-          appState.ui.isHistoryOpen ? "text-success font-semibold" : ""
-        )}>
+        <span
+          class={cn(
+            'tracking-wide transition-colors',
+            appState.ui.isHistoryOpen ? 'text-success font-semibold' : ''
+          )}
+        >
           {appState.ui.isHistoryOpen ? 'HISTORY' : `v${currentVersion}`}
         </span>
       </div>
@@ -541,7 +481,11 @@
         <Tooltip.Root>
           <Tooltip.Trigger>
             {#snippet child({ props })}
-              <button {...props} onclick={() => executeCommand(':h')} class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors">
+              <button
+                {...props}
+                onclick={() => executeCommand(':h')}
+                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
                 <HelpIcon class="size-3.5" />
               </button>
             {/snippet}
@@ -552,7 +496,14 @@
         <Tooltip.Root>
           <Tooltip.Trigger>
             {#snippet child({ props })}
-              <button {...props} onclick={() => { isCommandMode = true; input = ':'; }} class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors">
+              <button
+                {...props}
+                onclick={() => {
+                  isCommandMode = true;
+                  input = ':';
+                }}
+                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
                 <TerminalIcon class="size-3.5" />
               </button>
             {/snippet}
@@ -563,7 +514,11 @@
         <Tooltip.Root>
           <Tooltip.Trigger>
             {#snippet child({ props })}
-              <button {...props} onclick={() => appState.toggleCommandMenu(true)} class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors">
+              <button
+                {...props}
+                onclick={() => appState.toggleCommandMenu(true)}
+                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
                 <SearchIcon class="size-3.5" />
               </button>
             {/snippet}
@@ -578,10 +533,12 @@
                 {...props}
                 onclick={() => {
                   if (!llmManager.modelsLoaded) {
-                    const isDownloaded = llmManager.modelStatuses.some(m => m.downloaded);
+                    const isDownloaded = llmManager.modelStatuses.some((m) => m.downloaded);
                     if (isDownloaded) {
                       llmManager.loadModels();
-                    } else if (confirm('Download AI Models for local intelligence? (approx 1.5GB)')) {
+                    } else if (
+                      confirm('Download AI Models for local intelligence? (approx 1.5GB)')
+                    ) {
                       llmManager.loadModels();
                     }
                   } else {
@@ -590,11 +547,13 @@
                 }}
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
-                <AiSparkleIcon class={cn(
-                  'size-3.5 transition-colors',
-                  (isThinking || llmManager.isLoadModelsInProgress) ? 'animate-pulse' : '',
-                  !llmManager.modelsLoaded ? 'text-warning' : ''
-                )} />
+                <AiSparkleIcon
+                  class={cn(
+                    'size-3.5 transition-colors',
+                    isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
+                    !llmManager.modelsLoaded ? 'text-warning' : ''
+                  )}
+                />
               </button>
             {/snippet}
           </Tooltip.Trigger>
@@ -616,7 +575,12 @@
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           {#snippet child({ props })}
-            <Button {...props} variant="ghost" size="icon" class="h-7 w-7 rounded-none md:hidden shrink-0">
+            <Button
+              {...props}
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7 rounded-none md:hidden shrink-0"
+            >
               <HouseIcon class="size-3.5" />
             </Button>
           {/snippet}
