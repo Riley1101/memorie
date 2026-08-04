@@ -7,7 +7,9 @@ class ConfigManager {
    *   undotree_dir: string,
    *   default_llm_model: string,
    *   default_llm_model_id?: string | null,
-   *   system_prompt?: string | null
+   *   system_prompt?: string | null,
+   *   github_repo?: string | null,
+   *   auto_push_on_exit?: boolean
    * } | null}
    */
   config = $state(null);
@@ -46,6 +48,17 @@ class ConfigManager {
       await this.getConfig();
     } catch (err) {
       console.error('Failed to set system prompt:', err);
+      this.error = err;
+    }
+  }
+
+  /** Toggle committing & pushing to GitHub automatically when the app closes. */
+  async setAutoPushOnExit(enabled) {
+    try {
+      await invoke('set_auto_push_on_exit', { enabled });
+      await this.getConfig();
+    } catch (err) {
+      console.error('Failed to set auto push on exit:', err);
       this.error = err;
     }
   }

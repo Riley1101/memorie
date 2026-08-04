@@ -543,3 +543,111 @@ pub async fn redo_file(name: String, state: State<'_, AppState>) -> Result<Optio
 
     Ok(result)
 }
+
+/**
+ *  Git / GitHub Commands
+ */
+#[tauri::command]
+pub async fn github_device_start() -> Result<super::git::DeviceCode, String> {
+    super::git::start_device_flow().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn github_device_poll(device_code: String) -> Result<super::git::DevicePollResult, String> {
+    super::git::poll_device_flow(&device_code).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn github_logout() -> Result<(), String> {
+    super::git::clear_token().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn github_get_user() -> Result<Option<super::git::GitHubUser>, String> {
+    let token = super::git::load_token().map_err(|e| e.to_string())?;
+    match token {
+        Some(token) => {
+            let user = super::git::fetch_github_user(&token).await.map_err(|e| e.to_string())?;
+            Ok(Some(user))
+        }
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+pub async fn git_status(state: State<'_, AppState>) -> Result<Vec<super::git::GitFileStatus>, String> {
+    let config = state.config.lock().await;
+    super::git::status(&config.content_directory).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn git_set_repo(owner_repo: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    super::git::set_remote(&config.content_directory, &owner_repo).map_err(|e| e.to_string())?;
+    config.github_repo = Some(owner_repo);
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_auto_push_on_exit(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    config.auto_push_on_exit = enabled;
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_pull(state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+
+    if config.github_repo.is_none() {
+        return Err("No GitHub repository configured".to_string());
+    }
+
+    let token = super::git::load_token()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Not logged in to GitHub".to_string())?;
+
+    super::git::pull(&config.content_directory, &token).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn git_commit_and_push(message: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+
+    if config.github_repo.is_none() {
+        return Err("No GitHub repository configured".to_string());
+    }
+
+    let token = super::git::load_token()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Not logged in to GitHub".to_string())?;
+
+    let user = super::git::fetch_github_user(&token).await.map_err(|e| e.to_string())?;
+    let author_name = user.name.unwrap_or_else(|| user.login.clone());
+    let author_email = format!("{}@users.noreply.github.com", user.login);
+
+    super::git::commit_and_push(
+        &config.content_directory,
+        &message,
+        &token,
+        &author_name,
+        &author_email,
+    )
+    .map_err(|e| e.to_string())
+}

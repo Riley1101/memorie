@@ -100,6 +100,11 @@
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
     }
 
+    if (e.key.toLowerCase() === 'p' && e.ctrlKey && e.shiftKey) {
+      e.preventDefault();
+      appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
+    }
+
     if (isMod(e)) {
       if (e.key === '=' || e.key === '+') {
         e.preventDefault();

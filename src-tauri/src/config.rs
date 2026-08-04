@@ -14,6 +14,12 @@ pub struct AppConfig {
     pub default_llm_model_id: Option<String>,
     #[serde(default)]
     pub system_prompt: Option<String>,
+    /// "owner/repo" of the GitHub repository writing is pushed to.
+    #[serde(default)]
+    pub github_repo: Option<String>,
+    /// If true, commit & push any pending changes to GitHub when the app is closed.
+    #[serde(default)]
+    pub auto_push_on_exit: bool,
 }
 
 impl AppConfig {
@@ -26,6 +32,8 @@ impl AppConfig {
             default_llm_model: app_dir.join("models").join("default_model.gguf"),
             default_llm_model_id: Some("qwen_2_5_1_5b_instruct".to_string()),
             system_prompt: None,
+            github_repo: None,
+            auto_push_on_exit: false,
         })
     }
 
