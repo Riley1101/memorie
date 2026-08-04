@@ -23,6 +23,14 @@ pub async fn list_recents(state: State<'_, AppState>) -> Result<Vec<File>, Strin
     Ok(result)
 }
 
+/// Splits off the trailing filename and returns the remaining path segments,
+/// e.g. `"Novel/Chapter 1/Scene 1.md"` -> `["Novel", "Chapter 1"]`.
+fn relative_dir_segments(name: &str) -> Vec<String> {
+    name.rsplit_once('/')
+        .map(|(dir, _)| dir.split('/').map(String::from).collect())
+        .unwrap_or_default()
+}
+
 #[tauri::command]
 pub async fn create_file(
     name: String,
@@ -31,8 +39,8 @@ pub async fn create_file(
 ) -> Result<File, String> {
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
-    let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
-    let result = fs::create_file(&path, &content, folder).map_err(|e| e.to_string())?;
+    let relative_dir = relative_dir_segments(&name);
+    let result = fs::create_file(&path, &content, relative_dir).map_err(|e| e.to_string())?;
 
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.add_change(&name, &content);
@@ -194,6 +202,30 @@ pub async fn rename_binder(
 pub async fn delete_binder(name: String, state: State<'_, AppState>) -> Result<(), String> {
     let config = state.config.lock().await;
     fs::delete_binder(&config.content_directory, &name).map_err(|e| e.to_string())
+}
+
+/// Creates an empty nested folder (e.g. a chapter inside a Novel binder) at
+/// `relative_path`, relative to the content directory.
+#[tauri::command]
+pub async fn create_folder(relative_path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+    fs::create_folder(&config.content_directory, &relative_path).map_err(|e| e.to_string())
+}
+
+/// Lists every directory (binder, chapter, scene grouping, ...) under the
+/// content directory, so folders with no writings yet still show up.
+#[tauri::command]
+pub async fn list_folders(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let config = state.config.lock().await;
+    fs::list_folders(&config.content_directory).map_err(|e| e.to_string())
+}
+
+/// Deletes an empty nested folder (chapter, scene grouping, ...). Refuses if
+/// it still contains anything, same rule as `delete_binder`.
+#[tauri::command]
+pub async fn delete_folder(relative_path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+    fs::delete_folder(&config.content_directory, &relative_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -623,6 +655,21 @@ pub async fn set_auto_push_on_exit(enabled: bool, state: State<'_, AppState>) ->
 
     let mut config = state.config.lock().await;
     config.auto_push_on_exit = enabled;
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_ai_enabled(enabled: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    config.ai_enabled = enabled;
     config.save(config_path_str).map_err(|e| e.to_string())?;
     Ok(())
 }

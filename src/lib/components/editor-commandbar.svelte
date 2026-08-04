@@ -7,6 +7,7 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { llmManager } from '@/runes/llm.svelte.js';
+  import { configManager } from '@/runes/config.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte';
   import { gitManager } from '@/runes/git.svelte.js';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
@@ -59,8 +60,10 @@
    * @property {import("svelte").Component} [icon] - Icon component.
    */
 
+  let aiEnabled = $derived(configManager.config?.ai_enabled ?? false);
+
   /** @type {Command[]} */
-  const commands = [
+  const allCommands = [
     {
       cmd: ':c',
       description: 'Create Writing Context',
@@ -141,7 +144,13 @@
     },
   ];
 
-  const quickCommands = commands.filter((c) => [':redo', ':w', ':ai', ':h'].includes(c.cmd));
+  let commands = $derived(
+    aiEnabled ? allCommands : allCommands.filter((c) => !['ai', 'c'].includes(c.cmd.slice(1)))
+  );
+
+  let quickCommands = $derived(
+    commands.filter((c) => [':redo', ':w', ':ai', ':h'].includes(c.cmd))
+  );
 
   let suggestions = $derived.by(() => {
     if (input === ':') return commands;
@@ -565,6 +574,7 @@
           <Tooltip.Content side="top" portalProps={{}}>Search · {MOD_KEY}K</Tooltip.Content>
         </Tooltip.Root>
 
+        {#if aiEnabled}
         <Tooltip.Root>
           <Tooltip.Trigger>
             {#snippet child({ props })}
@@ -608,6 +618,7 @@
             {/if}
           </Tooltip.Content>
         </Tooltip.Root>
+        {/if}
       </div>
 
       <!-- Mobile overflow menu -->

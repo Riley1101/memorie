@@ -4,6 +4,7 @@
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
   import ScrollFade from '$lib/components/scroll-fade.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
+  import { configManager } from '@/runes/config.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
   import * as Drawer from '$lib/components/ui/drawer/index.js';
 
@@ -18,6 +19,7 @@
 </script>
 
 {@render children()}
+{#if configManager.config?.ai_enabled}
 <Drawer.Root
   dismissible={false}
   bind:open={
@@ -43,3 +45,4 @@
     </Drawer.Footer>
   </Drawer.Content>
 </Drawer.Root>
+{/if}

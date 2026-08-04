@@ -35,13 +35,25 @@
   let commitMessage = $state('');
 
   onMount(() => {
-    configManager.getConfig();
-    llmManager.checkModels();
-    llmManager.fetchSupportedModels();
+    configManager.getConfig().then(() => {
+      if (configManager.config?.ai_enabled) {
+        llmManager.checkModels();
+        llmManager.fetchSupportedModels();
+      }
+    });
     gitManager.checkSession().then(() => {
       if (gitManager.user) gitManager.refreshStatus();
     });
   });
+
+  async function handleToggleAiEnabled() {
+    const enabling = !(configManager.config?.ai_enabled ?? false);
+    await configManager.setAiEnabled(enabling);
+    if (enabling) {
+      await llmManager.setupModels();
+      await llmManager.fetchSupportedModels();
+    }
+  }
 
   $effect(() => {
     if (configManager.config?.github_repo && !repoInput) {
@@ -252,6 +264,31 @@
               </div>
 
               <div class="grid gap-8">
+                <!-- Enable AI -->
+                <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div>
+                    <p class="text-lg font-normal">Enable local AI</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Turns on local AI chat, autocomplete, and model downloads. Off by default so
+                      Memoire starts as a plain writing app.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={configManager.config?.ai_enabled ?? false}
+                    onclick={handleToggleAiEnabled}
+                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
+                      {configManager.config?.ai_enabled ? 'bg-primary' : 'bg-muted-foreground/30'}"
+                  >
+                    <span
+                      class="inline-block size-4 transform rounded-full bg-background transition-transform
+                        {configManager.config?.ai_enabled ? 'translate-x-6' : 'translate-x-1'}"
+                    ></span>
+                  </button>
+                </div>
+
+                {#if configManager.config?.ai_enabled}
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon class="size-4 opacity-50" />
@@ -361,6 +398,7 @@
                     ></textarea>
                   </div>
                 </div>
+                {/if}
               </div>
             </section>
           {:else if activeSection === 'sync'}

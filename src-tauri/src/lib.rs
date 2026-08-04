@@ -142,6 +142,9 @@ pub async fn run() {
             commands::create_binder,
             commands::rename_binder,
             commands::delete_binder,
+            commands::create_folder,
+            commands::list_folders,
+            commands::delete_folder,
             commands::check_models,
             commands::get_supported_models,
             commands::download_model,
@@ -170,6 +173,7 @@ pub async fn run() {
             commands::git_status,
             commands::git_set_repo,
             commands::set_auto_push_on_exit,
+            commands::set_ai_enabled,
             commands::git_pull,
             commands::git_commit_and_push,
         ])

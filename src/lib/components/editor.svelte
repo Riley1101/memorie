@@ -10,6 +10,7 @@
   import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
   import { clipboard } from '@milkdown/kit/plugin/clipboard'
   import { appState } from '@/runes/app.svelte.js';
+  import { configManager } from '@/runes/config.svelte.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
 
   /**
@@ -62,7 +63,7 @@
     $effect(() => {
       if (editorInstance) return;
 
-      Editor
+      let editorBuilder = Editor
         .make()
         .config((ctx) => {
           ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
@@ -74,8 +75,13 @@
           ctx.set(rootCtx, dom)
           ctx.set(defaultValueCtx, initialValue)
         })
-        .use(listener)
-        .use(grammarPlugin)
+        .use(listener);
+
+      if (configManager.config?.ai_enabled) {
+        editorBuilder = editorBuilder.use(grammarPlugin);
+      }
+
+      editorBuilder
         .use(exitCodeBlockPlugin)
         .use(commonmark)
         .use(gfm)

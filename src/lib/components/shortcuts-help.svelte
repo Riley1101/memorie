@@ -1,6 +1,7 @@
 <script>
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
+  import { configManager } from '$lib/runes/config.svelte.js';
   import { MOD_LABEL } from '$lib/keyboard.svelte.js';
   import HouseIcon from '@lucide/svelte/icons/house';
   import SearchIcon from '@lucide/svelte/icons/search';
@@ -11,18 +12,22 @@
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import TypeIcon from '@lucide/svelte/icons/type';
 
-  const shortcuts = [
-    { key: `${MOD_LABEL} + K`, description: 'Search writings', icon: SearchIcon },
-    { key: `${MOD_LABEL} + L`, description: 'Toggle AI Chat', icon: SparklesIcon },
-    { key: `${MOD_LABEL} + B`, description: 'Go Home / Exit', icon: HouseIcon },
-    { key: `${MOD_LABEL} + U`, description: 'Toggle History', icon: HistoryIcon },
-    { key: `${MOD_LABEL} + S`, description: 'Save writing (:w)', icon: SaveIcon },
-    { key: `${MOD_LABEL} + Q`, description: 'Close writing (:q)' },
-    { key: `${MOD_LABEL} + Z`, description: 'Undo version', icon: UndoIcon },
-    { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo version', icon: RedoIcon },
-    { key: `${MOD_LABEL} + + / -`, description: 'Adjust Font Size', icon: TypeIcon },
-    { key: ':', description: 'Enter Command Mode (when not typing in the editor)' },
-  ];
+  let shortcuts = $derived(
+    [
+      { key: `${MOD_LABEL} + K`, description: 'Search writings', icon: SearchIcon },
+      configManager.config?.ai_enabled
+        ? { key: `${MOD_LABEL} + L`, description: 'Toggle AI Chat', icon: SparklesIcon }
+        : null,
+      { key: `${MOD_LABEL} + B`, description: 'Go Home / Exit', icon: HouseIcon },
+      { key: `${MOD_LABEL} + U`, description: 'Toggle History', icon: HistoryIcon },
+      { key: `${MOD_LABEL} + S`, description: 'Save writing (:w)', icon: SaveIcon },
+      { key: `${MOD_LABEL} + Q`, description: 'Close writing (:q)' },
+      { key: `${MOD_LABEL} + Z`, description: 'Undo version', icon: UndoIcon },
+      { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo version', icon: RedoIcon },
+      { key: `${MOD_LABEL} + + / -`, description: 'Adjust Font Size', icon: TypeIcon },
+      { key: ':', description: 'Enter Command Mode (when not typing in the editor)' },
+    ].filter(Boolean)
+  );
 </script>
 
 <Dialog.Root 

@@ -16,6 +16,8 @@
   import { SvelteDate } from 'svelte/reactivity';
   import { appState } from '$lib/runes/app.svelte.js';
   import ScrollFade from './scroll-fade.svelte';
+  import BinderTreeNode from './binder-tree-node.svelte';
+  import { buildFileTree } from '@/utils';
 
   let { activeBinder = null } = $props();
 
@@ -31,6 +33,62 @@
       (activeBinder === null || item.folder === activeBinder)
     );
   });
+
+  // Binder selected + no active search: browse it as a chapters/scenes tree
+  // instead of a flat date-grouped list.
+  let showTree = $derived(activeBinder !== null && keyword.trim() === '');
+  let fileTree = $derived.by(() =>
+    showTree ? buildFileTree(favourites, activeBinder, fileManager.folders) : []
+  );
+
+  let isNewSceneDialogOpen = $state(false);
+  let newSceneSubPath = $state([]);
+  let newSceneName = $state('');
+
+  function handleTreeCreateFile(subPath) {
+    newSceneSubPath = subPath;
+    newSceneName = '';
+    isNewSceneDialogOpen = true;
+  }
+
+  async function confirmCreateScene() {
+    if (!newSceneName.trim()) return;
+    await fileManager.createNewFile(newSceneName, '', activeBinder, newSceneSubPath);
+    isNewSceneDialogOpen = false;
+    newSceneName = '';
+  }
+
+  let isNewFolderDialogOpen = $state(false);
+  let newFolderSubPath = $state([]);
+  let newFolderName = $state('');
+
+  function handleTreeCreateFolder(subPath) {
+    newFolderSubPath = subPath;
+    newFolderName = '';
+    isNewFolderDialogOpen = true;
+  }
+
+  async function confirmCreateFolder() {
+    if (!newFolderName.trim()) return;
+    await fileManager.createFolder(activeBinder, newFolderSubPath, newFolderName);
+    isNewFolderDialogOpen = false;
+    newFolderName = '';
+  }
+
+  let isDeleteFolderDialogOpen = $state(false);
+  let folderPathToDelete = $state([]);
+
+  function handleTreeDeleteFolder(path) {
+    folderPathToDelete = path;
+    isDeleteFolderDialogOpen = true;
+  }
+
+  async function confirmDeleteFolder() {
+    const relativePath = [activeBinder, ...folderPathToDelete].join('/');
+    await fileManager.deleteFolder(relativePath);
+    isDeleteFolderDialogOpen = false;
+    folderPathToDelete = [];
+  }
 
   let groupedFiles = $derived.by(() => {
     const files = filteredFiles;
@@ -133,6 +191,54 @@
 
   <ScrollFade class="flex-1 min-h-0">
   <ScrollArea type="scroll" class="h-full">
+    {#if showTree}
+      <div class="pb-20 pr-2">
+        <div class="flex items-center justify-between mb-6 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10">
+          <h3 class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-background pr-3">
+            {activeBinder}
+          </h3>
+          <div class="flex items-center gap-1">
+            <button
+              onclick={() => handleTreeCreateFile([])}
+              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-colors"
+            >
+              <PlusIcon class="size-3" />
+              <span>Entry</span>
+            </button>
+            <button
+              onclick={() => handleTreeCreateFolder([])}
+              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-colors"
+            >
+              <FolderIcon class="size-3" />
+              <span>Folder</span>
+            </button>
+          </div>
+        </div>
+
+        {#if fileTree.length === 0}
+          <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
+            <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
+              <FolderIcon class="size-6 text-muted-foreground/40" />
+            </div>
+            <h3 class="text-xl font-normal">No writings in {activeBinder} yet</h3>
+            <p class="text-muted-foreground/60 max-w-xs text-sm">
+              Add an entry, or a folder to group entries under.
+            </p>
+          </div>
+        {:else}
+          {#each fileTree as node (node.type + ':' + node.name)}
+            <BinderTreeNode
+              {node}
+              binder={activeBinder}
+              onCreateFile={handleTreeCreateFile}
+              onCreateFolder={handleTreeCreateFolder}
+              onDeleteFile={handleDeleteClick}
+              onDeleteFolder={handleTreeDeleteFolder}
+            />
+          {/each}
+        {/if}
+      </div>
+    {:else}
     <div class="space-y-12 pb-20 pr-2">
       {#each groupedFiles as group (group.id)}
         <div class="relative">
@@ -222,6 +328,7 @@
           </div>
       {/if}
     </div>
+    {/if}
   </ScrollArea>
   </ScrollFade>
 </div>
@@ -238,6 +345,94 @@
     <Dialog.Footer class="mt-6 flex gap-2">
       <Button variant="ghost" onclick={handleCancelDelete} class="flex-1" disabled={false}>Cancel</Button>
       <Button variant="destructive" onclick={handleConfirmDelete} class="flex-1" disabled={false}>Delete</Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={isNewSceneDialogOpen}>
+  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
+    <Dialog.Header class="">
+      <Dialog.Title class="text-xl font-normal">New Entry</Dialog.Title>
+      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+        {activeBinder}{newSceneSubPath.length ? `/${newSceneSubPath.join('/')}` : ''}/
+      </Dialog.Description>
+    </Dialog.Header>
+    <Input
+      bind:value={newSceneName}
+      type="text"
+      placeholder="Entry name"
+      class="mt-2"
+      autofocus
+      onkeydown={(e) => {
+        if (e.key === 'Enter') confirmCreateScene();
+      }}
+    />
+    <Dialog.Footer class="mt-6 flex gap-2">
+      <Button
+        variant="ghost"
+        onclick={() => {
+          isNewSceneDialogOpen = false;
+          newSceneName = '';
+        }}
+        class="flex-1"
+        disabled={false}>Cancel</Button
+      >
+      <Button variant="default" onclick={confirmCreateScene} class="flex-1" disabled={false}>Create</Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={isNewFolderDialogOpen}>
+  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
+    <Dialog.Header class="">
+      <Dialog.Title class="text-xl font-normal">New Folder</Dialog.Title>
+      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+        {activeBinder}{newFolderSubPath.length ? `/${newFolderSubPath.join('/')}` : ''}/
+      </Dialog.Description>
+    </Dialog.Header>
+    <Input
+      bind:value={newFolderName}
+      type="text"
+      placeholder="Folder name"
+      class="mt-2"
+      autofocus
+      onkeydown={(e) => {
+        if (e.key === 'Enter') confirmCreateFolder();
+      }}
+    />
+    <Dialog.Footer class="mt-6 flex gap-2">
+      <Button
+        variant="ghost"
+        onclick={() => {
+          isNewFolderDialogOpen = false;
+          newFolderName = '';
+        }}
+        class="flex-1"
+        disabled={false}>Cancel</Button
+      >
+      <Button variant="default" onclick={confirmCreateFolder} class="flex-1" disabled={false}>Create</Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={isDeleteFolderDialogOpen}>
+  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
+    <Dialog.Header class="">
+      <Dialog.Title class="text-xl font-normal">Delete Folder</Dialog.Title>
+      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+        Are you sure you want to delete
+        <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>?
+        <br />This action cannot be undone.
+      </Dialog.Description>
+    </Dialog.Header>
+    <Dialog.Footer class="mt-6 flex gap-2">
+      <Button
+        variant="ghost"
+        onclick={() => (isDeleteFolderDialogOpen = false)}
+        class="flex-1"
+        disabled={false}>Cancel</Button
+      >
+      <Button variant="destructive" onclick={confirmDeleteFolder} class="flex-1" disabled={false}>Delete</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
