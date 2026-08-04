@@ -3,6 +3,8 @@
   import { fileManager } from '@/runes/fs.svelte';
   import { gitManager } from '@/runes/git.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import FileIcon from '@lucide/svelte/icons/file';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
@@ -23,6 +25,11 @@
 
   function selectBinder(name) {
     activeBinder = activeBinder === name ? null : name;
+  }
+
+  function goToManageBinders() {
+    isMobileSheetOpen = false;
+    goto(resolve('/binders'));
   }
 
   async function handleCreateBinder() {
@@ -82,7 +89,12 @@
 
 {#snippet binderPanel(onSelect)}
   <div class="px-2 pb-1.5 shrink-0">
-    <h2 class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Binders</h2>
+    <button
+      onclick={goToManageBinders}
+      class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 hover:text-foreground transition-colors"
+    >
+      Binders
+    </button>
   </div>
   <ScrollFade class="min-h-0" fadeSize="h-4">
     <ScrollArea type="scroll" class="min-h-0">
@@ -166,7 +178,11 @@
 <Sheet.Root bind:open={isMobileSheetOpen}>
   <Sheet.Content side="left" class="w-64 font-writer flex flex-col" portalProps={{}}>
     <Sheet.Header class="pb-0">
-      <Sheet.Title class="text-lg font-normal">Binders</Sheet.Title>
+      <button onclick={goToManageBinders} class="text-left">
+        <Sheet.Title class="text-lg font-normal hover:text-primary transition-colors"
+          >Binders</Sheet.Title
+        >
+      </button>
     </Sheet.Header>
     {@render binderPanel(() => (isMobileSheetOpen = false))}
   </Sheet.Content>

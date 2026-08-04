@@ -176,6 +176,24 @@ pub fn create_binder(directory: &Path, name: &str) -> Result<(), FileError> {
     Ok(())
 }
 
+pub fn rename_binder(directory: &Path, old_name: &str, new_name: &str) -> Result<(), FileError> {
+    fs::rename(directory.join(old_name), directory.join(new_name))?;
+    Ok(())
+}
+
+/// Deletes binder `name` inside `directory`. Refuses if the binder contains
+/// any writings (files), so a binder can only be deleted while empty.
+pub fn delete_binder(directory: &Path, name: &str) -> Result<(), FileError> {
+    let path = directory.join(name);
+
+    if fs::read_dir(&path)?.next().is_some() {
+        return Err(FileError::BinderNotEmpty(name.to_string()));
+    }
+
+    fs::remove_dir(&path)?;
+    Ok(())
+}
+
 pub fn update_file(file: &File, content: &str) -> Result<File, FileError> {
     fs::write(&file.path, content)?;
     Ok(file.clone())
@@ -283,6 +301,40 @@ mod fs_tests {
         create_binder(dir.path(), "Ideas").unwrap();
         let binders = list_binders(dir.path()).unwrap();
         assert_eq!(binders, vec!["Ideas".to_string()]);
+    }
+
+    #[test]
+    fn test_rename_binder() {
+        let dir = tempdir().unwrap();
+        create_binder(dir.path(), "Ideas").unwrap();
+
+        rename_binder(dir.path(), "Ideas", "Notes").unwrap();
+        assert_eq!(list_binders(dir.path()).unwrap(), vec!["Notes".to_string()]);
+    }
+
+    #[test]
+    fn test_delete_empty_binder() {
+        let dir = tempdir().unwrap();
+        create_binder(dir.path(), "Ideas").unwrap();
+
+        delete_binder(dir.path(), "Ideas").unwrap();
+        assert!(list_binders(dir.path()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_delete_binder_with_writings_fails() {
+        let dir = tempdir().unwrap();
+        create_binder(dir.path(), "Ideas").unwrap();
+        create_file(
+            &dir.path().join("Ideas").join("note.md"),
+            "content",
+            Some("Ideas".to_string()),
+        )
+        .unwrap();
+
+        let err = delete_binder(dir.path(), "Ideas").unwrap_err();
+        assert!(matches!(err, FileError::BinderNotEmpty(_)));
+        assert_eq!(list_binders(dir.path()).unwrap(), vec!["Ideas".to_string()]);
     }
 
     #[test]

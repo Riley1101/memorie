@@ -181,6 +181,22 @@ pub async fn create_binder(name: String, state: State<'_, AppState>) -> Result<(
 }
 
 #[tauri::command]
+pub async fn rename_binder(
+    old_name: String,
+    new_name: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config = state.config.lock().await;
+    fs::rename_binder(&config.content_directory, &old_name, &new_name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_binder(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+    fs::delete_binder(&config.content_directory, &name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn get_file_history(
     name: String,
     state: State<'_, AppState>,

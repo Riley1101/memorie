@@ -140,6 +140,8 @@ pub async fn run() {
             commands::rename_file,
             commands::list_binders,
             commands::create_binder,
+            commands::rename_binder,
+            commands::delete_binder,
             commands::check_models,
             commands::get_supported_models,
             commands::download_model,

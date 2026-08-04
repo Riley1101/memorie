@@ -127,6 +127,53 @@ class FileManager {
   }
 
   /**
+   * Renames a binder (folder) and refreshes the binder list.
+   * @async
+   * @param {string} oldName - The current binder name.
+   * @param {string} newName - The new binder name.
+   * @returns {Promise<void>}
+   */
+  async renameBinder(oldName, newName) {
+    if (!newName || !newName.trim() || oldName === newName.trim()) return;
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('rename_binder', { oldName, newName: newName.trim() });
+      await this.getBinders();
+      await this.getRecents();
+    } catch (err) {
+      this.errorMessage = `Failed to rename binder "${oldName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Deletes an empty binder (folder) and refreshes the binder list.
+   * Refuses (backend-enforced) if the binder still contains writings.
+   * @async
+   * @param {string} binderName - The name of the binder to delete.
+   * @returns {Promise<void>}
+   */
+  async deleteBinder(binderName) {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('delete_binder', { name: binderName });
+      await this.getBinders();
+    } catch (err) {
+      this.errorMessage = `Failed to delete binder "${binderName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
    * Creates a new, empty .md file and refreshes the file list.
    * @async
    * @param {string} fileName - The name for the new file (without extension).

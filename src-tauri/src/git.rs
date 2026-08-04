@@ -129,17 +129,28 @@ pub async fn poll_device_flow(device_code: &str) -> Result<DevicePollResult, Git
 
 pub async fn fetch_github_user(token: &str) -> Result<GitHubUser, GitError> {
     let client = reqwest::Client::new();
-    let res: serde_json::Value = client
+    let response = client
         .get("https://api.github.com/user")
         .header("Authorization", format!("Bearer {token}"))
         .header("User-Agent", "memoire-app")
         .send()
-        .await?
-        .json()
         .await?;
 
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(GitError::GitHubApi(format!("{status}: {body}")));
+    }
+
+    let res: serde_json::Value = response.json().await?;
+
+    let login = res["login"].as_str().unwrap_or_default().to_string();
+    if login.is_empty() {
+        return Err(GitError::GitHubApi("response missing login".to_string()));
+    }
+
     Ok(GitHubUser {
-        login: res["login"].as_str().unwrap_or_default().to_string(),
+        login,
         name: res["name"].as_str().map(|s| s.to_string()),
         avatar_url: res["avatar_url"].as_str().map(|s| s.to_string()),
     })
