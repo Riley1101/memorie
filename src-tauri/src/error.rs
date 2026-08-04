@@ -83,3 +83,33 @@ pub enum ChatError {
     #[error("Chat error: {0}")]
     Chat(#[from] LlamaError),
 }
+
+#[derive(Error, Debug)]
+pub enum GitError {
+    #[error("Git error: {0}")]
+    Git(#[from] git2::Error),
+
+    #[error("Network error: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("Keychain error: {0}")]
+    Keyring(#[from] keyring::Error),
+
+    #[error("Not logged in to GitHub")]
+    NotLoggedIn,
+
+    #[error("No GitHub repository configured")]
+    NoRepoConfigured,
+
+    #[error("GitHub device flow error: {0}")]
+    DeviceFlow(String),
+
+    #[error("Could not determine the remote repository's default branch")]
+    NoRemoteBranch,
+
+    #[error("Local and remote history have diverged — push your local changes first")]
+    DivergedHistory,
+
+    #[error("File I/O error")]
+    Io(#[from] std::io::Error),
+}

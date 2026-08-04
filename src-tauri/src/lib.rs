@@ -3,6 +3,7 @@ mod config;
 mod error;
 
 mod fs;
+mod git;
 mod llm;
 mod memory;
 mod prompts;
@@ -67,6 +68,59 @@ pub async fn run() {
             workers: LlmEventService::new(app_handle),
         };
         app.manage(app_state);
+
+        if let Some(window) = app.get_webview_window("main") {
+            let app_handle = app.handle().clone();
+            let closing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let window_for_close = window.clone();
+
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if closing.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                        // Already ran the auto-push check; let this close through.
+                        return;
+                    }
+                    api.prevent_close();
+
+                    let app_handle = app_handle.clone();
+                    let window = window_for_close.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let state = app_handle.state::<AppState>();
+                        let (should_push, content_dir) = {
+                            let config = state.config.lock().await;
+                            (
+                                config.auto_push_on_exit && config.github_repo.is_some(),
+                                config.content_directory.clone(),
+                            )
+                        };
+
+                        if should_push {
+                            if let Ok(Some(token)) = git::load_token() {
+                                if let Ok(user) = git::fetch_github_user(&token).await {
+                                    let author_name = user.name.unwrap_or_else(|| user.login.clone());
+                                    let author_email =
+                                        format!("{}@users.noreply.github.com", user.login);
+                                    let message = format!(
+                                        "Auto-sync on exit — {}",
+                                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+                                    );
+                                    let _ = git::commit_and_push(
+                                        &content_dir,
+                                        &message,
+                                        &token,
+                                        &author_name,
+                                        &author_email,
+                                    );
+                                }
+                            }
+                        }
+
+                        let _ = window.close();
+                    });
+                }
+            });
+        }
+
         Ok(())
     });
 
@@ -107,6 +161,15 @@ pub async fn run() {
             commands::goto_file_version,
             commands::undo_file,
             commands::redo_file,
+            commands::github_device_start,
+            commands::github_device_poll,
+            commands::github_logout,
+            commands::github_get_user,
+            commands::git_status,
+            commands::git_set_repo,
+            commands::set_auto_push_on_exit,
+            commands::git_pull,
+            commands::git_commit_and_push,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

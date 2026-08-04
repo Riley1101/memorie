@@ -8,6 +8,7 @@
   import { resolve } from '$app/paths';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte';
+  import { gitManager } from '@/runes/git.svelte.js';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
   import SaveIcon from '@lucide/svelte/icons/save';
   import HistoryIcon from '@lucide/svelte/icons/history';
@@ -19,6 +20,7 @@
   import MaximizeIcon from '@lucide/svelte/icons/maximize';
   import TerminalIcon from '@lucide/svelte/icons/square-terminal';
   import SearchIcon from '@lucide/svelte/icons/search';
+  import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { editorViewCtx } from '@milkdown/kit/core';
   import { invoke } from '@tauri-apps/api/core';
@@ -129,6 +131,14 @@
       key: 'l',
       icon: AiSparkleIcon,
     },
+    {
+      cmd: ':push',
+      description: 'Sync writing to GitHub (commit & push)',
+      action: 'push',
+      shortcutLabel: '',
+      key: '',
+      icon: UploadCloudIcon,
+    },
   ];
 
   const quickCommands = commands.filter((c) => [':redo', ':w', ':ai', ':h'].includes(c.cmd));
@@ -202,6 +212,20 @@
         break;
       case 'save':
         onSave();
+        break;
+      case 'push':
+        if (!gitManager.user) {
+          alert('Log in to GitHub first: Settings → Git & GitHub.');
+          break;
+        }
+        onSave();
+        await gitManager.commitAndPush(`Update writing — ${new Date().toLocaleString()}`);
+        if (gitManager.pushResult === 'error') {
+          alert(
+            'Push failed: ' +
+              (typeof gitManager.error === 'string' ? gitManager.error : 'unknown error')
+          );
+        }
         break;
       case 'close':
         goto(resolve('/'));
@@ -327,6 +351,21 @@
           e.preventDefault();
           return;
         }
+      }
+
+      // Trigger Command Mode with ':' when focus isn't inside the editor
+      // (avoids stealing ':' from normal typing, since the editor is always editable now)
+      if (
+        e.key === ':' &&
+        !isCommandMode &&
+        !appState.ui.isChatOpen &&
+        !document.activeElement?.closest?.('[contenteditable="true"]') &&
+        !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName ?? '')
+      ) {
+        e.preventDefault();
+        isCommandMode = true;
+        input = ':';
+        return;
       }
 
       // 2. Handle Shortcuts
