@@ -45,7 +45,7 @@
   let newSceneSubPath = $state([]);
   let newSceneName = $state('');
 
-  function handleTreeCreateFile(subPath) {
+  export function handleTreeCreateFile(subPath) {
     newSceneSubPath = subPath;
     newSceneName = '';
     isNewSceneDialogOpen = true;
@@ -62,7 +62,7 @@
   let newFolderSubPath = $state([]);
   let newFolderName = $state('');
 
-  function handleTreeCreateFolder(subPath) {
+  export function handleTreeCreateFolder(subPath) {
     newFolderSubPath = subPath;
     newFolderName = '';
     isNewFolderDialogOpen = true;
@@ -197,22 +197,6 @@
           <h3 class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-background pr-3">
             {activeBinder}
           </h3>
-          <div class="flex items-center gap-1">
-            <button
-              onclick={() => handleTreeCreateFile([])}
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-colors"
-            >
-              <PlusIcon class="size-3" />
-              <span>Entry</span>
-            </button>
-            <button
-              onclick={() => handleTreeCreateFolder([])}
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-colors"
-            >
-              <FolderIcon class="size-3" />
-              <span>Folder</span>
-            </button>
-          </div>
         </div>
 
         {#if fileTree.length === 0}

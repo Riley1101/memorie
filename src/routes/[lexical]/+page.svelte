@@ -2,6 +2,8 @@
   import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
   import ScrollFade from '$lib/components/scroll-fade.svelte';
   import HouseIcon from '@lucide/svelte/icons/house';
+  import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
+  import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import MarkdownEditor from '$lib/components/md-editor.svelte';
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
@@ -13,7 +15,8 @@
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { formatTimeAgo } from '@/utils.js';
+  import { formatTimeAgo, formatFileName } from '@/utils.js';
+  import { fileManager } from '$lib/runes/fs.svelte';
 
   let { data } = $props();
 
@@ -58,6 +61,31 @@
   });
 
   let body = $derived(content || '');
+
+  function dirOf(name) {
+    const i = name.lastIndexOf('/');
+    return i === -1 ? '' : name.slice(0, i);
+  }
+
+  // Writings that share the same immediate parent folder as the current one
+  // (a binder root, or a chapter/scene folder nested inside a binder).
+  let siblings = $derived.by(() => {
+    const dir = dirOf(fileName);
+    if (!dir) return [];
+    return fileManager.files
+      .filter((f) => dirOf(f.name) === dir)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  let siblingIndex = $derived(siblings.findIndex((f) => f.name === fileName));
+  let prevWriting = $derived(siblingIndex > 0 ? siblings[siblingIndex - 1] : null);
+  let nextWriting = $derived(
+    siblingIndex !== -1 && siblingIndex < siblings.length - 1 ? siblings[siblingIndex + 1] : null
+  );
+
+  function goToWriting(file) {
+    if (file) goto(resolve(`/${encodeURIComponent(file.name)}`));
+  }
 
   /**
    * @param {ChunkItem} item
@@ -105,10 +133,30 @@
       >
         <HouseIcon class="size-3.5" />
       </button>
-      <div class="flex-1 flex justify-center pointer-events-none">
-        <span class="text-muted-foreground select-none truncate max-w-xs">
+      <div class="flex-1 flex items-center justify-center gap-1">
+        {#if siblings.length > 1}
+          <button
+            onclick={() => goToWriting(prevWriting)}
+            disabled={!prevWriting}
+            title={prevWriting ? formatFileName(prevWriting.name.split('/').pop()) : ''}
+            class="flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          >
+            <ChevronLeftIcon class="size-3" />
+          </button>
+        {/if}
+        <span class="text-muted-foreground select-none truncate max-w-xs pointer-events-none">
           {editorState.name}
         </span>
+        {#if siblings.length > 1}
+          <button
+            onclick={() => goToWriting(nextWriting)}
+            disabled={!nextWriting}
+            title={nextWriting ? formatFileName(nextWriting.name.split('/').pop()) : ''}
+            class="flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+          >
+            <ChevronRightIcon class="size-3" />
+          </button>
+        {/if}
       </div>
       <span class="text-muted-foreground/70 lowercase first-letter:uppercase tracking-wide">
         {editorState.saveStatus.status}
