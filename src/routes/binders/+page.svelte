@@ -79,7 +79,7 @@
     <Button
       variant="ghost"
       size="icon"
-      class="text-muted-foreground hover:text-foreground transition-colors"
+      class="text-muted-foreground hover:text-foreground rounded-full transition-colors"
       onclick={() => goto(resolve('/'))}
       disabled={false}
     >
@@ -145,7 +145,7 @@
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-9 text-muted-foreground hover:text-foreground"
+                  class="size-9 rounded-full text-muted-foreground hover:text-foreground"
                   onclick={() => startRename(binder)}
                   disabled={false}
                 >
@@ -155,7 +155,7 @@
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-9 text-muted-foreground hover:text-destructive"
+                  class="size-9 rounded-full text-muted-foreground hover:text-destructive"
                   onclick={() => handleDeleteClick(binder)}
                   disabled={false}
                 >

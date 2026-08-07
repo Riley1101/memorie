@@ -1,42 +1,39 @@
 <script>
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import { fileManager } from '@/runes/fs.svelte';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import PlusIcon from '@lucide/svelte/icons/plus';
-  import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+  import PencilIcon from '@lucide/svelte/icons/pencil';
   import FileIcon from '@lucide/svelte/icons/file';
   import FolderIcon from '@lucide/svelte/icons/folder';
+  import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
   import Button from './ui/button/button.svelte';
-  import { formatFileName } from '@/utils';
-  import { Input } from '@/components/ui/input/index.js';
+  import { formatFileName, formatDate, formatTime } from '@/utils';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
   import { SvelteDate } from 'svelte/reactivity';
-  import { appState } from '$lib/runes/app.svelte.js';
   import ScrollFade from './scroll-fade.svelte';
   import BinderTreeNode from './binder-tree-node.svelte';
   import { buildFileTree } from '@/utils';
 
   let { activeBinder = null } = $props();
 
-  let keyword = $state('');
   let isDeleteDialogOpen = $state(false);
   let itemToDelete = $state(null);
+  let renamingItem = $state(null);
+  let renameValue = $state('');
+  let itemClickTimer = null;
 
   let favourites = $derived(fileManager.files);
 
   let filteredFiles = $derived.by(() => {
-    return favourites.filter((item) =>
-      item.name.toLowerCase().includes(keyword.toLowerCase()) &&
-      (activeBinder === null || item.folder === activeBinder)
-    );
+    return favourites.filter((item) => activeBinder === null || item.folder === activeBinder);
   });
 
-  // Binder selected + no active search: browse it as a chapters/scenes tree
-  // instead of a flat date-grouped list.
-  let showTree = $derived(activeBinder !== null && keyword.trim() === '');
+  // Binder selected: browse it as a chapters/scenes tree instead of a flat
+  // date-grouped list.
+  let showTree = $derived(activeBinder !== null);
   let fileTree = $derived.by(() =>
     showTree ? buildFileTree(favourites, activeBinder, fileManager.folders) : []
   );
@@ -121,19 +118,38 @@
     return groups.filter(g => g.files.length > 0);
   });
 
-  function handleSearchKeydown(e) {
-    if (e.key !== 'Enter') return;
-    if (filteredFiles.length > 0) {
-      goto(resolve(`/${encodeURIComponent(filteredFiles[0].name)}`));
-    } else if (keyword) {
-      createNewFile();
-    }
+  function startRename(item) {
+    renamingItem = item;
+    renameValue = formatFileName(item.name.split('/').pop());
   }
 
-  function createNewFile() {
-    fileManager.createNewFile(keyword || 'Untitled', '', activeBinder).then(() => {
-      keyword = '';
-    });
+  function cancelRename() {
+    renamingItem = null;
+    renameValue = '';
+  }
+
+  async function confirmRename() {
+    if (!renamingItem || !renameValue.trim()) {
+      cancelRename();
+      return;
+    }
+    await fileManager.renameFile(renamingItem.name, renameValue.trim());
+    cancelRename();
+  }
+
+  function handleItemClick(e, item) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    if (itemClickTimer) {
+      clearTimeout(itemClickTimer);
+      itemClickTimer = null;
+      startRename(item);
+    } else {
+      itemClickTimer = setTimeout(() => {
+        itemClickTimer = null;
+        goto(resolve(`/${encodeURIComponent(item.name)}`));
+      }, 250);
+    }
   }
 
   function handleDeleteClick(item) {
@@ -153,73 +169,42 @@
     isDeleteDialogOpen = false;
     itemToDelete = null;
   }
-
-  function formatTime(timestamp) {
-    return new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function formatDate(timestamp) {
-      return new Date(timestamp * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
-  }
 </script>
 
 <div class="flex flex-col w-full h-full font-writer">
-  <div class="sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-1 pb-6 shrink-0">
-      <div class="relative group w-full">
-          <Input
-              bind:value={keyword}
-              type="text"
-              autofocus
-              onkeydown={handleSearchKeydown}
-              placeholder="Search or start something new..."
-              class="pl-10 h-10 bg-muted/20 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/10 transition-all text-base placeholder:text-muted-foreground/50 rounded-lg"
-          />
-          <FileIcon class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors" />
-
-          {#if keyword && filteredFiles.length === 0}
-              <button
-                  onclick={createNewFile}
-                  class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-primary/90 text-primary-foreground px-2.5 py-1 rounded-md text-xs font-medium hover:bg-primary transition-all animate-in fade-in scale-in-95"
-              >
-                  <PlusIcon class="size-3" strokeWidth={1.5} />
-                  <span>Create {keyword}.md{activeBinder ? ` in ${activeBinder}` : ''}</span>
-              </button>
-          {/if}
-      </div>
-  </div>
-
   <ScrollFade class="flex-1 min-h-0">
   <ScrollArea type="scroll" class="h-full">
     {#if showTree}
       <div class="pb-20 pr-2">
-        <div class="flex items-center justify-between mb-6 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10">
-          <h3 class="text-[0.6875rem] font-medium text-muted-foreground/60 bg-background pr-3">
-            {activeBinder}
-          </h3>
-          <div class="flex items-center gap-3">
-            <button
-              onclick={() => handleTreeCreateFile([])}
-              class="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground/50 hover:text-foreground transition-colors"
-            >
-              <PlusIcon class="size-3" strokeWidth={1.5} />
-              <span>New entry</span>
-            </button>
-            <button
-              onclick={() => handleTreeCreateFolder([])}
-              class="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground/50 hover:text-foreground transition-colors"
-            >
-              <FolderIcon class="size-3" strokeWidth={1.5} />
-              <span>New folder</span>
-            </button>
-          </div>
+        <div class="flex items-center justify-end gap-0.5 mb-6 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="rounded-full text-muted-foreground/50 hover:text-foreground"
+            aria-label="New entry"
+            onclick={() => handleTreeCreateFile([])}
+            disabled={false}
+          >
+            <PlusIcon class="size-3.5" strokeWidth={1.5} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="rounded-full text-muted-foreground/50 hover:text-foreground"
+            aria-label="New folder"
+            onclick={() => handleTreeCreateFolder([])}
+            disabled={false}
+          >
+            <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
+          </Button>
         </div>
 
         {#if draft && draft.subPath.length === 0}
-          <div class="flex items-center gap-2 py-1.5">
+          <div class="flex items-center gap-2 py-2.5">
             {#if draft.type === 'folder'}
-              <FolderIcon class="size-3 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+              <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
             {:else}
-              <FileIcon class="size-3 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+              <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
             {/if}
             <input
               value={draft.name}
@@ -231,7 +216,7 @@
               onblur={handleDraftCancel}
               autofocus
               placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
-              class="flex-1 min-w-0 bg-transparent text-sm outline-none"
+              class="flex-1 min-w-0 bg-transparent text-base outline-none"
             />
           </div>
         {/if}
@@ -264,13 +249,25 @@
         {/if}
       </div>
     {:else}
-    <div class="space-y-12 pb-20 pr-2">
+    <div class="space-y-6 pb-20 pr-2">
+      <div class="flex items-center justify-end mb-4 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="rounded-full text-muted-foreground/50 hover:text-foreground"
+          aria-label="New entry"
+          onclick={() => handleTreeCreateFile([])}
+          disabled={false}
+        >
+          <PlusIcon class="size-3.5" strokeWidth={1.5} />
+        </Button>
+      </div>
       {#if draft}
-        <div class="flex items-center gap-3 p-3 md:p-4 rounded-xl border border-transparent mb-6">
+        <div class="flex items-center gap-2 py-2.5 mb-2">
           {#if draft.type === 'folder'}
-            <FolderIcon class="size-4 shrink-0 text-muted-foreground/50" strokeWidth={1.5} />
+            <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
           {:else}
-            <FileIcon class="size-4 shrink-0 text-muted-foreground/50" strokeWidth={1.5} />
+            <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
           {/if}
           <input
             value={draft.name}
@@ -282,65 +279,82 @@
             onblur={handleDraftCancel}
             autofocus
             placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
-            class="flex-1 min-w-0 bg-transparent text-[1.1rem] md:text-xl font-normal outline-none"
+            class="flex-1 min-w-0 bg-transparent text-base outline-none"
           />
         </div>
       {/if}
       {#each groupedFiles as group (group.id)}
         <div class="relative">
-          <div class="flex items-center mb-3 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
+          <div class="flex items-center mb-1 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
               <h3 class="text-[0.6875rem] font-medium text-muted-foreground/60 bg-background pr-3">
                   {group.label}
               </h3>
           </div>
 
-          <div class="space-y-1">
-            {#each group.files as item (item.path)}
-              <a
-                      href={resolve(`/${encodeURIComponent(item.name)}`)}
-                      class="group flex items-center justify-between p-3 md:p-4 rounded-xl border border-transparent hover:border-border/40 hover:bg-muted/20 transition-all overflow-hidden"
-                  >
-                      <div class="flex flex-col gap-0.5 truncate mr-4">
-                          <span class="text-[1.1rem] md:text-xl font-normal group-hover:text-primary transition-colors truncate">
-                              {formatFileName(item.name.split('/').pop())}
-                          </span>
-                          <div class="flex items-center gap-2 text-[0.6875rem] md:text-[0.75rem] text-muted-foreground/60 font-mono">
-                              {#if item.folder && activeBinder === null}
-                                  <span class="flex items-center gap-1 text-muted-foreground/50">
-                                      <FolderIcon class="size-2.5" />
-                                      {item.folder}
-                                  </span>
-                                  <span class="opacity-30">•</span>
-                              {/if}
-                              <span>{formatDate(item.last_modified)}</span>
-                              <span class="opacity-30">•</span>
-                              <span>{formatTime(item.last_modified)}</span>
-                          </div>
-                      </div>
+          {#each group.files as item (item.path)}
+            <div class="group relative flex items-center gap-2.5 py-2.5 rounded-md hover:bg-muted/20">
+              {#if renamingItem === item}
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+                  <input
+                    value={renameValue}
+                    oninput={(e) => (renameValue = e.currentTarget.value)}
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                    }}
+                    onblur={confirmRename}
+                    autofocus
+                    class="flex-1 min-w-0 bg-transparent text-base outline-none"
+                  />
+                </div>
+              {:else}
+                <a
+                  href={resolve(`/${encodeURIComponent(item.name)}`)}
+                  onclick={(e) => handleItemClick(e, item)}
+                  class="flex items-center gap-2 flex-1 min-w-0 text-base text-muted-foreground/90 hover:text-foreground transition-colors"
+                >
+                  <FileIcon class="size-4 shrink-0" strokeWidth={1.5} />
+                  <span class="truncate">{formatFileName(item.name.split('/').pop())}</span>
+                  <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono">
+                    {#if item.folder && activeBinder === null}
+                      <span class="flex items-center gap-1">
+                        <FolderIcon class="size-3" />
+                        {item.folder}
+                      </span>
+                      <span class="opacity-30">•</span>
+                    {/if}
+                    <span>{formatDate(item.last_modified)}</span>
+                    <span class="opacity-30">•</span>
+                    <span>{formatTime(item.last_modified)}</span>
+                  </span>
+                </a>
+              {/if}
 
-                      <div class="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                          <DropdownMenu.Root>
-                              <DropdownMenu.Trigger>
-                                  <Button variant="ghost" size="icon" class="size-7 md:size-8 rounded-full" disabled={false}>
-                                      <EllipsisIcon class="size-3.5" />
-                                  </Button>
-                              </DropdownMenu.Trigger>
-                              <DropdownMenu.Content class="{appState.ui.theme} w-40" align="end" portalProps={{}}>
-                                  <DropdownMenu.Item
-                                      onclick={(e) => { e.preventDefault(); handleDeleteClick(item); }}
-                                      variant="destructive"
-                                      class="gap-2 text-[0.8125rem]"
-                                      inset={false}
-                                  >
-                                      <Trash2Icon class="size-3.5" />
-                                      <span>Delete</span>
-                                  </DropdownMenu.Item>
-                              </DropdownMenu.Content>
-                          </DropdownMenu.Root>
-                      </div>
-                  </a>
-            {/each}
-          </div>
+              <div class="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 rounded-full"
+                  aria-label="Rename"
+                  onclick={() => startRename(item)}
+                  disabled={false}
+                >
+                  <PencilIcon class="size-3.5" strokeWidth={1.5} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="size-8 rounded-full text-destructive/70 hover:text-destructive"
+                  aria-label="Delete"
+                  onclick={() => handleDeleteClick(item)}
+                  disabled={false}
+                >
+                  <Trash2Icon class="size-3.5" strokeWidth={1.5} />
+                </Button>
+              </div>
+            </div>
+          {/each}
         </div>
       {/each}
 
@@ -359,7 +373,7 @@
               <p class="text-muted-foreground/60 max-w-xs text-sm">
                   Your writing timeline will appear here. Start by creating your first writing above.
               </p>
-              <Button onclick={() => keyword = 'A new thought'} variant="outline" class="mt-4" disabled={false}>
+              <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4" disabled={false}>
                   Start writing
               </Button>
           </div>

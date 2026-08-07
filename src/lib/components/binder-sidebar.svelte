@@ -24,6 +24,10 @@
     activeBinder = activeBinder === name ? null : name;
   }
 
+  function binderCount(name) {
+    return fileManager.files.filter((f) => f.folder === name).length;
+  }
+
   function goToManageBinders() {
     isMobileSheetOpen = false;
     goto(resolve('/binders'));
@@ -77,7 +81,8 @@
         : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
     >
       <FileIcon class="size-4 shrink-0" />
-      <span class="truncate">All Writings</span>
+      <span class="truncate flex-1">All Writings</span>
+      <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{fileManager.files.length}</span>
     </button>
     <div class="my-1 border-t border-border/30"></div>
     {#each fileManager.binders as binder (binder)}
@@ -92,7 +97,8 @@
           : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
       >
         <FolderIcon class="size-4 shrink-0" />
-        <span class="truncate">{binder}</span>
+        <span class="truncate flex-1">{binder}</span>
+        <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{binderCount(binder)}</span>
       </button>
     {/each}
   </nav>

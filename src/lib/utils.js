@@ -154,3 +154,21 @@ export function formatTimeAgo(date) {
     return `${years} year${years > 1 ? 's' : ''} ago`;
   }
 }
+
+/**
+ * Formats a unix timestamp (seconds) as a short date, e.g. "Jan 5".
+ * @param {number} timestamp
+ * @returns {string}
+ */
+export function formatDate(timestamp) {
+  return new Date(timestamp * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Formats a unix timestamp (seconds) as a short time, e.g. "3:45 PM".
+ * @param {number} timestamp
+ * @returns {string}
+ */
+export function formatTime(timestamp) {
+  return new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
