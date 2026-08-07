@@ -6,6 +6,7 @@
   import { appState, THEME_PALETTES, DENSITY_MODES } from '@/runes/app.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte';
   import { llmManager } from '@/runes/llm.svelte.js';
+  import { configManager } from '@/runes/config.svelte.js';
   import { onDestroy, onMount } from 'svelte';
   import { isMod } from '$lib/keyboard.svelte.js';
 
@@ -40,7 +41,13 @@
     }
     fileManager.getRecents();
     fileManager.getBinders();
-    llmManager.setupModels();
+    fileManager.getFolders();
+
+    configManager.getConfig().then(() => {
+      if (configManager.config?.ai_enabled) {
+        llmManager.setupModels();
+      }
+    });
   });
 
   $effect(() => {

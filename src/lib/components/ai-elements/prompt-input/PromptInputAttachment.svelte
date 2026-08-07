@@ -33,7 +33,7 @@
 		<div
 			class="text-muted-foreground flex size-full max-w-full cursor-pointer items-center justify-start gap-2 overflow-hidden px-2"
 		>
-			<PaperclipIcon class="size-4 shrink-0" />
+			<PaperclipIcon class="size-3.5 shrink-0" />
 			<Tooltip.Root delayDuration={400}>
 				<Tooltip.Trigger class="min-w-0 flex-1">
 					<h4 class="w-full truncate text-left text-sm font-medium">

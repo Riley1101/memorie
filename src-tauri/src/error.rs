@@ -16,6 +16,9 @@ pub enum FileError {
 
     #[error("File too large to read ({0} bytes, limit {1} bytes)")]
     FileTooLarge(u64, u64),
+
+    #[error("Binder \"{0}\" is not empty and cannot be deleted")]
+    BinderNotEmpty(String),
 }
 
 #[derive(Error, Debug)]
@@ -109,6 +112,9 @@ pub enum GitError {
 
     #[error("Local and remote history have diverged — push your local changes first")]
     DivergedHistory,
+
+    #[error("GitHub API error: {0}")]
+    GitHubApi(String),
 
     #[error("File I/O error")]
     Io(#[from] std::io::Error),

@@ -92,7 +92,7 @@
               class="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
               onclick={handleNewSession}
             >
-              <PlusIcon class="size-4" />
+              <PlusIcon class="size-3.5" />
               <span>New Session</span>
             </button>
           </PromptInputActionMenuContent>
@@ -106,7 +106,7 @@
               bind:pressed={includeContext}
               aria-label="Include current writing as context"
             >
-              <FileText class="size-4" />
+              <FileText class="size-3.5" />
             </Toggle>
           </TooltipTrigger>
           <TooltipContent class="">Include Current Writing Context</TooltipContent>

@@ -14,9 +14,11 @@
   const LANE_WIDTH = 16;
   const DOT_RADIUS = 4;
   const HIT_HEIGHT = ROW_HEIGHT;
+  const LABEL_WIDTH = 32;
 
   let graph = $derived.by(() => buildGitGraph(allNodes, current));
-  let width = $derived(Math.max(graph.laneCount, 1) * LANE_WIDTH);
+  let lanesWidth = $derived(Math.max(graph.laneCount, 1) * LANE_WIDTH);
+  let width = $derived(lanesWidth + LABEL_WIDTH);
   let height = $derived(graph.rows.length * ROW_HEIGHT);
 
   let navigatingId = $state(/** @type {number | null} */ (null));
@@ -101,6 +103,14 @@
               stroke={row.color}
               stroke-width="2"
             />
+
+            <text
+              x={lanesWidth + 4}
+              y={yMid}
+              dominant-baseline="middle"
+              font-size="10"
+              fill={row.isCurrent ? row.color : 'var(--color-muted-foreground)'}
+            >v{row.id}</text>
           {/each}
         </svg>
 

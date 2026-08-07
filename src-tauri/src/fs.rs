@@ -20,20 +20,37 @@ pub struct File {
 
 impl File {
     pub fn new(path: PathBuf, modified: Option<SystemTime>) -> Self {
-        Self::with_folder(path, modified, None)
+        Self::with_relative_dir(path, modified, Vec::new())
     }
 
+    /// `folder`, if given, is treated as the single top-level directory the file
+    /// lives in. Kept for callers that only ever deal with one level of nesting.
     pub fn with_folder(path: PathBuf, modified: Option<SystemTime>, folder: Option<String>) -> Self {
+        Self::with_relative_dir(path, modified, folder.into_iter().collect())
+    }
+
+    /// `relative_dir` is the chain of directory names from the content root down
+    /// to (but not including) the file itself, e.g. `["Novel", "Chapter 1"]` for
+    /// `Novel/Chapter 1/Scene 1.md`. `folder` is set to the first segment (the
+    /// binder), matching the flat binder model callers filter by.
+    pub fn with_relative_dir(
+        path: PathBuf,
+        modified: Option<SystemTime>,
+        relative_dir: Vec<String>,
+    ) -> Self {
         let base_name = path
             .file_name()
             .and_then(OsStr::to_str)
             .unwrap_or("")
             .to_string();
 
-        let name = match &folder {
-            Some(dir) => format!("{}/{}", dir, base_name),
-            None => base_name,
+        let name = if relative_dir.is_empty() {
+            base_name
+        } else {
+            format!("{}/{}", relative_dir.join("/"), base_name)
         };
+
+        let folder = relative_dir.into_iter().next();
 
         let last_modified = modified
             .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
@@ -58,41 +75,41 @@ impl File {
     }
 }
 
-/// Scans `directory` for `.md` files, one level deep: top-level files (folder=None)
-/// plus files directly inside each top-level subdirectory (folder=Some(dir_name)).
-/// Binders are not nested, so sub-subdirectories are not scanned.
-fn scan_files(directory: &Path) -> Result<Vec<(PathBuf, SystemTime, Option<String>)>, FileError> {
-    let mut found = Vec::new();
-
-    for entry in fs::read_dir(directory)? {
+/// Recursively scans `directory` for `.md` files at any depth. Top-level
+/// subdirectories are binders; folders nested further (chapters, scenes, ...)
+/// are just part of the tree inside a binder. Dotfiles/dirs are skipped.
+fn scan_dir_recursive(
+    current: &Path,
+    relative_dir: &mut Vec<String>,
+    found: &mut Vec<(PathBuf, SystemTime, Vec<String>)>,
+) -> Result<(), FileError> {
+    for entry in fs::read_dir(current)? {
         let entry = entry?;
         let path = entry.path();
         let metadata = entry.metadata()?;
 
         if path.is_file() && path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION) {
             let modified = metadata.modified()?;
-            found.push((path, modified, None));
+            found.push((path, modified, relative_dir.clone()));
         } else if metadata.is_dir() {
             let dir_name = match path.file_name().and_then(OsStr::to_str) {
                 Some(n) if !n.starts_with('.') => n.to_string(),
                 _ => continue,
             };
 
-            for sub_entry in fs::read_dir(&path)? {
-                let sub_entry = sub_entry?;
-                let sub_path = sub_entry.path();
-
-                if sub_path.is_file()
-                    && sub_path.extension().and_then(OsStr::to_str) == Some(DEFAULT_EXTENSION)
-                {
-                    let sub_metadata = sub_entry.metadata()?;
-                    let modified = sub_metadata.modified()?;
-                    found.push((sub_path, modified, Some(dir_name.clone())));
-                }
-            }
+            relative_dir.push(dir_name);
+            scan_dir_recursive(&path, relative_dir, found)?;
+            relative_dir.pop();
         }
     }
 
+    Ok(())
+}
+
+fn scan_files(directory: &Path) -> Result<Vec<(PathBuf, SystemTime, Vec<String>)>, FileError> {
+    let mut found = Vec::new();
+    let mut relative_dir = Vec::new();
+    scan_dir_recursive(directory, &mut relative_dir, &mut found)?;
     Ok(found)
 }
 
@@ -104,7 +121,7 @@ pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
 
     let files = files_with_mod_time
         .into_iter()
-        .map(|(path, mod_time, folder)| File::with_folder(path, Some(mod_time), folder))
+        .map(|(path, mod_time, relative_dir)| File::with_relative_dir(path, Some(mod_time), relative_dir))
         .collect();
 
     Ok(files)
@@ -134,21 +151,65 @@ pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
 
     let mut files: Vec<File> = found
         .into_iter()
-        .map(|(path, modified, folder)| File::with_folder(path, Some(modified), folder))
+        .map(|(path, modified, relative_dir)| File::with_relative_dir(path, Some(modified), relative_dir))
         .collect();
 
     files.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(files)
 }
 
-/// `folder`, if given, is the binder (top-level subdirectory) name the file lives in.
-pub fn create_file(path: &Path, content: &str, folder: Option<String>) -> Result<File, FileError> {
+/// `relative_dir` is the full chain of directory names (binder, then any nested
+/// chapter/scene folders) the file lives in, e.g. `["Novel", "Chapter 1"]`.
+pub fn create_file(path: &Path, content: &str, relative_dir: Vec<String>) -> Result<File, FileError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
     fs::write(path, content)?;
     let modified = fs::metadata(path)?.modified().ok();
-    Ok(File::with_folder(path.to_path_buf(), modified, folder))
+    Ok(File::with_relative_dir(path.to_path_buf(), modified, relative_dir))
+}
+
+/// Creates an empty folder (binder subdirectory, chapter, scene grouping, ...)
+/// at `relative_path` under `directory`, creating any missing parents.
+pub fn create_folder(directory: &Path, relative_path: &str) -> Result<(), FileError> {
+    fs::create_dir_all(directory.join(relative_path))?;
+    Ok(())
+}
+
+/// Recursively lists every directory under `directory` (including top-level
+/// binders), as `/`-joined paths relative to `directory`, e.g. `"Novel/Chapter 2"`.
+/// Used so folders with no writings in them yet still show up in a binder's tree.
+pub fn list_folders(directory: &Path) -> Result<Vec<String>, FileError> {
+    let mut folders = Vec::new();
+    let mut relative_dir = Vec::new();
+    collect_folders(directory, &mut relative_dir, &mut folders)?;
+    folders.sort();
+    Ok(folders)
+}
+
+fn collect_folders(
+    current: &Path,
+    relative_dir: &mut Vec<String>,
+    out: &mut Vec<String>,
+) -> Result<(), FileError> {
+    for entry in fs::read_dir(current)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if entry.metadata()?.is_dir() {
+            let dir_name = match path.file_name().and_then(OsStr::to_str) {
+                Some(n) if !n.starts_with('.') => n.to_string(),
+                _ => continue,
+            };
+
+            relative_dir.push(dir_name);
+            out.push(relative_dir.join("/"));
+            collect_folders(&path, relative_dir, out)?;
+            relative_dir.pop();
+        }
+    }
+
+    Ok(())
 }
 
 pub fn list_binders(directory: &Path) -> Result<Vec<String>, FileError> {
@@ -173,6 +234,38 @@ pub fn list_binders(directory: &Path) -> Result<Vec<String>, FileError> {
 
 pub fn create_binder(directory: &Path, name: &str) -> Result<(), FileError> {
     fs::create_dir_all(directory.join(name))?;
+    Ok(())
+}
+
+pub fn rename_binder(directory: &Path, old_name: &str, new_name: &str) -> Result<(), FileError> {
+    fs::rename(directory.join(old_name), directory.join(new_name))?;
+    Ok(())
+}
+
+/// Deletes binder `name` inside `directory`. Refuses if the binder contains
+/// any writings (files), so a binder can only be deleted while empty.
+pub fn delete_binder(directory: &Path, name: &str) -> Result<(), FileError> {
+    let path = directory.join(name);
+
+    if fs::read_dir(&path)?.next().is_some() {
+        return Err(FileError::BinderNotEmpty(name.to_string()));
+    }
+
+    fs::remove_dir(&path)?;
+    Ok(())
+}
+
+/// Deletes folder `relative_path` (a chapter/scene grouping nested inside a
+/// binder) inside `directory`. Refuses if it contains anything, same rule as
+/// `delete_binder`.
+pub fn delete_folder(directory: &Path, relative_path: &str) -> Result<(), FileError> {
+    let path = directory.join(relative_path);
+
+    if fs::read_dir(&path)?.next().is_some() {
+        return Err(FileError::BinderNotEmpty(relative_path.to_string()));
+    }
+
+    fs::remove_dir(&path)?;
     Ok(())
 }
 
@@ -227,7 +320,7 @@ mod fs_tests {
         let file_path = dir.path().join("test.md");
         let content = "Hello, World!";
 
-        let file = create_file(&file_path, content, None).unwrap();
+        let file = create_file(&file_path, content, Vec::new()).unwrap();
 
         assert_eq!(file.name, "test.md");
         assert_eq!(file.path, file_path);
@@ -241,10 +334,10 @@ mod fs_tests {
     fn test_discover_files() {
         let dir = tempdir().unwrap();
 
-        create_file(&dir.path().join("a.md"), "content a", None).unwrap();
-        create_file(&dir.path().join("b.md"), "content b", None).unwrap();
+        create_file(&dir.path().join("a.md"), "content a", Vec::new()).unwrap();
+        create_file(&dir.path().join("b.md"), "content b", Vec::new()).unwrap();
 
-        create_file(&dir.path().join("c.txt"), "content c", None).unwrap();
+        create_file(&dir.path().join("c.txt"), "content c", Vec::new()).unwrap();
 
         let discovered = discover_files(dir.path()).unwrap();
 
@@ -257,12 +350,12 @@ mod fs_tests {
     fn test_discover_files_in_binder() {
         let dir = tempdir().unwrap();
 
-        create_file(&dir.path().join("top.md"), "top level", None).unwrap();
+        create_file(&dir.path().join("top.md"), "top level", Vec::new()).unwrap();
         fs::create_dir(dir.path().join("Binder")).unwrap();
         create_file(
             &dir.path().join("Binder").join("nested.md"),
             "nested",
-            Some("Binder".to_string()),
+            vec!["Binder".to_string()],
         )
         .unwrap();
 
@@ -276,6 +369,52 @@ mod fs_tests {
     }
 
     #[test]
+    fn test_discover_files_deeply_nested() {
+        let dir = tempdir().unwrap();
+
+        create_file(
+            &dir.path().join("Novel").join("Chapter 1").join("Scene 1.md"),
+            "scene one",
+            vec!["Novel".to_string(), "Chapter 1".to_string()],
+        )
+        .unwrap();
+
+        let discovered = discover_files(dir.path()).unwrap();
+
+        assert_eq!(discovered.len(), 1);
+        let scene = &discovered[0];
+        assert_eq!(scene.name, "Novel/Chapter 1/Scene 1.md");
+        assert_eq!(scene.folder.as_deref(), Some("Novel"));
+    }
+
+    #[test]
+    fn test_create_folder() {
+        let dir = tempdir().unwrap();
+
+        create_folder(dir.path(), "Novel/Chapter 1").unwrap();
+        assert!(dir.path().join("Novel").join("Chapter 1").is_dir());
+    }
+
+    #[test]
+    fn test_list_folders_includes_empty_nested_folders() {
+        let dir = tempdir().unwrap();
+
+        create_folder(dir.path(), "Novel/Chapter 1").unwrap();
+        create_folder(dir.path(), "Novel/Chapter 2").unwrap();
+
+        let folders = list_folders(dir.path()).unwrap();
+
+        assert_eq!(
+            folders,
+            vec![
+                "Novel".to_string(),
+                "Novel/Chapter 1".to_string(),
+                "Novel/Chapter 2".to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn test_list_and_create_binder() {
         let dir = tempdir().unwrap();
         assert!(list_binders(dir.path()).unwrap().is_empty());
@@ -283,6 +422,63 @@ mod fs_tests {
         create_binder(dir.path(), "Ideas").unwrap();
         let binders = list_binders(dir.path()).unwrap();
         assert_eq!(binders, vec!["Ideas".to_string()]);
+    }
+
+    #[test]
+    fn test_rename_binder() {
+        let dir = tempdir().unwrap();
+        create_binder(dir.path(), "Ideas").unwrap();
+
+        rename_binder(dir.path(), "Ideas", "Notes").unwrap();
+        assert_eq!(list_binders(dir.path()).unwrap(), vec!["Notes".to_string()]);
+    }
+
+    #[test]
+    fn test_delete_empty_binder() {
+        let dir = tempdir().unwrap();
+        create_binder(dir.path(), "Ideas").unwrap();
+
+        delete_binder(dir.path(), "Ideas").unwrap();
+        assert!(list_binders(dir.path()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_delete_binder_with_writings_fails() {
+        let dir = tempdir().unwrap();
+        create_binder(dir.path(), "Ideas").unwrap();
+        create_file(
+            &dir.path().join("Ideas").join("note.md"),
+            "content",
+            vec!["Ideas".to_string()],
+        )
+        .unwrap();
+
+        let err = delete_binder(dir.path(), "Ideas").unwrap_err();
+        assert!(matches!(err, FileError::BinderNotEmpty(_)));
+        assert_eq!(list_binders(dir.path()).unwrap(), vec!["Ideas".to_string()]);
+    }
+
+    #[test]
+    fn test_delete_empty_folder() {
+        let dir = tempdir().unwrap();
+        create_folder(dir.path(), "Novel/Chapter 1").unwrap();
+
+        delete_folder(dir.path(), "Novel/Chapter 1").unwrap();
+        assert_eq!(list_folders(dir.path()).unwrap(), vec!["Novel".to_string()]);
+    }
+
+    #[test]
+    fn test_delete_folder_with_scenes_fails() {
+        let dir = tempdir().unwrap();
+        create_file(
+            &dir.path().join("Novel").join("Chapter 1").join("Scene 1.md"),
+            "content",
+            vec!["Novel".to_string(), "Chapter 1".to_string()],
+        )
+        .unwrap();
+
+        let err = delete_folder(dir.path(), "Novel/Chapter 1").unwrap_err();
+        assert!(matches!(err, FileError::BinderNotEmpty(_)));
     }
 
     #[test]
@@ -299,7 +495,7 @@ mod fs_tests {
         let initial_content = "Initial content.";
         let updated_content = "This content has been updated.";
 
-        let file = create_file(&file_path, initial_content, None).unwrap();
+        let file = create_file(&file_path, initial_content, Vec::new()).unwrap();
         let updated_file = update_file(&file, updated_content).unwrap();
 
         assert_eq!(file, updated_file);
@@ -324,7 +520,7 @@ mod fs_tests {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("delete_me.md");
 
-        let file = create_file(&file_path, "I am temporary.", None).unwrap();
+        let file = create_file(&file_path, "I am temporary.", Vec::new()).unwrap();
         assert!(file.path.exists());
 
         delete_file(&file).unwrap();
@@ -338,11 +534,11 @@ mod fs_tests {
         let file_path3 = dir.path().join("c.md");
 
         // Create files with a small delay to ensure different modification times
-        create_file(&file_path1, "content a", None).unwrap();
+        create_file(&file_path1, "content a", Vec::new()).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        create_file(&file_path2, "content b", None).unwrap();
+        create_file(&file_path2, "content b", Vec::new()).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        create_file(&file_path3, "content c", None).unwrap();
+        create_file(&file_path3, "content c", Vec::new()).unwrap();
 
         let recent_files = get_recent(dir.path()).unwrap();
 

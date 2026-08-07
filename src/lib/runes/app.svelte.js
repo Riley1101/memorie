@@ -203,3 +203,4 @@ class AppState {
 export let appState = new AppState();
 export const THEME_PALETTES = AppState.THEME_PALETTES;
 export const DENSITY_MODES = AppState.DENSITY_MODES;
+export const DENSITY_FONT_SIZE = AppState.DENSITY_FONT_SIZE;

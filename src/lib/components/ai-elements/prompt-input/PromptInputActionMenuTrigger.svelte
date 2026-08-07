@@ -11,7 +11,7 @@
 		{#if children}
 			{@render children()}
 		{:else}
-			<PlusIcon class="size-4" />
+			<PlusIcon class="size-3.5" />
 		{/if}
 	</PromptInputButton>
 </DropdownMenu.Trigger>

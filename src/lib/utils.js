@@ -52,6 +52,74 @@ export function sanitizeMarkdown(md) {
 }
 
 /**
+ * Builds a nested folder/file tree for the files inside one binder, from the
+ * flat `FileEntry[]` list the backend returns (each entry's `name` carries its
+ * full path, e.g. "Novel/Chapter 1/Scene 1.md"). Used to render chapters/scenes
+ * as a real tree instead of a flat list. Folders sort before files, both
+ * alphabetically.
+ *
+ * @param {Array<{name: string, folder: string|null}>} files
+ * @param {string} binder
+ * @param {string[]} [folders] - `/`-joined relative folder paths (e.g. "Novel/Chapter 2"),
+ *   from `fileManager.folders`. Passed so folders with no writings in them yet still show up.
+ * @returns {Array<{type: 'folder', name: string, path: string[], children: Array} | {type: 'file', file: object}>}
+ */
+export function buildFileTree(files, binder, folders = []) {
+  const root = [];
+
+  const getOrCreateFolder = (level, path, folderName) => {
+    let node = level.find((n) => n.type === 'folder' && n.name === folderName);
+    if (!node) {
+      node = { type: 'folder', name: folderName, path, children: [] };
+      level.push(node);
+    }
+    return node;
+  };
+
+  for (const folderPath of folders) {
+    const segments = folderPath.split('/');
+    if (segments[0] !== binder || segments.length < 2) continue;
+
+    let level = root;
+    const path = [];
+    for (const folderName of segments.slice(1)) {
+      path.push(folderName);
+      level = getOrCreateFolder(level, [...path], folderName).children;
+    }
+  }
+
+  for (const file of files) {
+    if (file.folder !== binder) continue;
+
+    const rest = file.name.slice(binder.length + 1).split('/');
+    const folderNames = rest.slice(0, -1);
+    const fileName = rest[rest.length - 1];
+
+    let level = root;
+    const path = [];
+    for (const folderName of folderNames) {
+      path.push(folderName);
+      level = getOrCreateFolder(level, [...path], folderName).children;
+    }
+
+    level.push({ type: 'file', name: fileName, file });
+  }
+
+  const sortTree = (nodes) => {
+    nodes.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    for (const node of nodes) {
+      if (node.type === 'folder') sortTree(node.children);
+    }
+  };
+  sortTree(root);
+
+  return root;
+}
+
+/**
  * Formats a date as a relative time string (e.g., "5 minutes ago").
  * @param date - Date object
  * @returns {string}
@@ -85,4 +153,22 @@ export function formatTimeAgo(date) {
     const years = Math.floor(seconds / 31536000);
     return `${years} year${years > 1 ? 's' : ''} ago`;
   }
+}
+
+/**
+ * Formats a unix timestamp (seconds) as a short date, e.g. "Jan 5".
+ * @param {number} timestamp
+ * @returns {string}
+ */
+export function formatDate(timestamp) {
+  return new Date(timestamp * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Formats a unix timestamp (seconds) as a short time, e.g. "3:45 PM".
+ * @param {number} timestamp
+ * @returns {string}
+ */
+export function formatTime(timestamp) {
+  return new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }

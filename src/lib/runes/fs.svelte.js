@@ -2,10 +2,10 @@ import { invoke } from '@tauri-apps/api/core';
 
 /**
  * @typedef {Object} FileEntry
- * @property {string} name - The file's identifier, relative to the content directory (e.g. "note.md" or "Binder/note.md").
+ * @property {string} name - The file's identifier, relative to the content directory (e.g. "note.md", "Binder/note.md", or "Binder/Chapter 1/Scene 1.md").
  * @property {string} path - The full, absolute path to the file.
  * @property {number} last_modified - The unix timestamp of when the file was last modified.
- * @property {string|null} folder - The binder (top-level folder) name the file lives in, or null.
+ * @property {string|null} folder - The binder (top-level folder) name the file lives in, or null. Files can be nested further (chapters, scenes) below the binder; `name` carries the full path.
  */
 
 const rs_commands = {
@@ -20,6 +20,12 @@ const rs_commands = {
    */
   getBinders: async () => {
     return await invoke('list_binders');
+  },
+  /**
+   * @returns {Promise<string[]>}
+   */
+  getFolders: async () => {
+    return await invoke('list_folders');
   },
 };
 
@@ -55,6 +61,14 @@ class FileManager {
    * @type {string[]}
    */
   binders = $state([]);
+
+  /**
+   * Every directory (binder, chapter, scene grouping, ...) under the content
+   * directory, as `/`-joined relative paths. Lets folders with no writings in
+   * them yet still show up in a binder's tree.
+   * @type {string[]}
+   */
+  folders = $state([]);
 
   /**
    * A flag to indicate when an async operation is in progress.
@@ -101,6 +115,20 @@ class FileManager {
   }
 
   /**
+   * Fetches the list of all folders (including nested, empty ones) from the backend.
+   * @async
+   * @returns {Promise<void>}
+   */
+  async getFolders() {
+    try {
+      this.folders = await rs_commands.getFolders();
+    } catch (err) {
+      console.error(err);
+      this.errorMessage = `Failed to discover folders: ${err}`;
+    }
+  }
+
+  /**
    * Creates a new binder (folder) and refreshes the binder list.
    * @async
    * @param {string} binderName - The name for the new binder.
@@ -118,8 +146,58 @@ class FileManager {
     try {
       await invoke('create_binder', { name: binderName.trim() });
       await this.getBinders();
+      await this.getFolders();
     } catch (err) {
       this.errorMessage = `Failed to create binder "${binderName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Renames a binder (folder) and refreshes the binder list.
+   * @async
+   * @param {string} oldName - The current binder name.
+   * @param {string} newName - The new binder name.
+   * @returns {Promise<void>}
+   */
+  async renameBinder(oldName, newName) {
+    if (!newName || !newName.trim() || oldName === newName.trim()) return;
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('rename_binder', { oldName, newName: newName.trim() });
+      await this.getBinders();
+      await this.getRecents();
+      await this.getFolders();
+    } catch (err) {
+      this.errorMessage = `Failed to rename binder "${oldName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Deletes an empty binder (folder) and refreshes the binder list.
+   * Refuses (backend-enforced) if the binder still contains writings.
+   * @async
+   * @param {string} binderName - The name of the binder to delete.
+   * @returns {Promise<void>}
+   */
+  async deleteBinder(binderName) {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('delete_binder', { name: binderName });
+      await this.getBinders();
+      await this.getFolders();
+    } catch (err) {
+      this.errorMessage = `Failed to delete binder "${binderName}": ${err}`;
       console.error(err);
     } finally {
       this.isLoading = false;
@@ -131,17 +209,19 @@ class FileManager {
    * @async
    * @param {string} fileName - The name for the new file (without extension).
    * @param {string} [content=""] - Optional initial content for the new file.
-   * @param {string|null} [binder=null] - Optional binder (folder) to create the file in.
+   * @param {string|null} [binder=null] - Optional binder (top-level folder) to create the file in.
+   * @param {string[]} [subPath=[]] - Optional chain of folder names nested inside the binder (e.g. ["Chapter 1"]).
    * @returns {Promise<void>}
    */
-  async createNewFile(fileName, content = '', binder = null) {
+  async createNewFile(fileName, content = '', binder = null, subPath = []) {
     if (!fileName || !fileName.trim()) {
       this.errorMessage = 'File name cannot be empty.';
       return;
     }
 
     const baseName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
-    const finalFileName = binder ? `${binder}/${baseName}` : baseName;
+    const segments = binder ? [binder, ...subPath, baseName] : [baseName];
+    const finalFileName = segments.join('/');
 
     this.isLoading = true;
     this.errorMessage = '';
@@ -149,8 +229,62 @@ class FileManager {
     try {
       await invoke('create_file', { name: finalFileName, content });
       await this.getRecents();
+      if (subPath.length) await this.getFolders();
     } catch (err) {
       this.errorMessage = `Failed to create file "${finalFileName}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Creates an empty nested folder (e.g. a chapter or scene grouping) inside a
+   * binder and refreshes the file list.
+   * @async
+   * @param {string} binder - The binder (top-level folder) the new folder lives under.
+   * @param {string[]} subPath - Chain of existing folder names the new folder nests under (e.g. ["Chapter 1"]).
+   * @param {string} folderName - Name of the new folder (e.g. "Chapter 2" or "Scene 1").
+   * @returns {Promise<void>}
+   */
+  async createFolder(binder, subPath, folderName) {
+    if (!folderName || !folderName.trim()) {
+      this.errorMessage = 'Folder name cannot be empty.';
+      return;
+    }
+
+    const relativePath = [binder, ...subPath, folderName.trim()].filter(Boolean).join('/');
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('create_folder', { relativePath });
+      await this.getFolders();
+    } catch (err) {
+      this.errorMessage = `Failed to create folder "${relativePath}": ${err}`;
+      console.error(err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /**
+   * Deletes an empty nested folder (chapter, scene grouping, ...).
+   * Refuses (backend-enforced) if the folder still contains anything.
+   * @async
+   * @param {string} relativePath - `/`-joined path of the folder to delete (e.g. "Novel/Chapter 1").
+   * @returns {Promise<void>}
+   */
+  async deleteFolder(relativePath) {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await invoke('delete_folder', { relativePath });
+      await this.getFolders();
+    } catch (err) {
+      this.errorMessage = `Failed to delete folder "${relativePath}": ${err}`;
       console.error(err);
     } finally {
       this.isLoading = false;

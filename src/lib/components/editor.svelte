@@ -3,6 +3,7 @@
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { exitCodeBlockPlugin } from '$lib/components/plugins/exit-code-block';
+  import { placeholderPlugin } from '$lib/components/plugins/placeholder';
   import { slashMenu } from '$lib/components/plugins/slash-menu.svelte.js';
   import { memoryManager } from '$lib/runes/memory.svelte';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
@@ -10,6 +11,7 @@
   import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
   import { clipboard } from '@milkdown/kit/plugin/clipboard'
   import { appState } from '@/runes/app.svelte.js';
+  import { configManager } from '@/runes/config.svelte.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
 
   /**
@@ -62,7 +64,7 @@
     $effect(() => {
       if (editorInstance) return;
 
-      Editor
+      let editorBuilder = Editor
         .make()
         .config((ctx) => {
           ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
@@ -74,9 +76,15 @@
           ctx.set(rootCtx, dom)
           ctx.set(defaultValueCtx, initialValue)
         })
-        .use(listener)
-        .use(grammarPlugin)
+        .use(listener);
+
+      if (configManager.config?.ai_enabled) {
+        editorBuilder = editorBuilder.use(grammarPlugin);
+      }
+
+      editorBuilder
         .use(exitCodeBlockPlugin)
+        .use(placeholderPlugin)
         .use(commonmark)
         .use(gfm)
         .use(clipboard)
@@ -141,5 +149,13 @@
 
     main :global(.slash-menu-portal[data-show='false']) {
         display: none;
+    }
+
+    main :global(.ProseMirror p.is-empty:first-child::before) {
+        content: attr(data-placeholder);
+        color: var(--writer-placeholder-color, #9ca3af);
+        pointer-events: none;
+        height: 0;
+        float: left;
     }
 </style>

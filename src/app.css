@@ -296,7 +296,6 @@
   --writer-gap-body: 1.25rem;
   --writer-editor-pt: 0.5rem;
   --writer-editor-pb: 50vh;
-  --writer-content-max: 48rem;
   --writer-surface-bg: transparent;
   --writer-surface-shadow: none;
   --writer-prose-leading: 1.75;
@@ -308,7 +307,6 @@
 .style-default {
   --font-writer: 'EB Garamond', var(--font-serif);
   --radius: 0rem;
-  --writer-content-max: 48rem;
   --writer-padding-x: 1.5rem;
   --writer-padding-y: 1.5rem;
   --writer-prose-leading: 1.75;
@@ -320,7 +318,6 @@
 .style-minimal {
   --font-writer: var(--font-sans);
   --radius: 0.375rem;
-  --writer-content-max: 56rem;
   --writer-padding-x: 2rem;
   --writer-padding-y: 2rem;
   --writer-prose-leading: 1.7;
@@ -361,7 +358,6 @@
 .style-paper {
   --font-writer: 'EB Garamond', var(--font-serif);
   --radius: 0.25rem;
-  --writer-content-max: 44rem;
   --writer-padding-x: 2.5rem;
   --writer-padding-y: 2.5rem;
   --writer-prose-leading: 1.8;
@@ -388,7 +384,6 @@
 .style-technical {
   --font-writer: var(--font-sans);
   --radius: 0rem;
-  --writer-content-max: 42rem;
   --writer-padding-x: 1.25rem;
   --writer-padding-y: 1.25rem;
   --writer-prose-leading: 1.65;
@@ -613,7 +608,7 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
 
   /* Writing surface: single container for editor page */
   .writing-surface {
-    max-width: var(--writer-content-max);
+    max-width: 48rem;
     margin-inline: auto;
     padding-inline: var(--writer-padding-x);
     padding-block: var(--writer-padding-y);

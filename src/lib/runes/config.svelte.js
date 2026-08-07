@@ -9,7 +9,8 @@ class ConfigManager {
    *   default_llm_model_id?: string | null,
    *   system_prompt?: string | null,
    *   github_repo?: string | null,
-   *   auto_push_on_exit?: boolean
+   *   auto_push_on_exit?: boolean,
+   *   ai_enabled?: boolean
    * } | null}
    */
   config = $state(null);
@@ -59,6 +60,17 @@ class ConfigManager {
       await this.getConfig();
     } catch (err) {
       console.error('Failed to set auto push on exit:', err);
+      this.error = err;
+    }
+  }
+
+  /** Toggle local AI (model download/load/chat). Disabled by default. */
+  async setAiEnabled(enabled) {
+    try {
+      await invoke('set_ai_enabled', { enabled });
+      await this.getConfig();
+    } catch (err) {
+      console.error('Failed to set AI enabled:', err);
       this.error = err;
     }
   }

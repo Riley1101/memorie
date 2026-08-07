@@ -20,6 +20,10 @@ pub struct AppConfig {
     /// If true, commit & push any pending changes to GitHub when the app is closed.
     #[serde(default)]
     pub auto_push_on_exit: bool,
+    /// If true, local AI (model download/load/chat) is enabled. Disabled by default so the app
+    /// starts as a plain writing app.
+    #[serde(default)]
+    pub ai_enabled: bool,
 }
 
 impl AppConfig {
@@ -34,6 +38,7 @@ impl AppConfig {
             system_prompt: None,
             github_repo: None,
             auto_push_on_exit: false,
+            ai_enabled: false,
         })
     }
 
