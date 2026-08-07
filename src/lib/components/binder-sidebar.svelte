@@ -7,19 +7,16 @@
   import { resolve } from '$app/paths';
   import FileIcon from '@lucide/svelte/icons/file';
   import FolderIcon from '@lucide/svelte/icons/folder';
-  import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
+  import PlusIcon from '@lucide/svelte/icons/plus';
   import MenuIcon from '@lucide/svelte/icons/menu';
   import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
-  import { Input } from '@/components/ui/input/index.js';
-  import * as Dialog from '$lib/components/ui/dialog/index.js';
   import * as Sheet from '$lib/components/ui/sheet/index.js';
-  import Button from './ui/button/button.svelte';
   import ScrollFade from './scroll-fade.svelte';
 
   let { activeBinder = $bindable(null) } = $props();
 
-  let isNewBinderDialogOpen = $state(false);
+  let isCreatingBinder = $state(false);
   let newBinderName = $state('');
   let isMobileSheetOpen = $state(false);
 
@@ -32,13 +29,26 @@
     goto(resolve('/binders'));
   }
 
+  function startCreateBinder() {
+    newBinderName = '';
+    isCreatingBinder = true;
+  }
+
+  function cancelCreateBinder() {
+    isCreatingBinder = false;
+    newBinderName = '';
+  }
+
   async function handleCreateBinder() {
-    if (!newBinderName.trim()) return;
+    if (!newBinderName.trim()) {
+      cancelCreateBinder();
+      return;
+    }
     const name = newBinderName.trim();
     await fileManager.createBinder(name);
     activeBinder = name;
     newBinderName = '';
-    isNewBinderDialogOpen = false;
+    isCreatingBinder = false;
   }
 
   async function handlePublish() {
@@ -69,6 +79,7 @@
       <FileIcon class="size-4 shrink-0" />
       <span class="truncate">All Writings</span>
     </button>
+    <div class="my-1 border-t border-border/30"></div>
     {#each fileManager.binders as binder (binder)}
       <button
         onclick={() => {
@@ -88,28 +99,45 @@
 {/snippet}
 
 {#snippet binderPanel(onSelect)}
-  <div class="px-2 pb-1.5 shrink-0">
+  <div class="flex items-center justify-between px-2 pb-1.5 shrink-0">
     <button
       onclick={goToManageBinders}
       class="text-[0.6875rem] font-medium text-muted-foreground/50 hover:text-foreground transition-colors"
     >
       Binders
     </button>
+    <button
+      onclick={startCreateBinder}
+      aria-label="New Binder"
+      class="text-muted-foreground/50 hover:text-foreground transition-colors"
+    >
+      <PlusIcon class="size-3 shrink-0" strokeWidth={1.5} />
+    </button>
   </div>
+  {#if isCreatingBinder}
+    <div class="px-2 pb-1.5 shrink-0">
+      <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem]">
+        <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        <input
+          bind:value={newBinderName}
+          type="text"
+          placeholder="Binder name"
+          autofocus
+          onkeydown={(e) => {
+            if (e.key === 'Enter') handleCreateBinder();
+            if (e.key === 'Escape') cancelCreateBinder();
+          }}
+          onblur={cancelCreateBinder}
+          class="flex-1 min-w-0 bg-transparent text-[0.8125rem] outline-none"
+        />
+      </div>
+    </div>
+  {/if}
   <ScrollFade class="min-h-0" fadeSize="h-4">
     <ScrollArea type="scroll" class="min-h-0">
       {@render binderList(onSelect)}
     </ScrollArea>
   </ScrollFade>
-  <div class="p-2 shrink-0">
-    <button
-      onclick={() => (isNewBinderDialogOpen = true)}
-      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-colors"
-    >
-      <FolderPlusIcon class="size-4 shrink-0" />
-      <span>New Binder</span>
-    </button>
-  </div>
 
   {#if gitManager.user && configManager.config?.github_repo && gitManager.status.length > 0}
     <div class="px-2 pb-2 pt-2 shrink-0 border-t border-border/30">
@@ -165,37 +193,3 @@
     {@render binderPanel(() => (isMobileSheetOpen = false))}
   </Sheet.Content>
 </Sheet.Root>
-
-<Dialog.Root bind:open={isNewBinderDialogOpen}>
-  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
-    <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal">New Binder</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
-        Binders group your writings into folders.
-      </Dialog.Description>
-    </Dialog.Header>
-    <Input
-      bind:value={newBinderName}
-      type="text"
-      placeholder="Binder name"
-      class="mt-2"
-      onkeydown={(e) => {
-        if (e.key === 'Enter') handleCreateBinder();
-      }}
-    />
-    <Dialog.Footer class="mt-6 flex gap-2">
-      <Button
-        variant="ghost"
-        onclick={() => {
-          isNewBinderDialogOpen = false;
-          newBinderName = '';
-        }}
-        class="flex-1"
-        disabled={false}>Cancel</Button
-      >
-      <Button variant="default" onclick={handleCreateBinder} class="flex-1" disabled={false}
-        >Create</Button
-      >
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>

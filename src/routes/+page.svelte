@@ -25,7 +25,7 @@
           class="text-muted-foreground hover:text-foreground rounded-full"
           aria-label="New entry"
         >
-          <PlusIcon class="size-3.5" />
+          <PlusIcon class="size-3" strokeWidth={1.5} />
         </Button>
         <Button
           onclick={()=>goto(resolve('/settings'))}

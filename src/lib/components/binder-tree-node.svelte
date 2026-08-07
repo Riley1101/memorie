@@ -1,17 +1,13 @@
 <script>
   import { resolve } from '$app/paths';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import Button from './ui/button/button.svelte';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import FileIcon from '@lucide/svelte/icons/file';
   import PlusIcon from '@lucide/svelte/icons/plus';
-  import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import { formatFileName } from '@/utils';
-  import { appState } from '$lib/runes/app.svelte.js';
   import BinderTreeNode from './binder-tree-node.svelte';
 
   let {
@@ -21,12 +17,22 @@
     onCreateFile,
     onCreateFolder,
     onDeleteFile,
-    onDeleteFolder
+    onDeleteFolder,
+    draft = null,
+    onDraftInput,
+    onDraftConfirm,
+    onDraftCancel
   } = $props();
 
   let open = $state(true);
 
   let isEmptyFolder = $derived(node.type === 'folder' && node.children.length === 0);
+
+  function samePath(a, b) {
+    return a.length === b.length && a.every((seg, i) => seg === b[i]);
+  }
+
+  let isDraftHere = $derived(draft !== null && samePath(draft.subPath, node.path));
 </script>
 
 {#if node.type === 'folder'}
@@ -39,58 +45,73 @@
       class="flex items-center gap-1.5 flex-1 min-w-0 text-left text-sm text-muted-foreground/80 hover:text-foreground transition-colors"
     >
       {#if open}
-        <ChevronDownIcon class="size-3.5 shrink-0" />
+        <ChevronDownIcon class="size-3 shrink-0" strokeWidth={1.5} />
       {:else}
-        <ChevronRightIcon class="size-3.5 shrink-0" />
+        <ChevronRightIcon class="size-3 shrink-0" strokeWidth={1.5} />
       {/if}
-      <FolderIcon class="size-3.5 shrink-0" />
+      <FolderIcon class="size-3 shrink-0" strokeWidth={1.5} />
       <span class="truncate">{node.name}</span>
     </button>
 
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-7 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-          aria-label="Folder actions"
-          disabled={false}
-        >
-          <EllipsisIcon class="size-3.5" />
-        </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content class="{appState.ui.theme} w-44" align="end" portalProps={{}}>
-        <DropdownMenu.Item
-          onclick={() => onCreateFile(node.path)}
-          class="gap-2 text-[0.8125rem]"
-          inset={false}
-        >
-          <PlusIcon class="size-3.5" />
-          <span>New entry</span>
-        </DropdownMenu.Item>
-        <DropdownMenu.Item
-          onclick={() => onCreateFolder(node.path)}
-          class="gap-2 text-[0.8125rem]"
-          inset={false}
-        >
-          <FolderPlusIcon class="size-3.5" />
-          <span>New folder</span>
-        </DropdownMenu.Item>
-        <DropdownMenu.Item
-          onclick={() => onDeleteFolder(node.path)}
-          variant="destructive"
-          class="gap-2 text-[0.8125rem]"
-          inset={false}
-          disabled={!isEmptyFolder}
-        >
-          <Trash2Icon class="size-3.5" />
-          <span>{isEmptyFolder ? 'Delete' : 'Delete (not empty)'}</span>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <div class="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+      <Button
+        variant="ghost"
+        size="icon"
+        class="size-7 rounded-full"
+        aria-label="New entry"
+        onclick={() => onCreateFile(node.path)}
+        disabled={false}
+      >
+        <PlusIcon class="size-3" strokeWidth={1.5} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="size-7 rounded-full"
+        aria-label="New folder"
+        onclick={() => onCreateFolder(node.path)}
+        disabled={false}
+      >
+        <FolderIcon class="size-3" strokeWidth={1.5} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="size-7 rounded-full text-destructive/70 hover:text-destructive"
+        aria-label={isEmptyFolder ? 'Delete' : 'Delete (not empty)'}
+        onclick={() => onDeleteFolder(node.path)}
+        disabled={!isEmptyFolder}
+      >
+        <Trash2Icon class="size-3" strokeWidth={1.5} />
+      </Button>
+    </div>
   </div>
 
   {#if open}
+    {#if isDraftHere}
+      <div
+        class="flex items-center gap-2 py-1.5"
+        style="padding-left: {(depth + 1) * 1.25}rem"
+      >
+        {#if draft.type === 'folder'}
+          <FolderIcon class="size-3 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        {:else}
+          <FileIcon class="size-3 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        {/if}
+        <input
+          value={draft.name}
+          oninput={(e) => onDraftInput(e.currentTarget.value)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') onDraftConfirm();
+            if (e.key === 'Escape') onDraftCancel();
+          }}
+          onblur={onDraftCancel}
+          autofocus
+          placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
+          class="flex-1 min-w-0 bg-transparent text-sm outline-none"
+        />
+      </div>
+    {/if}
     {#each node.children as child (child.type + ':' + child.name)}
       <BinderTreeNode
         node={child}
@@ -100,6 +121,10 @@
         {onCreateFolder}
         {onDeleteFile}
         {onDeleteFolder}
+        {draft}
+        {onDraftInput}
+        {onDraftConfirm}
+        {onDraftCancel}
       />
     {/each}
   {/if}
@@ -112,32 +137,19 @@
       href={resolve(`/${encodeURIComponent(node.file.name)}`)}
       class="flex items-center gap-1.5 flex-1 min-w-0 text-sm text-muted-foreground/90 hover:text-foreground transition-colors"
     >
-      <FileIcon class="size-3.5 shrink-0" />
+      <FileIcon class="size-3 shrink-0" strokeWidth={1.5} />
       <span class="truncate">{formatFileName(node.name)}</span>
     </a>
 
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-7 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-          disabled={false}
-        >
-          <EllipsisIcon class="size-3.5" />
-        </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content class="{appState.ui.theme} w-40" align="end" portalProps={{}}>
-        <DropdownMenu.Item
-          onclick={() => onDeleteFile(node.file)}
-          variant="destructive"
-          class="gap-2 text-[0.8125rem]"
-          inset={false}
-        >
-          <Trash2Icon class="size-3.5" />
-          <span>Delete</span>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="size-7 rounded-full text-destructive/70 hover:text-destructive opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+      aria-label="Delete"
+      onclick={() => onDeleteFile(node.file)}
+      disabled={false}
+    >
+      <Trash2Icon class="size-3" strokeWidth={1.5} />
+    </Button>
   </div>
 {/if}

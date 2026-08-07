@@ -125,97 +125,99 @@
               <div class="flex items-center gap-2 mb-6">
                 <h3 class="text-2xl font-normal">Appearance</h3>
               </div>
-              <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p class="text-lg font-normal">Theme</p>
-                  <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                    Switch between light and dark interface.
-                  </p>
-                </div>
-                <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
-                  <Button
-                    variant={appState.ui.theme === 'light' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    class="gap-2 px-3 h-8 text-xs font-medium"
-                    onclick={() => appState.setTheme('light')}
-                    disabled={false}
-                  >
-                    <SunIcon class="size-3.5" />
-                    Light
-                  </Button>
-                  <Button
-                    variant={appState.ui.theme === 'dark' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    class="gap-2 px-3 h-8 text-xs font-medium"
-                    onclick={() => appState.setTheme('dark')}
-                    disabled={false}
-                  >
-                    <MoonIcon class="size-3.5" />
-                    Dark
-                  </Button>
-                </div>
-              </div>
-
-              <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p class="text-lg font-normal">Density</p>
-                  <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                    Overall text size and spacing across the app.
-                  </p>
-                </div>
-                <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
-                  <Button
-                    variant={appState.ui.density === 'default' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    class="gap-2 px-3 h-8 text-xs font-medium"
-                    onclick={() => appState.setDensity('default')}
-                    disabled={false}
-                  >
-                    <Rows3Icon class="size-3.5" />
-                    Default
-                  </Button>
-                  <Button
-                    variant={appState.ui.density === 'compact' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    class="gap-2 px-3 h-8 text-xs font-medium"
-                    onclick={() => appState.setDensity('compact')}
-                    disabled={false}
-                  >
-                    <AlignJustifyIcon class="size-3.5" />
-                    Compact
-                  </Button>
-                </div>
-              </div>
-
-              <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
-                <p class="text-lg font-normal">Color palette</p>
-                <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
-                  Accent and primary colors (shadcn-style).
-                </p>
-                <div class="flex flex-wrap gap-2">
-                  {#each THEME_PALETTES as palette (palette)}
-                    <button
-                      type="button"
-                      onclick={() => appState.setThemePalette(palette)}
-                      class="flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium transition-colors
-                        {appState.ui.themePalette === palette
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-accent border-border'}"
+              <div class="grid gap-8">
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-lg font-normal">Theme</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Switch between light and dark interface.
+                    </p>
+                  </div>
+                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                    <Button
+                      variant={appState.ui.theme === 'light' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      class="gap-2 px-3 h-8 text-xs font-medium"
+                      onclick={() => appState.setTheme('light')}
+                      disabled={false}
                     >
-                      <span
-                        class="size-3.5 rounded-full shrink-0
-                          {palette === 'default' ? 'bg-neutral-500' : ''}
-                          {palette === 'zinc' ? 'bg-zinc-500' : ''}
-                          {palette === 'slate' ? 'bg-slate-500' : ''}
-                          {palette === 'rose' ? 'bg-rose-500' : ''}
-                          {palette === 'blue' ? 'bg-blue-500' : ''}
-                          {palette === 'green' ? 'bg-green-500' : ''}
-                          {palette === 'violet' ? 'bg-violet-500' : ''}"
-                        aria-hidden="true"
-                      ></span>
-                      <span class="capitalize">{palette}</span>
-                    </button>
-                  {/each}
+                      <SunIcon class="size-3.5" />
+                      Light
+                    </Button>
+                    <Button
+                      variant={appState.ui.theme === 'dark' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      class="gap-2 px-3 h-8 text-xs font-medium"
+                      onclick={() => appState.setTheme('dark')}
+                      disabled={false}
+                    >
+                      <MoonIcon class="size-3.5" />
+                      Dark
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-lg font-normal">Density</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Overall text size and spacing across the app.
+                    </p>
+                  </div>
+                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                    <Button
+                      variant={appState.ui.density === 'default' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      class="gap-2 px-3 h-8 text-xs font-medium"
+                      onclick={() => appState.setDensity('default')}
+                      disabled={false}
+                    >
+                      <Rows3Icon class="size-3.5" />
+                      Default
+                    </Button>
+                    <Button
+                      variant={appState.ui.density === 'compact' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      class="gap-2 px-3 h-8 text-xs font-medium"
+                      onclick={() => appState.setDensity('compact')}
+                      disabled={false}
+                    >
+                      <AlignJustifyIcon class="size-3.5" />
+                      Compact
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <p class="text-lg font-normal">Color palette</p>
+                  <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
+                    Accent and primary colors (shadcn-style).
+                  </p>
+                  <div class="flex flex-wrap gap-2">
+                    {#each THEME_PALETTES as palette (palette)}
+                      <button
+                        type="button"
+                        onclick={() => appState.setThemePalette(palette)}
+                        class="flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium transition-colors
+                          {appState.ui.themePalette === palette
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-accent border-border'}"
+                      >
+                        <span
+                          class="size-3.5 rounded-full shrink-0
+                            {palette === 'default' ? 'bg-neutral-500' : ''}
+                            {palette === 'zinc' ? 'bg-zinc-500' : ''}
+                            {palette === 'slate' ? 'bg-slate-500' : ''}
+                            {palette === 'rose' ? 'bg-rose-500' : ''}
+                            {palette === 'blue' ? 'bg-blue-500' : ''}
+                            {palette === 'green' ? 'bg-green-500' : ''}
+                            {palette === 'violet' ? 'bg-violet-500' : ''}"
+                          aria-hidden="true"
+                        ></span>
+                        <span class="capitalize">{palette}</span>
+                      </button>
+                    {/each}
+                  </div>
                 </div>
               </div>
             </section>

@@ -41,38 +41,37 @@
     showTree ? buildFileTree(favourites, activeBinder, fileManager.folders) : []
   );
 
-  let isNewSceneDialogOpen = $state(false);
-  let newSceneSubPath = $state([]);
-  let newSceneName = $state('');
+  // Inline create draft: replaces the old "New Entry" / "New Folder" modals.
+  // { subPath: string[], type: 'file' | 'folder', name: string } | null
+  let draft = $state(null);
 
   export function handleTreeCreateFile(subPath) {
-    newSceneSubPath = subPath;
-    newSceneName = '';
-    isNewSceneDialogOpen = true;
+    draft = { subPath, type: 'file', name: '' };
   }
-
-  async function confirmCreateScene() {
-    if (!newSceneName.trim()) return;
-    await fileManager.createNewFile(newSceneName, '', activeBinder, newSceneSubPath);
-    isNewSceneDialogOpen = false;
-    newSceneName = '';
-  }
-
-  let isNewFolderDialogOpen = $state(false);
-  let newFolderSubPath = $state([]);
-  let newFolderName = $state('');
 
   export function handleTreeCreateFolder(subPath) {
-    newFolderSubPath = subPath;
-    newFolderName = '';
-    isNewFolderDialogOpen = true;
+    draft = { subPath, type: 'folder', name: '' };
   }
 
-  async function confirmCreateFolder() {
-    if (!newFolderName.trim()) return;
-    await fileManager.createFolder(activeBinder, newFolderSubPath, newFolderName);
-    isNewFolderDialogOpen = false;
-    newFolderName = '';
+  function handleDraftInput(value) {
+    if (draft) draft = { ...draft, name: value };
+  }
+
+  function handleDraftCancel() {
+    draft = null;
+  }
+
+  async function handleDraftConfirm() {
+    if (!draft || !draft.name.trim()) {
+      draft = null;
+      return;
+    }
+    if (draft.type === 'file') {
+      await fileManager.createNewFile(draft.name, '', activeBinder, draft.subPath);
+    } else {
+      await fileManager.createFolder(activeBinder, draft.subPath, draft.name);
+    }
+    draft = null;
   }
 
   let isDeleteFolderDialogOpen = $state(false);
@@ -182,7 +181,7 @@
                   onclick={createNewFile}
                   class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-primary/90 text-primary-foreground px-2.5 py-1 rounded-md text-xs font-medium hover:bg-primary transition-all animate-in fade-in scale-in-95"
               >
-                  <PlusIcon class="size-3.5" />
+                  <PlusIcon class="size-3" strokeWidth={1.5} />
                   <span>Create {keyword}.md{activeBinder ? ` in ${activeBinder}` : ''}</span>
               </button>
           {/if}
@@ -197,16 +196,47 @@
           <h3 class="text-[0.6875rem] font-medium text-muted-foreground/60 bg-background pr-3">
             {activeBinder}
           </h3>
-          <button
-            onclick={() => handleTreeCreateFolder([])}
-            class="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground/50 hover:text-foreground transition-colors"
-          >
-            <FolderIcon class="size-3.5" />
-            <span>New folder</span>
-          </button>
+          <div class="flex items-center gap-3">
+            <button
+              onclick={() => handleTreeCreateFile([])}
+              class="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground/50 hover:text-foreground transition-colors"
+            >
+              <PlusIcon class="size-3" strokeWidth={1.5} />
+              <span>New entry</span>
+            </button>
+            <button
+              onclick={() => handleTreeCreateFolder([])}
+              class="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground/50 hover:text-foreground transition-colors"
+            >
+              <FolderIcon class="size-3" strokeWidth={1.5} />
+              <span>New folder</span>
+            </button>
+          </div>
         </div>
 
-        {#if fileTree.length === 0}
+        {#if draft && draft.subPath.length === 0}
+          <div class="flex items-center gap-2 py-1.5">
+            {#if draft.type === 'folder'}
+              <FolderIcon class="size-3 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+            {:else}
+              <FileIcon class="size-3 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+            {/if}
+            <input
+              value={draft.name}
+              oninput={(e) => handleDraftInput(e.currentTarget.value)}
+              onkeydown={(e) => {
+                if (e.key === 'Enter') handleDraftConfirm();
+                if (e.key === 'Escape') handleDraftCancel();
+              }}
+              onblur={handleDraftCancel}
+              autofocus
+              placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
+              class="flex-1 min-w-0 bg-transparent text-sm outline-none"
+            />
+          </div>
+        {/if}
+
+        {#if fileTree.length === 0 && !draft}
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
             <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
               <FolderIcon class="size-6 text-muted-foreground/40" />
@@ -225,12 +255,37 @@
               onCreateFolder={handleTreeCreateFolder}
               onDeleteFile={handleDeleteClick}
               onDeleteFolder={handleTreeDeleteFolder}
+              {draft}
+              onDraftInput={handleDraftInput}
+              onDraftConfirm={handleDraftConfirm}
+              onDraftCancel={handleDraftCancel}
             />
           {/each}
         {/if}
       </div>
     {:else}
     <div class="space-y-12 pb-20 pr-2">
+      {#if draft}
+        <div class="flex items-center gap-3 p-3 md:p-4 rounded-xl border border-transparent mb-6">
+          {#if draft.type === 'folder'}
+            <FolderIcon class="size-4 shrink-0 text-muted-foreground/50" strokeWidth={1.5} />
+          {:else}
+            <FileIcon class="size-4 shrink-0 text-muted-foreground/50" strokeWidth={1.5} />
+          {/if}
+          <input
+            value={draft.name}
+            oninput={(e) => handleDraftInput(e.currentTarget.value)}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') handleDraftConfirm();
+              if (e.key === 'Escape') handleDraftCancel();
+            }}
+            onblur={handleDraftCancel}
+            autofocus
+            placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
+            class="flex-1 min-w-0 bg-transparent text-[1.1rem] md:text-xl font-normal outline-none"
+          />
+        </div>
+      {/if}
       {#each groupedFiles as group (group.id)}
         <div class="relative">
           <div class="flex items-center mb-3 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
@@ -327,72 +382,6 @@
     <Dialog.Footer class="mt-6 flex gap-2">
       <Button variant="ghost" onclick={handleCancelDelete} class="flex-1" disabled={false}>Cancel</Button>
       <Button variant="destructive" onclick={handleConfirmDelete} class="flex-1" disabled={false}>Delete</Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>
-
-<Dialog.Root bind:open={isNewSceneDialogOpen}>
-  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
-    <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal">New Entry</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
-        {activeBinder ? `${activeBinder}${newSceneSubPath.length ? `/${newSceneSubPath.join('/')}` : ''}/` : 'Unfiled'}
-      </Dialog.Description>
-    </Dialog.Header>
-    <Input
-      bind:value={newSceneName}
-      type="text"
-      placeholder="Entry name"
-      class="mt-2"
-      autofocus
-      onkeydown={(e) => {
-        if (e.key === 'Enter') confirmCreateScene();
-      }}
-    />
-    <Dialog.Footer class="mt-6 flex gap-2">
-      <Button
-        variant="ghost"
-        onclick={() => {
-          isNewSceneDialogOpen = false;
-          newSceneName = '';
-        }}
-        class="flex-1"
-        disabled={false}>Cancel</Button
-      >
-      <Button variant="default" onclick={confirmCreateScene} class="flex-1" disabled={false}>Create</Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>
-
-<Dialog.Root bind:open={isNewFolderDialogOpen}>
-  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
-    <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal">New Folder</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
-        {activeBinder}{newFolderSubPath.length ? `/${newFolderSubPath.join('/')}` : ''}/
-      </Dialog.Description>
-    </Dialog.Header>
-    <Input
-      bind:value={newFolderName}
-      type="text"
-      placeholder="Folder name"
-      class="mt-2"
-      autofocus
-      onkeydown={(e) => {
-        if (e.key === 'Enter') confirmCreateFolder();
-      }}
-    />
-    <Dialog.Footer class="mt-6 flex gap-2">
-      <Button
-        variant="ghost"
-        onclick={() => {
-          isNewFolderDialogOpen = false;
-          newFolderName = '';
-        }}
-        class="flex-1"
-        disabled={false}>Cancel</Button
-      >
-      <Button variant="default" onclick={confirmCreateFolder} class="flex-1" disabled={false}>Create</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
