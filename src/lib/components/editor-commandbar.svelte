@@ -1,7 +1,7 @@
 <script>
   import { tick } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte.js';
-  import { appState } from '$lib/runes/app.svelte.js';
+  import { appState, DENSITY_FONT_SIZE } from '$lib/runes/app.svelte.js';
   import { cn } from '$lib/utils';
   import { fileManager } from '@/runes/fs.svelte.js';
   import { goto, invalidateAll } from '$app/navigation';
@@ -61,6 +61,8 @@
    */
 
   let aiEnabled = $derived(configManager.config?.ai_enabled ?? false);
+  let defaultFontSize = $derived(DENSITY_FONT_SIZE[appState.ui.density]);
+  let zoomPercent = $derived(Math.round((appState.ui.fontSize / defaultFontSize) * 100));
 
   /** @type {Command[]} */
   const allCommands = [
@@ -362,23 +364,17 @@
         }
       }
 
-      // Trigger Command Mode with ':' when focus isn't inside the editor
-      // (avoids stealing ':' from normal typing, since the editor is always editable now)
-      if (
-        e.key === ':' &&
-        !isCommandMode &&
-        !appState.ui.isChatOpen &&
-        !document.activeElement?.closest?.('[contenteditable="true"]') &&
-        !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName ?? '')
-      ) {
-        e.preventDefault();
-        isCommandMode = true;
-        input = ':';
-        return;
-      }
-
       // 2. Handle Shortcuts
       if (isMod(e) && !isCommandMode) {
+        // Trigger Command Mode with Cmd/Ctrl+Shift+P (standard command palette shortcut)
+        if (e.shiftKey && e.key.toLowerCase() === 'p') {
+          e.preventDefault();
+          e.stopPropagation();
+          isCommandMode = true;
+          input = ':';
+          return;
+        }
+
         // Special check for Z (Undo) and Shift+Z / Y (Redo)
         if (e.key.toLowerCase() === 'z') {
           e.preventDefault();
@@ -481,7 +477,7 @@
             </div>
             {#if suggestion.shortcutLabel}
               <kbd
-                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100"
+                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[0.625rem] font-medium text-muted-foreground opacity-100"
               >
                 {suggestion.shortcutLabel}
               </kbd>
@@ -495,7 +491,6 @@
   {#if isCommandMode}
     <!-- Command-line mode: takes over the whole statusline, like vim's ":" prompt -->
     <div class="flex items-center command-bar__inner h-8">
-      <span class="font-mono text-sm text-muted-foreground px-2 shrink-0">:</span>
       <input
         bind:this={inputRef}
         type="text"
@@ -504,22 +499,20 @@
         onblur={handleBlur}
         onfocus={handleFocus}
         placeholder="Type command..."
-        class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full"
+        class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full px-2"
         aria-label="Command input"
       />
     </div>
   {:else}
-    <div class="flex items-stretch command-bar__inner h-9 text-[11px] font-mono">
+    <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] font-mono">
       <!-- File/version state -->
       <div class="flex items-center gap-2 px-3.5 text-muted-foreground/80 shrink-0">
-        <span
-          class={cn(
-            'tracking-wide transition-colors',
-            appState.ui.isHistoryOpen ? 'text-success font-semibold' : ''
-          )}
-        >
+        <span class="tracking-wide">
           {appState.ui.isHistoryOpen ? 'HISTORY' : `v${currentVersion}`}
         </span>
+        {#if zoomPercent !== 100}
+          <span class="tracking-wide">{zoomPercent}%</span>
+        {/if}
       </div>
 
       <div class="flex-1"></div>
@@ -556,7 +549,9 @@
               </button>
             {/snippet}
           </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>Command palette · :</Tooltip.Content>
+          <Tooltip.Content side="top" portalProps={{}}
+            >Command palette · {MOD_KEY}⇧P</Tooltip.Content
+          >
         </Tooltip.Root>
 
         <Tooltip.Root>

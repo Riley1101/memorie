@@ -99,7 +99,7 @@
         }}
       />
       <Button variant="default" class="gap-2" onclick={handleCreateBinder} disabled={false}>
-        <FolderPlusIcon class="size-4" />
+        <FolderPlusIcon class="size-3.5" />
         Create
       </Button>
     </div>
@@ -149,7 +149,7 @@
                   onclick={() => startRename(binder)}
                   disabled={false}
                 >
-                  <PencilIcon class="size-4" />
+                  <PencilIcon class="size-3.5" />
                   <span class="sr-only">Rename {binder}</span>
                 </Button>
                 <Button
@@ -159,7 +159,7 @@
                   onclick={() => handleDeleteClick(binder)}
                   disabled={false}
                 >
-                  <Trash2Icon class="size-4" />
+                  <Trash2Icon class="size-3.5" />
                   <span class="sr-only">Delete {binder}</span>
                 </Button>
               {/if}

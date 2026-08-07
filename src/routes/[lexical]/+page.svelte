@@ -125,7 +125,7 @@
   </aside>
 
   <div class="w-full h-full flex flex-1 flex-col">
-    <header class="relative flex items-center command-bar__inner h-9 text-[11px] font-mono shrink-0">
+    <header class="relative flex items-center command-bar__inner h-9 text-[0.6875rem] font-mono shrink-0">
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
       <button
         onclick={() => goto(resolve('/'))}

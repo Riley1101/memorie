@@ -52,7 +52,7 @@
         >
           <div class="flex flex-col gap-0.5 min-w-0 font-writer">
             <span class="text-base font-normal truncate">{formatFileName(file.name.split('/').pop())}</span>
-            <div class="flex items-center gap-2 text-[11px] text-muted-foreground/60 font-mono">
+            <div class="flex items-center gap-2 text-[0.6875rem] text-muted-foreground/60 font-mono">
               {#if file.folder}
                 <span class="flex items-center gap-1">
                   <FolderIcon class="size-2.5" />
@@ -71,7 +71,7 @@
 
     <Command.Group heading="Actions" class="" value="">
       <Command.Item onSelect={handleCreateNew} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <CirclePlusIcon class="size-4 mr-2" />
+        <CirclePlusIcon class="size-3.5 mr-2" />
         <span>Create a new writing</span>
         <Command.Shortcut class="">⌘N</Command.Shortcut>
       </Command.Item>

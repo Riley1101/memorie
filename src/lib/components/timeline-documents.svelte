@@ -182,7 +182,7 @@
                   onclick={createNewFile}
                   class="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-primary/90 text-primary-foreground px-2.5 py-1 rounded-md text-xs font-medium hover:bg-primary transition-all animate-in fade-in scale-in-95"
               >
-                  <PlusIcon class="size-3" />
+                  <PlusIcon class="size-3.5" />
                   <span>Create {keyword}.md{activeBinder ? ` in ${activeBinder}` : ''}</span>
               </button>
           {/if}
@@ -194,9 +194,16 @@
     {#if showTree}
       <div class="pb-20 pr-2">
         <div class="flex items-center justify-between mb-6 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10">
-          <h3 class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-background pr-3">
+          <h3 class="text-[0.6875rem] font-medium text-muted-foreground/60 bg-background pr-3">
             {activeBinder}
           </h3>
+          <button
+            onclick={() => handleTreeCreateFolder([])}
+            class="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground/50 hover:text-foreground transition-colors"
+          >
+            <FolderIcon class="size-3.5" />
+            <span>New folder</span>
+          </button>
         </div>
 
         {#if fileTree.length === 0}
@@ -226,31 +233,23 @@
     <div class="space-y-12 pb-20 pr-2">
       {#each groupedFiles as group (group.id)}
         <div class="relative">
-          <div class="z-10 flex items-center gap-4 mb-6 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
-              <h3 class="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-background pr-3">
+          <div class="flex items-center mb-3 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
+              <h3 class="text-[0.6875rem] font-medium text-muted-foreground/60 bg-background pr-3">
                   {group.label}
               </h3>
-              <div class="h-px bg-border/40 flex-1"></div>
           </div>
 
           <div class="space-y-1">
             {#each group.files as item (item.path)}
-              <div class="group relative flex gap-4 md:gap-8">
-                  <!-- Timeline visual -->
-                  <div class="flex flex-col items-center w-4 shrink-0">
-                      <div class="size-1.5 rounded-full bg-border/60 group-hover:bg-primary/40 transition-colors mt-6"></div>
-                      <div class="w-px flex-1 bg-border/20 group-last:bg-transparent"></div>
-                  </div>
-
-                  <a
+              <a
                       href={resolve(`/${encodeURIComponent(item.name)}`)}
-                      class="flex-1 flex items-center justify-between p-3 md:p-4 rounded-xl border border-transparent hover:border-border/40 hover:bg-muted/20 transition-all group/card overflow-hidden"
+                      class="group flex items-center justify-between p-3 md:p-4 rounded-xl border border-transparent hover:border-border/40 hover:bg-muted/20 transition-all overflow-hidden"
                   >
                       <div class="flex flex-col gap-0.5 truncate mr-4">
-                          <span class="text-[1.1rem] md:text-xl font-normal group-hover/card:text-primary transition-colors truncate">
+                          <span class="text-[1.1rem] md:text-xl font-normal group-hover:text-primary transition-colors truncate">
                               {formatFileName(item.name.split('/').pop())}
                           </span>
-                          <div class="flex items-center gap-2 text-[11px] md:text-[12px] text-muted-foreground/60 font-mono">
+                          <div class="flex items-center gap-2 text-[0.6875rem] md:text-[0.75rem] text-muted-foreground/60 font-mono">
                               {#if item.folder && activeBinder === null}
                                   <span class="flex items-center gap-1 text-muted-foreground/50">
                                       <FolderIcon class="size-2.5" />
@@ -275,7 +274,7 @@
                                   <DropdownMenu.Item
                                       onclick={(e) => { e.preventDefault(); handleDeleteClick(item); }}
                                       variant="destructive"
-                                      class="gap-2 text-[13px]"
+                                      class="gap-2 text-[0.8125rem]"
                                       inset={false}
                                   >
                                       <Trash2Icon class="size-3.5" />
@@ -285,7 +284,6 @@
                           </DropdownMenu.Root>
                       </div>
                   </a>
-              </div>
             {/each}
           </div>
         </div>
@@ -338,7 +336,7 @@
     <Dialog.Header class="">
       <Dialog.Title class="text-xl font-normal">New Entry</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
-        {activeBinder}{newSceneSubPath.length ? `/${newSceneSubPath.join('/')}` : ''}/
+        {activeBinder ? `${activeBinder}${newSceneSubPath.length ? `/${newSceneSubPath.join('/')}` : ''}/` : 'Unfiled'}
       </Dialog.Description>
     </Dialog.Header>
     <Input

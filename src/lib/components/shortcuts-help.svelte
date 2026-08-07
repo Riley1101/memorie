@@ -20,12 +20,12 @@
         : null,
       { key: `${MOD_LABEL} + B`, description: 'Go Home / Exit', icon: HouseIcon },
       { key: `${MOD_LABEL} + U`, description: 'Toggle History', icon: HistoryIcon },
-      { key: `${MOD_LABEL} + S`, description: 'Save writing (:w)', icon: SaveIcon },
-      { key: `${MOD_LABEL} + Q`, description: 'Close writing (:q)' },
+      { key: `${MOD_LABEL} + S`, description: 'Save writing', icon: SaveIcon },
+      { key: `${MOD_LABEL} + Q`, description: 'Close writing' },
       { key: `${MOD_LABEL} + Z`, description: 'Undo version', icon: UndoIcon },
       { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo version', icon: RedoIcon },
       { key: `${MOD_LABEL} + + / -`, description: 'Adjust Font Size', icon: TypeIcon },
-      { key: ':', description: 'Enter Command Mode (when not typing in the editor)' },
+      { key: `${MOD_LABEL} + ⇧ + P`, description: 'Enter Command Mode' },
     ].filter(Boolean)
   );
 </script>
@@ -53,15 +53,15 @@
               {:else}
                 <div class="size-3.5"></div>
               {/if}
-              <span class="text-[13px] text-muted-foreground/80 group-hover:text-foreground transition-colors font-sans">{description}</span>
+              <span class="text-[0.8125rem] text-muted-foreground/80 group-hover:text-foreground transition-colors font-sans">{description}</span>
             </div>
             
             <div class="flex gap-1.5 items-center">
               {#each key.split(' / ') as part, i (part + i)}
-                {#if i > 0}<span class="text-[10px] text-muted-foreground/30 font-sans italic">or</span>{/if}
+                {#if i > 0}<span class="text-[0.625rem] text-muted-foreground/30 font-sans italic">or</span>{/if}
                 <div class="flex gap-1">
                   {#each part.split(' + ') as k, j (k + j)}
-                    <kbd class="min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded border border-border/60 bg-muted/10 text-muted-foreground/80 font-sans text-[10px] font-medium shadow-sm">
+                    <kbd class="min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded border border-border/60 bg-muted/10 text-muted-foreground/80 font-sans text-[0.625rem] font-medium shadow-sm">
                       {k}
                     </kbd>
                   {/each}
@@ -74,8 +74,8 @@
     </div>
     
     <div class="px-6 py-4 bg-muted/10 border-t border-border/10">
-      <p class="text-[11px] text-muted-foreground/50 text-center font-sans tracking-wide">
-        Press <kbd class="px-1 py-0.5 rounded border border-border/40 bg-background text-[9px]">Esc</kbd> to close at any time
+      <p class="text-[0.6875rem] text-muted-foreground/50 text-center font-sans tracking-wide">
+        Press <kbd class="px-1 py-0.5 rounded border border-border/40 bg-background text-[0.5625rem]">Esc</kbd> to close at any time
       </p>
     </div>
   </Dialog.Content>

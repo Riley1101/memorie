@@ -179,9 +179,9 @@
             variant="ghost"
             size="sm"
             disabled={props.disabled ?? false}
-            class="h-7 px-2.5 bg-background border border-border/40 hover:bg-muted/50 rounded-full text-[11px] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
+            class="h-7 px-2.5 bg-background border border-border/40 hover:bg-muted/50 rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
           >
-            <AiSparkleIcon class="size-3 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
+            <AiSparkleIcon class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
             AI Suggestions
             <ChevrondownIcon class="size-3 ml-1 opacity-40 group-hover:opacity-100 transition-opacity" />
           </Button>
@@ -212,7 +212,7 @@
           <div class="max-h-[300px] overflow-y-auto pr-1">
             {#each suggestionCategories as category (category.name)}
               <div class="mt-2 first:mt-0">
-                <div class="px-1 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest pl-2 mb-1">
+                <div class="px-1 text-[0.625rem] font-semibold text-muted-foreground/50 uppercase tracking-widest pl-2 mb-1">
                   {category.name}
                 </div>
                 <div class="grid grid-cols-1 gap-0.5">

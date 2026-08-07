@@ -28,9 +28,9 @@
 
 	let iconClass = $derived.by(() => {
 		if (status === "submitted") {
-			return "size-4 animate-spin";
+			return "size-3.5 animate-spin";
 		}
-		return "size-4";
+		return "size-3.5";
 	});
 </script>
 

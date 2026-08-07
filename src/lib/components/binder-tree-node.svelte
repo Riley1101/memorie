@@ -53,27 +53,35 @@
           variant="ghost"
           size="icon"
           class="size-7 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+          aria-label="Folder actions"
           disabled={false}
         >
           <EllipsisIcon class="size-3.5" />
         </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Content class="{appState.ui.theme} w-44" align="end" portalProps={{}}>
-        <DropdownMenu.Item onclick={() => onCreateFile(node.path)} class="gap-2 text-[13px]" inset={false}>
+        <DropdownMenu.Item
+          onclick={() => onCreateFile(node.path)}
+          class="gap-2 text-[0.8125rem]"
+          inset={false}
+        >
           <PlusIcon class="size-3.5" />
           <span>New entry</span>
         </DropdownMenu.Item>
-        <DropdownMenu.Item onclick={() => onCreateFolder(node.path)} class="gap-2 text-[13px]" inset={false}>
+        <DropdownMenu.Item
+          onclick={() => onCreateFolder(node.path)}
+          class="gap-2 text-[0.8125rem]"
+          inset={false}
+        >
           <FolderPlusIcon class="size-3.5" />
           <span>New folder</span>
         </DropdownMenu.Item>
-        <DropdownMenu.Separator />
         <DropdownMenu.Item
           onclick={() => onDeleteFolder(node.path)}
-          disabled={!isEmptyFolder}
           variant="destructive"
-          class="gap-2 text-[13px]"
+          class="gap-2 text-[0.8125rem]"
           inset={false}
+          disabled={!isEmptyFolder}
         >
           <Trash2Icon class="size-3.5" />
           <span>{isEmptyFolder ? 'Delete' : 'Delete (not empty)'}</span>
@@ -123,7 +131,7 @@
         <DropdownMenu.Item
           onclick={() => onDeleteFile(node.file)}
           variant="destructive"
-          class="gap-2 text-[13px]"
+          class="gap-2 text-[0.8125rem]"
           inset={false}
         >
           <Trash2Icon class="size-3.5" />

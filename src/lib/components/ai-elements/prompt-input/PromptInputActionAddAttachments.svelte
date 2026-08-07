@@ -13,6 +13,6 @@
 </script>
 
 <PromptInputActionMenuItem class={className} onSelect={handleSelect} {...props}>
-  <ImageIcon class="mr-2 size-4" />
+  <ImageIcon class="mr-2 size-3.5" />
   {label}
 </PromptInputActionMenuItem>

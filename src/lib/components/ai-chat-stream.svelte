@@ -47,7 +47,7 @@
             <MessageResponse content={message.content} class="" />
             {#if message.references && message.references.length > 0}
               <div class="mt-4 flex flex-wrap gap-2 border-t border-border/40 pt-4">
-                <div class="w-full text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider mb-1">
+                <div class="w-full text-[0.625rem] uppercase font-bold text-muted-foreground/60 tracking-wider mb-1">
                   Sources
                 </div>
                 {#each message.references as ref (ref.title)}

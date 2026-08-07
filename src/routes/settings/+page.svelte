@@ -313,7 +313,7 @@
                             <span class="text-sm font-medium truncate">{model.name}</span>
                             <div class="flex items-center gap-2 mt-1">
                               <span
-                                class="inline-flex px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider {model.model_type === 'chat'
+                                class="inline-flex px-2 py-0.5 rounded text-[0.625rem] font-medium uppercase tracking-wider {model.model_type === 'chat'
                                   ? 'bg-success/10 text-success border border-success/20'
                                   : model.model_type === 'reasoning'
                                     ? 'bg-primary/10 text-primary border border-primary/20'
@@ -327,7 +327,7 @@
                             {#if model.downloaded}
                               <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20">
                                 <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
-                                <span class="text-[10px] uppercase tracking-wider font-bold text-info">Downloaded</span>
+                                <span class="text-[0.625rem] uppercase tracking-wider font-bold text-info">Downloaded</span>
                               </div>
                               {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
                               {#if !isDefault}
@@ -340,7 +340,7 @@
                                   Set as default
                                 </Button>
                               {:else}
-                                <span class="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">Default</span>
+                                <span class="text-[0.625rem] uppercase tracking-wider font-medium text-muted-foreground">Default</span>
                               {/if}
                             {:else}
                               {@const isDownloading = llmManager.downloadingModelId === model.id}
@@ -353,7 +353,7 @@
                               >
                                 {#if isDownloading}
                                   <span class="flex items-center gap-1.5">
-                                    <span class="size-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                                    <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                                     Downloading {llmManager.loadingProgress}%
                                   </span>
                                 {:else}
@@ -367,7 +367,7 @@
                     {:else}
                       <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                         <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[10px] text-muted-foreground uppercase tracking-widest">Loading supported models…</span>
+                        <span class="text-[0.625rem] text-muted-foreground uppercase tracking-widest">Loading supported models…</span>
                       </div>
                     {/if}
                   </div>
@@ -424,7 +424,7 @@
 
                   {#if gitManager.isCheckingSession}
                     <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span class="size-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                      <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                       Checking session…
                     </div>
                   {:else if gitManager.user}
@@ -451,7 +451,7 @@
                       </p>
                       <span class="text-2xl font-mono tracking-widest font-medium">{gitManager.deviceCode.user_code}</span>
                       <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span class="size-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                         Waiting for approval…
                       </div>
                       <Button variant="ghost" size="sm" class="text-xs h-7 mt-1" onclick={() => gitManager.cancelLogin()}>
@@ -525,7 +525,7 @@
                         disabled={gitManager.isImporting || !repoInput.trim()}
                       >
                         {#if gitManager.isImporting}
-                          <span class="size-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                           Importing…
                         {:else}
                           <DownloadCloudIcon class="size-3.5" />
@@ -558,7 +558,7 @@
 
                     {#if gitManager.isLoadingStatus}
                       <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span class="size-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                         Loading status…
                       </div>
                     {:else if gitManager.status.length === 0}
@@ -568,7 +568,7 @@
                         {#each gitManager.status as file (file.path)}
                           <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
                             <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">{file.status}</span>
+                            <span class="text-[0.625rem] uppercase tracking-wider text-muted-foreground shrink-0">{file.status}</span>
                           </div>
                         {/each}
                       </div>

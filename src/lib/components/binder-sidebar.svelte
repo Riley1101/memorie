@@ -61,12 +61,12 @@
         activeBinder = null;
         onSelect?.();
       }}
-      class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-left transition-colors {activeBinder ===
+      class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left transition-colors {activeBinder ===
       null
         ? 'bg-primary/10 text-primary font-medium'
         : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
     >
-      <FileIcon class="size-3 shrink-0" />
+      <FileIcon class="size-4 shrink-0" />
       <span class="truncate">All Writings</span>
     </button>
     {#each fileManager.binders as binder (binder)}
@@ -75,12 +75,12 @@
           selectBinder(binder);
           onSelect?.();
         }}
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-left transition-colors {activeBinder ===
+        class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left transition-colors {activeBinder ===
         binder
           ? 'bg-primary/10 text-primary font-medium'
           : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
       >
-        <FolderIcon class="size-3 shrink-0" />
+        <FolderIcon class="size-4 shrink-0" />
         <span class="truncate">{binder}</span>
       </button>
     {/each}
@@ -91,7 +91,7 @@
   <div class="px-2 pb-1.5 shrink-0">
     <button
       onclick={goToManageBinders}
-      class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 hover:text-foreground transition-colors"
+      class="text-[0.6875rem] font-medium text-muted-foreground/50 hover:text-foreground transition-colors"
     >
       Binders
     </button>
@@ -104,49 +104,27 @@
   <div class="p-2 shrink-0">
     <button
       onclick={() => (isNewBinderDialogOpen = true)}
-      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-colors"
+      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-muted-foreground/60 hover:bg-muted/30 hover:text-foreground transition-colors"
     >
-      <FolderPlusIcon class="size-3 shrink-0" />
+      <FolderPlusIcon class="size-4 shrink-0" />
       <span>New Binder</span>
     </button>
   </div>
 
-  {#if gitManager.user && configManager.config?.github_repo}
+  {#if gitManager.user && configManager.config?.github_repo && gitManager.status.length > 0}
     <div class="px-2 pb-2 pt-2 shrink-0 border-t border-border/30">
-      <div class="flex items-center justify-between mb-1.5">
-        <h2 class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">
-          Changes
-        </h2>
-        {#if gitManager.status.length > 0}
-          <span class="text-[9px] text-muted-foreground/50">{gitManager.status.length}</span>
-        {/if}
-      </div>
-
-      {#if gitManager.status.length === 0}
-        <p class="px-2 text-[11px] text-muted-foreground/40 italic">Up to date</p>
-      {:else}
-        <div class="flex flex-col gap-0.5 mb-2 max-h-24 overflow-y-auto">
-          {#each gitManager.status.slice(0, 5) as file (file.path)}
-            <span class="px-2 text-[11px] text-muted-foreground/70 truncate font-mono"
-              >{file.path}</span
-            >
-          {/each}
-          {#if gitManager.status.length > 5}
-            <span class="px-2 text-[10px] text-muted-foreground/40"
-              >+{gitManager.status.length - 5} more</span
-            >
-          {/if}
-        </div>
-
-        <button
-          onclick={handlePublish}
-          disabled={gitManager.isPushing}
-          class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+      <button
+        onclick={handlePublish}
+        disabled={gitManager.isPushing}
+        class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+      >
+        <UploadCloudIcon class="size-4 shrink-0" />
+        <span
+          >{gitManager.isPushing
+            ? 'Publishing…'
+            : `Publish (${gitManager.status.length})`}</span
         >
-          <UploadCloudIcon class="size-3 shrink-0" />
-          <span>{gitManager.isPushing ? 'Publishing…' : 'Publish'}</span>
-        </button>
-      {/if}
+      </button>
     </div>
   {/if}
 {/snippet}
