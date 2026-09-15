@@ -38,7 +38,7 @@
   <Command.Input
     placeholder="Search writings..."
     class="border-border/20 bg-muted/10"
-  />
+ />
   <Command.List class="p-2">
     <Command.Empty class="py-10 text-muted-foreground/60 font-sans"
       >No results found.</Command.Empty
@@ -55,7 +55,7 @@
             <div class="flex items-center gap-2 text-[0.6875rem] text-muted-foreground/60 font-mono">
               {#if file.folder}
                 <span class="flex items-center gap-1">
-                  <FolderIcon class="size-2.5" />
+                  <FolderIcon strokeWidth={1.5} class="size-2.5" />
                   {file.folder}
                 </span>
                 <span class="opacity-30">•</span>
@@ -71,7 +71,7 @@
 
     <Command.Group heading="Actions" class="" value="">
       <Command.Item onSelect={handleCreateNew} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <CirclePlusIcon class="size-3.5 mr-2" />
+        <CirclePlusIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Create a new writing</span>
         <Command.Shortcut class="">⌘N</Command.Shortcut>
       </Command.Item>

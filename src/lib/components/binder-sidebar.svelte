@@ -80,7 +80,7 @@
         ? 'bg-primary/10 text-primary font-medium'
         : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
     >
-      <FileIcon class="size-4 shrink-0" />
+      <FileIcon strokeWidth={1.5} class="size-4 shrink-0" />
       <span class="truncate flex-1">All Writings</span>
       <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{fileManager.files.length}</span>
     </button>
@@ -96,7 +96,7 @@
           ? 'bg-primary/10 text-primary font-medium'
           : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
       >
-        <FolderIcon class="size-4 shrink-0" />
+        <FolderIcon strokeWidth={1.5} class="size-4 shrink-0" />
         <span class="truncate flex-1">{binder}</span>
         <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{binderCount(binder)}</span>
       </button>
@@ -135,7 +135,7 @@
           }}
           onblur={cancelCreateBinder}
           class="flex-1 min-w-0 bg-transparent text-[0.8125rem] outline-none"
-        />
+ />
       </div>
     </div>
   {/if}
@@ -152,7 +152,7 @@
         disabled={gitManager.isPushing}
         class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
       >
-        <UploadCloudIcon class="size-4 shrink-0" />
+        <UploadCloudIcon strokeWidth={1.5} class="size-4 shrink-0" />
         <span
           >{gitManager.isPushing
             ? 'Publishing…'
@@ -183,7 +183,7 @@
   onclick={() => (isMobileSheetOpen = true)}
   class="xl:hidden fixed top-4 left-4 z-30 flex items-center justify-center size-9 rounded-full bg-background/90 backdrop-blur-sm border border-border/40 shadow-sm text-muted-foreground hover:text-foreground transition-colors"
 >
-  <MenuIcon class="size-4" />
+  <MenuIcon strokeWidth={1.5} class="size-4" />
   <span class="sr-only">Open binders</span>
 </button>
 

@@ -83,7 +83,7 @@
       onclick={() => goto(resolve('/'))}
       disabled={false}
     >
-      <HomeIcon class="size-5" />
+      <HomeIcon strokeWidth={1.5} class="size-5" />
     </Button>
   </div>
 
@@ -97,9 +97,9 @@
         onkeydown={(e) => {
           if (e.key === 'Enter') handleCreateBinder();
         }}
-      />
+ />
       <Button variant="default" class="gap-2" onclick={handleCreateBinder} disabled={false}>
-        <FolderPlusIcon class="size-3.5" />
+        <FolderPlusIcon strokeWidth={1.5} class="size-3.5" />
         Create
       </Button>
     </div>
@@ -116,7 +116,7 @@
           {#each fileManager.binders as binder (binder)}
             {@const count = binderWritingCount(binder)}
             <div class="flex items-center gap-3 p-4 rounded-lg bg-muted/20 border border-border/50">
-              <FolderIcon class="size-4 text-muted-foreground/50 shrink-0" />
+              <FolderIcon strokeWidth={1.5} class="size-4 text-muted-foreground/50 shrink-0" />
 
               {#if renamingBinder === binder}
                 <Input
@@ -128,7 +128,7 @@
                     if (e.key === 'Enter') confirmRename();
                     if (e.key === 'Escape') cancelRename();
                   }}
-                />
+ />
                 <Button variant="default" size="sm" class="text-xs h-9" onclick={confirmRename} disabled={false}
                   >Save</Button
                 >
@@ -149,7 +149,7 @@
                   onclick={() => startRename(binder)}
                   disabled={false}
                 >
-                  <PencilIcon class="size-3.5" />
+                  <PencilIcon strokeWidth={1.5} class="size-3.5" />
                   <span class="sr-only">Rename {binder}</span>
                 </Button>
                 <Button
@@ -159,14 +159,14 @@
                   onclick={() => handleDeleteClick(binder)}
                   disabled={false}
                 >
-                  <Trash2Icon class="size-3.5" />
+                  <Trash2Icon strokeWidth={1.5} class="size-3.5" />
                   <span class="sr-only">Delete {binder}</span>
                 </Button>
               {/if}
             </div>
           {:else}
             <div class="flex flex-col items-center justify-center py-32 text-center gap-3">
-              <FolderIcon class="size-10 text-muted-foreground/30" />
+              <FolderIcon strokeWidth={1.5} class="size-10 text-muted-foreground/30" />
               <p class="text-muted-foreground/60">No binders yet. Create one above.</p>
             </div>
           {/each}

@@ -49,7 +49,7 @@
             <div class="flex items-center gap-3">
               {#if icon}
                 {@const Icon = icon}
-                <Icon class="size-3.5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                <Icon strokeWidth={1.5} class="size-3.5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
               {:else}
                 <div class="size-3.5"></div>
               {/if}

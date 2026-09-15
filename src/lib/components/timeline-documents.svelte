@@ -9,6 +9,7 @@
   import FolderIcon from '@lucide/svelte/icons/folder';
   import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
   import Button from './ui/button/button.svelte';
+  import * as ContextMenu from './ui/context-menu/index.js';
   import { formatFileName, formatDate, formatTime } from '@/utils';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
@@ -216,15 +217,15 @@
               onblur={handleDraftCancel}
               autofocus
               placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
-              class="flex-1 min-w-0 bg-transparent text-base outline-none"
-            />
+              class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+ />
           </div>
         {/if}
 
         {#if fileTree.length === 0 && !draft}
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
             <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
-              <FolderIcon class="size-6 text-muted-foreground/40" />
+              <FolderIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
             </div>
             <h3 class="text-xl font-normal">No writings in {activeBinder} yet</h3>
             <p class="text-muted-foreground/60 max-w-xs text-sm">
@@ -244,7 +245,7 @@
               onDraftInput={handleDraftInput}
               onDraftConfirm={handleDraftConfirm}
               onDraftCancel={handleDraftCancel}
-            />
+ />
           {/each}
         {/if}
       </div>
@@ -279,8 +280,8 @@
             onblur={handleDraftCancel}
             autofocus
             placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
-            class="flex-1 min-w-0 bg-transparent text-base outline-none"
-          />
+            class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+ />
         </div>
       {/if}
       {#each groupedFiles as group (group.id)}
@@ -292,6 +293,8 @@
           </div>
 
           {#each group.files as item (item.path)}
+            <ContextMenu.Root>
+            <ContextMenu.Trigger>
             <div class="group relative flex items-center gap-2.5 py-2.5 rounded-md hover:bg-muted/20">
               {#if renamingItem === item}
                 <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -305,8 +308,8 @@
                     }}
                     onblur={confirmRename}
                     autofocus
-                    class="flex-1 min-w-0 bg-transparent text-base outline-none"
-                  />
+                    class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+ />
                 </div>
               {:else}
                 <a
@@ -319,7 +322,7 @@
                   <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono">
                     {#if item.folder && activeBinder === null}
                       <span class="flex items-center gap-1">
-                        <FolderIcon class="size-3" />
+                        <FolderIcon strokeWidth={1.5} class="size-3" />
                         {item.folder}
                       </span>
                       <span class="opacity-30">•</span>
@@ -331,29 +334,20 @@
                 </a>
               {/if}
 
-              <div class="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8 rounded-full"
-                  aria-label="Rename"
-                  onclick={() => startRename(item)}
-                  disabled={false}
-                >
-                  <PencilIcon class="size-3.5" strokeWidth={1.5} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8 rounded-full text-destructive/70 hover:text-destructive"
-                  aria-label="Delete"
-                  onclick={() => handleDeleteClick(item)}
-                  disabled={false}
-                >
-                  <Trash2Icon class="size-3.5" strokeWidth={1.5} />
-                </Button>
-              </div>
             </div>
+            </ContextMenu.Trigger>
+            <ContextMenu.Content class="w-48">
+              <ContextMenu.Item onclick={() => startRename(item)}>
+                <PencilIcon class="size-3.5" strokeWidth={1.5} />
+                Rename
+              </ContextMenu.Item>
+              <ContextMenu.Separator />
+              <ContextMenu.Item variant="destructive" onclick={() => handleDeleteClick(item)}>
+                <Trash2Icon class="size-3.5" strokeWidth={1.5} />
+                Delete
+              </ContextMenu.Item>
+            </ContextMenu.Content>
+            </ContextMenu.Root>
           {/each}
         </div>
       {/each}
@@ -362,9 +356,9 @@
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
               <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
                   {#if activeBinder}
-                      <FolderIcon class="size-6 text-muted-foreground/40" />
+                      <FolderIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
                   {:else}
-                      <FileIcon class="size-6 text-muted-foreground/40" />
+                      <FileIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
                   {/if}
               </div>
               <h3 class="text-xl font-normal">

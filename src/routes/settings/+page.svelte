@@ -94,7 +94,7 @@
       onclick={() => goto(resolve('/'))}
       disabled={false}
     >
-      <HomeIcon class="size-5" />
+      <HomeIcon strokeWidth={1.5} class="size-5" />
     </Button>
   </div>
 
@@ -110,7 +110,7 @@
               ? 'bg-primary/10 text-primary font-medium'
               : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'}"
         >
-          <section.icon class="size-4 shrink-0" />
+          <section.icon strokeWidth={1.5} class="size-4 shrink-0" />
           <span>{section.label}</span>
         </button>
       {/each}
@@ -141,7 +141,7 @@
                       onclick={() => appState.setTheme('light')}
                       disabled={false}
                     >
-                      <SunIcon class="size-3.5" />
+                      <SunIcon strokeWidth={1.5} class="size-3.5" />
                       Light
                     </Button>
                     <Button
@@ -151,7 +151,7 @@
                       onclick={() => appState.setTheme('dark')}
                       disabled={false}
                     >
-                      <MoonIcon class="size-3.5" />
+                      <MoonIcon strokeWidth={1.5} class="size-3.5" />
                       Dark
                     </Button>
                   </div>
@@ -172,7 +172,7 @@
                       onclick={() => appState.setDensity('default')}
                       disabled={false}
                     >
-                      <Rows3Icon class="size-3.5" />
+                      <Rows3Icon strokeWidth={1.5} class="size-3.5" />
                       Default
                     </Button>
                     <Button
@@ -182,7 +182,7 @@
                       onclick={() => appState.setDensity('compact')}
                       disabled={false}
                     >
-                      <AlignJustifyIcon class="size-3.5" />
+                      <AlignJustifyIcon strokeWidth={1.5} class="size-3.5" />
                       Compact
                     </Button>
                   </div>
@@ -233,7 +233,7 @@
               <div class="grid gap-8">
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <FolderIcon class="size-4 opacity-50" />
+                    <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-xs font-mono uppercase tracking-widest opacity-50">Content Directory</span>
                   </div>
                   <code class="text-sm break-all font-mono text-primary">
@@ -246,7 +246,7 @@
 
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <FolderIcon class="size-4 opacity-50" />
+                    <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-xs font-mono uppercase tracking-widest opacity-50">History Directory</span>
                   </div>
                   <code class="text-sm break-all font-mono text-primary">
@@ -293,7 +293,7 @@
                 {#if configManager.config?.ai_enabled}
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon class="size-4 opacity-50" />
+                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-xs font-mono uppercase tracking-widest opacity-50">Supported models (Kalosm)</span>
                   </div>
 
@@ -381,7 +381,7 @@
 
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon class="size-4 opacity-50" />
+                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-xs font-mono uppercase tracking-widest opacity-50">System Prompt</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
@@ -414,7 +414,7 @@
                 <!-- Account -->
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <GithubIcon class="size-4 opacity-50" />
+                    <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-xs font-mono uppercase tracking-widest opacity-50">Account</span>
                   </div>
 
@@ -468,7 +468,7 @@
                       onclick={() => gitManager.startLogin()}
                       disabled={gitManager.isConnecting}
                     >
-                      <GithubIcon class="size-3.5" />
+                      <GithubIcon strokeWidth={1.5} class="size-3.5" />
                       Login with GitHub
                     </Button>
                   {/if}
@@ -502,7 +502,7 @@
                   <!-- Repository -->
                   <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                     <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                      <GithubIcon class="size-4 opacity-50" />
+                      <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
                       <span class="text-xs font-mono uppercase tracking-widest opacity-50">Repository</span>
                     </div>
                     <p class="text-sm text-muted-foreground">
@@ -515,7 +515,7 @@
                         bind:value={repoInput}
                         placeholder="owner/repo"
                         class="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
+ />
                       <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveRepo}>
                         Save
                       </Button>
@@ -530,7 +530,7 @@
                           <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                           Importing…
                         {:else}
-                          <DownloadCloudIcon class="size-3.5" />
+                          <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
                           Import
                         {/if}
                       </Button>
@@ -550,7 +550,7 @@
                   <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                     <div class="flex items-center justify-between mb-1">
                       <div class="flex items-center gap-2 text-muted-foreground">
-                        <UploadCloudIcon class="size-4 opacity-50" />
+                        <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
                         <span class="text-xs font-mono uppercase tracking-widest opacity-50">Changes</span>
                       </div>
                       <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => gitManager.refreshStatus()}>
@@ -597,7 +597,7 @@
                         <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
                         Pushing…
                       {:else}
-                        <UploadCloudIcon class="size-3.5" />
+                        <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
                         Commit & Push
                       {/if}
                     </Button>

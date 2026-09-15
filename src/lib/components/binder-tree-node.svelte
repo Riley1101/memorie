@@ -1,7 +1,7 @@
 <script>
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
-  import Button from './ui/button/button.svelte';
+  import * as ContextMenu from './ui/context-menu/index.js';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import FolderIcon from '@lucide/svelte/icons/folder';
@@ -101,6 +101,8 @@
 </script>
 
 {#if node.type === 'folder'}
+  <ContextMenu.Root>
+  <ContextMenu.Trigger>
   <div
     class="group flex items-center gap-1.5 mb-1 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10"
     style="padding-left: {depth * 1.25}rem"
@@ -117,7 +119,7 @@
         onblur={confirmRenameFolder}
         onclick={(e) => e.stopPropagation()}
         autofocus
-        class="flex-1 min-w-0 bg-transparent text-[0.6875rem] font-medium outline-none"
+        class="flex-1 min-w-0 bg-muted rounded px-1.5 py-0.5 text-[0.6875rem] font-medium outline-none"
       />
     {:else}
       <button
@@ -142,49 +144,32 @@
       </h3>
     {/if}
 
-    <div class="ml-auto flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-7 rounded-full"
-        aria-label="New entry"
-        onclick={() => onCreateFile(node.path)}
-        disabled={false}
-      >
-        <PlusIcon class="size-3" strokeWidth={1.5} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-7 rounded-full"
-        aria-label="New folder"
-        onclick={() => onCreateFolder(node.path)}
-        disabled={false}
-      >
-        <FolderPlusIcon class="size-3" strokeWidth={1.5} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-7 rounded-full"
-        aria-label="Rename"
-        onclick={startRenameFolder}
-        disabled={false}
-      >
-        <PencilIcon class="size-3" strokeWidth={1.5} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-7 rounded-full text-destructive/70 hover:text-destructive"
-        aria-label={isEmptyFolder ? 'Delete' : 'Delete (not empty)'}
-        onclick={() => onDeleteFolder(node.path)}
-        disabled={!isEmptyFolder}
-      >
-        <Trash2Icon class="size-3" strokeWidth={1.5} />
-      </Button>
-    </div>
   </div>
+  </ContextMenu.Trigger>
+  <ContextMenu.Content class="w-48">
+    <ContextMenu.Item onclick={() => onCreateFile(node.path)}>
+      <PlusIcon class="size-3.5" strokeWidth={1.5} />
+      New entry
+    </ContextMenu.Item>
+    <ContextMenu.Item onclick={() => onCreateFolder(node.path)}>
+      <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
+      New folder
+    </ContextMenu.Item>
+    <ContextMenu.Item onclick={startRenameFolder}>
+      <PencilIcon class="size-3.5" strokeWidth={1.5} />
+      Rename
+    </ContextMenu.Item>
+    <ContextMenu.Separator />
+    <ContextMenu.Item
+      variant="destructive"
+      disabled={!isEmptyFolder}
+      onclick={() => onDeleteFolder(node.path)}
+    >
+      <Trash2Icon class="size-3.5" strokeWidth={1.5} />
+      {isEmptyFolder ? 'Delete' : 'Delete (not empty)'}
+    </ContextMenu.Item>
+  </ContextMenu.Content>
+  </ContextMenu.Root>
 
   {#if open}
     {#if isDraftHere}
@@ -207,7 +192,7 @@
           onblur={onDraftCancel}
           autofocus
           placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
-          class="flex-1 min-w-0 bg-transparent text-base outline-none"
+          class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
         />
       </div>
     {/if}
@@ -228,6 +213,8 @@
     {/each}
   {/if}
 {:else}
+  <ContextMenu.Root>
+  <ContextMenu.Trigger>
   <div
     class="group relative flex items-center gap-2 py-2.5 rounded-md hover:bg-muted/20"
     style="padding-left: {depth * 1.25}rem"
@@ -244,7 +231,7 @@
           }}
           onblur={confirmRenameFile}
           autofocus
-          class="flex-1 min-w-0 bg-transparent text-base outline-none"
+          class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
         />
       </div>
     {:else}
@@ -269,27 +256,18 @@
       </a>
     {/if}
 
-    <div class="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-8 rounded-full"
-        aria-label="Rename"
-        onclick={startRenameFile}
-        disabled={false}
-      >
-        <PencilIcon class="size-3.5" strokeWidth={1.5} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-8 rounded-full text-destructive/70 hover:text-destructive"
-        aria-label="Delete"
-        onclick={() => onDeleteFile(node.file)}
-        disabled={false}
-      >
-        <Trash2Icon class="size-3.5" strokeWidth={1.5} />
-      </Button>
-    </div>
   </div>
+  </ContextMenu.Trigger>
+  <ContextMenu.Content class="w-48">
+    <ContextMenu.Item onclick={startRenameFile}>
+      <PencilIcon class="size-3.5" strokeWidth={1.5} />
+      Rename
+    </ContextMenu.Item>
+    <ContextMenu.Separator />
+    <ContextMenu.Item variant="destructive" onclick={() => onDeleteFile(node.file)}>
+      <Trash2Icon class="size-3.5" strokeWidth={1.5} />
+      Delete
+    </ContextMenu.Item>
+  </ContextMenu.Content>
+  </ContextMenu.Root>
 {/if}

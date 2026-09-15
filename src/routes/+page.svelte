@@ -26,7 +26,7 @@
           class="text-muted-foreground hover:text-foreground rounded-full"
           aria-label="Search"
         >
-          <SearchIcon class="size-3.5" />
+          <SearchIcon strokeWidth={1.5} class="size-3.5" />
         </Button>
         <Button
           onclick={()=>goto(resolve('/settings'))}
@@ -35,7 +35,7 @@
           class="text-muted-foreground hover:text-foreground rounded-full"
           aria-label="Settings"
         >
-          <SettingIcon class="size-3.5" />
+          <SettingIcon strokeWidth={1.5} class="size-3.5" />
         </Button>
       </div>
     </div>

@@ -501,7 +501,7 @@
         placeholder="Type command..."
         class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full px-2"
         aria-label="Command input"
-      />
+ />
     </div>
   {:else}
     <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] font-mono">
@@ -527,7 +527,7 @@
                 onclick={() => executeCommand(':h')}
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
-                <HelpIcon class="size-3.5" />
+                <HelpIcon strokeWidth={1.5} class="size-3.5" />
               </button>
             {/snippet}
           </Tooltip.Trigger>
@@ -545,7 +545,7 @@
                 }}
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
-                <TerminalIcon class="size-3.5" />
+                <TerminalIcon strokeWidth={1.5} class="size-3.5" />
               </button>
             {/snippet}
           </Tooltip.Trigger>
@@ -562,7 +562,7 @@
                 onclick={() => appState.toggleCommandMenu(true)}
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
-                <SearchIcon class="size-3.5" />
+                <SearchIcon strokeWidth={1.5} class="size-3.5" />
               </button>
             {/snippet}
           </Tooltip.Trigger>
@@ -591,13 +591,13 @@
                 }}
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
-                <AiSparkleIcon
+                <AiSparkleIcon strokeWidth={1.5}
                   class={cn(
                     'size-3.5 transition-colors',
                     isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
                     !llmManager.modelsLoaded ? 'text-warning' : ''
                   )}
-                />
+ />
               </button>
             {/snippet}
           </Tooltip.Trigger>
@@ -626,7 +626,7 @@
               size="icon"
               class="h-7 w-7 rounded-none md:hidden shrink-0"
             >
-              <HouseIcon class="size-3.5" />
+              <HouseIcon strokeWidth={1.5} class="size-3.5" />
             </Button>
           {/snippet}
         </DropdownMenu.Trigger>
@@ -635,7 +635,7 @@
             {#each quickCommands as qCmd (qCmd.cmd)}
               <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)} class="" inset={false}>
                 <div class="flex items-center gap-2 flex-1">
-                  <qCmd.icon class="size-3.5" />
+                  <qCmd.icon strokeWidth={1.5} class="size-3.5" />
                   <span class="font-mono text-sm">{qCmd.description}</span>
                 </div>
                 <DropdownMenu.Shortcut class="">{qCmd.shortcutLabel}</DropdownMenu.Shortcut>

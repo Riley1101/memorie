@@ -40,7 +40,7 @@
         {#if message.role === "assistant"}
           {#if message.content === ""}
             <div class="flex items-center gap-2 text-muted-foreground">
-              <LoaderIcon class="size-4 animate-spin" />
+              <LoaderIcon strokeWidth={1.5} class="size-4 animate-spin" />
               <span class="text-xs">Thinking...</span>
             </div>
           {:else}

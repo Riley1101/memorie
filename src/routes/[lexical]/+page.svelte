@@ -131,7 +131,7 @@
         onclick={() => goto(resolve('/'))}
         class="flex items-center justify-center size-7 -ml-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
       >
-        <HouseIcon class="size-3.5" />
+        <HouseIcon strokeWidth={1.5} class="size-3.5" />
       </button>
       <div class="flex-1 flex items-center justify-center gap-1">
         {#if siblings.length > 1}
@@ -141,7 +141,7 @@
             title={prevWriting ? formatFileName(prevWriting.name.split('/').pop()) : ''}
             class="flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
-            <ChevronLeftIcon class="size-3" />
+            <ChevronLeftIcon strokeWidth={1.5} class="size-3" />
           </button>
         {/if}
         <span class="text-muted-foreground select-none truncate max-w-xs pointer-events-none">
@@ -154,7 +154,7 @@
             title={nextWriting ? formatFileName(nextWriting.name.split('/').pop()) : ''}
             class="flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
-            <ChevronRightIcon class="size-3" />
+            <ChevronRightIcon strokeWidth={1.5} class="size-3" />
           </button>
         {/if}
       </div>
