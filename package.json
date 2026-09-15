@@ -29,13 +29,14 @@
     "mode-watcher": "^1.1.0",
     "runed": "^0.37.1",
     "streamdown-svelte": "^3.0.6",
+    "svelte-sonner": "^1.2.1",
     "svelte-streamdown": "^3.1.2"
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
     "@internationalized/date": "^3.12.2",
-    "@lucide/svelte": "^1.28.0",
+    "@lucide/svelte": "^1.46.0",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.70.2",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",

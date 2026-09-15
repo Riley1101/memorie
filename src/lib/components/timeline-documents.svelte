@@ -9,21 +9,122 @@
   import FolderIcon from '@lucide/svelte/icons/folder';
   import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
   import Button from './ui/button/button.svelte';
+  import * as ContextMenu from './ui/context-menu/index.js';
+  import * as DropdownMenu from './ui/dropdown-menu/index.js';
+  import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+  import FolderInputIcon from '@lucide/svelte/icons/folder-input';
   import { formatFileName, formatDate, formatTime } from '@/utils';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
+  import { Skeleton } from '@/components/ui/skeleton/index.js';
   import { SvelteDate } from 'svelte/reactivity';
+  import { treeState } from '@/runes/tree.svelte.js';
   import ScrollFade from './scroll-fade.svelte';
   import BinderTreeNode from './binder-tree-node.svelte';
+  import MovePicker from './move-picker.svelte';
   import { buildFileTree } from '@/utils';
+  import { startNewWriting } from '$lib/new-writing.js';
+  import { baseOf, dirOf } from '@/runes/fs.svelte';
+  import { DRAG_MIME, readDragPayload } from '$lib/tree-dnd.js';
+  import { toast } from '$lib/toast.js';
 
   let { activeBinder = null } = $props();
+
+  // --- Move (picker + drag and drop) ---
+
+  /** @type {{ open: boolean, kind: 'file'|'folder', subject: string, source: string, currentDir: string, excludePrefix: string|null }} */
+  let move = $state({ open: false, kind: 'file', subject: '', source: '', currentDir: '', excludePrefix: null });
+
+  function handleMoveFile(file) {
+    move = {
+      open: true,
+      kind: 'file',
+      subject: formatFileName(baseOf(file.name)),
+      source: file.name,
+      currentDir: dirOf(file.name),
+      excludePrefix: null,
+    };
+  }
+
+  function handleMoveFolder(path) {
+    move = {
+      open: true,
+      kind: 'folder',
+      subject: baseOf(path),
+      source: path,
+      currentDir: dirOf(path),
+      excludePrefix: path,
+    };
+  }
+
+  async function handleMoveChoose(dir) {
+    if (move.kind === 'file') {
+      const moved = await fileManager.moveFile(move.source, dir);
+      if (moved) toast.success(`Moved “${move.subject}”`, dir ? `to ${dir}` : 'to top level');
+    } else {
+      const moved = await fileManager.moveFolder(move.source, dir);
+      if (moved) {
+        treeState.reveal(moved);
+        toast.success(`Moved “${move.subject}”`, `to ${dir}`);
+      }
+    }
+  }
+
+  /** Drop target handler shared by folder rows and the binder root. */
+  async function handleDrop(payload, targetDir) {
+    if (payload.kind === 'file') {
+      if (dirOf(payload.name) === targetDir) return;
+      await fileManager.moveFile(payload.name, targetDir);
+    } else {
+      if (dirOf(payload.path) === targetDir) return;
+      const moved = await fileManager.moveFolder(payload.path, targetDir);
+      if (moved) treeState.reveal(moved);
+    }
+  }
+
+  let isRootDragOver = $state(false);
+
+  function handleRootDragOver(e) {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    isRootDragOver = true;
+  }
+
+  function handleRootDragLeave(e) {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    isRootDragOver = false;
+  }
+
+  function handleRootDrop(e) {
+    if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
+    e.preventDefault();
+    isRootDragOver = false;
+    const payload = readDragPayload(e);
+    if (payload && activeBinder) handleDrop(payload, activeBinder);
+  }
+
+  // --- Keyboard: ↑ ↓ walk every visible row; ← → live on the folder rows. ---
+
+  let treeContainer = $state(/** @type {HTMLElement | null} */ (null));
+
+  function handleTreeKeydown(e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    if (!(e.target instanceof HTMLElement) || !e.target.hasAttribute('data-tree-row')) return;
+    const rows = [...(treeContainer?.querySelectorAll('[data-tree-row]') ?? [])];
+    const i = rows.indexOf(e.target);
+    if (i === -1) return;
+    e.preventDefault();
+    const next = rows[e.key === 'ArrowDown' ? i + 1 : i - 1];
+    /** @type {HTMLElement | undefined} */ (next)?.focus();
+  }
 
   let isDeleteDialogOpen = $state(false);
   let itemToDelete = $state(null);
   let renamingItem = $state(null);
   let renameValue = $state('');
-  let itemClickTimer = null;
+  /** Name of the writing whose hover menu is open, so its row stays highlighted. */
+  let menuOpenFor = $state(/** @type {string | null} */ (null));
 
   let favourites = $derived(fileManager.files);
 
@@ -38,12 +139,14 @@
     showTree ? buildFileTree(favourites, activeBinder, fileManager.folders) : []
   );
 
-  // Inline create draft: replaces the old "New Entry" / "New Folder" modals.
-  // { subPath: string[], type: 'file' | 'folder', name: string } | null
+  // Inline create draft, folders only. New writings open a blank editor
+  // straight away and get named from what the writer types.
+  // { subPath: string[], type: 'folder', name: string } | null
   let draft = $state(null);
 
   export function handleTreeCreateFile(subPath) {
-    draft = { subPath, type: 'file', name: '' };
+    const dir = [activeBinder, ...subPath].filter(Boolean).join('/');
+    startNewWriting(dir);
   }
 
   export function handleTreeCreateFolder(subPath) {
@@ -58,32 +161,81 @@
     draft = null;
   }
 
+  let isConfirmingDraft = false;
+
   async function handleDraftConfirm() {
+    if (isConfirmingDraft) return;
     if (!draft || !draft.name.trim()) {
       draft = null;
       return;
     }
-    if (draft.type === 'file') {
-      await fileManager.createNewFile(draft.name, '', activeBinder, draft.subPath);
-    } else {
-      await fileManager.createFolder(activeBinder, draft.subPath, draft.name);
+    isConfirmingDraft = true;
+    const pending = draft;
+    try {
+      await fileManager.createFolder(activeBinder, pending.subPath, pending.name);
+      draft = null;
+    } finally {
+      isConfirmingDraft = false;
     }
-    draft = null;
+  }
+
+  /** Blur commits a typed name; an empty box just closes. */
+  function handleDraftBlur() {
+    if (draft && draft.name.trim()) handleDraftConfirm();
+    else handleDraftCancel();
   }
 
   let isDeleteFolderDialogOpen = $state(false);
   let folderPathToDelete = $state([]);
+  let isDeletingFolder = $state(false);
+
+  let folderToDeleteFull = $derived([activeBinder, ...folderPathToDelete].join('/'));
+  let folderToDeleteFiles = $derived(fileManager.filesUnder(folderToDeleteFull).length);
+  let folderToDeleteFolders = $derived(fileManager.foldersUnder(folderToDeleteFull).length);
+  let folderToDeleteIsEmpty = $derived(folderToDeleteFiles === 0 && folderToDeleteFolders === 0);
 
   function handleTreeDeleteFolder(path) {
     folderPathToDelete = path;
     isDeleteFolderDialogOpen = true;
   }
 
-  async function confirmDeleteFolder() {
-    const relativePath = [activeBinder, ...folderPathToDelete].join('/');
-    await fileManager.deleteFolder(relativePath);
-    isDeleteFolderDialogOpen = false;
-    folderPathToDelete = [];
+  async function confirmDeleteFolderEmpty() {
+    isDeletingFolder = true;
+    try {
+      await fileManager.deleteFolder(folderToDeleteFull);
+    } finally {
+      isDeletingFolder = false;
+      isDeleteFolderDialogOpen = false;
+      folderPathToDelete = [];
+    }
+  }
+
+  /** Default for non-empty folders: keep the writing, lose only the grouping. */
+  async function confirmDeleteFolderLift() {
+    isDeletingFolder = true;
+    const name = baseOf(folderToDeleteFull);
+    try {
+      const ok = await fileManager.liftAndDeleteFolder(folderToDeleteFull);
+      if (ok) toast.success(`Removed folder “${name}”`, 'Its writings moved up one level.');
+    } finally {
+      isDeletingFolder = false;
+      isDeleteFolderDialogOpen = false;
+      folderPathToDelete = [];
+    }
+  }
+
+  async function confirmDeleteFolderAll() {
+    isDeletingFolder = true;
+    const name = baseOf(folderToDeleteFull);
+    const n = folderToDeleteFiles;
+    try {
+      const ok = await fileManager.deleteFolderRecursive(folderToDeleteFull);
+      if (ok) toast.success(`Deleted “${name}”`, `${n} writing${n === 1 ? '' : 's'} removed.`);
+    } finally {
+      isDeletingFolder = false;
+      isDeleteFolderDialogOpen = false;
+      folderPathToDelete = [];
+    }
   }
 
   let groupedFiles = $derived.by(() => {
@@ -133,23 +285,17 @@
       cancelRename();
       return;
     }
-    await fileManager.renameFile(renamingItem.name, renameValue.trim());
+    const target = renamingItem;
+    const value = renameValue.trim();
     cancelRename();
+    await fileManager.renameFile(target.name, value);
   }
 
+  /** Single click opens immediately; rename lives on F2 and the context menu. */
   function handleItemClick(e, item) {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    if (itemClickTimer) {
-      clearTimeout(itemClickTimer);
-      itemClickTimer = null;
-      startRename(item);
-    } else {
-      itemClickTimer = setTimeout(() => {
-        itemClickTimer = null;
-        goto(resolve(`/${encodeURIComponent(item.name)}`));
-      }, 250);
-    }
+    goto(resolve(`/${encodeURIComponent(item.name)}`));
   }
 
   function handleDeleteClick(item) {
@@ -171,41 +317,74 @@
   }
 </script>
 
+{#snippet itemMenu(item, Menu)}
+  <Menu.Item onclick={() => startNewWriting(dirOf(item.name))}>
+    <PlusIcon class="size-3.5" strokeWidth={1.5} />
+    New writing next to this
+  </Menu.Item>
+  <Menu.Separator />
+  <Menu.Item onclick={() => startRename(item)}>
+    <PencilIcon class="size-3.5" strokeWidth={1.5} />
+    Rename
+  </Menu.Item>
+  <Menu.Item onclick={() => handleMoveFile(item)}>
+    <FolderInputIcon class="size-3.5" strokeWidth={1.5} />
+    Move to…
+  </Menu.Item>
+  <Menu.Separator />
+  <Menu.Item variant="destructive" onclick={() => handleDeleteClick(item)}>
+    <Trash2Icon class="size-3.5" strokeWidth={1.5} />
+    Delete
+  </Menu.Item>
+{/snippet}
+
+{#snippet loadingRows()}
+  <div class="space-y-3 pt-2" aria-busy="true" aria-label="Loading writings">
+    <Skeleton class="h-3 w-14 rounded" />
+    {#each [0, 1, 2, 3] as i (i)}
+      <div class="flex items-center gap-2 py-2.5">
+        <Skeleton class="size-4 rounded" />
+        <Skeleton class="h-4 rounded" style="width: {52 + ((i * 17) % 30)}%" />
+        <Skeleton class="ml-auto h-3 w-24 rounded hidden sm:block" />
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
 <div class="flex flex-col w-full h-full font-writer">
   <ScrollFade class="flex-1 min-h-0">
   <ScrollArea type="scroll" class="h-full">
     {#if showTree}
-      <div class="pb-20 pr-2">
-        <div class="flex items-center justify-end gap-0.5 mb-6 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        bind:this={treeContainer}
+        onkeydown={handleTreeKeydown}
+        ondragover={handleRootDragOver}
+        ondragleave={handleRootDragLeave}
+        ondrop={handleRootDrop}
+        class="min-h-full pb-20 pr-2 rounded-lg transition-colors {isRootDragOver ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''}"
+      >
+        <div class="flex items-center justify-between gap-2 mb-4 py-1">
+          <span class="text-[0.6875rem] font-medium text-muted-foreground/50 tabular-nums">
+            {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
+              · drop to move to {activeBinder}{/if}
+          </span>
           <Button
             variant="ghost"
-            size="icon-sm"
-            class="rounded-full text-muted-foreground/50 hover:text-foreground"
-            aria-label="New entry"
-            onclick={() => handleTreeCreateFile([])}
-            disabled={false}
-          >
-            <PlusIcon class="size-3.5" strokeWidth={1.5} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            class="rounded-full text-muted-foreground/50 hover:text-foreground"
-            aria-label="New folder"
+            size="sm"
+            class="text-muted-foreground/70 hover:text-foreground gap-1.5"
             onclick={() => handleTreeCreateFolder([])}
             disabled={false}
           >
             <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
+            New folder
           </Button>
         </div>
 
         {#if draft && draft.subPath.length === 0}
           <div class="flex items-center gap-2 py-2.5">
-            {#if draft.type === 'folder'}
-              <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
-            {:else}
-              <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
-            {/if}
+            <span class="size-4 shrink-0"></span>
+            <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
             <input
               value={draft.name}
               oninput={(e) => handleDraftInput(e.currentTarget.value)}
@@ -213,23 +392,29 @@
                 if (e.key === 'Enter') handleDraftConfirm();
                 if (e.key === 'Escape') handleDraftCancel();
               }}
-              onblur={handleDraftCancel}
+              onblur={handleDraftBlur}
               autofocus
-              placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
-              class="flex-1 min-w-0 bg-transparent text-base outline-none"
-            />
+              placeholder="Folder name"
+              class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+ />
           </div>
         {/if}
 
-        {#if fileTree.length === 0 && !draft}
+        {#if !fileManager.hasLoadedFiles}
+          {@render loadingRows()}
+        {:else if fileTree.length === 0 && !draft}
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
             <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
-              <FolderIcon class="size-6 text-muted-foreground/40" />
+              <FolderIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
             </div>
-            <h3 class="text-xl font-normal">No writings in {activeBinder} yet</h3>
+            <h3 class="text-xl font-normal">{activeBinder} is empty</h3>
             <p class="text-muted-foreground/60 max-w-xs text-sm">
-              Add an entry, or a folder to group entries under.
+              Start writing here, or add a folder to group chapters and scenes.
             </p>
+            <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4 gap-1.5" disabled={false}>
+              <PlusIcon class="size-3.5" strokeWidth={1.5} />
+              Start writing
+            </Button>
           </div>
         {:else}
           {#each fileTree as node (node.type + ':' + node.name)}
@@ -240,48 +425,21 @@
               onCreateFolder={handleTreeCreateFolder}
               onDeleteFile={handleDeleteClick}
               onDeleteFolder={handleTreeDeleteFolder}
+              onMoveFile={handleMoveFile}
+              onMoveFolder={handleMoveFolder}
+              onDrop={handleDrop}
               {draft}
               onDraftInput={handleDraftInput}
               onDraftConfirm={handleDraftConfirm}
               onDraftCancel={handleDraftCancel}
-            />
+ />
           {/each}
         {/if}
       </div>
     {:else}
     <div class="space-y-6 pb-20 pr-2">
-      <div class="flex items-center justify-end mb-4 sticky top-0 py-1 bg-background/95 backdrop-blur-sm z-10">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          class="rounded-full text-muted-foreground/50 hover:text-foreground"
-          aria-label="New entry"
-          onclick={() => handleTreeCreateFile([])}
-          disabled={false}
-        >
-          <PlusIcon class="size-3.5" strokeWidth={1.5} />
-        </Button>
-      </div>
-      {#if draft}
-        <div class="flex items-center gap-2 py-2.5 mb-2">
-          {#if draft.type === 'folder'}
-            <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
-          {:else}
-            <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
-          {/if}
-          <input
-            value={draft.name}
-            oninput={(e) => handleDraftInput(e.currentTarget.value)}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') handleDraftConfirm();
-              if (e.key === 'Escape') handleDraftCancel();
-            }}
-            onblur={handleDraftCancel}
-            autofocus
-            placeholder={draft.type === 'folder' ? 'Folder name' : 'Entry name'}
-            class="flex-1 min-w-0 bg-transparent text-base outline-none"
-          />
-        </div>
+      {#if !fileManager.hasLoadedFiles}
+        {@render loadingRows()}
       {/if}
       {#each groupedFiles as group (group.id)}
         <div class="relative">
@@ -292,7 +450,11 @@
           </div>
 
           {#each group.files as item (item.path)}
-            <div class="group relative flex items-center gap-2.5 py-2.5 rounded-md hover:bg-muted/20">
+            <ContextMenu.Root>
+            <ContextMenu.Trigger>
+            <div
+              class="group/item relative flex items-center gap-2.5 py-2.5 pr-1 rounded-md hover:bg-muted/20 transition-colors {menuOpenFor === item.name ? 'bg-muted/20' : ''}"
+            >
               {#if renamingItem === item}
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
@@ -305,21 +467,27 @@
                     }}
                     onblur={confirmRename}
                     autofocus
-                    class="flex-1 min-w-0 bg-transparent text-base outline-none"
-                  />
+                    class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+ />
                 </div>
               {:else}
                 <a
                   href={resolve(`/${encodeURIComponent(item.name)}`)}
                   onclick={(e) => handleItemClick(e, item)}
+                  onkeydown={(e) => {
+                    if (e.key === 'F2') {
+                      e.preventDefault();
+                      startRename(item);
+                    }
+                  }}
                   class="flex items-center gap-2 flex-1 min-w-0 text-base text-muted-foreground/90 hover:text-foreground transition-colors"
                 >
                   <FileIcon class="size-4 shrink-0" strokeWidth={1.5} />
                   <span class="truncate">{formatFileName(item.name.split('/').pop())}</span>
-                  <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono">
+                  <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono group-hover/item:opacity-0 transition-opacity {menuOpenFor === item.name ? 'opacity-0' : ''}">
                     {#if item.folder && activeBinder === null}
                       <span class="flex items-center gap-1">
-                        <FolderIcon class="size-3" />
+                        <FolderIcon strokeWidth={1.5} class="size-3" />
                         {item.folder}
                       </span>
                       <span class="opacity-30">•</span>
@@ -329,51 +497,55 @@
                     <span>{formatTime(item.last_modified)}</span>
                   </span>
                 </a>
+
+                <!-- Hover actions: same menu as the tree rows, no right-click needed. -->
+                <div
+                  class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/item:opacity-100 focus-within:opacity-100 transition-opacity {menuOpenFor === item.name ? 'opacity-100' : ''}"
+                >
+                  <DropdownMenu.Root
+                    open={menuOpenFor === item.name}
+                    onOpenChange={(v) => (menuOpenFor = v ? item.name : null)}
+                  >
+                    <DropdownMenu.Trigger>
+                      {#snippet child({ props })}
+                        <button
+                          {...props}
+                          type="button"
+                          aria-label="Actions for {formatFileName(item.name.split('/').pop())}"
+                          class="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                        >
+                          <EllipsisIcon class="size-3.5" strokeWidth={1.5} />
+                        </button>
+                      {/snippet}
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content class="w-52 font-writer" align="end" portalProps={{}}>
+                      {@render itemMenu(item, DropdownMenu)}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                </div>
               {/if}
 
-              <div class="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8 rounded-full"
-                  aria-label="Rename"
-                  onclick={() => startRename(item)}
-                  disabled={false}
-                >
-                  <PencilIcon class="size-3.5" strokeWidth={1.5} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="size-8 rounded-full text-destructive/70 hover:text-destructive"
-                  aria-label="Delete"
-                  onclick={() => handleDeleteClick(item)}
-                  disabled={false}
-                >
-                  <Trash2Icon class="size-3.5" strokeWidth={1.5} />
-                </Button>
-              </div>
             </div>
+            </ContextMenu.Trigger>
+            <ContextMenu.Content class="w-52 font-writer">
+              {@render itemMenu(item, ContextMenu)}
+            </ContextMenu.Content>
+            </ContextMenu.Root>
           {/each}
         </div>
       {/each}
 
-      {#if filteredFiles.length === 0}
+      {#if fileManager.hasLoadedFiles && filteredFiles.length === 0}
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
               <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
-                  {#if activeBinder}
-                      <FolderIcon class="size-6 text-muted-foreground/40" />
-                  {:else}
-                      <FileIcon class="size-6 text-muted-foreground/40" />
-                  {/if}
+                  <FileIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
               </div>
-              <h3 class="text-xl font-normal">
-                  {activeBinder ? `No writings in ${activeBinder} yet` : 'No writings yet'}
-              </h3>
+              <h3 class="text-xl font-normal">Nothing here yet</h3>
               <p class="text-muted-foreground/60 max-w-xs text-sm">
-                  Your writing timeline will appear here. Start by creating your first writing above.
+                  Start writing and Memoire names the file from your first line. You can rename it any time.
               </p>
-              <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4" disabled={false}>
+              <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4 gap-1.5" disabled={false}>
+                  <PlusIcon class="size-3.5" strokeWidth={1.5} />
                   Start writing
               </Button>
           </div>
@@ -389,7 +561,9 @@
     <Dialog.Header class="">
       <Dialog.Title class="text-xl font-normal">Delete Writing</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
-        Are you sure you want to delete <span class="font-bold text-foreground">"{itemToDelete?.name}"</span>?
+        Are you sure you want to delete
+        <span class="font-bold text-foreground">"{itemToDelete ? formatFileName(itemToDelete.name.split('/').pop()) : ''}"</span>{#if itemToDelete?.folder}
+          from <span class="text-foreground">{itemToDelete.folder}</span>{/if}?
         <br/>This action cannot be undone.
       </Dialog.Description>
     </Dialog.Header>
@@ -401,26 +575,54 @@
 </Dialog.Root>
 
 <Dialog.Root bind:open={isDeleteFolderDialogOpen}>
-  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
+  <Dialog.Content class="sm:max-w-[440px] font-writer" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal">Delete Folder</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal">
+        {folderToDeleteIsEmpty ? 'Delete folder' : 'Remove folder'}
+      </Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
-        Are you sure you want to delete
-        <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>?
-        <br />This action cannot be undone.
+        {#if folderToDeleteIsEmpty}
+          <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
+          is empty. Delete it?
+        {:else}
+          <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
+          holds {folderToDeleteFiles} writing{folderToDeleteFiles === 1 ? '' : 's'}{#if folderToDeleteFolders > 0}&nbsp;and {folderToDeleteFolders} folder{folderToDeleteFolders === 1 ? '' : 's'}{/if}.
+          Keep them and remove only the folder, or delete everything.
+        {/if}
       </Dialog.Description>
     </Dialog.Header>
-    <Dialog.Footer class="mt-6 flex gap-2">
+    <Dialog.Footer class="mt-6 flex flex-col sm:flex-col gap-2">
+      {#if folderToDeleteIsEmpty}
+        <Button variant="destructive" onclick={confirmDeleteFolderEmpty} disabled={isDeletingFolder} class="w-full">
+          Delete folder
+        </Button>
+      {:else}
+        <Button onclick={confirmDeleteFolderLift} disabled={isDeletingFolder} class="w-full">
+          {isDeletingFolder ? 'Working…' : 'Remove folder, keep writings'}
+        </Button>
+        <Button variant="destructive" onclick={confirmDeleteFolderAll} disabled={isDeletingFolder} class="w-full">
+          Delete folder and {folderToDeleteFiles} writing{folderToDeleteFiles === 1 ? '' : 's'}
+        </Button>
+      {/if}
       <Button
         variant="ghost"
         onclick={() => (isDeleteFolderDialogOpen = false)}
-        class="flex-1"
-        disabled={false}>Cancel</Button
+        class="w-full"
+        disabled={isDeletingFolder}>Cancel</Button
       >
-      <Button variant="destructive" onclick={confirmDeleteFolder} class="flex-1" disabled={false}>Delete</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
+
+<MovePicker
+  bind:open={move.open}
+  title={move.kind === 'folder' ? 'Move folder to…' : 'Move writing to…'}
+  subject={move.subject}
+  currentDir={move.currentDir}
+  excludePrefix={move.excludePrefix}
+  allowTopLevel={move.kind === 'file'}
+  onChoose={handleMoveChoose}
+/>
 
 <style>
     :global(.writing-surface) {

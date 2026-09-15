@@ -109,7 +109,7 @@
     <div class="group relative bg-muted/40 backdrop-blur-sm border border-border/40 rounded-xl p-4 shadow-sm transition-all hover:shadow-md hover:bg-muted/50">
       <div class="flex items-start gap-4">
         <div class="mt-1 p-1.5 rounded-full bg-primary/10 text-primary">
-          <SparklesIcon class={cn("size-4", llmManager.editActionInProgress ? "animate-pulse" : "")} />
+          <SparklesIcon strokeWidth={1.5} class={cn("size-4", llmManager.editActionInProgress ? "animate-pulse" : "")} />
         </div>
         
         <div class="flex-1 space-y-3">
@@ -129,7 +129,7 @@
                 disabled={false}
                 class="h-8 px-4 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full text-xs font-medium shadow-sm transition-all active:scale-95"
               >
-                <CheckIcon class="size-3.5 mr-1.5" />
+                <CheckIcon strokeWidth={1.5} class="size-3.5 mr-1.5" />
                 Apply changes
               </Button>
             {/if}
@@ -166,7 +166,7 @@
           onclick={() => applyMark(markName)}
           class="size-6 rounded-full text-muted-foreground/80 hover:text-foreground hover:bg-muted/50"
         >
-          <Icon class="size-3.5" />
+          <Icon strokeWidth={1.5} class="size-3.5" />
         </Button>
       {/each}
     </div>
@@ -181,9 +181,9 @@
             disabled={props.disabled ?? false}
             class="h-7 px-2.5 bg-background border border-border/40 hover:bg-muted/50 rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
           >
-            <AiSparkleIcon class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
+            <AiSparkleIcon strokeWidth={1.5} class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
             AI Suggestions
-            <ChevrondownIcon class="size-3 ml-1 opacity-40 group-hover:opacity-100 transition-opacity" />
+            <ChevrondownIcon strokeWidth={1.5} class="size-3 ml-1 opacity-40 group-hover:opacity-100 transition-opacity" />
           </Button>
         {/snippet}
       </DropdownMenu.Trigger>
@@ -195,7 +195,7 @@
               placeholder="Custom instructions..."
               class="min-h-[80px] text-xs resize-none bg-muted/20 border-border/20 focus:border-primary/30 focus:ring-primary/10 rounded-lg p-3 transition-all"
               bind:value={customPrompt}
-            />
+ />
             <Button
               size="icon"
               variant="default"
@@ -203,7 +203,7 @@
               disabled={!customPrompt.trim()}
               class="absolute bottom-2 right-2 size-7 rounded-md shadow-sm transition-all active:scale-90"
             >
-              <SendIcon class="size-3.5" />
+              <SendIcon strokeWidth={1.5} class="size-3.5" />
             </Button>
           </div>
           
@@ -224,7 +224,7 @@
                       onclick={() => handleSend(item.command)}
                     >
                       <span class="flex-1">{item.label}</span>
-                      <AiSparkleIcon class="size-3 opacity-0 group-hover/item:opacity-40 transition-opacity" />
+                      <AiSparkleIcon strokeWidth={1.5} class="size-3 opacity-0 group-hover/item:opacity-40 transition-opacity" />
                     </DropdownMenu.Item>
                   {/each}
                 </div>

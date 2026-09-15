@@ -45,6 +45,20 @@ class EditorState {
   });
 
   /**
+   * Set right before a same-document URL change (draft materialised, auto
+   * rename) so the editor page keeps the live editor instead of remounting.
+   * @type {boolean}
+   */
+  silentNavigation = $state(false);
+
+  /**
+   * Registered by the mounted editor: saves immediately, bypassing the
+   * autosave debounce. Null when no editor is open.
+   * @type {(() => Promise<void>) | null}
+   */
+  flushSave = $state(null);
+
+  /**
    * Sets the editor instance.
    * @param editorInstance {import("@milkdown/kit/core").Editor} - The Milkdown editor instance.
    */

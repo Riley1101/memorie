@@ -279,6 +279,22 @@ pub fn delete_file(file: &File) -> Result<(), FileError> {
     Ok(())
 }
 
+/// Moves a writing to any content-relative path, creating parent folders as
+/// needed. Refuses to overwrite an existing file.
+pub fn move_file(directory: &Path, old_name: &str, new_name: &str) -> Result<File, FileError> {
+    let old_path = directory.join(old_name);
+    let new_path = directory.join(new_name);
+    if new_path.exists() {
+        return Err(FileError::AlreadyExists(new_name.to_string()));
+    }
+    if let Some(parent) = new_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::rename(&old_path, &new_path)?;
+    let modified = fs::metadata(&new_path)?.modified().ok();
+    Ok(File::new(new_path, modified))
+}
+
 pub fn rename_file(old_path: &Path, new_name: &str) -> Result<File, FileError> {
     let new_path = old_path.parent().unwrap_or(Path::new("")).join(new_name);
     fs::rename(old_path, &new_path)?;

@@ -138,6 +138,7 @@ pub async fn run() {
             commands::update_file,
             commands::delete_file,
             commands::rename_file,
+            commands::move_file,
             commands::list_binders,
             commands::create_binder,
             commands::rename_binder,

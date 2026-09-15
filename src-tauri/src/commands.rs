@@ -195,7 +195,47 @@ pub async fn rename_binder(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let config = state.config.lock().await;
-    fs::rename_binder(&config.content_directory, &old_name, &new_name).map_err(|e| e.to_string())
+    fs::rename_binder(&config.content_directory, &old_name, &new_name).map_err(|e| e.to_string())?;
+
+    // Every writing inside moved with the folder: keep their history and
+    // embeddings keyed to the new paths.
+    let mut undo_tree = state.undotree.lock().await;
+    undo_tree.rename_prefix(&old_name, &new_name);
+    undo_tree
+        .save(&config.undotree_dir)
+        .map_err(|e| e.to_string())?;
+
+    let memory = state.memory.lock().await;
+    memory
+        .rename_document_prefix(&old_name, &new_name)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Moves a writing to a new content-relative path (any folder, any binder),
+/// keeping its version history and embeddings.
+#[tauri::command]
+pub async fn move_file(
+    old_name: String,
+    new_name: String,
+    state: State<'_, AppState>,
+) -> Result<File, String> {
+    let config = state.config.lock().await;
+    let result =
+        fs::move_file(&config.content_directory, &old_name, &new_name).map_err(|e| e.to_string())?;
+
+    let mut undo_tree = state.undotree.lock().await;
+    undo_tree.rename_entry(&old_name, &new_name);
+    undo_tree
+        .save(&config.undotree_dir)
+        .map_err(|e| e.to_string())?;
+
+    let memory = state.memory.lock().await;
+    memory.rename_document(&old_name, &new_name).await.map_err(|e| e.to_string())?;
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -255,6 +295,9 @@ pub async fn download_model(
     handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    if !state.config.lock().await.ai_enabled {
+        return Err("AI is disabled. Enable it in Settings before downloading models.".to_string());
+    }
     let cache_dir = super::utils::get_app_dir()
         .map_err(|e| e.to_string())?
         .join("models");
@@ -267,6 +310,9 @@ pub async fn download_model(
 pub async fn load_models(handle: tauri::AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     let model_id = {
         let config = state.config.lock().await;
+        if !config.ai_enabled {
+            return Err("AI is disabled. Enable it in Settings before loading models.".to_string());
+        }
         config
             .default_llm_model_id
             .as_deref()
@@ -293,6 +339,10 @@ pub async fn run_chat(
     edit_action: Option<EditAction>,
     state: State<'_, AppState>,
 ) -> Result<Uuid, String> {
+    if !state.config.lock().await.ai_enabled {
+        return Err("AI is disabled. Enable it in Settings before using chat.".to_string());
+    }
+
     let job_id = Uuid::new_v4();
     let cancellation_token = CancellationToken::new();
 
@@ -407,6 +457,10 @@ pub async fn search_documents(
     query: String,
     state: State<'_, AppState>,
 ) -> Result<Response<super::responses::SearchResponse>, String> {
+    if !state.config.lock().await.ai_enabled {
+        return Err("AI is disabled. Enable it in Settings before using chat.".to_string());
+    }
+
     let memory = state.memory.lock().await;
     let search_results = memory
         .search_documents(&query, 2)

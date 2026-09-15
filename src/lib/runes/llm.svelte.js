@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { toast } from '$lib/toast.js';
 
 /**
  * LLM events
@@ -120,7 +121,6 @@ export class LlmManager {
     // Auto-load if models are already downloaded
     const anyDownloaded = this.modelStatuses.some(m => m.downloaded);
     if (anyDownloaded) {
-      console.log('Models found on disk, auto-loading...');
       this.loadModels();
     }
 
@@ -229,6 +229,7 @@ export class LlmManager {
         this.isLoading = false;
         this.editActionInProgress = false;
         this.isRAGLoading = false;
+        toast.error('AI request failed', response.payload.message);
       })
     );
 
@@ -280,6 +281,7 @@ export class LlmManager {
       await this.checkModels();
       const modelName = this.supportedModels.find((m) => m.id === modelId)?.name ?? modelId;
       this.lastDownloadSuccess = { modelName, at: Date.now() };
+      toast.success('Model downloaded', modelName);
       this._downloadSuccessClearTimeout = setTimeout(() => {
         this.lastDownloadSuccess = null;
         this._downloadSuccessClearTimeout = null;
@@ -288,6 +290,7 @@ export class LlmManager {
       const msg = e?.toString?.() ?? String(e);
       console.error('Download failed:', msg);
       this.error = `Download failed: ${msg}`;
+      toast.error('Model download failed', msg);
     } finally {
       this.downloadingModelId = null;
       this.loadingProgress = 0;
@@ -308,6 +311,7 @@ export class LlmManager {
     } catch (e) {
       console.error('Failed to load models:', e);
       this.error = `Model initialization failed: ${e}`;
+      toast.error('Could not load AI model', e);
     } finally {
       this.isLoadModelsInProgress = false;
       this.loadingStatus = null;
@@ -348,7 +352,26 @@ export class LlmManager {
       this.error = `An error occurred: ${e}`;
       this.isLoading = false;
       this.messages.pop();
+      toast.error('Could not send message', e);
     }
+  }
+
+  /**
+   * Regenerates the assistant reply for the exchange ending at `assistantIndex`
+   * by re-sending the user prompt just before it. Only the latest exchange can
+   * be retried, since the backend session is linear.
+   * @param {number} assistantIndex
+   * @returns {Promise<void>}
+   */
+  async retryMessage(assistantIndex) {
+    if (this.isLoading) return;
+    const isLast = assistantIndex === this.messages.length - 1;
+    const user = this.messages[assistantIndex - 1];
+    if (!isLast || !user || user.role !== 'user') return;
+
+    const prompt = user.content;
+    this.messages.splice(assistantIndex - 1, 2);
+    await this.sendMessage(prompt);
   }
 
   /**

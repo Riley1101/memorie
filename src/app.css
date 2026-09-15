@@ -7,20 +7,20 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0 0 0);
+  --background: oklch(0.985 0.002 85);
+  --foreground: oklch(0.17 0.005 85);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0 0 0);
-  --popover: oklch(0.99 0 0);
-  --popover-foreground: oklch(0 0 0);
-  --primary: oklch(0 0 0);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.94 0 0);
-  --secondary-foreground: oklch(0 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.44 0 0);
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0 0 0);
+  --card-foreground: oklch(0.17 0.005 85);
+  --popover: oklch(0.995 0.002 85);
+  --popover-foreground: oklch(0.17 0.005 85);
+  --primary: oklch(0.2 0.005 85);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.94 0.003 85);
+  --secondary-foreground: oklch(0.17 0.005 85);
+  --muted: oklch(0.955 0.003 85);
+  --muted-foreground: oklch(0.47 0.006 85);
+  --accent: oklch(0.93 0.004 85);
+  --accent-foreground: oklch(0.17 0.005 85);
   --destructive: oklch(0.63 0.19 23.03);
   --destructive-foreground: oklch(1 0 0);
   --success: oklch(0.55 0.18 145);
@@ -29,9 +29,9 @@
   --warning-foreground: oklch(0.2 0.05 75);
   --info: oklch(0.55 0.22 264);
   --info-foreground: oklch(0.98 0 0);
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.94 0 0);
-  --ring: oklch(0 0 0);
+  --border: oklch(0.905 0.004 85);
+  --input: oklch(0.93 0.004 85);
+  --ring: oklch(0.45 0.006 85);
   --chart-1: oklch(0.81 0.17 75.35);
   --chart-2: oklch(0.55 0.22 264.53);
   --chart-3: oklch(0.72 0 0);
@@ -68,20 +68,20 @@
 }
 
 .dark {
-  --background: oklch(0 0 0);
-  --foreground: oklch(1 0 0);
-  --card: oklch(0.14 0 0);
-  --card-foreground: oklch(1 0 0);
-  --popover: oklch(0.18 0 0);
-  --popover-foreground: oklch(1 0 0);
-  --primary: oklch(1 0 0);
-  --primary-foreground: oklch(0 0 0);
-  --secondary: oklch(0.25 0 0);
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.23 0 0);
-  --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.32 0 0);
-  --accent-foreground: oklch(1 0 0);
+  --background: oklch(0.145 0.004 260);
+  --foreground: oklch(0.92 0.003 85);
+  --card: oklch(0.18 0.004 260);
+  --card-foreground: oklch(0.92 0.003 85);
+  --popover: oklch(0.2 0.004 260);
+  --popover-foreground: oklch(0.92 0.003 85);
+  --primary: oklch(0.92 0.003 85);
+  --primary-foreground: oklch(0.16 0.004 260);
+  --secondary: oklch(0.26 0.004 260);
+  --secondary-foreground: oklch(0.92 0.003 85);
+  --muted: oklch(0.23 0.004 260);
+  --muted-foreground: oklch(0.68 0.004 85);
+  --accent: oklch(0.3 0.004 260);
+  --accent-foreground: oklch(0.95 0.003 85);
   --destructive: oklch(0.69 0.2 23.91);
   --destructive-foreground: oklch(0 0 0);
   --success: oklch(0.72 0.19 145);
@@ -90,9 +90,9 @@
   --warning-foreground: oklch(0.2 0.05 75);
   --info: oklch(0.7 0.2 264);
   --info-foreground: oklch(0.15 0.02 264);
-  --border: oklch(0.26 0 0);
-  --input: oklch(0.32 0 0);
-  --ring: oklch(0.72 0 0);
+  --border: oklch(0.27 0.004 260);
+  --input: oklch(0.3 0.004 260);
+  --ring: oklch(0.6 0.004 85);
   --chart-1: oklch(0.81 0.17 75.35);
   --chart-2: oklch(0.58 0.21 260.84);
   --chart-3: oklch(0.56 0 0);
@@ -456,13 +456,50 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   border-width: 0;
 }
 
-/* Instant, no-motion UI: kill transitions/animations everywhere, including
-   shadcn/bits-ui's built-in animate-in/animate-out on dialogs, sheets, etc. */
-*,
-*::before,
-*::after {
-  transition-duration: 0s !important;
+/* Overlays open instantly: strip bits-ui/tw-animate enter/exit animations on
+   dialogs, sheets, drawers, popovers and menus. Everything else keeps its
+   micro-transitions; spinners and pulses keep animating. */
+[data-slot='dialog-content'],
+[data-slot='dialog-overlay'],
+[data-slot='sheet-content'],
+[data-slot='sheet-overlay'],
+[data-slot='drawer-content'],
+[data-slot='drawer-overlay'],
+[data-slot='popover-content'],
+[data-slot='dropdown-menu-content'],
+[data-slot='context-menu-content'],
+[data-slot='tooltip-content'],
+[data-slot='command-dialog'] {
   animation-duration: 0s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}
+
+/* Keyboard focus is visible on every interactive element, including
+   hand-rolled buttons and links that don't go through the Button component. */
+:where(button, a, [role='button'], [role='option'], input, textarea):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-md, 0.25rem);
+}
+
+/* Command palette search input: no ring, it already reads as focused via the
+   dialog itself and a border-bottom on its wrapper. */
+[data-slot='command-input']:focus-visible {
+  outline: none;
+}
+
+/* macOS overlay title bar: keep the top-left clear of the traffic lights. */
+.platform-mac {
+  --titlebar-inset-left: 4.75rem;
+  --titlebar-height: 1.75rem;
 }
 
 @layer base {

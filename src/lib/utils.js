@@ -64,13 +64,16 @@ export function sanitizeMarkdown(md) {
  *   from `fileManager.folders`. Passed so folders with no writings in them yet still show up.
  * @returns {Array<{type: 'folder', name: string, path: string[], children: Array} | {type: 'file', file: object}>}
  */
+/** "Chapter 2" before "Chapter 10", case-insensitive. */
+export const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
 export function buildFileTree(files, binder, folders = []) {
   const root = [];
 
   const getOrCreateFolder = (level, path, folderName) => {
     let node = level.find((n) => n.type === 'folder' && n.name === folderName);
     if (!node) {
-      node = { type: 'folder', name: folderName, path, children: [] };
+      node = { type: 'folder', name: folderName, path, children: [], fileCount: 0, lastModified: 0 };
       level.push(node);
     }
     return node;
@@ -105,16 +108,29 @@ export function buildFileTree(files, binder, folders = []) {
     level.push({ type: 'file', name: fileName, file });
   }
 
-  const sortTree = (nodes) => {
+  // Sort, and roll file counts / last-edited up through each folder.
+  const finish = (nodes) => {
     nodes.sort((a, b) => {
       if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-      return a.name.localeCompare(b.name);
+      return naturalCollator.compare(a.name, b.name);
     });
+    let count = 0;
+    let latest = 0;
     for (const node of nodes) {
-      if (node.type === 'folder') sortTree(node.children);
+      if (node.type === 'folder') {
+        const sub = finish(node.children);
+        node.fileCount = sub.count;
+        node.lastModified = sub.latest;
+        count += sub.count;
+        latest = Math.max(latest, sub.latest);
+      } else {
+        count += 1;
+        latest = Math.max(latest, node.file.last_modified ?? 0);
+      }
     }
+    return { count, latest };
   };
-  sortTree(root);
+  finish(root);
 
   return root;
 }

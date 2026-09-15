@@ -1,4 +1,29 @@
 import { invoke } from '@tauri-apps/api/core';
+import { toast } from '$lib/toast.js';
+
+/**
+ * Directory part of a content-relative name, e.g. "Novel/Ch 1/Scene.md" -> "Novel/Ch 1".
+ * @param {string} name
+ * @returns {string}
+ */
+export function dirOf(name) {
+  const i = name.lastIndexOf('/');
+  return i === -1 ? '' : name.slice(0, i);
+}
+
+/**
+ * Basename of a content-relative name, e.g. "Novel/Ch 1/Scene.md" -> "Scene.md".
+ * @param {string} name
+ * @returns {string}
+ */
+export function baseOf(name) {
+  return name.slice(name.lastIndexOf('/') + 1);
+}
+
+/** Basename without the ".md" extension, for messages. */
+function formatBase(base) {
+  return base.replace(/\.md$/i, '');
+}
 
 /**
  * @typedef {Object} FileEntry
@@ -77,6 +102,13 @@ class FileManager {
   isLoading = $state(false);
 
   /**
+   * True once the first file listing has come back from the backend. Lets the
+   * UI show a skeleton instead of flashing the empty state on launch.
+   * @type {boolean}
+   */
+  hasLoadedFiles = $state(false);
+
+  /**
    * Holds the message of the last error that occurred.
    * @type {string}
    */
@@ -95,8 +127,10 @@ class FileManager {
     } catch (err) {
       console.error(err);
       this.errorMessage = `Failed to discover recent files: ${err}`;
+      toast.error('Could not load writings', err);
     } finally {
       this.isLoading = false;
+      this.hasLoadedFiles = true;
     }
   }
 
@@ -150,6 +184,7 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to create binder "${binderName}": ${err}`;
       console.error(err);
+      toast.error(`Could not create binder "${binderName}"`, err);
     } finally {
       this.isLoading = false;
     }
@@ -176,6 +211,7 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to rename binder "${oldName}": ${err}`;
       console.error(err);
+      toast.error(`Could not rename "${oldName}"`, err);
     } finally {
       this.isLoading = false;
     }
@@ -199,6 +235,7 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to delete binder "${binderName}": ${err}`;
       console.error(err);
+      toast.error(`Could not delete binder "${binderName}"`, err);
     } finally {
       this.isLoading = false;
     }
@@ -211,12 +248,12 @@ class FileManager {
    * @param {string} [content=""] - Optional initial content for the new file.
    * @param {string|null} [binder=null] - Optional binder (top-level folder) to create the file in.
    * @param {string[]} [subPath=[]] - Optional chain of folder names nested inside the binder (e.g. ["Chapter 1"]).
-   * @returns {Promise<void>}
+   * @returns {Promise<string|null>} The full content-relative name of the created file, or null on failure.
    */
   async createNewFile(fileName, content = '', binder = null, subPath = []) {
     if (!fileName || !fileName.trim()) {
       this.errorMessage = 'File name cannot be empty.';
-      return;
+      return null;
     }
 
     const baseName = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
@@ -230,12 +267,73 @@ class FileManager {
       await invoke('create_file', { name: finalFileName, content });
       await this.getRecents();
       if (subPath.length) await this.getFolders();
+      return finalFileName;
     } catch (err) {
       this.errorMessage = `Failed to create file "${finalFileName}": ${err}`;
       console.error(err);
+      toast.error(`Could not create "${baseOf(finalFileName)}"`, err);
+      return null;
     } finally {
       this.isLoading = false;
     }
+  }
+
+  /**
+   * Picks an unused "Untitled" name (Untitled, Untitled 2, ...) in the given location.
+   * @param {string|null} [binder=null]
+   * @param {string[]} [subPath=[]]
+   * @returns {string} Name without extension.
+   */
+  untitledName(binder = null, subPath = []) {
+    const dir = binder ? [binder, ...subPath].join('/') : '';
+    return this.uniqueName(dir, 'Untitled');
+  }
+
+  /**
+   * Returns `base` (no extension) unchanged if free in `dir`, otherwise
+   * "base 2", "base 3", ... The check is against the last listing we have.
+   * @param {string} dir - Content-relative folder ('' for top level).
+   * @param {string} base - Desired name without ".md".
+   * @returns {string}
+   */
+  uniqueName(dir, base) {
+    const taken = new Set(
+      this.files.filter((f) => dirOf(f.name) === dir).map((f) => baseOf(f.name).toLowerCase())
+    );
+    let n = 1;
+    let candidate = base;
+    while (taken.has(`${candidate}.md`.toLowerCase())) {
+      n += 1;
+      candidate = `${base} ${n}`;
+    }
+    return candidate;
+  }
+
+  /**
+   * Creates a file at an exact content-relative path. Throws on failure so the
+   * editor can surface it; the caller decides how to name the file.
+   * @param {string} fullName - e.g. "Novel/Chapter 1/Scene 1.md".
+   * @param {string} content
+   * @returns {Promise<void>}
+   */
+  async createFileAt(fullName, content) {
+    await invoke('create_file', { name: fullName, content });
+    await this.getRecents();
+    if (dirOf(fullName)) await this.getFolders();
+  }
+
+  /**
+   * Writes the current content of an existing file (autosave). Unlike
+   * createNewFile this throws on failure so the editor can show the real
+   * save status.
+   * @async
+   * @param {string} fileName - Full content-relative name.
+   * @param {string} content
+   * @returns {Promise<void>}
+   */
+  async saveFile(fileName, content) {
+    await invoke('create_file', { name: fileName, content });
+    await this.getRecents();
   }
 
   /**
@@ -264,6 +362,7 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to create folder "${relativePath}": ${err}`;
       console.error(err);
+      toast.error(`Could not create folder "${folderName.trim()}"`, err);
     } finally {
       this.isLoading = false;
     }
@@ -286,6 +385,7 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to delete folder "${relativePath}": ${err}`;
       console.error(err);
+      toast.error(`Could not delete folder "${baseOf(relativePath)}"`, err);
     } finally {
       this.isLoading = false;
     }
@@ -302,8 +402,7 @@ class FileManager {
     this.errorMessage = '';
 
     try {
-      const result = await invoke('undo_file', { name: fileName });
-      console.log(`Undo result for file "${fileName}":`, result);
+      await invoke('undo_file', { name: fileName });
     } catch (err) {
       this.errorMessage = `Failed to undo last change for file "${fileName}": ${err}`;
       console.error(err);
@@ -321,8 +420,7 @@ class FileManager {
     this.errorMessage = '';
 
     try {
-      const result = await invoke('redo_file', { name: fileName });
-      console.log(`Redo result for file "${fileName}":`, result);
+      await invoke('redo_file', { name: fileName });
     } catch (err) {
       this.errorMessage = `Failed to redo last undone change for file "${fileName}": ${err}`;
       console.error(err);
@@ -345,26 +443,169 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to delete file "${fileName}": ${err}`;
       console.error(err);
+      toast.error(`Could not delete "${baseOf(fileName)}"`, err);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  /** Files whose content-relative name sits anywhere under `dir`. */
+  filesUnder(dir) {
+    const prefix = `${dir}/`;
+    return this.files.filter((f) => f.name.startsWith(prefix));
+  }
+
+  /** Folders (as `/`-joined paths) anywhere under `dir`, excluding `dir` itself. */
+  foldersUnder(dir) {
+    const prefix = `${dir}/`;
+    return this.folders.filter((f) => f.startsWith(prefix));
+  }
+
+  /**
+   * Moves a writing into another folder (or the top level), keeping its name.
+   * @param {string} oldName - Full content-relative name.
+   * @param {string} newDir - Destination folder ('' for top level).
+   * @returns {Promise<string|null>} New full name, or null if nothing moved.
+   */
+  async moveFile(oldName, newDir) {
+    const base = baseOf(oldName);
+    const newName = newDir ? `${newDir}/${base}` : base;
+    if (newName === oldName) return null;
+
+    const clash = this.files.some((f) => f.name.toLowerCase() === newName.toLowerCase());
+    if (clash) {
+      toast.error(`"${formatBase(base)}" already exists there`, 'Rename one of them first.');
+      return null;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+    try {
+      await invoke('move_file', { oldName, newName });
+      await this.getRecents();
+      await this.getFolders();
+      return newName;
+    } catch (err) {
+      this.errorMessage = `Failed to move "${oldName}": ${err}`;
+      console.error(err);
+      toast.error(`Could not move "${formatBase(base)}"`, err);
+      return null;
     } finally {
       this.isLoading = false;
     }
   }
 
   /**
-   * Renames a file and refreshes the file list.
-   * @async
-   * @param {string} oldName - The current name of the file.
-   * @param {string} newName - The new name for the file.
-   * @returns {Promise<void>}
+   * Moves a folder (with everything in it) under another folder or binder.
+   * @param {string} oldPath - e.g. "Novel/Part 1/Chapter 3".
+   * @param {string} newParent - Destination folder or binder, e.g. "Novel/Part 2".
+   * @returns {Promise<string|null>} New path, or null if nothing moved.
    */
-  async renameFile(oldName, newName) {
-    if (!newName || !newName.trim()) {
-      this.errorMessage = 'New file name cannot be empty.';
-      return;
+  async moveFolder(oldPath, newParent) {
+    const base = baseOf(oldPath);
+    const newPath = newParent ? `${newParent}/${base}` : base;
+    if (newPath === oldPath) return null;
+    if (newParent === oldPath || newParent.startsWith(`${oldPath}/`)) {
+      toast.error('Cannot move a folder inside itself');
+      return null;
+    }
+    if (!newParent) {
+      toast.error('Folders live inside a binder', 'Pick a binder or a folder as the destination.');
+      return null;
+    }
+    const clash = this.folders.some((f) => f.toLowerCase() === newPath.toLowerCase());
+    if (clash) {
+      toast.error(`A folder named "${base}" already exists there`);
+      return null;
     }
 
-    const finalNewName = newName.endsWith('.md') ? newName : `${newName}.md`;
-    if (oldName === finalNewName) return;
+    await this.renameBinder(oldPath, newPath);
+    return this.folders.includes(newPath) ? newPath : null;
+  }
+
+  /**
+   * Deletes a folder after moving its direct children (files and folders) up
+   * one level. Stops before deleting if any child could not be moved.
+   * @param {string} path
+   * @returns {Promise<boolean>}
+   */
+  async liftAndDeleteFolder(path) {
+    const parent = dirOf(path);
+    const childFiles = this.filesUnder(path).filter((f) => dirOf(f.name) === path);
+    const childFolders = this.foldersUnder(path).filter((f) => dirOf(f) === path);
+
+    for (const f of childFiles) {
+      const moved = await this.moveFile(f.name, parent);
+      if (!moved) return false;
+    }
+    for (const f of childFolders) {
+      const moved = await this.moveFolder(f, parent);
+      if (!moved) return false;
+    }
+    await this.deleteFolder(path);
+    return !this.folders.includes(path);
+  }
+
+  /**
+   * Deletes a folder and everything inside it. Version history for the
+   * deleted writings is left untouched on disk.
+   * @param {string} path
+   * @returns {Promise<boolean>}
+   */
+  async deleteFolderRecursive(path) {
+    this.isLoading = true;
+    this.errorMessage = '';
+    try {
+      for (const f of this.filesUnder(path)) {
+        await invoke('delete_file', { name: f.name });
+      }
+      const nested = this.foldersUnder(path).sort((a, b) => b.length - a.length);
+      for (const f of nested) {
+        await invoke('delete_folder', { relativePath: f });
+      }
+      await invoke('delete_folder', { relativePath: path });
+      return true;
+    } catch (err) {
+      this.errorMessage = `Failed to delete folder "${path}": ${err}`;
+      console.error(err);
+      toast.error(`Could not delete "${baseOf(path)}"`, err);
+      return false;
+    } finally {
+      this.isLoading = false;
+      await this.getRecents();
+      await this.getFolders();
+      await this.getBinders();
+    }
+  }
+
+  /**
+   * Renames a file (keeping it in the same folder) and refreshes the file list.
+   * @async
+   * @param {string} oldName - The current full content-relative name (e.g. "Novel/Ch 1/Scene.md").
+   * @param {string} newName - The new basename, with or without ".md". Slashes are stripped.
+   * @returns {Promise<string|null>} The new full name, or null if nothing was renamed.
+   */
+  async renameFile(oldName, newName) {
+    const cleaned = (newName ?? '').trim().replace(/\//g, '');
+    if (!cleaned) {
+      this.errorMessage = 'New file name cannot be empty.';
+      return null;
+    }
+
+    const base = cleaned.endsWith('.md') ? cleaned : `${cleaned}.md`;
+    const dir = dirOf(oldName);
+    const finalNewName = dir ? `${dir}/${base}` : base;
+    if (oldName === finalNewName) return null;
+
+    // The OS rename would silently overwrite an existing file.
+    const clash = this.files.some(
+      (f) => f.name !== oldName && f.name.toLowerCase() === finalNewName.toLowerCase()
+    );
+    if (clash) {
+      this.errorMessage = `A writing named "${base}" already exists here.`;
+      toast.error(`"${cleaned}" already exists`, 'Pick a different name.');
+      return null;
+    }
 
     this.isLoading = true;
     this.errorMessage = '';
@@ -372,9 +613,12 @@ class FileManager {
     try {
       await invoke('rename_file', { oldName, newName: finalNewName });
       await this.getRecents();
+      return finalNewName;
     } catch (err) {
       this.errorMessage = `Failed to rename file from "${oldName}" to "${finalNewName}": ${err}`;
       console.error(err);
+      toast.error(`Could not rename "${baseOf(oldName)}"`, err);
+      return null;
     } finally {
       this.isLoading = false;
     }
