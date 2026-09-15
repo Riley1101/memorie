@@ -7,35 +7,17 @@
   import MarkdownEditor from '$lib/components/md-editor.svelte';
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
-  import EditorOutline from '$lib/components/editor-outline.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
-  import { goto } from '$app/navigation';
+  import { goto, afterNavigate } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { formatTimeAgo, formatFileName } from '@/utils.js';
-  import { fileManager } from '$lib/runes/fs.svelte';
+  import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte';
+  import { configManager } from '$lib/runes/config.svelte.js';
 
   let { data } = $props();
-
-  /**
-   * @typedef {Object} RecordPointer
-   * @property {string} tb - The table name (e.g., 'chunk', 'documents').
-   * @property {string} id - The record identifier wrapper.
-   */
-
-  /**
-   * @typedef {Object} ChunkItem
-   * @property {RecordPointer} id - The unique identifier for this chunk.
-   * @property {RecordPointer} parent - The reference to the parent document.
-   * @property {string} content - The text content of the paragraph.
-   * @property {number} sequence - The order of the paragraph (0-indexed).
-   * @property {string} content_hash - A hash string for the content.
-   * @property {?Object} grammar_check - Grammar check results (nullable).
-   * @property {boolean} is_dirty - Indicates if the content has been modified.
-   */
 
   /**
    * @typedef {Object} Node
@@ -52,26 +34,38 @@
    */
 
   /**
-   * @type {{fileName: string, content: string, history: History | null }}
+   * @type {{fileName: string, content: string, history: History | null, isDraft: boolean }}
    */
-  let { fileName, content, history } = $derived(data);
+  let { fileName, content, history, isDraft } = $derived(data);
+
+  // Bumps on real navigation between documents. A rename or a draft being
+  // created moves the URL too, but flags itself so the editor stays mounted.
+  let docKey = $state(0);
+  afterNavigate((nav) => {
+    if (nav.type === 'enter' || editorState.silentNavigation) return;
+    docKey += 1;
+    editorState.setSaveStatus({ status: 'idle', lastSaved: null });
+  });
+
+  // Ticks every 30s so "saved 2 minutes ago" stays honest.
+  let now = $state(Date.now());
 
   onMount(() => {
-    syncGrammarChecks(fileName);
+    const timer = setInterval(() => (now = Date.now()), 30_000);
+    return () => clearInterval(timer);
+  });
+
+  // Grammar chunks are only meaningful with local AI on; wait for config to arrive.
+  $effect(() => {
+    if (configManager.config?.ai_enabled && !isDraft) syncGrammarChecks(fileName);
   });
 
   let body = $derived(content || '');
 
-  function dirOf(name) {
-    const i = name.lastIndexOf('/');
-    return i === -1 ? '' : name.slice(0, i);
-  }
-
-  // Writings that share the same immediate parent folder as the current one
-  // (a binder root, or a chapter/scene folder nested inside a binder).
+  // Writings that share the same immediate parent folder as the current one:
+  // a binder root, a chapter/scene folder, or the top-level content directory.
   let siblings = $derived.by(() => {
     const dir = dirOf(fileName);
-    if (!dir) return [];
     return fileManager.files
       .filter((f) => dirOf(f.name) === dir)
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -87,27 +81,43 @@
     if (file) goto(resolve(`/${encodeURIComponent(file.name)}`));
   }
 
-  /**
-   * @param {ChunkItem} item
-   */
-  function handleChunkPress(item) {
-    const id = String(item.id.id);
-    invoke('update_text_chunk', {
-      id,
-      correction: 'Please fix the grammar in this text.',
-    }).then(() => {
-      syncGrammarChecks(fileName);
-    });
-  }
+  let saveLabel = $derived.by(() => {
+    // `now` is read so the label recomputes on every tick.
+    void now;
+    const { status, lastSaved } = editorState.saveStatus;
+    if (isDraft && status === 'idle') return 'New';
+    switch (status) {
+      case 'saving':
+        return 'Saving…';
+      case 'unsaved':
+        return 'Unsaved changes';
+      case 'error':
+        return 'Save failed';
+      case 'saved':
+        return lastSaved ? `Saved ${formatTimeAgo(lastSaved)}` : 'Saved';
+      default:
+        return '';
+    }
+  });
+
+  let saveTone = $derived(
+    editorState.saveStatus.status === 'error'
+      ? 'text-destructive'
+      : editorState.saveStatus.status === 'unsaved'
+        ? 'text-warning'
+        : 'text-muted-foreground/70'
+  );
+
+  let binderLabel = $derived(dirOf(fileName));
 </script>
 
 <div class="flex h-screen w-full bg-background">
   <aside
     class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md
-    {appState.ui.isHistoryOpen ? 'w-60' : 'w-0'} overflow-hidden"
+    {appState.ui.isHistoryOpen ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isHistoryOpen}
-      <div class="flex h-full flex-col">
+      <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <div class="px-4 py-3">
           <h2 class="font-semibold text-sm">History</h2>
         </div>
@@ -124,43 +134,53 @@
     {/if}
   </aside>
 
-  <div class="w-full h-full flex flex-1 flex-col">
-    <header class="relative flex items-center command-bar__inner h-9 text-[0.6875rem] font-mono shrink-0">
+  <div class="w-full h-full flex flex-1 flex-col min-w-0">
+    <header
+      data-tauri-drag-region
+      class="relative z-20 flex items-center command-bar__inner h-9 text-[0.6875rem] font-mono shrink-0
+        {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
+    >
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
       <button
         onclick={() => goto(resolve('/'))}
+        aria-label="Go home"
+        title="Home"
         class="flex items-center justify-center size-7 -ml-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
       >
         <HouseIcon strokeWidth={1.5} class="size-3.5" />
       </button>
-      <div class="flex-1 flex items-center justify-center gap-1">
+      <div class="flex-1 flex items-center justify-center gap-1 min-w-0 pointer-events-none">
         {#if siblings.length > 1}
           <button
             onclick={() => goToWriting(prevWriting)}
             disabled={!prevWriting}
-            title={prevWriting ? formatFileName(prevWriting.name.split('/').pop()) : ''}
-            class="flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            aria-label="Previous writing"
+            title={prevWriting ? formatFileName(baseOf(prevWriting.name)) : ''}
+            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
             <ChevronLeftIcon strokeWidth={1.5} class="size-3" />
           </button>
         {/if}
-        <span class="text-muted-foreground select-none truncate max-w-xs pointer-events-none">
+        <span class="text-muted-foreground select-none truncate max-w-xs">
+          {#if binderLabel}
+            <span class="text-muted-foreground/50">{binderLabel.replaceAll('/', ' / ')} /</span>
+          {/if}
           {editorState.name}
         </span>
         {#if siblings.length > 1}
           <button
             onclick={() => goToWriting(nextWriting)}
             disabled={!nextWriting}
-            title={nextWriting ? formatFileName(nextWriting.name.split('/').pop()) : ''}
-            class="flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            aria-label="Next writing"
+            title={nextWriting ? formatFileName(baseOf(nextWriting.name)) : ''}
+            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
             <ChevronRightIcon strokeWidth={1.5} class="size-3" />
           </button>
         {/if}
       </div>
-      <span class="text-muted-foreground/70 lowercase first-letter:uppercase tracking-wide">
-        {editorState.saveStatus.status}
-        {formatTimeAgo(editorState.saveStatus.lastSaved)}
+      <span class="{saveTone} tracking-wide shrink-0 transition-colors" aria-live="polite">
+        {saveLabel}
       </span>
     </header>
 
@@ -168,36 +188,14 @@
       <ScrollFade class="h-full" fadeSize="h-12">
         <ScrollArea class="h-full" type="scroll">
           <div class="writing-surface pb-24">
-            <MarkdownEditor {fileName} {body} />
+            <MarkdownEditor {fileName} {body} {isDraft} {docKey} />
           </div>
         </ScrollArea>
       </ScrollFade>
     </main>
 
     <footer>
-      <EditorCommandbar {fileName} currentVersion={history?.current || 0} />
+      <EditorCommandbar {fileName} {isDraft} currentVersion={history?.current || 0} />
     </footer>
   </div>
-
-  <aside class="hidden w-72 overflow-hidden bg-background/90 backdrop-blur-md">
-    <div class="flex h-full flex-col">
-      <div class="px-4 py-3">
-        <h2 class="font-semibold text-sm">Outline</h2>
-      </div>
-      <ScrollFade class="flex-1 h-full">
-        <ScrollArea class="h-full" type="scroll">
-          <ul class="space-y-2">
-            {#each editorState.grammarChecks as chunk, index (index)}
-              <li>
-                <button onclick={() => handleChunkPress(chunk)} class="border p-1">
-                  {chunk.content}
-                </button>
-              </li>
-            {/each}
-          </ul>
-          <EditorOutline {body} />
-        </ScrollArea>
-      </ScrollFade>
-    </div>
-  </aside>
 </div>

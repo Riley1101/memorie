@@ -1,5 +1,5 @@
 <script>
-  import { defaultValueCtx, Editor, rootCtx } from '@milkdown/core';
+  import { defaultValueCtx, Editor, rootCtx, editorViewCtx } from '@milkdown/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { exitCodeBlockPlugin } from '$lib/components/plugins/exit-code-block';
@@ -13,11 +13,17 @@
   import { appState } from '@/runes/app.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import { beforeNavigate } from '$app/navigation';
+  import { getMarkdown } from '@milkdown/kit/utils';
 
   /**
-   * @type {{ defaultValue?: string, onSave?: (markdown: string) => void }}
+   * @type {{
+   *   defaultValue?: string,
+   *   onSave?: (markdown: string) => Promise<void> | void,
+   *   autofocus?: boolean,
+   * }}
    */
-  let { defaultValue = '', onSave } = $props();
+  let { defaultValue = '', onSave, autofocus = false } = $props();
 
   /** @type {ReturnType<typeof setTimeout> | null} */
   let saveTimer = $state(null);
@@ -26,6 +32,28 @@
   let editorInstance = $state(null);
 
   const DEBOUNCE_SAVE_MS = 2000;
+
+  /**
+   * Runs the save callback now. The status only flips to "saved" once the
+   * backend has actually confirmed the write.
+   * @param markdown {string}
+   */
+  async function saveNow(markdown) {
+    editorState.setSaveStatus({ status: 'saving' });
+    try {
+      if (onSave) await onSave(markdown);
+      if (configManager.config?.ai_enabled) {
+        memoryManager.createDocumentContext();
+      }
+      editorState.setSaveStatus({
+        lastSaved: new Date(),
+        status: 'saved',
+      });
+    } catch (e) {
+      console.error('Auto-save failed:', e);
+      editorState.setSaveStatus({ status: 'error' });
+    }
+  }
 
   /**
    * Trigger the auto-save mechanism with debouncing.
@@ -39,20 +67,29 @@
     if (saveTimer) clearTimeout(saveTimer);
 
     saveTimer = setTimeout(() => {
-      editorState.setSaveStatus({ status: 'saving' });
-      try {
-        if (onSave) onSave(markdown);
-        memoryManager.createDocumentContext();
-        editorState.setSaveStatus({
-          lastSaved: new Date(),
-          status: 'saved',
-        });
-      } catch (e) {
-        console.error('Auto-save failed:', e);
-        editorState.setSaveStatus({ status: 'error' });
-      }
+      saveTimer = null;
+      saveNow(markdown);
     }, DEBOUNCE_SAVE_MS);
   }
+
+  /**
+   * Saves right away, cancelling any pending debounce. Used by ⌘S and when
+   * leaving the page, so the last words are never lost.
+   * @returns {Promise<void>}
+   */
+  function flushSave() {
+    if (!editorInstance) return Promise.resolve();
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    const markdown = editorInstance.action(getMarkdown());
+    return saveNow(markdown);
+  }
+
+  beforeNavigate(() => {
+    if (saveTimer) flushSave();
+  });
 
   /**
    * Attach the Milkdown editor to the given DOM element.
@@ -94,7 +131,11 @@
           if (editor) {
             editorInstance = editor;
             editorState.setEditor(editor);
+            editorState.flushSave = flushSave;
             isReady = true;
+            if (autofocus) {
+              editor.action((ctx) => ctx.get(editorViewCtx).focus());
+            }
           }
         });
 
@@ -103,6 +144,7 @@
           editorInstance = null;
           isReady = false;
         }
+        if (editorState.flushSave === flushSave) editorState.flushSave = null;
       };
     })
   }

@@ -32,7 +32,13 @@ class AppState {
     isSidebarOpen: false,
     isCommandMenuOpen: false,
     isHelpModalOpen: false,
+    /** "New writing in…" location picker (⌘⇧N). */
+    isNewPickerOpen: false,
+    /** Binder selected on the home screen; null = All Writings. Survives navigation. */
+    activeBinder: /** @type {string | null} */ (null),
     theme: 'dark',
+    /** What the user picked: 'light' | 'dark' | 'system'. `theme` is the resolved value. */
+    themePreference: 'system',
     themePalette: 'default',
     styleFlavour: 'minimal',
     density: 'default',
@@ -144,17 +150,43 @@ class AppState {
     };
   }
 
-  /**
-   * @param {'dark' | 'light'} theme
-   */
-  setTheme(theme) {
+  /** @param {boolean} state */
+  toggleNewPicker(state) {
     this.ui = {
       ...this.ui,
-      theme,
+      isNewPickerOpen: state,
+    };
+  }
+
+  /**
+   * Sets the theme preference. 'system' follows the OS via prefers-color-scheme.
+   * @param {'dark' | 'light' | 'system'} preference
+   */
+  setTheme(preference) {
+    const next = ['dark', 'light', 'system'].includes(preference) ? preference : 'system';
+    this.ui = {
+      ...this.ui,
+      themePreference: next,
+      theme: next === 'system' ? AppState.systemTheme() : next,
     };
     if (typeof window !== 'undefined') {
-      localStorage.setItem('theme', theme);
+      localStorage.setItem('theme', next);
     }
+  }
+
+  /** Re-resolve the theme from the OS when the preference is 'system'. */
+  syncSystemTheme() {
+    if (this.ui.themePreference !== 'system') return;
+    const resolved = AppState.systemTheme();
+    if (resolved !== this.ui.theme) {
+      this.ui = { ...this.ui, theme: resolved };
+    }
+  }
+
+  /** @returns {'dark' | 'light'} */
+  static systemTheme() {
+    if (typeof window === 'undefined' || !window.matchMedia) return 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
   /**

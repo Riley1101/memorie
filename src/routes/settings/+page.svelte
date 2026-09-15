@@ -8,6 +8,7 @@
   import CpuIcon from '@lucide/svelte/icons/cpu';
   import SunIcon from '@lucide/svelte/icons/sun';
   import MoonIcon from '@lucide/svelte/icons/moon';
+  import MonitorIcon from '@lucide/svelte/icons/monitor';
   import HomeIcon from '@lucide/svelte/icons/home';
   import AlignJustifyIcon from '@lucide/svelte/icons/align-justify';
   import Rows3Icon from '@lucide/svelte/icons/rows-3';
@@ -130,12 +131,22 @@
                   <div>
                     <p class="text-lg font-normal">Theme</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Switch between light and dark interface.
+                      Light, dark, or follow your system setting.
                     </p>
                   </div>
                   <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
                     <Button
-                      variant={appState.ui.theme === 'light' ? 'secondary' : 'ghost'}
+                      variant={appState.ui.themePreference === 'system' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      class="gap-2 px-3 h-8 text-xs font-medium"
+                      onclick={() => appState.setTheme('system')}
+                      disabled={false}
+                    >
+                      <MonitorIcon strokeWidth={1.5} class="size-3.5" />
+                      System
+                    </Button>
+                    <Button
+                      variant={appState.ui.themePreference === 'light' ? 'secondary' : 'ghost'}
                       size="sm"
                       class="gap-2 px-3 h-8 text-xs font-medium"
                       onclick={() => appState.setTheme('light')}
@@ -145,7 +156,7 @@
                       Light
                     </Button>
                     <Button
-                      variant={appState.ui.theme === 'dark' ? 'secondary' : 'ghost'}
+                      variant={appState.ui.themePreference === 'dark' ? 'secondary' : 'ghost'}
                       size="sm"
                       class="gap-2 px-3 h-8 text-xs font-medium"
                       onclick={() => appState.setTheme('dark')}
@@ -227,7 +238,7 @@
             <!-- App Paths Section -->
             <section>
               <div class="flex items-center gap-2 mb-8">
-                <h3 class="text-2xl font-normal">Application Paths</h3>
+                <h3 class="text-2xl font-normal">Storage</h3>
               </div>
 
               <div class="grid gap-8">
@@ -236,11 +247,11 @@
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-xs font-mono uppercase tracking-widest opacity-50">Content Directory</span>
                   </div>
-                  <code class="text-sm break-all font-mono text-primary">
+                  <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.content_directory || 'Loading...'}
                   </code>
-                  <p class="text-base text-muted-foreground mt-3 italic opacity-70">
-                    Where your markdown records are stored.
+                  <p class="text-sm text-muted-foreground mt-3 tracking-tight">
+                    Where your writings are stored as Markdown files.
                   </p>
                 </div>
 
@@ -249,11 +260,11 @@
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-xs font-mono uppercase tracking-widest opacity-50">History Directory</span>
                   </div>
-                  <code class="text-sm break-all font-mono text-primary">
+                  <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.undotree_dir || 'Loading...'}
                   </code>
-                  <p class="text-base text-muted-foreground mt-3 italic opacity-70">
-                    Where writing undo/redo history is stored.
+                  <p class="text-sm text-muted-foreground mt-3 tracking-tight">
+                    Where version history for each writing is kept.
                   </p>
                 </div>
               </div>
@@ -374,8 +385,8 @@
                     {/if}
                   </div>
 
-                  <p class="text-base text-muted-foreground mt-6 italic opacity-70">
-                    Models are stored locally in your app directory. Chat, reasoning, and coding models are supported. Only downloaded models can be set as default.
+                  <p class="text-sm text-muted-foreground mt-6 tracking-tight">
+                    Models are stored locally in your app directory. Only downloaded models can be set as default.
                   </p>
                 </div>
 

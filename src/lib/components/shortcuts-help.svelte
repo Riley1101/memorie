@@ -11,21 +11,27 @@
   import UndoIcon from '@lucide/svelte/icons/undo-2';
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import TypeIcon from '@lucide/svelte/icons/type';
+  import PlusIcon from '@lucide/svelte/icons/plus';
 
   let shortcuts = $derived(
     [
       { key: `${MOD_LABEL} + K`, description: 'Search writings', icon: SearchIcon },
+      { key: `${MOD_LABEL} + N`, description: 'New writing here', icon: PlusIcon },
+      { key: `${MOD_LABEL} + ⇧ + N`, description: 'New writing in…', icon: PlusIcon },
       configManager.config?.ai_enabled
-        ? { key: `${MOD_LABEL} + L`, description: 'Toggle AI Chat', icon: SparklesIcon }
+        ? { key: `${MOD_LABEL} + L`, description: 'Toggle AI chat', icon: SparklesIcon }
         : null,
-      { key: `${MOD_LABEL} + B`, description: 'Go Home / Exit', icon: HouseIcon },
-      { key: `${MOD_LABEL} + U`, description: 'Toggle History', icon: HistoryIcon },
+      { key: `${MOD_LABEL} + ⇧ + H`, description: 'Go home', icon: HouseIcon },
+      { key: `${MOD_LABEL} + U`, description: 'Toggle history', icon: HistoryIcon },
       { key: `${MOD_LABEL} + S`, description: 'Save writing', icon: SaveIcon },
-      { key: `${MOD_LABEL} + Q`, description: 'Close writing' },
-      { key: `${MOD_LABEL} + Z`, description: 'Undo version', icon: UndoIcon },
-      { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo version', icon: RedoIcon },
-      { key: `${MOD_LABEL} + + / -`, description: 'Adjust Font Size', icon: TypeIcon },
-      { key: `${MOD_LABEL} + ⇧ + P`, description: 'Enter Command Mode' },
+      { key: `${MOD_LABEL} + Z`, description: 'Undo typing', icon: UndoIcon },
+      { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo typing', icon: RedoIcon },
+      { key: `${MOD_LABEL} + ⌥ + Z`, description: 'Previous saved version', icon: UndoIcon },
+      { key: `${MOD_LABEL} + ⌥ + ⇧ + Z`, description: 'Next saved version', icon: RedoIcon },
+      { key: `${MOD_LABEL} + + / -`, description: 'Adjust font size', icon: TypeIcon },
+      { key: `${MOD_LABEL} + ⇧ + P`, description: 'Command mode' },
+      { key: `${MOD_LABEL} + /`, description: 'This help' },
+      { key: 'F2', description: 'Rename selected writing' },
     ].filter(Boolean)
   );
 </script>

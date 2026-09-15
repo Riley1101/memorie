@@ -3,7 +3,6 @@
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { appState, DENSITY_FONT_SIZE } from '$lib/runes/app.svelte.js';
   import { cn } from '$lib/utils';
-  import { fileManager } from '@/runes/fs.svelte.js';
   import { goto, invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { llmManager } from '@/runes/llm.svelte.js';
@@ -17,8 +16,9 @@
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import HouseIcon from '@lucide/svelte/icons/house';
   import HelpIcon from '@lucide/svelte/icons/help-circle';
-  import ScissorsIcon from '@lucide/svelte/icons/scissors';
-  import MaximizeIcon from '@lucide/svelte/icons/maximize';
+  import PlusIcon from '@lucide/svelte/icons/plus';
+  import { startNewWriting } from '$lib/new-writing.js';
+  import { dirOf } from '$lib/runes/fs.svelte.js';
   import TerminalIcon from '@lucide/svelte/icons/square-terminal';
   import SearchIcon from '@lucide/svelte/icons/search';
   import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
@@ -26,10 +26,14 @@
   import { editorViewCtx } from '@milkdown/kit/core';
   import { invoke } from '@tauri-apps/api/core';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+  import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { isMod, MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { toast } from '$lib/toast.js';
 
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+
+  let isDownloadDialogOpen = $state(false);
 
   /**
    * @typedef {Object} Props
@@ -37,8 +41,8 @@
    * @property {number} [currentVersion]
    */
 
-  /** @type {Props} */
-  let { fileName, currentVersion = 0 } = $props();
+  /** @type {Props & { isDraft?: boolean }} */
+  let { fileName, currentVersion = 0, isDraft = false } = $props();
 
   // Runes & State
   let isThinking = $derived(llmManager.isLoading);
@@ -56,8 +60,15 @@
    * @property {string} description - A brief description.
    * @property {string} action - Action identifier.
    * @property {string} [shortcutLabel] - Visual shortcut display (e.g. '⌘S').
-   * @property {string} [key] - The actual key to listen for with Meta/Ctrl (e.g., 's').
+   * @property {string} [key] - Key to listen for together with Meta/Ctrl (e.g., 's'). Empty = no shortcut.
+   * @property {boolean} [shift] - Shortcut also needs Shift.
+   * @property {boolean} [alt] - Shortcut also needs Alt/Option.
    * @property {import("svelte").Component} [icon] - Icon component.
+   */
+
+  /**
+   * Shortcuts deliberately avoid keys the editor or the OS already own:
+   * ⌘B/⌘I/⌘E (marks), ⌘Z/⌘⇧Z (editor undo/redo), ⌘Q (quit), ⌘H (hide), ⌘W (close window).
    */
 
   let aiEnabled = $derived(configManager.config?.ai_enabled ?? false);
@@ -74,19 +85,30 @@
       key: '',
     },
     {
+      cmd: ':n',
+      description: 'New writing (same folder)',
+      action: 'new',
+      shortcutLabel: `${MOD_KEY}N`,
+      key: '', // handled globally in the root layout
+      icon: PlusIcon,
+    },
+    {
       cmd: ':u',
-      description: 'Undo (Back one version)',
+      description: 'Previous version',
       action: 'undo',
-      shortcutLabel: `${MOD_KEY}Z`,
+      shortcutLabel: `${MOD_KEY}⌥Z`,
       key: 'z',
+      alt: true,
       icon: UndoIcon,
     },
     {
       cmd: ':redo',
-      description: 'Redo (Forward to latest branch)',
+      description: 'Next version (latest branch)',
       action: 'redo',
-      shortcutLabel: `${MOD_KEY}⇧Z`,
-      key: 'Y',
+      shortcutLabel: `${MOD_KEY}⌥⇧Z`,
+      key: 'z',
+      alt: true,
+      shift: true,
       icon: RedoIcon,
     },
     {
@@ -101,8 +123,8 @@
       cmd: ':h',
       description: 'Show shortcuts help',
       action: 'help',
-      shortcutLabel: `${MOD_KEY}H`,
-      key: 'h',
+      shortcutLabel: `${MOD_KEY}/`,
+      key: '/',
       icon: HelpIcon,
     },
     {
@@ -117,15 +139,16 @@
       cmd: ':q',
       description: 'Close file',
       action: 'close',
-      shortcutLabel: `${MOD_KEY}Q`,
-      key: 'q',
+      shortcutLabel: '',
+      key: '',
     },
     {
       cmd: ':b',
       description: 'Go Home',
       action: 'sidebar',
-      shortcutLabel: `${MOD_KEY}B`,
-      key: 'b',
+      shortcutLabel: `${MOD_KEY}⇧H`,
+      key: 'h',
+      shift: true,
       icon: HouseIcon,
     },
     {
@@ -192,12 +215,9 @@
   /**
    * Actions
    */
-  function onSave() {
-    if (editorState.editor && fileName) {
-      const markdown = editorState.editor.action(getMarkdown());
-      fileManager.createNewFile(fileName, markdown);
-      invalidateAll();
-    }
+  /** Same path as autosave, so drafts get named and created the same way. */
+  async function onSave() {
+    if (editorState.flushSave) await editorState.flushSave();
   }
 
   /**
@@ -208,7 +228,18 @@
     const command = commands.find((c) => c.cmd === cmd || c.cmd.slice(1) === cmd);
     if (!command) return;
 
+    // Drafts have no versions yet and nothing to push.
+    if (isDraft && ['undo', 'redo', 'toggleHistory', 'push'].includes(command.action)) {
+      toast.info('Start writing first', 'Versions appear after the first save.');
+      closeCommandMode();
+      return;
+    }
+
     switch (command.action) {
+      case 'new':
+        await onSave();
+        startNewWriting(dirOf(fileName));
+        break;
       case 'createDocumentContext':
         memoryManager.createDocumentContext();
         break;
@@ -226,16 +257,15 @@
         break;
       case 'push':
         if (!gitManager.user) {
-          alert('Log in to GitHub first: Settings → Git & GitHub.');
+          toast.info('Not connected to GitHub', 'Log in under Settings → Cloud Sync first.');
           break;
         }
-        onSave();
+        await onSave();
         await gitManager.commitAndPush(`Update writing — ${new Date().toLocaleString()}`);
         if (gitManager.pushResult === 'error') {
-          alert(
-            'Push failed: ' +
-              (typeof gitManager.error === 'string' ? gitManager.error : 'unknown error')
-          );
+          toast.error('Push failed', gitManager.error);
+        } else {
+          toast.success('Pushed to GitHub');
         }
         break;
       case 'close':
@@ -247,20 +277,30 @@
         break;
       case 'undo':
         try {
-          await invoke('undo_file', { name: fileName });
+          const moved = await invoke('undo_file', { name: fileName });
+          if (moved === null || moved === undefined) {
+            toast.info('Already at the oldest version');
+            break;
+          }
           await invalidateAll();
           appState.incrementEditorVersion();
         } catch (e) {
           console.error('Undo failed:', e);
+          toast.error('Could not go to previous version', e);
         }
         break;
       case 'redo':
         try {
-          await invoke('redo_file', { name: fileName });
+          const moved = await invoke('redo_file', { name: fileName });
+          if (moved === null || moved === undefined) {
+            toast.info('Already at the latest version');
+            break;
+          }
           await invalidateAll();
           appState.incrementEditorVersion();
         } catch (e) {
           console.error('Redo failed:', e);
+          toast.error('Could not go to next version', e);
         }
         break;
       case 'help':
@@ -320,7 +360,12 @@
   $effect(() => {
     /** @param {KeyboardEvent} e */
     const handleCaptureKeyDown = (e) => {
-      if (e.key === 'Tab') {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const inEditor = !!target?.closest('.ProseMirror');
+
+      // Tab only means "indent" while the caret is in the document. Anywhere
+      // else (command input, chat box, dialogs) it keeps its normal meaning.
+      if (e.key === 'Tab' && inEditor) {
         const editor = editorState?.editor;
         if (editor) {
           let inList = false;
@@ -367,7 +412,7 @@
       // 2. Handle Shortcuts
       if (isMod(e) && !isCommandMode) {
         // Trigger Command Mode with Cmd/Ctrl+Shift+P (standard command palette shortcut)
-        if (e.shiftKey && e.key.toLowerCase() === 'p') {
+        if (e.shiftKey && !e.altKey && e.key.toLowerCase() === 'p') {
           e.preventDefault();
           e.stopPropagation();
           isCommandMode = true;
@@ -375,26 +420,15 @@
           return;
         }
 
-        // Special check for Z (Undo) and Shift+Z / Y (Redo)
-        if (e.key.toLowerCase() === 'z') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (e.shiftKey) {
-            executeCommand(':redo');
-          } else {
-            executeCommand(':u');
-          }
-          return;
-        }
-        if (e.key.toLowerCase() === 'y') {
-          e.preventDefault();
-          e.stopPropagation();
-          executeCommand(':redo');
-          return;
-        }
-
-        // Handle other mapped keys
-        const match = commands.find((c) => c.key === e.key.toLowerCase());
+        // Exact modifier match, so ⌘Z (editor undo) and ⌘⌥Z (version undo) stay distinct.
+        const key = e.key.toLowerCase();
+        const match = commands.find(
+          (c) =>
+            c.key &&
+            c.key === key &&
+            !!c.shift === e.shiftKey &&
+            !!c.alt === e.altKey
+        );
         if (match) {
           e.preventDefault();
           e.stopPropagation();
@@ -508,7 +542,7 @@
       <!-- File/version state -->
       <div class="flex items-center gap-2 px-3.5 text-muted-foreground/80 shrink-0">
         <span class="tracking-wide">
-          {appState.ui.isHistoryOpen ? 'HISTORY' : `v${currentVersion}`}
+          {isDraft ? 'DRAFT' : appState.ui.isHistoryOpen ? 'HISTORY' : `v${currentVersion}`}
         </span>
         {#if zoomPercent !== 100}
           <span class="tracking-wide">{zoomPercent}%</span>
@@ -576,14 +610,13 @@
               <button
                 {...props}
                 onclick={() => {
+                  if (llmManager.isLoadModelsInProgress || llmManager.downloadingModelId) return;
                   if (!llmManager.modelsLoaded) {
                     const isDownloaded = llmManager.modelStatuses.some((m) => m.downloaded);
                     if (isDownloaded) {
                       llmManager.loadModels();
-                    } else if (
-                      confirm('Download AI Models for local intelligence? (approx 1.5GB)')
-                    ) {
-                      llmManager.loadModels();
+                    } else {
+                      isDownloadDialogOpen = true;
                     }
                   } else {
                     appState.toggleAiChat(!appState.ui.isChatOpen);
@@ -603,11 +636,11 @@
           </Tooltip.Trigger>
           <Tooltip.Content side="top" portalProps={{}}>
             {#if llmManager.isLoadModelsInProgress}
-              Downloading intelligence... {llmManager.loadingProgress}%
+              Loading AI model… {llmManager.loadingProgress}%
             {:else if llmManager.downloadingModelId}
-              Model downloading in background
+              Downloading model… {llmManager.loadingProgress}%
             {:else if !llmManager.modelsLoaded}
-              Click to download local AI model
+              Click to set up local AI
             {:else}
               AI chat · {MOD_KEY}L
             {/if}
@@ -615,6 +648,32 @@
         </Tooltip.Root>
         {/if}
       </div>
+
+      <Dialog.Root bind:open={isDownloadDialogOpen}>
+        <Dialog.Content class="sm:max-w-[420px] font-writer" portalProps={{}}>
+          <Dialog.Header class="">
+            <Dialog.Title class="text-xl font-normal">Set up local AI</Dialog.Title>
+            <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+              Memoire runs AI entirely on your machine. The first time it needs to download a
+              language model (about 1.5 GB). Nothing you write leaves this device.
+            </Dialog.Description>
+          </Dialog.Header>
+          <Dialog.Footer class="mt-6 flex gap-2">
+            <Button variant="ghost" class="flex-1" onclick={() => (isDownloadDialogOpen = false)}>
+              Not now
+            </Button>
+            <Button
+              class="flex-1"
+              onclick={() => {
+                isDownloadDialogOpen = false;
+                llmManager.loadModels();
+              }}
+            >
+              Download
+            </Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Root>
 
       <!-- Mobile overflow menu -->
       <DropdownMenu.Root>

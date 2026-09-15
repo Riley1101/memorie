@@ -2,26 +2,51 @@
   import '../app.css';
   import Cmdk from '$lib/components/cmdk.svelte';
   import ShortcutsHelp from '$lib/components/shortcuts-help.svelte';
+  import NewWritingPicker from '$lib/components/new-writing-picker.svelte';
+  import { page } from '$app/state';
+  import { startNewWriting } from '$lib/new-writing.js';
+  import { dirOf } from '$lib/runes/fs.svelte.js';
 
   import { appState, THEME_PALETTES, DENSITY_MODES } from '@/runes/app.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { onDestroy, onMount } from 'svelte';
-  import { isMod } from '$lib/keyboard.svelte.js';
+  import { isMod, isMac } from '$lib/keyboard.svelte.js';
+  import { Toaster } from 'svelte-sonner';
 
   import { TooltipProvider } from '$lib/components/ui/tooltip/index.js';
 
   let { children } = $props();
 
+  const onMacOS = isMac();
+
+  /**
+   * ⌘N: a new writing where the writer already is. In the editor that is the
+   * open document's folder (next scene, next chapter); on the home screen the
+   * selected binder; anywhere else the top level.
+   */
+  function newWritingHere() {
+    const current = page.params.lexical;
+    if (current) {
+      startNewWriting(dirOf(current));
+    } else {
+      startNewWriting(appState.ui.activeBinder ?? '');
+    }
+  }
+
   onMount(() => {
     const savedTheme = localStorage.getItem('theme');
 
-    if (savedTheme === 'light' || savedTheme === 'dark') {
+    if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
       appState.setTheme(savedTheme);
     } else {
-      appState.setTheme('dark');
+      appState.setTheme('system');
     }
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onSystemThemeChange = () => appState.syncSystemTheme();
+    media.addEventListener('change', onSystemThemeChange);
 
     const savedPalette = localStorage.getItem('themePalette');
 
@@ -48,6 +73,8 @@
         llmManager.setupModels();
       }
     });
+
+    return () => media.removeEventListener('change', onSystemThemeChange);
   });
 
   $effect(() => {
@@ -81,11 +108,32 @@
     class="{appState.ui.theme} {appState.ui.themePalette !== 'default'
       ? `theme-${appState.ui.themePalette}`
       : ''} style-{appState.ui.styleFlavour} density-{appState.ui
-      .density} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
+      .density} {onMacOS
+      ? 'platform-mac'
+      : ''} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
   >
+    {#if onMacOS}
+      <!-- Overlay title bar: this strip is what the user grabs to move the window. -->
+      <div
+        data-tauri-drag-region
+        class="fixed inset-x-0 top-0 z-10 h-[var(--titlebar-height)]"
+      ></div>
+    {/if}
     {@render children()}
     <Cmdk />
+    <NewWritingPicker />
     <ShortcutsHelp />
+    <Toaster
+      theme={appState.ui.theme}
+      position="bottom-right"
+      offset={56}
+      closeButton
+      toastOptions={{
+        class:
+          'font-writer !bg-popover !text-popover-foreground !border-border !shadow-lg !rounded-xl',
+        descriptionClass: '!text-muted-foreground',
+      }}
+    />
   </div>
 </TooltipProvider>
 
@@ -105,6 +153,15 @@
     if (e.key === 'k' && isMod(e)) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
+    }
+
+    if (e.key.toLowerCase() === 'n' && isMod(e) && !e.altKey) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        appState.toggleNewPicker(true);
+      } else {
+        newWritingHere();
+      }
     }
 
     if (e.key.toLowerCase() === 'p' && e.ctrlKey && e.shiftKey) {

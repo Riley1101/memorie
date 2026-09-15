@@ -119,6 +119,26 @@ impl UndoTree {
         }
     }
 
+    /// Re-keys every entry under folder `old_prefix` to live under `new_prefix`
+    /// (both without trailing slash), so moving or renaming a folder keeps the
+    /// version history of every writing inside it.
+    pub fn rename_prefix(&mut self, old_prefix: &str, new_prefix: &str) {
+        let old_dir = format!("{old_prefix}/");
+        let keys: Vec<String> = self
+            .entries
+            .keys()
+            .filter(|k| k.starts_with(&old_dir))
+            .cloned()
+            .collect();
+        for key in keys {
+            let rest = &key[old_dir.len()..];
+            let new_key = format!("{new_prefix}/{rest}");
+            if let Some(history) = self.entries.remove(&key) {
+                self.entries.insert(new_key, history);
+            }
+        }
+    }
+
     pub fn get_history(&self, file_name: &str) -> Option<&History> {
         self.entries.get(file_name)
     }

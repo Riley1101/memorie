@@ -30,12 +30,8 @@ class MemoryManager {
       content: this.context.content,
       name: this.context.fileName,
     })
-      .then((res) => {
-        console.log('Document context created:', res);
-      })
       .catch((err) => {
         console.error('Error creating context:', err);
-        throw err;
       });
   }
 

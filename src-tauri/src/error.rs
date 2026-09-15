@@ -19,6 +19,9 @@ pub enum FileError {
 
     #[error("Binder \"{0}\" is not empty and cannot be deleted")]
     BinderNotEmpty(String),
+
+    #[error("\"{0}\" already exists")]
+    AlreadyExists(String),
 }
 
 #[derive(Error, Debug)]

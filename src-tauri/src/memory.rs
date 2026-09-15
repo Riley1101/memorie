@@ -267,6 +267,13 @@ pub trait MemoryDocumentAnalysisExt {
     async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument>;
     async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk>;
     async fn rename_document(&self, old_title: &str, new_title: &str) -> Result<(), MemoryError>;
+    /// Re-titles every document whose title starts with `old_prefix/` so it
+    /// starts with `new_prefix/` instead (folder rename or move).
+    async fn rename_document_prefix(
+        &self,
+        old_prefix: &str,
+        new_prefix: &str,
+    ) -> Result<(), MemoryError>;
 }
 
 /// Implements the MemoryDocumentAnalysisExt trait for the Memory struct.
@@ -478,6 +485,25 @@ impl MemoryDocumentAnalysisExt for Memory {
             .query("UPDATE documents SET title = $new_title WHERE title = $old_title")
             .bind(("old_title", old_title.to_string()))
             .bind(("new_title", new_title.to_string()))
+            .await?;
+        response.check()?;
+        Ok(())
+    }
+
+    async fn rename_document_prefix(
+        &self,
+        old_prefix: &str,
+        new_prefix: &str,
+    ) -> Result<(), MemoryError> {
+        let old_dir = format!("{old_prefix}/");
+        let new_dir = format!("{new_prefix}/");
+        let response = self
+            .db
+            .query(
+                "UPDATE documents SET title = string::concat($new_dir, string::slice(title, string::len($old_dir))) WHERE string::starts_with(title, $old_dir)",
+            )
+            .bind(("old_dir", old_dir))
+            .bind(("new_dir", new_dir))
             .await?;
         response.check()?;
         Ok(())
