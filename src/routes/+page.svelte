@@ -20,7 +20,7 @@
 
   <div class="page-container flex-1 min-w-0 h-full flex flex-col overflow-hidden">
     <div class="flex items-center justify-between gap-3 mb-4 md:mb-8">
-      <h2 class="text-3xl md:text-5xl font-normal text-foreground pl-[calc(max(1rem,var(--titlebar-inset-left,0px))+2.25rem)] xl:pl-0 truncate">{appState.ui.activeBinder ?? 'Writings'}</h2>
+      <h2 class="text-3xl md:text-5xl font-normal text-foreground leading-normal pb-1 truncate">{appState.ui.activeBinder ?? 'Writings'}</h2>
       <div class="flex items-center gap-1 shrink-0">
         <!-- Primary action: one click, no naming, lands in the open binder. -->
         <div class="flex items-center mr-1.5 rounded-full border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors">

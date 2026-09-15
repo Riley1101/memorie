@@ -5,6 +5,7 @@
   import { exitCodeBlockPlugin } from '$lib/components/plugins/exit-code-block';
   import { placeholderPlugin } from '$lib/components/plugins/placeholder';
   import { slashMenu } from '$lib/components/plugins/slash-menu.svelte.js';
+  import { docRefMenu, DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
   import { memoryManager } from '$lib/runes/memory.svelte';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
@@ -13,7 +14,8 @@
   import { appState } from '@/runes/app.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { beforeNavigate } from '$app/navigation';
+  import { beforeNavigate, goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { getMarkdown } from '@milkdown/kit/utils';
 
   /**
@@ -126,6 +128,7 @@
         .use(gfm)
         .use(clipboard)
         .use(slashMenu)
+        .use(docRefMenu)
         .create()
         .then((editor) => {
           if (editor) {
@@ -165,7 +168,13 @@
         if (!link) return;
         e.preventDefault();
         const href = link.getAttribute('href');
-        if (href) openUrl(href);
+        if (!href) return;
+        if (href.startsWith(DOC_REF_PREFIX)) {
+          const name = decodeURIComponent(href.slice(DOC_REF_PREFIX.length));
+          goto(resolve(`/${encodeURIComponent(name)}`));
+          return;
+        }
+        openUrl(href);
       }}
     ></div>
 </main>
@@ -189,7 +198,8 @@
         overflow: visible !important;
     }
 
-    main :global(.slash-menu-portal[data-show='false']) {
+    main :global(.slash-menu-portal[data-show='false']),
+    main :global(.doc-ref-portal[data-show='false']) {
         display: none;
     }
 
