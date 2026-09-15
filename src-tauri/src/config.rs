@@ -1,4 +1,5 @@
 use super::error::ConfigurationError;
+use super::providers::ProviderKind;
 use super::utils;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -24,6 +25,14 @@ pub struct AppConfig {
     /// starts as a plain writing app.
     #[serde(default)]
     pub ai_enabled: bool,
+    /// Which backend serves chat/autocomplete/grammar. RAG search/embeddings stay local
+    /// regardless of this setting.
+    #[serde(default)]
+    pub provider: ProviderKind,
+    /// Selected OpenRouter model id (e.g. "anthropic/claude-sonnet-4"), used when
+    /// `provider` is `OpenRouter`. The API key itself is stored in the OS keyring, not here.
+    #[serde(default)]
+    pub openrouter_model: Option<String>,
 }
 
 impl AppConfig {
@@ -39,6 +48,8 @@ impl AppConfig {
             github_repo: None,
             auto_push_on_exit: false,
             ai_enabled: false,
+            provider: ProviderKind::Local,
+            openrouter_model: None,
         })
     }
 

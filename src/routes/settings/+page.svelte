@@ -19,6 +19,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { llmManager } from '$lib/runes/llm.svelte.js';
+  import { memoryManager } from '$lib/runes/memory.svelte.js';
   import { gitManager } from '$lib/runes/git.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte.js';
   import GithubIcon from '@lucide/svelte/icons/git-branch';
@@ -35,11 +36,20 @@
   let repoInput = $state('');
   let commitMessage = $state('');
 
+  let openRouterKeyInput = $state('');
+
   onMount(() => {
     configManager.getConfig().then(() => {
       if (configManager.config?.ai_enabled) {
-        llmManager.checkModels();
-        llmManager.fetchSupportedModels();
+        memoryManager.setup();
+        if (configManager.config?.provider === 'openrouter') {
+          configManager.checkOpenRouterApiKey().then(() => {
+            if (configManager.hasOpenRouterApiKey) configManager.fetchOpenRouterModels();
+          });
+        } else {
+          llmManager.checkModels();
+          llmManager.fetchSupportedModels();
+        }
       }
     });
     gitManager.checkSession().then(() => {
@@ -51,9 +61,35 @@
     const enabling = !(configManager.config?.ai_enabled ?? false);
     await configManager.setAiEnabled(enabling);
     if (enabling) {
+      await memoryManager.setup();
+      memoryManager.reindexNotes();
+      if (configManager.config?.provider === 'openrouter') {
+        await configManager.checkOpenRouterApiKey();
+        if (configManager.hasOpenRouterApiKey) await configManager.fetchOpenRouterModels();
+      } else {
+        await llmManager.setupModels();
+        await llmManager.fetchSupportedModels();
+      }
+    }
+  }
+
+  async function handleSelectProvider(provider) {
+    if (configManager.config?.provider === provider) return;
+    await configManager.setAiProvider(provider);
+    if (provider === 'openrouter') {
+      await configManager.checkOpenRouterApiKey();
+      if (configManager.hasOpenRouterApiKey) await configManager.fetchOpenRouterModels();
+    } else {
       await llmManager.setupModels();
       await llmManager.fetchSupportedModels();
     }
+  }
+
+  async function handleSaveOpenRouterKey() {
+    if (!openRouterKeyInput.trim()) return;
+    await configManager.setOpenRouterApiKey(openRouterKeyInput.trim());
+    openRouterKeyInput = '';
+    await configManager.fetchOpenRouterModels();
   }
 
   $effect(() => {
@@ -302,6 +338,93 @@
                 </div>
 
                 {#if configManager.config?.ai_enabled}
+                <!-- Provider selector -->
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">AI Provider</span>
+                  </div>
+                  <p class="text-sm text-muted-foreground">
+                    Choose whether chat, autocomplete, and grammar checks run locally on your
+                    machine or through OpenRouter. Note search always stays local.
+                  </p>
+                  <div class="flex gap-2 mt-2">
+                    <Button
+                      variant={(configManager.config?.provider ?? 'local') === 'local' ? 'default' : 'outline'}
+                      size="sm"
+                      onclick={() => handleSelectProvider('local')}
+                    >
+                      Local (Kalosm)
+                    </Button>
+                    <Button
+                      variant={configManager.config?.provider === 'openrouter' ? 'default' : 'outline'}
+                      size="sm"
+                      onclick={() => handleSelectProvider('openrouter')}
+                    >
+                      OpenRouter
+                    </Button>
+                  </div>
+                </div>
+
+                {#if configManager.config?.provider === 'openrouter'}
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">OpenRouter</span>
+                  </div>
+
+                  {#if configManager.hasOpenRouterApiKey}
+                    <div class="flex items-center justify-between gap-3">
+                      <p class="text-sm text-muted-foreground">API key saved.</p>
+                      <Button variant="ghost" size="sm" class="text-xs h-8" onclick={() => configManager.clearOpenRouterApiKey()}>
+                        Remove key
+                      </Button>
+                    </div>
+
+                    <p class="text-sm text-muted-foreground mt-2">
+                      Model: <strong>{configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}</strong>
+                    </p>
+
+                    {#if configManager.isLoadingOpenRouterModels}
+                      <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
+                        <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                        <span class="text-[0.625rem] text-muted-foreground uppercase tracking-widest">Loading models…</span>
+                      </div>
+                    {:else if configManager.openRouterModels.length > 0}
+                      <select
+                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}
+                        onchange={(e) => configManager.setOpenRouterModel(e.currentTarget.value)}
+                      >
+                        {#each configManager.openRouterModels as m (m.id)}
+                          <option value={m.id}>{m.name}</option>
+                        {/each}
+                      </select>
+                    {:else}
+                      <Button variant="outline" size="sm" class="text-xs h-8 w-fit" onclick={() => configManager.fetchOpenRouterModels()}>
+                        Load model list
+                      </Button>
+                    {/if}
+                  {:else}
+                    <p class="text-sm text-muted-foreground">
+                      Enter an OpenRouter API key to use remote models for chat, autocomplete, and grammar checks.
+                    </p>
+                    <div class="flex gap-2 mt-2">
+                      <input
+                        type="password"
+                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        placeholder="sk-or-..."
+                        bind:value={openRouterKeyInput}
+                      />
+                      <Button size="sm" onclick={handleSaveOpenRouterKey} disabled={!openRouterKeyInput.trim()}>
+                        Save
+                      </Button>
+                    </div>
+                  {/if}
+                </div>
+                {/if}
+
+                {#if (configManager.config?.provider ?? 'local') === 'local'}
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
@@ -388,6 +511,50 @@
                   <p class="text-sm text-muted-foreground mt-6 tracking-tight">
                     Models are stored locally in your app directory. Only downloaded models can be set as default.
                   </p>
+                </div>
+                {/if}
+
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">Note Search</span>
+                  </div>
+                  <p class="text-sm text-muted-foreground">
+                    Your notes are indexed on this device so the assistant can search them. Saved
+                    changes are picked up automatically; reindex after importing notes from elsewhere.
+                  </p>
+
+                  <div class="flex items-center justify-between gap-3 mt-2">
+                    <p class="text-sm">
+                      {#if memoryManager.indexProgress}
+                        {memoryManager.indexProgress.total
+                          ? `Indexing ${memoryManager.indexProgress.done} of ${memoryManager.indexProgress.total} notes…`
+                          : 'Preparing to index…'}
+                      {:else if memoryManager.indexStatus}
+                        {memoryManager.indexStatus.documents} notes · {memoryManager.indexStatus.passages} passages indexed
+                      {:else}
+                        Checking index…
+                      {/if}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="text-xs h-8 shrink-0"
+                      disabled={!!memoryManager.indexProgress}
+                      onclick={() => memoryManager.reindexNotes()}
+                    >
+                      Reindex notes
+                    </Button>
+                  </div>
+
+                  {#if memoryManager.indexProgress?.total}
+                    <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        class="h-full bg-primary transition-[width] duration-300"
+                        style="width: {Math.round((memoryManager.indexProgress.done / memoryManager.indexProgress.total) * 100)}%"
+                      ></div>
+                    </div>
+                  {/if}
                 </div>
 
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">

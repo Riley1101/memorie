@@ -3,6 +3,8 @@ import { setContext, getContext } from "svelte";
 export class AttachmentsContext {
 	files = $state([]);
 	fileInputRef = $state(null);
+	/** When false, drops, pastes and the file picker are all ignored. */
+	enabled = true;
 
 	constructor(
 		 accept,
@@ -28,6 +30,7 @@ export class AttachmentsContext {
 	};
 
 	add = (files) => {
+		if (!this.enabled) return;
 		let incoming = Array.from(files);
 		let accepted = incoming.filter((f) => this.matchesAccept(f));
 

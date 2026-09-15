@@ -14,6 +14,7 @@
 		maxFiles = undefined,
 		maxFileSize = undefined,
 		onError = undefined,
+		allowAttachments = true,
 		onSubmit,
 		children = undefined,
 		...props
@@ -28,6 +29,9 @@
 		maxFileSize,
 		onError
 	);
+	$effect.pre(() => {
+		attachmentsContext.enabled = allowAttachments;
+	});
 
 	// Find nearest form to scope drag & drop
 	onMount(() => {

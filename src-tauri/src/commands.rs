@@ -1,13 +1,15 @@
 use super::fs::{self, File};
-use super::memory::{MemoryDocumentAnalysisExt, NoteDocument, UserMemoryExt};
-use super::prompts::RAG_CHAT_PROMPT;
+use super::memory::{IndexStats, MemoryDocumentAnalysisExt, NoteDocument};
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
 use crate::llm::{download_model_to_cache, ModelStatus, ModelType, SupportedModel};
-use crate::memory::{SearchResult, TextChunk};
-use crate::utils::{ChatMode, EditAction};
-use tauri::State;
+use crate::memory::TextChunk;
+use crate::providers::{self, OpenRouterModel, ProviderKind};
+use crate::utils::{ChatContext, ChatMode, EditAction};
+use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tauri::{Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -88,7 +90,16 @@ pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(),
     let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
     let file_to_delete = File { path, name, last_modified, folder };
 
-    fs::delete_file(&file_to_delete).map_err(|e| e.to_string())
+    fs::delete_file(&file_to_delete).map_err(|e| e.to_string())?;
+    drop(config);
+
+    // The file is already gone; a leftover index entry only affects search, so log
+    // instead of reporting the delete itself as failed.
+    let memory = &state.memory;
+    if let Err(e) = memory.delete_document(&file_to_delete.name).await {
+        eprintln!("Failed to remove '{}' from the note index: {e}", file_to_delete.name);
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -109,7 +120,7 @@ pub async fn rename_file(
         .map_err(|e| e.to_string())?;
 
     // Rename in memory database
-    let memory = state.memory.lock().await;
+    let memory = &state.memory;
     memory.rename_document(&old_name, &new_name).await.map_err(|e| e.to_string())?;
 
     Ok(result)
@@ -205,7 +216,7 @@ pub async fn rename_binder(
         .save(&config.undotree_dir)
         .map_err(|e| e.to_string())?;
 
-    let memory = state.memory.lock().await;
+    let memory = &state.memory;
     memory
         .rename_document_prefix(&old_name, &new_name)
         .await
@@ -232,7 +243,7 @@ pub async fn move_file(
         .save(&config.undotree_dir)
         .map_err(|e| e.to_string())?;
 
-    let memory = state.memory.lock().await;
+    let memory = &state.memory;
     memory.rename_document(&old_name, &new_name).await.map_err(|e| e.to_string())?;
 
     Ok(result)
@@ -337,6 +348,7 @@ pub async fn run_chat(
     message: String,
     mode: ChatMode,
     edit_action: Option<EditAction>,
+    context: Option<ChatContext>,
     state: State<'_, AppState>,
 ) -> Result<Uuid, String> {
     if !state.config.lock().await.ai_enabled {
@@ -351,6 +363,7 @@ pub async fn run_chat(
         edit_action,
         mode,
         message,
+        context: context.unwrap_or_default(),
         cancellation_token: cancellation_token.clone(),
     };
 
@@ -383,13 +396,116 @@ pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<boo
  *  RAG Commands
  */
 
+static INDEXING: AtomicBool = AtomicBool::new(false);
+
+/// Clears the indexing flag even if the indexing task panics partway through.
+struct IndexingGuard;
+
+impl Drop for IndexingGuard {
+    fn drop(&mut self) {
+        INDEXING.store(false, Ordering::SeqCst);
+    }
+}
+
+#[derive(serde::Serialize)]
+pub struct IndexStatus {
+    documents: usize,
+    passages: usize,
+    indexing: bool,
+}
+
+#[tauri::command]
+pub async fn get_index_status(state: State<'_, AppState>) -> Result<IndexStatus, String> {
+    let memory = &state.memory;
+    let stats = memory.index_stats().await.map_err(|e| e.to_string())?;
+    Ok(IndexStatus {
+        documents: stats.documents,
+        passages: stats.passages,
+        indexing: INDEXING.load(Ordering::SeqCst),
+    })
+}
+
+/// Embeds every note in the content directory and drops index entries for notes that
+/// no longer exist. Unchanged paragraphs are skipped, so repeat runs are cheap. Runs in
+/// the background, reporting `index-progress` and then `index-complete` or `index-error`;
+/// calling it while a pass is already running does nothing.
+#[tauri::command]
+pub async fn reindex_notes(handle: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    if !state.config.lock().await.ai_enabled {
+        return Err("AI is disabled. Enable it in Settings before indexing notes.".to_string());
+    }
+    if INDEXING.swap(true, Ordering::SeqCst) {
+        return Ok(());
+    }
+
+    tauri::async_runtime::spawn(async move {
+        let guard = IndexingGuard;
+        let result = reindex_all(&handle).await;
+        drop(guard);
+        match result {
+            Ok(stats) => {
+                let _ = handle.emit("index-complete", stats);
+            }
+            Err(message) => {
+                let _ = handle.emit("index-error", serde_json::json!({ "message": message }));
+            }
+        }
+    });
+
+    Ok(())
+}
+
+async fn reindex_all(handle: &tauri::AppHandle) -> Result<IndexStats, String> {
+    let state = handle.state::<AppState>();
+    let content_dir = state.config.lock().await.content_directory.clone();
+    let files = fs::discover_files(&content_dir).map_err(|e| e.to_string())?;
+    let total = files.len();
+
+    let on_disk: HashSet<&str> = files.iter().map(|file| file.name.as_str()).collect();
+    {
+        let memory = &state.memory;
+        for title in memory.document_titles().await.map_err(|e| e.to_string())? {
+            if !on_disk.contains(title.as_str()) {
+                memory.delete_document(&title).await.map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    for (done, file) in files.iter().enumerate() {
+        let _ = handle.emit(
+            "index-progress",
+            serde_json::json!({ "done": done, "total": total, "current": file.name }),
+        );
+        let content = match file.read_content() {
+            Ok(content) => content,
+            Err(e) => {
+                eprintln!("Skipping '{}' while indexing: {e}", file.name);
+                continue;
+            }
+        };
+        // No lock: Memory is shared, so chat searches run alongside indexing.
+        let memory = &state.memory;
+        memory
+            .to_document_context(NoteDocument::from_parts(&file.name, &content))
+            .await;
+    }
+
+    let _ = handle.emit(
+        "index-progress",
+        serde_json::json!({ "done": total, "total": total, "current": null }),
+    );
+
+    let memory = &state.memory;
+    memory.index_stats().await.map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn update_text_chunk(
     id: String,
     correction: String,
     state: State<'_, AppState>,
 ) -> Result<Response<String>, String> {
-    let memory = state.memory.lock().await;
+    let memory = &state.memory;
     let text_chunk = memory
         .find_text_chunk_by_id(&id)
         .await
@@ -409,7 +525,7 @@ pub async fn create_document_context(
     content: String,
     state: State<'_, AppState>,
 ) -> Result<Response<Vec<TextChunk>>, String> {
-    let memory = state.memory.lock().await;
+    let memory = &state.memory;
     let document = NoteDocument::from_parts(&name, &content);
 
     let document_context = memory.to_document_context(document).await;
@@ -429,7 +545,7 @@ pub async fn get_document_context(
     name: String,
     state: State<'_, AppState>,
 ) -> Result<Response<Vec<TextChunk>>, String> {
-    let memory = state.memory.lock().await;
+    let memory = &state.memory;
     let document = memory.find_document_by_title(&name).await;
     match document {
         Ok(doc) => {
@@ -450,65 +566,6 @@ pub async fn get_document_context(
         }
         Err(_) => todo!(),
     }
-}
-
-#[tauri::command]
-pub async fn search_documents(
-    query: String,
-    state: State<'_, AppState>,
-) -> Result<Response<super::responses::SearchResponse>, String> {
-    if !state.config.lock().await.ai_enabled {
-        return Err("AI is disabled. Enable it in Settings before using chat.".to_string());
-    }
-
-    let memory = state.memory.lock().await;
-    let search_results = memory
-        .search_documents(&query, 2)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let job_id = Uuid::new_v4();
-    let cancellation_token = CancellationToken::new();
-
-    let context = search_results
-        .iter()
-        .map(|res| res.content.clone())
-        .collect::<Vec<String>>()
-        .join("\n---\n");
-
-    let message = format!(
-        "{}",
-        RAG_CHAT_PROMPT
-        .replace("{context}", &context)
-        .replace("{query}", &query)
-    );
-
-    let job = Job {
-        id: job_id,
-        edit_action: None,
-        mode: ChatMode::RagChat,
-        message,
-        cancellation_token: cancellation_token.clone(),
-    };
-
-    state
-        .workers
-        .cancellation_tokens
-        .insert(job_id, cancellation_token);
-
-    state.workers.statuses.insert(job_id, JobStatus::Queued);
-
-    state
-        .workers
-        .sender
-        .send(job)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    Ok(Response::success(super::responses::SearchResponse {
-        results: search_results,
-        job_id,
-    }))
 }
 
 /**
@@ -551,39 +608,7 @@ pub async fn set_system_prompt(
     let mut config = state.config.lock().await;
     config.system_prompt = if prompt.trim().is_empty() { None } else { Some(prompt) };
     config.save(config_path_str).map_err(|e| e.to_string())?;
-    
-    // Clear the chat session cache so the new system prompt takes effect immediately
-    let session_cache_path = super::utils::get_app_dir()
-        .map_err(|e| e.to_string())?
-        .join("chat.llama");
-    let _ = std::fs::remove_file(session_cache_path);
-    
     Ok(())
-}
-
-#[tauri::command]
-pub async fn clear_chat_session() -> Result<(), String> {
-    let session_cache_path = super::utils::get_app_dir()
-        .map_err(|e| e.to_string())?
-        .join("chat.llama");
-    // Ignore errors if the file doesn't exist
-    let _ = std::fs::remove_file(session_cache_path);
-    Ok(())
-}
-
-/**
- *  Memory Commands
- */
-#[tauri::command]
-pub async fn get_chat_sessions(
-    state: State<'_, AppState>,
-) -> Result<Option<super::memory::ChatSession>, String> {
-    let memory = state.memory.lock().await;
-    let sessions = memory
-        .get_chat_sessions()
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(sessions)
 }
 
 /**
@@ -726,6 +751,71 @@ pub async fn set_ai_enabled(enabled: bool, state: State<'_, AppState>) -> Result
     config.ai_enabled = enabled;
     config.save(config_path_str).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/**
+ *  AI Provider Commands (local vs OpenRouter)
+ */
+
+#[tauri::command]
+pub async fn set_ai_provider(
+    provider: ProviderKind,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    config.provider = provider;
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_openrouter_model(
+    model_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    config.openrouter_model = Some(model_id);
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_openrouter_api_key(key: String) -> Result<(), String> {
+    providers::save_api_key(&key).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn has_openrouter_api_key() -> Result<bool, String> {
+    Ok(providers::load_api_key()
+        .map_err(|e| e.to_string())?
+        .is_some())
+}
+
+#[tauri::command]
+pub async fn clear_openrouter_api_key() -> Result<(), String> {
+    providers::clear_api_key().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_openrouter_models() -> Result<Vec<OpenRouterModel>, String> {
+    let api_key = providers::load_api_key()
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "No OpenRouter API key set. Add one in Settings.".to_string())?;
+    providers::fetch_models(&api_key).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

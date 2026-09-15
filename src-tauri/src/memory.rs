@@ -1,4 +1,4 @@
-use super::{error::MemoryError, responses::Response, utils};
+use super::{error::MemoryError, utils};
 use chrono::Utc;
 use kalosm::language::ModelLoadingProgress;
 use rbert::{Bert, EmbedderExt};
@@ -17,14 +17,15 @@ const CHUNK_TABLE: &str = "chunk";
 
 const CHUNK_SIZE_LIMIT: usize = 1000;
 
-/// Splits text by double newline (paragraphs).
-/// This is more stable than fixed - character chunking for editors.
-fn split_by_paragraph(text: &str) -> Vec<&str> {
-    text.split("\n\n")
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .collect()
-}
+/// Bumped whenever what gets embedded for a chunk changes. It is mixed into the chunk
+/// hash, so existing chunks stop matching and are re-embedded on the next index pass.
+const EMBED_VERSION: &str = "v2-title";
+
+/// Chunks scoring below this cosine similarity are never considered a match.
+const MIN_SIMILARITY: f32 = 0.3;
+/// Chunks more than this far below the best hit are dropped, so one strong match
+/// doesn't get padded out with loosely related paragraphs.
+const RELATIVE_SIMILARITY_WINDOW: f32 = 0.12;
 
 fn chunk_text(text: &str) -> Vec<String> {
     let mut chunks = Vec::new();
@@ -61,12 +62,23 @@ fn chunk_text(text: &str) -> Vec<String> {
     chunks
 }
 
-/// Generates a SHA256 hash of the text content.
-/// This acts as a unique fingerprint for the paragraph.
-fn generate_hash(content: &str) -> String {
+/// Generates a SHA256 fingerprint for a chunk, versioned by `EMBED_VERSION`.
+fn chunk_hash(content: &str) -> String {
     let mut hasher = Sha256::new();
+    hasher.update(EMBED_VERSION);
+    hasher.update(":");
     hasher.update(content);
     hex::encode(hasher.finalize())
+}
+
+/// Turns a content-relative file name like `Novel/Chapter 3.md` into a readable
+/// title (`Novel › Chapter 3`) for embedding and for citing notes to the model.
+pub fn pretty_title(name: &str) -> String {
+    name.strip_suffix(".md")
+        .unwrap_or(name)
+        .split('/')
+        .collect::<Vec<_>>()
+        .join(" › ")
 }
 
 // -------------------------------------------------------
@@ -182,6 +194,68 @@ impl Memory {
             None => Err(MemoryError::ModelNotLoaded),
         }
     }
+
+    /// Ranks embedded chunks by cosine similarity to `query_embedding`, keeping only
+    /// strong matches close to the best one, each tagged with its note's title.
+    pub async fn search_by_embedding(
+        &self,
+        query_embedding: Vec<f32>,
+        limit: usize,
+    ) -> Result<Vec<SearchResult>, MemoryError> {
+        let db = &self.db;
+
+        let sql = r#"
+    SELECT parent, content, sequence, vector::similarity::cosine(embedding, $query_vec) AS score
+    FROM chunk
+    WHERE embedding IS NOT NONE AND array::len(embedding) > 0
+    ORDER BY score DESC
+    LIMIT $limit
+"#;
+        let mut response = db
+            .query(sql)
+            .bind(("query_vec", query_embedding))
+            .bind(("limit", limit))
+            .await?;
+
+        let chunks: Vec<ScoredChunk> = response.take(0)?;
+
+        let best = chunks.first().map(|c| c.score).unwrap_or(0.0);
+        let cutoff = MIN_SIMILARITY.max(best - RELATIVE_SIMILARITY_WINDOW);
+        let chunks: Vec<ScoredChunk> = chunks.into_iter().filter(|c| c.score >= cutoff).collect();
+
+        let mut parent_ids: Vec<Thing> = chunks.iter().map(|c| c.parent.clone()).collect();
+        parent_ids.sort();
+        parent_ids.dedup();
+
+        let mut doc_map: HashMap<Thing, String> = HashMap::new();
+        if !parent_ids.is_empty() {
+            let sql_docs = "SELECT * FROM $ids";
+            let mut doc_response = db.query(sql_docs).bind(("ids", parent_ids)).await?;
+            let note_documents: Vec<NoteDocument> = doc_response.take(0)?;
+
+            for doc in note_documents {
+                if let Some(id) = doc.id {
+                    doc_map.insert(id, doc.title);
+                }
+            }
+        }
+
+        let results: Vec<SearchResult> = chunks
+            .into_iter()
+            // A chunk whose parent note is gone is an orphan; never cite it.
+            .filter_map(|c| {
+                let title = doc_map.get(&c.parent).cloned()?;
+                Some(SearchResult {
+                    parent: c.parent,
+                    content: c.content,
+                    sequence: c.sequence,
+                    title,
+                    score: c.score,
+                })
+            })
+            .collect();
+        Ok(results)
+    }
 }
 
 // -------------------------------------------------------
@@ -243,12 +317,34 @@ impl TextChunk {
     }
 }
 
+/// A chunk matched by a notes search, with the title of the note it came from and
+/// its cosine similarity to the query. Results are ordered best match first.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
     pub parent: Thing,
     pub content: String,
     pub sequence: usize,
     pub title: String,
+    pub score: f32,
+}
+
+#[derive(Debug, Deserialize)]
+struct ScoredChunk {
+    parent: Thing,
+    content: String,
+    sequence: usize,
+    score: f32,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct IndexStats {
+    pub documents: usize,
+    pub passages: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct CountRow {
+    n: usize,
 }
 
 // -------------------------------------------------------
@@ -274,6 +370,11 @@ pub trait MemoryDocumentAnalysisExt {
         old_prefix: &str,
         new_prefix: &str,
     ) -> Result<(), MemoryError>;
+    /// Removes a note and all of its embedded chunks, so deleted notes stop
+    /// showing up in search results.
+    async fn delete_document(&self, title: &str) -> Result<(), MemoryError>;
+    async fn document_titles(&self) -> Result<Vec<String>, MemoryError>;
+    async fn index_stats(&self) -> Result<IndexStats, MemoryError>;
 }
 
 /// Implements the MemoryDocumentAnalysisExt trait for the Memory struct.
@@ -287,60 +388,8 @@ impl MemoryDocumentAnalysisExt for Memory {
         query: &str,
         limit: usize,
     ) -> Result<Vec<SearchResult>, MemoryError> {
-        let db = &self.db;
-
         let query_embedding = self.generate_embedding(query).await?;
-        let threshold = 0.3;
-
-        let sql = r#"
-    SELECT *, vector::similarity::cosine(embedding, $query_vec) AS score 
-    FROM chunk 
-    WHERE embedding IS NOT NONE 
-    AND vector::similarity::cosine(embedding, $query_vec) > $threshold
-    ORDER BY score DESC, created_at DESC 
-    LIMIT $limit
-"#;
-        let mut response = db
-            .query(sql)
-            .bind(("query_vec", query_embedding))
-            .bind(("limit", limit))
-            .bind(("threshold", threshold))
-            .await?;
-
-        let chunks: Vec<TextChunk> = response.take(0)?;
-
-        let mut parent_ids: Vec<Thing> = chunks.iter().map(|c| c.parent.clone()).collect();
-        parent_ids.sort();
-        parent_ids.dedup();
-
-        let mut doc_map: HashMap<Thing, String> = HashMap::new();
-        if !parent_ids.is_empty() {
-            let sql_docs = "SELECT * FROM $ids";
-            let mut doc_response = db.query(sql_docs).bind(("ids", parent_ids)).await?;
-            let note_documents: Vec<NoteDocument> = doc_response.take(0)?;
-
-            for doc in note_documents {
-                if let Some(id) = doc.id {
-                    doc_map.insert(id, doc.title);
-                }
-            }
-        }
-        let results: Vec<SearchResult> = chunks
-            .into_iter()
-            .map(|c| {
-                let title = doc_map
-                    .get(&c.parent)
-                    .cloned()
-                    .unwrap_or_else(|| "Unknown Document".to_string());
-                SearchResult {
-                    parent: c.parent,
-                    content: c.content,
-                    sequence: c.sequence,
-                    title,
-                }
-            })
-            .collect();
-        Ok(results)
+        self.search_by_embedding(query_embedding, limit).await
     }
 
     async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk> {
@@ -374,6 +423,7 @@ impl MemoryDocumentAnalysisExt for Memory {
         );
 
         let parent_id = note_document.as_ref().and_then(|doc| doc.id.clone());
+        let title = pretty_title(&embedding_document.title);
         let new_segments = chunk_text(&embedding_document.body);
         let sql = "SELECT * FROM chunk WHERE parent = $id";
         let mut response = db.query(sql).bind(("id", parent_id.clone())).await.unwrap();
@@ -391,7 +441,7 @@ impl MemoryDocumentAnalysisExt for Memory {
         );
 
         for (i, segment) in new_segments.iter().enumerate() {
-            let new_hash = generate_hash(segment);
+            let new_hash = chunk_hash(segment);
             let short_preview = segment
                 .chars()
                 .take(20)
@@ -422,11 +472,17 @@ impl MemoryDocumentAnalysisExt for Memory {
                     );
                 }
             } else {
-                let embedding = match self.generate_embedding(segment).await {
-                    Ok(emb) => emb,
+                // The note title is embedded with every chunk so a question that names
+                // the note ("my dragon backstory notes") still matches its paragraphs.
+                let embedding = match self
+                    .generate_embedding(&format!("{title}\n\n{segment}"))
+                    .await
+                {
+                    Ok(emb) if !emb.is_empty() => Some(emb),
+                    Ok(_) => None,
                     Err(e) => {
                         println!("Failed to generate embedding: {:?}", e);
-                        vec![]
+                        None
                     }
                 };
                 let _: Option<TextChunk> = db
@@ -439,7 +495,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                         content_hash: new_hash,
                         correction: None,
                         is_dirty: true,
-                        embedding: Some(embedding),
+                        embedding,
                         created_at: Utc::now().timestamp(),
                     })
                     .await
@@ -508,59 +564,168 @@ impl MemoryDocumentAnalysisExt for Memory {
         response.check()?;
         Ok(())
     }
-}
 
-// -------------------------------------------------------
-// USER CHAT SESSIONS
-// -------------------------------------------------------
-
-/// Represents a chat session associated with a user.
-/// This struct contains the job ID, user ID, creation timestamp,
-/// and last updated timestamp.
-#[derive(Serialize, Deserialize)]
-pub struct ChatSession {
-    pub job_id: String,
-    pub user_id: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-pub trait UserMemoryExt {
-    async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError>;
-    async fn save_chat_session(&self, session_id: &str) -> Result<Response<String>, MemoryError>;
-}
-
-/// Implements user-specific memory operations for managing chat sessions.
-/// This trait provides methods to retrieve and save chat sessions associated with a user.
-impl UserMemoryExt for Memory {
-    /// Retrieves the chat sessions for the user.
-    /// Returns an optional `ChatSession` if found, or `None` if no sessions exist.
-    // TODO! Replace "root" with actual user ID
-    async fn get_chat_sessions(&self) -> Result<Option<ChatSession>, MemoryError> {
-        self.db.use_ns("user_ns").use_db("user").await?;
-        let sessions: Option<ChatSession> = self.db.select(("chat_session", "root")).await?;
-        Ok(sessions)
+    async fn delete_document(&self, title: &str) -> Result<(), MemoryError> {
+        let Some(id) = self
+            .find_document_by_title(title)
+            .await?
+            .and_then(|doc| doc.id)
+        else {
+            return Ok(());
+        };
+        let response = self
+            .db
+            .query("DELETE chunk WHERE parent = $id; DELETE $id;")
+            .bind(("id", id))
+            .await?;
+        response.check()?;
+        Ok(())
     }
 
-    /// Saves a new chat session for the user with the provided session ID.
-    /// # Arguments
-    /// * `session_id` - The ID of the chat session to be saved.
-    /// # Returns
-    /// A success response indicating that the chat session was created.
-    ///    TODO! Replace "root" with actual user ID
-    async fn save_chat_session(&self, session_id: &str) -> Result<Response<String>, MemoryError> {
-        self.db.use_ns("user_ns").use_db("user").await?;
-        let _: Option<ChatSession> = self
+    async fn document_titles(&self) -> Result<Vec<String>, MemoryError> {
+        let mut response = self.db.query("SELECT VALUE title FROM documents").await?;
+        let titles: Vec<String> = response.take(0)?;
+        Ok(titles)
+    }
+
+    async fn index_stats(&self) -> Result<IndexStats, MemoryError> {
+        let mut response = self
             .db
-            .create("chat_sessions")
-            .content(ChatSession {
-                job_id: session_id.to_string(),
-                user_id: "root".to_string(),
-                created_at: Utc::now().to_rfc3339(),
-                updated_at: Utc::now().to_rfc3339(),
-            })
+            .query(
+                "SELECT count() AS n FROM documents GROUP ALL; \
+                 SELECT count() AS n FROM chunk WHERE embedding IS NOT NONE AND array::len(embedding) > 0 GROUP ALL;",
+            )
             .await?;
-        let response = Response::success("Chat Session Created".to_string());
-        Ok(response)
+        let documents: Option<CountRow> = response.take(0)?;
+        let passages: Option<CountRow> = response.take(1)?;
+        Ok(IndexStats {
+            documents: documents.map(|r| r.n).unwrap_or(0),
+            passages: passages.map(|r| r.n).unwrap_or(0),
+        })
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+    use surrealdb::engine::local::Mem;
+
+    async fn test_memory() -> Memory {
+        let db = Surreal::new::<Mem>(()).await.unwrap();
+        db.use_ns("test").use_db("test").await.unwrap();
+        Memory {
+            db,
+            embedding_model: None,
+        }
+    }
+
+    async fn insert_document(memory: &Memory, title: &str) -> Thing {
+        memory
+            .create_or_update_document(title, "body")
+            .await
+            .unwrap()
+            .unwrap()
+            .id
+            .unwrap()
+    }
+
+    async fn insert_chunk(memory: &Memory, parent: &Thing, content: &str, embedding: Option<Vec<f32>>) {
+        let _: Option<TextChunk> = memory
+            .db
+            .create(CHUNK_TABLE)
+            .content(TextChunk {
+                id: None,
+                parent: parent.clone(),
+                content: content.to_string(),
+                sequence: 0,
+                content_hash: chunk_hash(content),
+                correction: None,
+                is_dirty: false,
+                embedding,
+                created_at: 0,
+            })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn search_ranks_matches_and_skips_unembedded_chunks() {
+        let memory = test_memory().await;
+        let dragons = insert_document(&memory, "Lore/Dragons.md").await;
+        let recipes = insert_document(&memory, "Recipes.md").await;
+        insert_chunk(&memory, &dragons, "dragon backstory", Some(vec![1.0, 0.0, 0.0])).await;
+        insert_chunk(&memory, &dragons, "dragon diet", Some(vec![0.95, 0.31, 0.0])).await;
+        insert_chunk(&memory, &recipes, "soup", Some(vec![0.0, 1.0, 0.0])).await;
+        insert_chunk(&memory, &recipes, "failed embedding", None).await;
+        insert_chunk(&memory, &recipes, "legacy empty embedding", Some(vec![])).await;
+
+        let results = memory.search_by_embedding(vec![1.0, 0.0, 0.0], 8).await.unwrap();
+
+        let contents: Vec<&str> = results.iter().map(|r| r.content.as_str()).collect();
+        assert_eq!(contents, vec!["dragon backstory", "dragon diet"]);
+        assert_eq!(results[0].title, "Lore/Dragons.md");
+        assert!(results[0].score > results[1].score);
+    }
+
+    #[tokio::test]
+    async fn search_drops_hits_far_below_the_best_match() {
+        let memory = test_memory().await;
+        let doc = insert_document(&memory, "Notes.md").await;
+        insert_chunk(&memory, &doc, "strong", Some(vec![1.0, 0.0])).await;
+        insert_chunk(&memory, &doc, "loosely related", Some(vec![0.6, 0.8])).await;
+
+        let results = memory.search_by_embedding(vec![1.0, 0.0], 8).await.unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].content, "strong");
+    }
+
+    #[tokio::test]
+    async fn search_ignores_chunks_whose_note_was_deleted() {
+        let memory = test_memory().await;
+        let orphan_parent = Thing::from((DOCUMENT_TABLE, "gone"));
+        insert_chunk(&memory, &orphan_parent, "orphan", Some(vec![1.0, 0.0])).await;
+
+        let results = memory.search_by_embedding(vec![1.0, 0.0], 8).await.unwrap();
+
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn delete_document_removes_the_note_and_only_its_chunks() {
+        let memory = test_memory().await;
+        let keep = insert_document(&memory, "Keep.md").await;
+        let remove = insert_document(&memory, "Remove.md").await;
+        insert_chunk(&memory, &keep, "kept", Some(vec![1.0])).await;
+        insert_chunk(&memory, &remove, "removed a", Some(vec![1.0])).await;
+        insert_chunk(&memory, &remove, "removed b", Some(vec![1.0])).await;
+
+        memory.delete_document("Remove.md").await.unwrap();
+        memory.delete_document("Never existed.md").await.unwrap();
+
+        assert_eq!(memory.document_titles().await.unwrap(), vec!["Keep.md".to_string()]);
+        let stats = memory.index_stats().await.unwrap();
+        assert_eq!((stats.documents, stats.passages), (1, 1));
+    }
+
+    #[tokio::test]
+    async fn index_stats_counts_only_embedded_passages() {
+        let memory = test_memory().await;
+        let empty = memory.index_stats().await.unwrap();
+        assert_eq!((empty.documents, empty.passages), (0, 0));
+
+        let doc = insert_document(&memory, "Doc.md").await;
+        insert_chunk(&memory, &doc, "embedded", Some(vec![0.5, 0.5])).await;
+        insert_chunk(&memory, &doc, "not embedded", None).await;
+        insert_chunk(&memory, &doc, "legacy empty", Some(vec![])).await;
+
+        let stats = memory.index_stats().await.unwrap();
+        assert_eq!((stats.documents, stats.passages), (1, 1));
+    }
+
+    #[test]
+    fn pretty_title_strips_extension_and_joins_folders() {
+        assert_eq!(pretty_title("Novel/Part 1/Chapter 3.md"), "Novel › Part 1 › Chapter 3");
+        assert_eq!(pretty_title("Ideas.md"), "Ideas");
     }
 }

@@ -52,7 +52,7 @@
 			}
 		}
 
-		if (files.length > 0) {
+		if (files.length > 0 && attachments.enabled) {
 			e.preventDefault();
 			attachments.add(files);
 		}

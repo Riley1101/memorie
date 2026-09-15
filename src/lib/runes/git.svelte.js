@@ -1,4 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
+import { configManager } from '$lib/runes/config.svelte.js';
+import { memoryManager } from '$lib/runes/memory.svelte.js';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 class GitManager {
@@ -119,6 +121,7 @@ class GitManager {
     try {
       await invoke('git_pull');
       this.importResult = 'success';
+      if (configManager.config?.ai_enabled) memoryManager.reindexNotes();
       await this.refreshStatus();
     } catch (err) {
       console.error('Failed to import from GitHub:', err);
