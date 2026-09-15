@@ -7,6 +7,7 @@ mod git;
 mod llm;
 mod memory;
 mod prompts;
+mod providers;
 mod responses;
 mod undotree;
 mod utils;
@@ -25,7 +26,7 @@ pub struct AppState {
     config: Mutex<AppConfig>,
     undotree: Mutex<UndoTree>,
     model: Mutex<Model>,
-    memory: Mutex<Memory>,
+    memory: Memory,
     workers: LlmEventService,
 }
 
@@ -64,7 +65,7 @@ pub async fn run() {
             config: Mutex::new(app_config),
             undotree: Mutex::new(undo_tree),
             model: Mutex::new(model),
-            memory: Mutex::new(memory_instance),
+            memory: memory_instance,
             workers: LlmEventService::new(app_handle),
         };
         app.manage(app_state);
@@ -158,12 +159,11 @@ pub async fn run() {
             commands::create_document_context,
             commands::update_text_chunk,
             commands::get_document_context,
-            commands::search_documents,
-            commands::get_chat_sessions,
+            commands::reindex_notes,
+            commands::get_index_status,
             commands::get_config,
             commands::set_default_llm_model,
             commands::set_system_prompt,
-            commands::clear_chat_session,
             commands::goto_file_version,
             commands::undo_file,
             commands::redo_file,
@@ -175,6 +175,12 @@ pub async fn run() {
             commands::git_set_repo,
             commands::set_auto_push_on_exit,
             commands::set_ai_enabled,
+            commands::set_ai_provider,
+            commands::set_openrouter_model,
+            commands::set_openrouter_api_key,
+            commands::has_openrouter_api_key,
+            commands::clear_openrouter_api_key,
+            commands::get_openrouter_models,
             commands::git_pull,
             commands::git_commit_and_push,
         ])

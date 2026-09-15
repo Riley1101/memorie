@@ -10,13 +10,23 @@ class ConfigManager {
    *   system_prompt?: string | null,
    *   github_repo?: string | null,
    *   auto_push_on_exit?: boolean,
-   *   ai_enabled?: boolean
+   *   ai_enabled?: boolean,
+   *   provider?: 'local' | 'openrouter',
+   *   openrouter_model?: string | null
    * } | null}
    */
   config = $state(null);
 
   isLoading = $state(false);
   error = $state(null);
+
+  /** @type boolean - whether an OpenRouter API key is currently stored in the OS keyring **/
+  hasOpenRouterApiKey = $state(false);
+
+  /** @type {Array<{id: string, name: string}>} - models available on OpenRouter **/
+  openRouterModels = $state([]);
+
+  isLoadingOpenRouterModels = $state(false);
 
   async getConfig() {
     this.isLoading = true;
@@ -72,6 +82,74 @@ class ConfigManager {
     } catch (err) {
       console.error('Failed to set AI enabled:', err);
       this.error = err;
+    }
+  }
+
+  /** Switch which backend serves chat/autocomplete/grammar. RAG search stays local always. */
+  async setAiProvider(provider) {
+    try {
+      await invoke('set_ai_provider', { provider });
+      await this.getConfig();
+    } catch (err) {
+      console.error('Failed to set AI provider:', err);
+      this.error = err;
+    }
+  }
+
+  /** Set the OpenRouter model id to use (e.g. 'anthropic/claude-sonnet-4'). */
+  async setOpenRouterModel(modelId) {
+    try {
+      await invoke('set_openrouter_model', { modelId });
+      await this.getConfig();
+    } catch (err) {
+      console.error('Failed to set OpenRouter model:', err);
+      this.error = err;
+    }
+  }
+
+  /** Store the OpenRouter API key in the OS keyring. */
+  async setOpenRouterApiKey(key) {
+    try {
+      await invoke('set_openrouter_api_key', { key });
+      this.hasOpenRouterApiKey = true;
+    } catch (err) {
+      console.error('Failed to save OpenRouter API key:', err);
+      this.error = err;
+      throw err;
+    }
+  }
+
+  /** Remove the stored OpenRouter API key. */
+  async clearOpenRouterApiKey() {
+    try {
+      await invoke('clear_openrouter_api_key');
+      this.hasOpenRouterApiKey = false;
+      this.openRouterModels = [];
+    } catch (err) {
+      console.error('Failed to clear OpenRouter API key:', err);
+      this.error = err;
+    }
+  }
+
+  /** Refreshes whether an OpenRouter API key is currently stored. */
+  async checkOpenRouterApiKey() {
+    try {
+      this.hasOpenRouterApiKey = await invoke('has_openrouter_api_key');
+    } catch (err) {
+      console.error('Failed to check OpenRouter API key:', err);
+    }
+  }
+
+  /** Fetches the list of models available on OpenRouter (requires an API key to be set). */
+  async fetchOpenRouterModels() {
+    this.isLoadingOpenRouterModels = true;
+    try {
+      this.openRouterModels = await invoke('get_openrouter_models');
+    } catch (err) {
+      console.error('Failed to fetch OpenRouter models:', err);
+      this.error = err;
+    } finally {
+      this.isLoadingOpenRouterModels = false;
     }
   }
 }

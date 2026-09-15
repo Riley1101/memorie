@@ -11,6 +11,7 @@
   import { fileManager } from '$lib/runes/fs.svelte';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
+  import { memoryManager } from '@/runes/memory.svelte.js';
   import { onDestroy, onMount } from 'svelte';
   import { isMod, isMac } from '$lib/keyboard.svelte.js';
   import { Toaster } from 'svelte-sonner';
@@ -71,6 +72,12 @@
     configManager.getConfig().then(() => {
       if (configManager.config?.ai_enabled) {
         llmManager.setupModels();
+        // Picks up notes changed outside the app and prunes deleted ones; unchanged
+        // paragraphs are skipped, so this stays quick after the first run.
+        memoryManager.setup().then(() => memoryManager.reindexNotes());
+        if (configManager.config?.provider === 'openrouter') {
+          configManager.checkOpenRouterApiKey();
+        }
       }
     });
 

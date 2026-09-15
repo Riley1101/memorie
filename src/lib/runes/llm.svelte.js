@@ -20,9 +20,10 @@ const LLM_EVENTS = {
   EDIT_ACTION_IN_PROGRESS: 'chat-edit-action-in-progress',
   EDIT_ACTION_COMPLETED: 'chat-edit-action-completed',
 
-  RAG_CHAT_INIT: 'rag-chat-init',
-  RAG_CHAT_IN_PROGRESS: 'rag-chat-in-progress',
-  RAG_CHAT_COMPLETED: 'rag-chat-completed',
+  /** How the backend chose to answer: `{ intent, query, documentTitle }`. */
+  ROUTE: 'chat-route',
+  /** Source notes for a reply that searched notes: `{ results: [{ title, score }] }`. */
+  SOURCES: 'chat-sources',
 };
 
 const LLM_INVOKE = {
@@ -30,19 +31,40 @@ const LLM_INVOKE = {
   CANCEL_CHAT: 'cancel_chat',
 };
 
+const CANCELLED_SUFFIX = '\n\nCancelled by user.';
+
+/** Prior messages sent with each request; the backend trims them further. */
+const HISTORY_MESSAGES = 6;
+
 /**
  * @typedef {'user' | 'assistant'} MessageRole
+ */
+
+/**
+ * @typedef {object} MessageRoute
+ * @property {'search_notes' | 'current_document' | 'general'} intent
+ * @property {string} query - What was searched for, when intent is `search_notes`.
+ * @property {string | null} documentTitle - The open document, if any.
  */
 
 /**
  * @typedef {object} Message
  * @property {MessageRole} role - The role of the message sender.
  * @property {string} content - The text content of the message.
- * @property {any[]} [references] - Optional array of referenced articles.
+ * @property {MessageRoute} [route] - How the assistant decided to answer.
+ * @property {{ title: string, score: number }[]} [references] - Notes a search drew on.
+ */
+
+/**
+ * @typedef {{ title: string, content: string }} OpenDocument
  */
 
 /**
  * Manages the state and communication for an LLM chat interface in a Tauri app.
+ *
+ * There is a single chat surface: every message goes through `sendMessage`, and the
+ * backend decides whether it's a notes search, a question about the open document, or
+ * plain chat, and answers accordingly.
  */
 export class LlmManager {
   /** @type string | null - unique worker ID **/
@@ -68,12 +90,6 @@ export class LlmManager {
 
   /** @type boolean - indicates if load_models command is running **/
   isLoadModelsInProgress = $state(false);
-
-  /** @type boolean - loading state **/
-  isRAGLoading = $state(false);
-
-  /** @type Message[] - array of RAG Response messages **/
-  ragMessages = $state([]);
 
   /** @type Message[] - array of messages **/
   messages = $state([]);
@@ -103,17 +119,16 @@ export class LlmManager {
   _downloadSuccessClearTimeout = null;
 
   /**
-   * Sets up Tauri event listeners to receive streaming data from the Rust backend.
+   * Checks local models and, the first time it's called, subscribes to the backend's
+   * streaming events. Safe to call again (e.g. when switching providers): listeners are
+   * only registered once, so tokens aren't appended twice.
    */
   async setupModels() {
     this.modelsLoaded = false;
 
-    this.unlisteners.push(
-      await listen('model-progress', (event) => {
-        this.loadingStatus = event.payload.status;
-        this.loadingProgress = event.payload.progress;
-      })
-    );
+    if (this.unlisteners.length === 0) {
+      await this._registerListeners();
+    }
 
     // Initial check of what we have on disk
     await this.checkModels();
@@ -123,21 +138,26 @@ export class LlmManager {
     if (anyDownloaded) {
       this.loadModels();
     }
+  }
+
+  /** @returns {Message | undefined} the in-flight assistant reply, if the last message is one */
+  _lastAssistantMessage() {
+    const lastMessage = this.messages[this.messages.length - 1];
+    return lastMessage?.role === 'assistant' ? lastMessage : undefined;
+  }
+
+  async _registerListeners() {
+    this.unlisteners.push(
+      await listen('model-progress', (event) => {
+        this.loadingStatus = event.payload.status;
+        this.loadingProgress = event.payload.progress;
+      })
+    );
 
     this.unlisteners.push(
       await listen(LLM_EVENTS.CHAT_INIT, (response) => {
         if (response.event === 'chat-in-progress') {
           this.isLoading = true;
-        }
-      })
-    );
-
-    this.unlisteners.push(
-      await listen(LLM_EVENTS.RAG_CHAT_INIT, (response) => {
-        if (response.event === 'rag-chat-in-progress') {
-          this.isRAGLoading = true;
-          this.ragMessages.push({ role: 'user', content: response.payload.message });
-          this.ragMessages.push({ role: 'assistant', content: '' });
         }
       })
     );
@@ -153,36 +173,36 @@ export class LlmManager {
 
     this.unlisteners.push(
       await listen(LLM_EVENTS.AUTOCOMPOLETE, (event) => {
-        const chunk = /** @type {string} */ (event.payload.response);
-        if (this.messages.length > 0) {
-          const lastMessage = this.messages[this.messages.length - 1];
-          if (lastMessage.role === 'assistant') {
-            lastMessage.content += chunk;
-          }
+        const lastMessage = this._lastAssistantMessage();
+        if (lastMessage) {
+          lastMessage.content += /** @type {string} */ (event.payload.response);
         }
       })
     );
 
     this.unlisteners.push(
-      await listen(LLM_EVENTS.RAG_CHAT_IN_PROGRESS, (event) => {
-        const chunk = /** @type {string} */ (event.payload.content);
-        if (this.ragMessages.length > 0) {
-          const lastMessage = this.ragMessages[this.ragMessages.length - 1];
-          if (lastMessage.role === 'assistant') {
-            lastMessage.content += chunk;
-          }
+      await listen(LLM_EVENTS.ROUTE, (event) => {
+        const lastMessage = this._lastAssistantMessage();
+        if (lastMessage) {
+          lastMessage.route = event.payload;
+        }
+      })
+    );
+
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.SOURCES, (event) => {
+        const lastMessage = this._lastAssistantMessage();
+        if (lastMessage) {
+          lastMessage.references = event.payload.results;
         }
       })
     );
 
     this.unlisteners.push(
       await listen(LLM_EVENTS.CHAT_IN_PROGRESS, (event) => {
-        const chunk = /** @type {string} */ (event.payload.content);
-        if (this.messages.length > 0) {
-          const lastMessage = this.messages[this.messages.length - 1];
-          if (lastMessage.role === 'assistant') {
-            lastMessage.content += chunk;
-          }
+        const lastMessage = this._lastAssistantMessage();
+        if (lastMessage) {
+          lastMessage.content += /** @type {string} */ (event.payload.content);
         }
       })
     );
@@ -212,15 +232,6 @@ export class LlmManager {
       })
     );
 
-    // Listener for when the RAG chat is complete
-    this.unlisteners.push(
-      await listen(LLM_EVENTS.RAG_CHAT_COMPLETED, (response) => {
-        if (response.event === 'rag-chat-completed') {
-          this.isRAGLoading = false;
-        }
-      })
-    );
-
     // Listener for errors
     this.unlisteners.push(
       await listen(LLM_EVENTS.Error, (response) => {
@@ -228,11 +239,21 @@ export class LlmManager {
         this.error = `An error occurred: ${response.payload.message}`;
         this.isLoading = false;
         this.editActionInProgress = false;
-        this.isRAGLoading = false;
+        this.workerId = null;
+
+        // Clear any dangling "Thinking..." bubble left by the failed request so the UI
+        // doesn't get stuck showing an infinite spinner.
+        const lastMessage = this._lastAssistantMessage();
+        if (lastMessage && lastMessage.content === '') {
+          this.messages.pop();
+        }
+        if (this.editActionContent === '') {
+          this.editActionContent = null;
+        }
+
         toast.error('AI request failed', response.payload.message);
       })
     );
-
   }
 
   /**
@@ -259,12 +280,9 @@ export class LlmManager {
   }
 
   /**
-   * Downloads a model by id. Shows progress via model-progress events.
-   * @param {string} modelId - e.g. 'qwen_2_5_1_5b_instruct'
-   */
-  /**
    * Starts a model download in the background. Progress is shown in the command bar.
    * On success, shows an alert in the command bar and refreshes model lists.
+   * @param {string} modelId - e.g. 'qwen_2_5_1_5b_instruct'
    */
   async downloadModel(modelId) {
     if (this.downloadingModelId) return;
@@ -300,7 +318,7 @@ export class LlmManager {
 
   async loadModels() {
     if (this.isLoadModelsInProgress) return;
-    
+
     this.isLoadModelsInProgress = true;
     this.modelsLoaded = false;
 
@@ -320,16 +338,23 @@ export class LlmManager {
   }
 
   /**
-   * Sends a user's prompt to the Rust backend to start the LLM stream.
+   * Sends a message along with the last few turns and the open document. The backend
+   * decides whether to search notes, answer from the document, or just chat.
+   * Prefix with `/search`, `/doc` or `/chat` to choose explicitly.
    * @param {string} prompt The user's message.
-   * @param {string} [mode] The mode of the chat (default is "Normal").
-   * @param {string} [additionalContext] Optional context to prepend to the message.
+   * @param {OpenDocument | null} [document] The open document, if any.
    * @returns {Promise<void>}
    */
-  async sendMessage(prompt, mode = 'Normal', additionalContext = '') {
+  async sendMessage(prompt, document = null) {
     if (this.isLoading || !prompt.trim()) {
       return;
     }
+
+    const history = this.messages
+      .filter((m) => m.content.trim() && !m.content.endsWith(CANCELLED_SUFFIX))
+      .slice(-HISTORY_MESSAGES)
+      .map(({ role, content }) => ({ role, content }));
+
     this.isLoading = true;
     this.error = null;
 
@@ -337,21 +362,21 @@ export class LlmManager {
     this.messages.push({ role: 'assistant', content: '' });
 
     try {
-      let messageToSend = prompt;
-      if (additionalContext) {
-        messageToSend = `<context>\n${additionalContext}\n</context>\n\n<question>\n${prompt}\n</question>`;
-      }
-
       /** @type {string} processId */
       this.workerId = await invoke(LLM_INVOKE.CHAT, {
-        message: messageToSend,
-        mode,
+        message: prompt,
+        mode: 'Normal',
+        context: {
+          history,
+          documentTitle: document?.title ?? null,
+          documentContent: document?.content ?? null,
+        },
       });
     } catch (e) {
       console.error(e);
       this.error = `An error occurred: ${e}`;
       this.isLoading = false;
-      this.messages.pop();
+      this.messages.splice(-2, 2);
       toast.error('Could not send message', e);
     }
   }
@@ -359,11 +384,12 @@ export class LlmManager {
   /**
    * Regenerates the assistant reply for the exchange ending at `assistantIndex`
    * by re-sending the user prompt just before it. Only the latest exchange can
-   * be retried, since the backend session is linear.
+   * be retried.
    * @param {number} assistantIndex
+   * @param {OpenDocument | null} [document]
    * @returns {Promise<void>}
    */
-  async retryMessage(assistantIndex) {
+  async retryMessage(assistantIndex, document = null) {
     if (this.isLoading) return;
     const isLast = assistantIndex === this.messages.length - 1;
     const user = this.messages[assistantIndex - 1];
@@ -371,7 +397,7 @@ export class LlmManager {
 
     const prompt = user.content;
     this.messages.splice(assistantIndex - 1, 2);
-    await this.sendMessage(prompt);
+    await this.sendMessage(prompt, document);
   }
 
   /**
@@ -402,42 +428,6 @@ export class LlmManager {
   }
 
   /**
-   * Sends a RAG (Retrieval-Augmented Generation) message to the Rust backend.
-   * @param {string} prompt The user's message.
-   */
-  async sendRagMessage(prompt) {
-    if (this.isRAGLoading || !prompt.trim()) {
-      return;
-    }
-    this.isRAGLoading = true;
-    this.error = null;
-    this.ragMessages.push({ role: 'user', content: prompt });
-    this.ragMessages.push({ role: 'assistant', content: '' });
-
-    try {
-      /** @type {any} response */
-      const response = await invoke('search_documents', {
-        query: prompt,
-      });
-
-      const lastMessage = this.ragMessages[this.ragMessages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        lastMessage.references = response.data.results;
-      }
-
-      this.workerId = response.data.job_id;
-
-      return response;
-    } catch (e) {
-      console.error(e);
-      this.error = `An error occurred: ${e}`;
-      this.isRAGLoading = false;
-      this.ragMessages.pop();
-      this.ragMessages.pop(); // Also remove user message on error
-    }
-  }
-
-  /**
    * Cancels the ongoing LLM message generation.
    * @returns {Promise<void>}
    */
@@ -447,36 +437,28 @@ export class LlmManager {
       if (status) {
         this.isLoading = false;
         this.editActionInProgress = false;
-        this.isRAGLoading = false;
         this.workerId = null;
-        
-        if (this.messages.length > 0 && this.messages[this.messages.length - 1].role === 'assistant') {
-          this.messages[this.messages.length - 1].content += '\n\nCancelled by user.';
+
+        const lastMessage = this._lastAssistantMessage();
+        if (lastMessage) {
+          lastMessage.content += CANCELLED_SUFFIX;
         }
-        
+
         if (this.editActionContent !== null) {
-          this.editActionContent += '\n\nCancelled by user.';
+          this.editActionContent += CANCELLED_SUFFIX;
           this.newEditActionSession();
         }
       }
     }
   }
 
-  newRagSession() {
-    this.ragMessages = [];
-  }
-
   /**
    * @public
-   *  Clear message array and start a new chart
+   * Starts a new conversation. History lives only in `messages`, so clearing it is enough.
    */
-  async newSession() {
+  newSession() {
     this.messages = [];
-    try {
-      await invoke('clear_chat_session');
-    } catch (e) {
-      console.error('Failed to clear chat session:', e);
-    }
+    this.error = null;
   }
 
   /**

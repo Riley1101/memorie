@@ -2,49 +2,31 @@
   import {
     PromptInput,
     PromptInputBody,
+    PromptInputButton,
     PromptInputSubmit,
     PromptInputTextarea,
     PromptInputToolbar,
     PromptInputTools,
-    PromptInputAttachments,
-    PromptInputAttachment,
-    PromptInputActionMenu,
-    PromptInputActionMenuTrigger,
-    PromptInputActionMenuContent,
-    PromptInputActionAddAttachments,
   } from '$lib/components/ai-elements/prompt-input/index.js';
-  import PlusIcon from '@lucide/svelte/icons/plus';
+  import SquarePenIcon from '@lucide/svelte/icons/square-pen';
+  import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
-  import { Toggle } from '$lib/components/ui/toggle/index.js';
-  import FileText from '@lucide/svelte/icons/file-text';
-  import { Tooltip, TooltipTrigger, TooltipContent } from '$lib/components/ui/tooltip/index.js';
-
-  /** @type {{type ?: "chat" | "rag"}} */
-  let { type = 'chat' } = $props();
 
   let text = $state('');
-  let includeContext = $state(false);
 
   /**
-   * Handles the submission from the PromptInput component.
+   * Handles the submission from the PromptInput component. The open document always
+   * goes along as optional context; the backend decides whether the message needs it,
+   * needs a notes search instead, or neither.
    * @param {{ text: string, files: File[] }} message
    */
   async function handleSubmit(message) {
     const rawText = message.text?.trim();
-    const attachments = message.files;
-    if (!rawText && (!attachments || attachments.length === 0)) return;
-
-    let finalPrompt = rawText || '';
+    if (!rawText) return;
 
     text = '';
-    if (type === 'rag') {
-      await llmManager.sendRagMessage(finalPrompt);
-      return;
-    }
-
-    const additionalContext = includeContext ? memoryManager.context.content : '';
-    await llmManager.sendMessage(finalPrompt, 'Normal', additionalContext);
+    await llmManager.sendMessage(rawText, memoryManager.document);
   }
 
   function handleStop() {
@@ -52,10 +34,6 @@
   }
 
   function handleNewSession() {
-    if (type === 'rag') {
-      llmManager.newRagSession();
-      return;
-    }
     llmManager.newSession();
   }
 </script>
@@ -65,18 +43,11 @@
     onSubmit={handleSubmit}
     onStop={handleStop}
     class="relative w-full"
-    globalDrop
-    multiple
+    allowAttachments={false}
   >
     <PromptInputBody>
-      <PromptInputAttachments>
-        {#snippet children(attachment)}
-          <PromptInputAttachment data={attachment} />
-        {/snippet}
-      </PromptInputAttachments>
-
       <PromptInputTextarea
-        placeholder="Ask, Search or Chat..."
+        placeholder={memoryManager.document ? 'Ask about this document or search your notes…' : 'Search your notes or ask anything…'}
         bind:value={text}
         onchange={(e) => (text = e.target.value)}
  />
@@ -84,39 +55,26 @@
 
     <PromptInputToolbar>
       <PromptInputTools>
-        <PromptInputActionMenu>
-          <PromptInputActionMenuTrigger />
-          <PromptInputActionMenuContent>
-            <PromptInputActionAddAttachments />
-            <button
-              class="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50"
-              onclick={handleNewSession}
-            >
-              <PlusIcon strokeWidth={1.5} class="size-3.5" />
-              <span>New Session</span>
-            </button>
-          </PromptInputActionMenuContent>
-        </PromptInputActionMenu>
-
-        <Tooltip class="" arrowClasses="" portalProps={{}}>
-          <TooltipTrigger class="">
-            <Toggle
-              size="sm"
-              class="size-8 p-0 rounded-lg data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-              bind:pressed={includeContext}
-              aria-label="Include current writing as context"
-            >
-              <FileText class="size-3.5" />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipContent class="">Include Current Writing Context</TooltipContent>
-        </Tooltip>
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <PromptInputButton
+                {...props}
+                class="size-8 hover:text-foreground"
+                aria-label="New chat"
+                onclick={handleNewSession}
+                disabled={llmManager.isLoading || llmManager.messages.length === 0}
+              >
+                <SquarePenIcon strokeWidth={1.5} class="size-3.5" />
+              </PromptInputButton>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="top" portalProps={{}}>New chat</Tooltip.Content>
+        </Tooltip.Root>
       </PromptInputTools>
 
       <PromptInputSubmit
-        status={(type === 'rag' ? llmManager.isRAGLoading : llmManager.isLoading)
-          ? 'streaming'
-          : 'ready'}
+        status={llmManager.isLoading ? 'streaming' : 'ready'}
         onclick={handleStop}
  />
     </PromptInputToolbar>

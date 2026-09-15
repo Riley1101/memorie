@@ -1,7 +1,5 @@
 use kalosm::language::{Parse, Schema};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use crate::memory::SearchResult;
 
 #[derive(Serialize, Deserialize)]
 pub struct Response<T> {
@@ -33,15 +31,15 @@ impl<T> Response<T> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct SearchResponse {
-    pub results: Vec<SearchResult>,
-    pub job_id: Uuid,
-}
-
 #[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]
 pub struct AutoCompleteResponse {
     suggestion: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]
+pub struct IntentResponse {
+    pub intent: String,
+    pub query: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Parse, Schema)]

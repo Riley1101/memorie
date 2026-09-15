@@ -1,8 +1,8 @@
 use super::error::{FileError, LlamaError};
 use serde::{Deserialize, Serialize};
-use super::prompts::{GRAMMAR_CHECK_PROMPT, NORMAL_CHAT_PROMPT, TEXT_COMPLETION};
+use super::prompts::{GRAMMAR_CHECK_PROMPT, INTENT_CLASSIFICATION_PROMPT, NORMAL_CHAT_PROMPT, TEXT_COMPLETION};
 use super::responses::{AutoCompleteResponse, ModelLoadingResponse, Response};
-use crate::responses::GrammarCheckResponse;
+use crate::responses::{GrammarCheckResponse, IntentResponse};
 use crate::utils;
 use kalosm::language::*;
 use kalosm_common::Cache;
@@ -275,13 +275,27 @@ pub struct Model {
 
 impl Model {
     pub fn new(default_model: PathBuf) -> Self {
+        let base_path = utils::get_app_dir().unwrap();
+
+        // Chat used to persist a Kalosm session per model here; replies are now built from
+        // history the frontend sends, so leftover session files are just dead weight.
+        if let Ok(entries) = std::fs::read_dir(&base_path) {
+            for entry in entries.flatten() {
+                let file_name = entry.file_name();
+                let file_name = file_name.to_string_lossy();
+                if file_name.starts_with("chat") && file_name.ends_with(".llama") {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+
         Model {
             name: default_model,
             chat_model: None,
             loaded_chat_model_id: None,
             auto_complete_model: None,
             loaded_autocomplete_model_id: None,
-            base_path: utils::get_app_dir().unwrap(),
+            base_path,
         }
     }
 
@@ -488,12 +502,9 @@ impl Model {
         Ok(task)
     }
 
-    /// Load or create a chat session with the model
-    /// First tries to load a previous session from cache
-    /// If no previous session is found, creates a new chat session with a default system prompt
-    ///
-    /// # Returns
-    /// A Result containing the Chat instance or a LlamaError
+    /// Creates a fresh chat with the given system prompt (or the default one when empty).
+    /// Every reply starts from a clean session; conversation history is supplied by the
+    /// caller in the message itself.
     pub async fn run_chat(
         &mut self,
         model_id: &str,
@@ -506,30 +517,40 @@ impl Model {
             sys_prompt.to_string()
         };
 
-        let session_cache_path = self.base_path.clone().join(format!("chat-{model_id}.llama"));
-
         let model = self.get_model(model_id, ModelType::Chat, handle).await?;
-        let mut chat = model.chat().with_system_prompt(prompt);
-
-        if let Some(old_session) = std::fs::read(&session_cache_path)
-            .ok()
-            .and_then(|bytes| LlamaChatSession::from_bytes(&bytes).ok())
-        {
-            chat = chat.with_session(old_session);
-        }
-
-        Ok(chat)
+        Ok(model.chat().with_system_prompt(prompt))
     }
 
-    /// Save the current chat session to disk so it can be resumed later.
-    pub fn save_chat_session(&self, model_id: &str, chat: &mut Chat<Llama>) -> Result<(), LlamaError> {
-        let session_cache_path = self.base_path.clone().join(format!("chat-{model_id}.llama"));
-        if let Ok(session) = chat.session() {
-            if let Ok(bytes) = session.to_bytes() {
-                let _ = std::fs::write(&session_cache_path, bytes);
-            }
-        }
-        Ok(())
+    /// Classifies a user message as wanting to search across notes, ask about the
+    /// currently open document, or just chat generally. Used to route a single chat
+    /// input to the right answering strategy without a separate mode toggle.
+    pub async fn classify_intent(
+        &mut self,
+        model_id: &str,
+        handle: tauri::AppHandle,
+    ) -> Result<Task<Llama, ArcParser<IntentResponse>>, LlamaError> {
+        let model = self.get_model(model_id, ModelType::Chat, handle).await?;
+
+        let task = model
+            .task(INTENT_CLASSIFICATION_PROMPT.to_string())
+            .with_example(
+                "Open document: none\nRecent conversation:\nnone\nLatest message: Where did I write about the dragon's backstory?",
+                "{ \"intent\": \"search_notes\", \"query\": \"dragon backstory\" }",
+            )
+            .with_example(
+                "Open document: \"Novel › Chapter 3\"\nRecent conversation:\nnone\nLatest message: Can you tighten the opening paragraph?",
+                "{ \"intent\": \"current_document\", \"query\": \"\" }",
+            )
+            .with_example(
+                "Open document: \"Novel › Chapter 3\"\nRecent conversation:\nUser: What did I decide about Mara's sister?\nAssistant: In \"Characters\" you wrote that she left the city before the war.\nLatest message: and where does she end up?",
+                "{ \"intent\": \"search_notes\", \"query\": \"where Mara's sister ends up\" }",
+            )
+            .with_example(
+                "Open document: none\nRecent conversation:\nnone\nLatest message: what's a synonym for brave?",
+                "{ \"intent\": \"general\", \"query\": \"\" }",
+            )
+            .typed::<IntentResponse>();
+        Ok(task)
     }
 
     /// Load or create a grammar check session with the models

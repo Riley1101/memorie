@@ -72,6 +72,10 @@
    */
 
   let aiEnabled = $derived(configManager.config?.ai_enabled ?? false);
+  let aiProvider = $derived(configManager.config?.provider ?? 'local');
+  let aiReady = $derived(
+    aiProvider === 'openrouter' ? configManager.hasOpenRouterApiKey : llmManager.modelsLoaded
+  );
   let defaultFontSize = $derived(DENSITY_FONT_SIZE[appState.ui.density]);
   let zoomPercent = $derived(Math.round((appState.ui.fontSize / defaultFontSize) * 100));
 
@@ -611,6 +615,15 @@
                 {...props}
                 onclick={() => {
                   if (llmManager.isLoadModelsInProgress || llmManager.downloadingModelId) return;
+                  if (aiProvider === 'openrouter') {
+                    if (!aiReady) {
+                      goto(resolve('/settings'));
+                      toast.info('Add your OpenRouter API key', 'Settings → AI → OpenRouter');
+                    } else {
+                      appState.toggleAiChat(!appState.ui.isChatOpen);
+                    }
+                    return;
+                  }
                   if (!llmManager.modelsLoaded) {
                     const isDownloaded = llmManager.modelStatuses.some((m) => m.downloaded);
                     if (isDownloaded) {
@@ -628,14 +641,20 @@
                   class={cn(
                     'size-3.5 transition-colors',
                     isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
-                    !llmManager.modelsLoaded ? 'text-warning' : ''
+                    !aiReady ? 'text-warning' : ''
                   )}
  />
               </button>
             {/snippet}
           </Tooltip.Trigger>
           <Tooltip.Content side="top" portalProps={{}}>
-            {#if llmManager.isLoadModelsInProgress}
+            {#if aiProvider === 'openrouter'}
+              {#if !aiReady}
+                Click to add your OpenRouter API key
+              {:else}
+                AI chat (OpenRouter) · {MOD_KEY}L
+              {/if}
+            {:else if llmManager.isLoadModelsInProgress}
               Loading AI model… {llmManager.loadingProgress}%
             {:else if llmManager.downloadingModelId}
               Downloading model… {llmManager.loadingProgress}%

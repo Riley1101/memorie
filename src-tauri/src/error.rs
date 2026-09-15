@@ -91,6 +91,21 @@ pub enum ChatError {
 }
 
 #[derive(Error, Debug)]
+pub enum ProviderError {
+    #[error("Network error: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("Keychain error: {0}")]
+    Keyring(#[from] keyring::Error),
+
+    #[error("No OpenRouter API key configured")]
+    MissingApiKey,
+
+    #[error("OpenRouter API error: {0}")]
+    Api(String),
+}
+
+#[derive(Error, Debug)]
 pub enum GitError {
     #[error("Git error: {0}")]
     Git(#[from] git2::Error),

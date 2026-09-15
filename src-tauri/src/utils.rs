@@ -14,6 +14,25 @@ pub fn get_app_dir() -> Result<PathBuf, FileError> {
     Ok(app_dir)
 }
 
+/// One earlier message in the chat. The frontend sends the last few with every request,
+/// so each reply is built from a short, clean history rather than a persisted model
+/// session that would also accumulate every injected note excerpt and document.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChatTurn {
+    pub role: String,
+    pub content: String,
+}
+
+/// Everything the frontend knows about the conversation besides the message itself.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatContext {
+    #[serde(default)]
+    pub history: Vec<ChatTurn>,
+    pub document_title: Option<String>,
+    pub document_content: Option<String>,
+}
+
 /// Modes for chat interactions.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum ChatMode {
@@ -21,7 +40,6 @@ pub enum ChatMode {
     Autocomplete,
     Grammar,
     EditAction,
-    RagChat,
 }
 
 /// Convert ChatMode to its string representation.
@@ -32,7 +50,6 @@ impl ChatMode {
             ChatMode::Autocomplete => "Autocomplete",
             ChatMode::Grammar => "Grammar",
             ChatMode::EditAction => "EditAction",
-            ChatMode::RagChat => "RagChat",
         }
     }
 }
