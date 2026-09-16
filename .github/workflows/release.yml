@@ -74,6 +74,13 @@ jobs:
           # This variable fixes the EGL_BAD_ALLOC crash on many Linux distros
           WEBKIT_DISABLE_COMPOSITING_MODE: 1
         with:
+          # On Linux, route the build through a wrapper that strips
+          # Wayland/xkbcommon/xcb libs the AppImage bundler pulls in from this
+          # Ubuntu 22.04 runner. Those bundled libs shadow the host's own and
+          # crash newer Mesa builds on Wayland (EGL_BAD_PARAMETER) on distros
+          # like Arch, Fedora, NixOS and openSUSE. See tauri-apps/tauri#15976
+          # and .github/scripts/strip-appimage-egl-libs.sh.
+          tauriScript: ${{ matrix.platform == 'ubuntu-22.04' && 'bash ./.github/scripts/tauri-build.sh' || '' }}
           tagName: ${{ github.event.inputs.version || 'app-v__VERSION__' }}
           releaseName: "App ${{ github.event.inputs.version || 'v__VERSION__' }}"
           releaseBody: 'See the assets to download this version and install.'
