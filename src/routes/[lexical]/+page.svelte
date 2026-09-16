@@ -7,6 +7,10 @@
   import MarkdownEditor from '$lib/components/md-editor.svelte';
   import EditorCommandbar from '$lib/components/editor-commandbar.svelte';
   import EditorHistory from '$lib/components/editor-history.svelte';
+  import EditorOutline from '$lib/components/editor-outline.svelte';
+  import EditorBacklinks from '$lib/components/editor-backlinks.svelte';
+  import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
+  import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte';
@@ -182,6 +186,16 @@
       <span class="{saveTone} tracking-wide shrink-0 transition-colors" aria-live="polite">
         {saveLabel}
       </span>
+      <button
+        onclick={() => appState.toggleOutline()}
+        aria-label={appState.ui.isOutlineOpen ? 'Hide table of contents' : 'Show table of contents'}
+        aria-pressed={appState.ui.isOutlineOpen}
+        title="Table of contents ({MOD_KEY}⇧O)"
+        class="flex items-center justify-center size-7 ml-1.5 -mr-1.5 rounded-md transition-colors hover:text-foreground hover:bg-foreground/5
+          {appState.ui.isOutlineOpen ? 'text-foreground' : 'text-muted-foreground'}"
+      >
+        <TableOfContentsIcon strokeWidth={1.5} class="size-3.5" />
+      </button>
     </header>
 
     <main class="h-full flex-1 overflow-hidden">
@@ -198,4 +212,26 @@
       <EditorCommandbar {fileName} {isDraft} currentVersion={history?.current || 0} />
     </footer>
   </div>
+
+  <aside
+    class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md shrink-0
+    {appState.ui.isOutlineOpen ? 'w-60 border-l border-border/40' : 'w-0'} overflow-hidden"
+  >
+    {#if appState.ui.isOutlineOpen}
+      <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
+        <ScrollFade class="flex-1 h-full">
+          <ScrollArea class="h-full" type="scroll">
+            <h2 class="px-4 py-3 font-semibold text-sm">Contents</h2>
+            <EditorOutline />
+            {#if !isDraft}
+              <h2 class="px-4 pt-4 pb-3 font-semibold text-sm border-t border-border/40">
+                Referenced by
+              </h2>
+              <EditorBacklinks {fileName} />
+            {/if}
+          </ScrollArea>
+        </ScrollFade>
+      </div>
+    {/if}
+  </aside>
 </div>

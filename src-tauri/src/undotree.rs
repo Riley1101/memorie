@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::Path;
 
 // Represents a single state in the history tree.
@@ -54,6 +54,34 @@ impl History {
     }
 }
 
+/// A node without its content, for drawing the history graph.
+#[derive(Clone, Debug, Serialize)]
+pub struct NodeSummary {
+    pub parent: Option<NodeIndex>,
+    pub children: Vec<NodeIndex>,
+}
+
+/// History shape without version contents. The graph never shows content, and
+/// shipping every full version over IPC on each save grows with the history.
+#[derive(Clone, Debug, Serialize)]
+pub struct HistorySummary {
+    pub nodes: Vec<NodeSummary>,
+    pub current: Option<NodeIndex>,
+}
+
+impl From<&History> for HistorySummary {
+    fn from(history: &History) -> Self {
+        Self {
+            nodes: history
+                .nodes
+                .iter()
+                .map(|n| NodeSummary { parent: n.parent, children: n.children.clone() })
+                .collect(),
+            current: history.current,
+        }
+    }
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct UndoTree {
     entries: HashMap<String, History>,
@@ -74,10 +102,17 @@ impl UndoTree {
         Ok(tree)
     }
 
+    /// Written compact (every autosave rewrites the whole tree) and via a temp
+    /// file + rename, so a crash mid-write can't leave truncated history.
     pub fn save(&self, path: &Path) -> io::Result<()> {
-        let data = serde_json::to_string_pretty(self)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        fs::write(path, data)
+        let tmp = path.with_extension("tmp");
+        {
+            let mut writer = io::BufWriter::new(fs::File::create(&tmp)?);
+            serde_json::to_writer(&mut writer, self)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            writer.flush()?;
+        }
+        fs::rename(&tmp, path)
     }
 
     /// Adds a change. If content is identical to current state, it is ignored.
@@ -253,6 +288,33 @@ mod tests {
         assert_eq!(sorted_children.len(), 2);
         assert_eq!(sorted_children[0], NodeIndex(2)); // Branch B (Newer) should be first
         assert_eq!(sorted_children[1], NodeIndex(1)); // Branch A (Older) should be second
+    }
+
+    #[test]
+    fn test_save_load_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("history");
+
+        let mut tree = UndoTree::new();
+        tree.add_change("a.md", "one\n\"quoted\"");
+        tree.add_change("a.md", "two");
+        tree.save(&path).unwrap();
+        tree.add_change("a.md", "three");
+        tree.save(&path).unwrap();
+
+        let loaded = UndoTree::load(&path).unwrap();
+        let history = loaded.get_history("a.md").unwrap();
+        assert_eq!(history.nodes.len(), 3);
+        assert_eq!(history.current, Some(NodeIndex(2)));
+        assert_eq!(history.nodes[0].content, "one\n\"quoted\"");
+        assert!(!path.with_extension("tmp").exists());
+
+        let summary = HistorySummary::from(history);
+        let json = serde_json::to_string(&summary).unwrap();
+        assert_eq!(
+            json,
+            r#"{"nodes":[{"parent":null,"children":[1]},{"parent":0,"children":[2]},{"parent":1,"children":[]}],"current":2}"#
+        );
     }
 
     #[test]

@@ -31,6 +31,12 @@ class EditorState {
 
   /**
    * @public
+   * @type {{ level: number, text: string, pos: number }[]} - Headings of the open document, in order.
+   */
+  headings = $state([]);
+
+  /**
+   * @public
    * @type {import("@milkdown/kit/core").Editor | null} - The Milkdown editor instance.
    */
   editor = $state(null);
@@ -88,6 +94,20 @@ class EditorState {
    */
   setContent(newContent) {
     this.content = newContent;
+  }
+
+  /**
+   * Replaces the headings list, skipping no-op updates so the outline doesn't re-render on every keystroke.
+   * @param next {{ level: number, text: string, pos: number }[]}
+   */
+  setHeadings(next) {
+    const same =
+      next.length === this.headings.length &&
+      next.every((h, i) => {
+        const cur = this.headings[i];
+        return cur.level === h.level && cur.text === h.text && cur.pos === h.pos;
+      });
+    if (!same) this.headings = next;
   }
 
   /**

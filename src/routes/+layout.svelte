@@ -65,6 +65,9 @@
         appState.setFontSize(size);
       }
     }
+    if (localStorage.getItem('outlineOpen') === 'true') {
+      appState.toggleOutline(true);
+    }
     fileManager.getRecents();
     fileManager.getBinders();
     fileManager.getFolders();

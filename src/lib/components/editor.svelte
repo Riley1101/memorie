@@ -19,6 +19,24 @@
   import { getMarkdown } from '@milkdown/kit/utils';
 
   /**
+   * Collects headings with their document positions for the outline.
+   * @param {import('@milkdown/kit/prose/model').Node} doc
+   */
+  function collectHeadings(doc) {
+    /** @type {{ level: number, text: string, pos: number }[]} */
+    const headings = [];
+    doc.descendants((node, pos) => {
+      if (node.type.name === 'heading') {
+        const text = node.textContent.trim();
+        if (text) headings.push({ level: node.attrs.level, text, pos });
+        return false;
+      }
+      return !node.isTextblock;
+    });
+    return headings;
+  }
+
+  /**
    * @type {{
    *   defaultValue?: string,
    *   onSave?: (markdown: string) => Promise<void> | void,
@@ -58,10 +76,10 @@
   }
 
   /**
-   * Trigger the auto-save mechanism with debouncing.
-   * @param markdown {string}
+   * Trigger the auto-save mechanism with debouncing. Markdown is serialized
+   * once when the timer fires, not on every pause in typing.
    */
-  function triggerAutoSave(markdown) {
+  function triggerAutoSave() {
     if (!isReady) return;
 
     editorState.setSaveStatus({ status: 'unsaved' });
@@ -70,7 +88,7 @@
 
     saveTimer = setTimeout(() => {
       saveTimer = null;
-      saveNow(markdown);
+      if (editorInstance) saveNow(editorInstance.action(getMarkdown()));
     }, DEBOUNCE_SAVE_MS);
   }
 
@@ -106,10 +124,11 @@
       let editorBuilder = Editor
         .make()
         .config((ctx) => {
-          ctx.get(listenerCtx).markdownUpdated((ctx, markdown, prevMarkdown) => {
-            if (markdown !== prevMarkdown){
-              triggerAutoSave(markdown)
-            }
+          // `updated` only fires when the doc actually changed; unlike
+          // `markdownUpdated` it doesn't serialize the whole doc each time.
+          ctx.get(listenerCtx).updated((ctx, doc) => {
+            triggerAutoSave();
+            editorState.setHeadings(collectHeadings(doc));
           });
 
           ctx.set(rootCtx, dom)
@@ -135,6 +154,9 @@
             editorInstance = editor;
             editorState.setEditor(editor);
             editorState.flushSave = flushSave;
+            editor.action((ctx) => {
+              editorState.setHeadings(collectHeadings(ctx.get(editorViewCtx).state.doc));
+            });
             isReady = true;
             if (autofocus) {
               editor.action((ctx) => ctx.get(editorViewCtx).focus());
@@ -148,6 +170,7 @@
           isReady = false;
         }
         if (editorState.flushSave === flushSave) editorState.flushSave = null;
+        editorState.setHeadings([]);
       };
     })
   }

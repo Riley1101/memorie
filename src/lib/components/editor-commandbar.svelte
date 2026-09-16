@@ -12,6 +12,7 @@
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
   import SaveIcon from '@lucide/svelte/icons/save';
   import HistoryIcon from '@lucide/svelte/icons/history';
+  import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import UndoIcon from '@lucide/svelte/icons/undo-2';
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import HouseIcon from '@lucide/svelte/icons/house';
@@ -122,6 +123,15 @@
       shortcutLabel: `${MOD_KEY}U`,
       key: 'u',
       icon: HistoryIcon,
+    },
+    {
+      cmd: ':toc',
+      description: 'Toggle table of contents',
+      action: 'toggleOutline',
+      shortcutLabel: `${MOD_KEY}⇧O`,
+      key: 'o',
+      shift: true,
+      icon: TableOfContentsIcon,
     },
     {
       cmd: ':h',
@@ -249,6 +259,9 @@
         break;
       case 'toggleHistory':
         appState.toggleChatHistory();
+        break;
+      case 'toggleOutline':
+        appState.toggleOutline();
         break;
       case 'sidebar':
         goto(resolve('/'));

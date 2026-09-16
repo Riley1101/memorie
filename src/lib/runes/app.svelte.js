@@ -16,6 +16,7 @@ class AppState {
    * @type {{
    *   isChatOpen: boolean,
    *   isHistoryOpen: boolean,
+   *   isOutlineOpen: boolean,
    *   isSidebarOpen: boolean,
    *   isCommandMenuOpen: boolean,
    *   isHelpModalOpen: boolean,
@@ -29,6 +30,8 @@ class AppState {
   ui = $state({
     isChatOpen: false,
     isHistoryOpen: false,
+    /** Table of contents on the right of the writing. Persisted. */
+    isOutlineOpen: false,
     isSidebarOpen: false,
     isCommandMenuOpen: false,
     isHelpModalOpen: false,
@@ -117,6 +120,22 @@ class AppState {
       ...this.ui,
       isHistoryOpen: !this.ui.isHistoryOpen,
     };
+  }
+
+  /**
+   * @public
+   *
+   * Toggles the table of contents panel. Omit `state` to flip it.
+   * @param {boolean} [state]
+   */
+  toggleOutline(state) {
+    this.ui = {
+      ...this.ui,
+      isOutlineOpen: state ?? !this.ui.isOutlineOpen,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('outlineOpen', String(this.ui.isOutlineOpen));
+    }
   }
 
   /**

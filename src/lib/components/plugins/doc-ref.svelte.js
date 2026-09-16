@@ -6,6 +6,7 @@ import { mount, unmount } from 'svelte';
 import DocRefMenu from './DocRefMenu.svelte';
 import { fuzzyScore } from './fuzzy.js';
 import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte.js';
+import { invoke } from '@tauri-apps/api/core';
 
 /**
  * Prefix marking a link's href as an internal doc reference rather than an
@@ -163,3 +164,86 @@ export const docRefMenu = prose((ctx) => {
     },
   });
 });
+
+/**
+ * @typedef {Object} Backlink
+ * @property {string} name - File that references the target.
+ * @property {string} title - Display title of that file.
+ * @property {string} folder - Parent folder, or "" for top-level.
+ * @property {string} snippet - The line holding the first reference, links flattened to their text.
+ */
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Contents of writings, keyed by name and valid while `modified` matches the
+ * file list. Writings without any doc reference store `null` so they're never
+ * read again until they change.
+ * @type {Map<string, { modified: number, content: string | null }>}
+ */
+const contentCache = new Map();
+
+/**
+ * Reads the writings whose cached copy is missing or out of date.
+ * @param {{ name: string, last_modified: number }[]} files
+ */
+async function refreshContentCache(files) {
+  const stale = files.filter((f) => contentCache.get(f.name)?.modified !== f.last_modified);
+  if (stale.length > 0) {
+    /** @type {[string, { Ok?: string, Err?: string } | string][]} */
+    const results = await invoke('read_files', { names: stale.map((f) => f.name) });
+    const modified = new Map(stale.map((f) => [f.name, f.last_modified]));
+    for (const [name, result] of results) {
+      const content = typeof result === 'string' ? result : result?.Ok;
+      if (typeof content !== 'string') continue;
+      contentCache.set(name, {
+        modified: modified.get(name) ?? 0,
+        content: content.includes(DOC_REF_PREFIX) ? content : null,
+      });
+    }
+  }
+  // Drop writings that were deleted or renamed away.
+  if (contentCache.size > files.length) {
+    const live = new Set(files.map((f) => f.name));
+    for (const name of contentCache.keys()) if (!live.has(name)) contentCache.delete(name);
+  }
+}
+
+/**
+ * Finds every writing that links to `target` via a `[[` doc reference.
+ * @param {string} target - Content-relative file name.
+ * @returns {Promise<Backlink[]>}
+ */
+export async function findBacklinks(target) {
+  const others = fileManager.files.filter((f) => f.name !== target);
+  if (others.length === 0) return [];
+  await refreshContentCache(others);
+
+  // Milkdown writes the encoded href, but accept a hand-typed raw path too.
+  const hrefs = [...new Set([encodeURIComponent(target), target])].map(
+    (h) => `${DOC_REF_PREFIX}${h}`
+  );
+  const refRe = new RegExp(`\\]\\((?:${hrefs.map(escapeRegExp).join('|')})\\)`);
+
+  /** @type {Backlink[]} */
+  const backlinks = [];
+  for (const [name, { content }] of contentCache) {
+    if (name === target || content === null) continue;
+    if (!hrefs.some((h) => content.includes(`](${h})`))) continue;
+    const line = content.split('\n').find((l) => refRe.test(l));
+    if (line === undefined) continue;
+    backlinks.push({
+      name,
+      title: stripMd(baseOf(name)),
+      folder: dirOf(name),
+      snippet: line
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replace(/^\s*(#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s*)/, '')
+        .replace(/[*_`~]/g, '')
+        .trim(),
+    });
+  }
+  return backlinks.sort((a, b) => a.title.localeCompare(b.title));
+}

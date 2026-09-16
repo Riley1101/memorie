@@ -8,6 +8,7 @@
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
   import SaveIcon from '@lucide/svelte/icons/save';
   import HistoryIcon from '@lucide/svelte/icons/history';
+  import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import UndoIcon from '@lucide/svelte/icons/undo-2';
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import TypeIcon from '@lucide/svelte/icons/type';
@@ -23,6 +24,7 @@
         : null,
       { key: `${MOD_LABEL} + ⇧ + H`, description: 'Go home', icon: HouseIcon },
       { key: `${MOD_LABEL} + U`, description: 'Toggle history', icon: HistoryIcon },
+      { key: `${MOD_LABEL} + ⇧ + O`, description: 'Toggle table of contents', icon: TableOfContentsIcon },
       { key: `${MOD_LABEL} + S`, description: 'Save writing', icon: SaveIcon },
       { key: `${MOD_LABEL} + Z`, description: 'Undo typing', icon: UndoIcon },
       { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo typing', icon: RedoIcon },

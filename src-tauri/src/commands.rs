@@ -283,9 +283,9 @@ pub async fn delete_folder(relative_path: String, state: State<'_, AppState>) ->
 pub async fn get_file_history(
     name: String,
     state: State<'_, AppState>,
-) -> Result<Option<super::undotree::History>, String> {
+) -> Result<Option<super::undotree::HistorySummary>, String> {
     let undo_tree = state.undotree.lock().await;
-    Ok(undo_tree.get_history(&name).cloned())
+    Ok(undo_tree.get_history(&name).map(Into::into))
 }
 
 #[tauri::command]
