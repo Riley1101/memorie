@@ -162,6 +162,8 @@ fn write_new(path: &Path, content: &str) -> Result<(), String> {
 /// A block of a Word document: a heading (with level) or body Markdown.
 #[derive(Debug, PartialEq)]
 enum DocBlock {
+    /// The document's "Title" style: shown as a heading, never a split point.
+    Title(String),
     Heading(u8, String),
     Body(String),
 }
@@ -179,10 +181,11 @@ fn toggle_on(e: &BytesStart) -> bool {
 }
 
 /// Heading level from a paragraph style id like "Heading1", "heading 2", "Titre1".
+/// Level 0 is the document title.
 fn heading_from_style(style: &str) -> Option<u8> {
     let lower = style.to_lowercase();
     if lower == "title" {
-        return Some(1);
+        return Some(0);
     }
     let digits: String = lower.chars().filter(|c| c.is_ascii_digit()).collect();
     let looks_like_heading = ["heading", "berschrift", "titre", "titolo", "título", "kop"]
@@ -210,28 +213,48 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
     let mut in_para_props = false;
     let mut in_text = false;
     let mut in_deleted = 0usize;
+    // Text boxes put whole paragraphs inside a run of the outer paragraph.
+    let mut paragraph_depth = 0usize;
+    // Shapes come twice: a modern version and an `mc:Fallback` copy. Read one.
+    let mut in_fallback = 0usize;
 
     loop {
         let event = reader.read_event().map_err(|e| format!("Unreadable Word document: {e}"))?;
+        if in_fallback > 0 {
+            match &event {
+                Event::Start(e) if e.local_name().as_ref() == b"Fallback" => in_fallback += 1,
+                Event::End(e) if e.local_name().as_ref() == b"Fallback" => in_fallback -= 1,
+                Event::Eof => break,
+                _ => {}
+            }
+            continue;
+        }
         match event {
             Event::Start(ref e) | Event::Empty(ref e) => {
                 let empty = matches!(event, Event::Empty(_));
+                let outer = paragraph_depth <= 1;
                 match e.local_name().as_ref() {
+                    b"Fallback" if !empty => in_fallback = 1,
                     b"p" if !empty => {
-                        in_paragraph = true;
-                        heading = None;
-                        list_item = false;
-                        runs.clear();
+                        if paragraph_depth == 0 {
+                            in_paragraph = true;
+                            heading = None;
+                            list_item = false;
+                            runs.clear();
+                        } else if !runs.is_empty() {
+                            runs.push((" ".into(), false, false));
+                        }
+                        paragraph_depth += 1;
                     }
-                    b"pStyle" => heading = attr(e, b"val").and_then(|s| heading_from_style(&s)).or(heading),
-                    b"outlineLvl" => {
+                    b"pStyle" if outer => heading = attr(e, b"val").and_then(|s| heading_from_style(&s)).or(heading),
+                    b"outlineLvl" if outer => {
                         if let Some(level) = attr(e, b"val").and_then(|v| v.parse::<u8>().ok()) {
                             if level < 6 {
                                 heading = Some(level + 1);
                             }
                         }
                     }
-                    b"numPr" => list_item = true,
+                    b"numPr" if outer => list_item = true,
                     b"r" if !empty => {
                         bold = false;
                         italic = false;
@@ -252,20 +275,32 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
                 b"rPr" => in_run_props = false,
                 b"pPr" => in_para_props = false,
                 b"del" => in_deleted = in_deleted.saturating_sub(1),
+                b"p" if in_paragraph && paragraph_depth > 1 => {
+                    paragraph_depth -= 1;
+                    runs.push((" ".into(), false, false));
+                }
                 b"p" if in_paragraph => {
+                    paragraph_depth = 0;
                     in_paragraph = false;
                     let text: String = runs.iter().map(|(t, _, _)| t.as_str()).collect();
                     if text.trim().is_empty() {
                         continue;
                     }
+                    let plain = render_docx_run(text.split_whitespace().collect::<Vec<_>>().join(" ").as_str(), false, false);
                     match heading {
-                        Some(level) => blocks.push(DocBlock::Heading(level, text.trim().to_string())),
+                        Some(0) => blocks.push(DocBlock::Title(plain)),
+                        Some(level) => blocks.push(DocBlock::Heading(level, plain)),
                         None => {
                             let mut line = String::new();
                             for (text, bold, italic) in merge_runs(std::mem::take(&mut runs)) {
                                 line.push_str(&render_docx_run(&text, bold, italic));
                             }
-                            let line = line.replace('\n', "  \n");
+                            // Repeated spaces mean nothing in Markdown; text boxes leave some behind.
+                            let line = line
+                                .split('\n')
+                                .map(|part| part.split(' ').filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "))
+                                .collect::<Vec<_>>()
+                                .join("  \n");
                             let line = line.trim();
                             blocks.push(DocBlock::Body(if list_item { format!("- {line}") } else { line.to_string() }));
                         }
@@ -346,6 +381,7 @@ fn blocks_to_markdown(blocks: &[DocBlock]) -> String {
     let mut out = Vec::new();
     for block in blocks {
         match block {
+            DocBlock::Title(text) => out.push(format!("# {text}")),
             DocBlock::Heading(level, text) => out.push(format!("{} {text}", "#".repeat(*level as usize))),
             DocBlock::Body(text) => out.push(text.clone()),
         }
@@ -407,6 +443,7 @@ fn import_docx(path: &Path, target: &Path, content_dir: &Path, split: bool, repo
             .iter()
             .map(|b| match b {
                 DocBlock::Heading(l, t) => DocBlock::Heading((*l).saturating_sub(top).max(1), t.clone()),
+                DocBlock::Title(t) => DocBlock::Title(t.clone()),
                 DocBlock::Body(t) => DocBlock::Body(t.clone()),
             })
             .collect();
@@ -873,6 +910,23 @@ mod tests {
         assert_eq!(blocks[1], DocBlock::Body("It was **dark** & cold.".into()));
         assert_eq!(blocks[2], DocBlock::Body("*quiet*".into()));
         assert_eq!(blocks_to_markdown(&blocks[3..]), "- one\n- two\n");
+    }
+
+    #[test]
+    fn docx_text_boxes_fallbacks_and_title() {
+        let xml = r#"<w:document xmlns:w="x" xmlns:mc="m"><w:body>
+            <w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>My *Book*</w:t></w:r></w:p>
+            <w:p><w:r><w:t xml:space="preserve">Before </w:t></w:r><w:r><mc:AlternateContent>
+                <mc:Choice><w:drawing><w:txbxContent><w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>boxed</w:t></w:r></w:p></w:txbxContent></w:drawing></mc:Choice>
+                <mc:Fallback><w:pict><w:txbxContent><w:p><w:r><w:t>boxed</w:t></w:r></w:p></w:txbxContent></w:pict></mc:Fallback>
+            </mc:AlternateContent></w:r><w:r><w:t xml:space="preserve"> after.</w:t></w:r></w:p>
+            <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>One</w:t></w:r></w:p>
+        </w:body></w:document>"#;
+        let blocks = parse_docx_blocks(xml).unwrap();
+        assert_eq!(blocks[0], DocBlock::Title("My \\*Book\\*".into()));
+        assert_eq!(blocks[1], DocBlock::Body("Before boxed after.".into()));
+        assert_eq!(blocks[2], DocBlock::Heading(1, "One".into()));
+        assert_eq!(blocks.len(), 3);
     }
 
     fn write_docx(path: &Path, document_xml: &str) {

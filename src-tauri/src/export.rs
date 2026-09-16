@@ -440,7 +440,7 @@ fn render_epub(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, Strin
         builder.add_author(request.author.trim());
     }
     builder.set_generator("Memorie");
-    builder.set_lang(request.language());
+    builder.set_languages(vec![request.language().to_string()]);
     builder.stylesheet(BOOK_CSS.as_bytes()).map_err(err)?;
 
     let mut title_page = format!("<h1 class=\"book-title\">{}</h1>\n", html_escape(title));
