@@ -29,4 +29,11 @@ export const toast = {
   info(message, description) {
     sonner(message, description ? { description } : undefined);
   },
+  /**
+   * A success toast with a button, e.g. "Show in Finder".
+   * @param {string} message @param {string} label @param {() => void} onClick @param {string} [description]
+   */
+  successWithAction(message, label, onClick, description) {
+    sonner.success(message, { description, action: { label, onClick } });
+  },
 };

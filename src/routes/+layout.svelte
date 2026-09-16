@@ -3,6 +3,9 @@
   import Cmdk from '$lib/components/cmdk.svelte';
   import ShortcutsHelp from '$lib/components/shortcuts-help.svelte';
   import NewWritingPicker from '$lib/components/new-writing-picker.svelte';
+  import ExportDialog from '$lib/components/export-dialog.svelte';
+  import ProjectSearch from '$lib/components/project-search.svelte';
+  import ImportDialog from '$lib/components/import-dialog.svelte';
   import { page } from '$app/state';
   import { startNewWriting } from '$lib/new-writing.js';
   import { dirOf } from '$lib/runes/fs.svelte.js';
@@ -12,6 +15,7 @@
   import { llmManager } from '@/runes/llm.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
+  import { writingState } from '$lib/runes/writing.svelte.js';
   import { onDestroy, onMount } from 'svelte';
   import { isMod, isMac } from '$lib/keyboard.svelte.js';
   import { Toaster } from 'svelte-sonner';
@@ -65,6 +69,7 @@
         appState.setFontSize(size);
       }
     }
+    writingState.load();
     if (localStorage.getItem('outlineOpen') === 'true') {
       appState.toggleOutline(true);
     }
@@ -132,6 +137,9 @@
     {@render children()}
     <Cmdk />
     <NewWritingPicker />
+    <ExportDialog />
+    <ProjectSearch />
+    <ImportDialog />
     <ShortcutsHelp />
     <Toaster
       theme={appState.ui.theme}
@@ -172,6 +180,11 @@
       } else {
         newWritingHere();
       }
+    }
+
+    if (e.key.toLowerCase() === 'f' && isMod(e) && e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      appState.toggleProjectSearch(true);
     }
 
     if (e.key.toLowerCase() === 'p' && e.ctrlKey && e.shiftKey) {

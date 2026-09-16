@@ -9,6 +9,7 @@
   import EditorHistory from '$lib/components/editor-history.svelte';
   import EditorOutline from '$lib/components/editor-outline.svelte';
   import EditorBacklinks from '$lib/components/editor-backlinks.svelte';
+  import EditorSceneInfo from '$lib/components/editor-scene-info.svelte';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
@@ -20,6 +21,8 @@
   import { formatTimeAgo, formatFileName } from '@/utils.js';
   import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte';
   import { configManager } from '$lib/runes/config.svelte.js';
+  import { writingState } from '$lib/runes/writing.svelte.js';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
 
   let { data } = $props();
 
@@ -113,14 +116,46 @@
   );
 
   let binderLabel = $derived(dirOf(fileName));
+
+  let focusMode = $derived(writingState.focusMode);
+
+  /** Whether focus mode put the window into full screen (and so should undo it). */
+  let enteredFullscreen = false;
+
+  async function setFocusFullscreen(/** @type {boolean} */ on) {
+    try {
+      const win = getCurrentWindow();
+      if (on) {
+        if (await win.isFullscreen()) return;
+        await win.setFullscreen(true);
+        enteredFullscreen = true;
+      } else if (enteredFullscreen) {
+        enteredFullscreen = false;
+        await win.setFullscreen(false);
+      }
+    } catch (e) {
+      console.warn('Fullscreen unavailable:', e);
+    }
+  }
+
+  // Focus mode takes the window full screen and gives it back afterwards,
+  // including when the writer leaves the editor while still focused.
+  $effect(() => {
+    setFocusFullscreen(focusMode);
+  });
+
+  onMount(() => () => {
+    writingState.toggleFocusMode(false);
+    setFocusFullscreen(false);
+  });
 </script>
 
-<div class="flex h-screen w-full bg-background">
+<div class="flex h-screen w-full bg-background" class:focus-mode={focusMode}>
   <aside
     class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md
-    {appState.ui.isHistoryOpen ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
+    {appState.ui.isHistoryOpen && !focusMode ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
   >
-    {#if appState.ui.isHistoryOpen}
+    {#if appState.ui.isHistoryOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <div class="px-4 py-3">
           <h2 class="font-semibold text-sm">History</h2>
@@ -141,7 +176,7 @@
   <div class="w-full h-full flex flex-1 flex-col min-w-0">
     <header
       data-tauri-drag-region
-      class="relative z-20 flex items-center command-bar__inner h-9 text-[0.6875rem] font-mono shrink-0
+      class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-[0.6875rem] font-mono shrink-0
         {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
     >
       <div class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
@@ -208,20 +243,24 @@
       </ScrollFade>
     </main>
 
-    <footer>
+    <footer class="focus-chrome">
       <EditorCommandbar {fileName} {isDraft} currentVersion={history?.current || 0} />
     </footer>
   </div>
 
   <aside
     class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md shrink-0
-    {appState.ui.isOutlineOpen ? 'w-60 border-l border-border/40' : 'w-0'} overflow-hidden"
+    {appState.ui.isOutlineOpen && !focusMode ? 'w-60 border-l border-border/40' : 'w-0'} overflow-hidden"
   >
-    {#if appState.ui.isOutlineOpen}
+    {#if appState.ui.isOutlineOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <ScrollFade class="flex-1 h-full">
           <ScrollArea class="h-full" type="scroll">
-            <h2 class="px-4 py-3 font-semibold text-sm">Contents</h2>
+            <h2 class="px-4 py-3 font-semibold text-sm">Scene</h2>
+            {#key fileName}
+              <EditorSceneInfo {fileName} {isDraft} />
+            {/key}
+            <h2 class="px-4 pt-4 pb-3 font-semibold text-sm border-t border-border/40">Contents</h2>
             <EditorOutline />
             {#if !isDraft}
               <h2 class="px-4 pt-4 pb-3 font-semibold text-sm border-t border-border/40">
@@ -235,3 +274,33 @@
     {/if}
   </aside>
 </div>
+
+<style>
+  /* Focus mode: chrome fades out and comes back when the pointer reaches it
+     or something inside it takes focus (command mode, the stats popover). */
+  .focus-chrome {
+    transition: opacity 300ms ease;
+  }
+
+  .focus-mode .focus-chrome {
+    opacity: 0;
+  }
+
+  .focus-mode .focus-chrome:hover,
+  .focus-mode .focus-chrome:focus-within {
+    opacity: 1;
+  }
+
+  /* Room above the first line so typewriter scrolling can centre it too. */
+  .focus-mode :global(.ProseMirror) {
+    --writer-editor-pt: 40vh;
+  }
+
+  .focus-mode :global(.ProseMirror > *) {
+    transition: opacity 200ms ease;
+  }
+
+  .focus-mode :global(.ProseMirror > :not(.is-current-block)) {
+    opacity: 0.3;
+  }
+</style>

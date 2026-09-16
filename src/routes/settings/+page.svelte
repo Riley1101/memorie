@@ -14,6 +14,8 @@
   import Rows3Icon from '@lucide/svelte/icons/rows-3';
   import PaletteIcon from '@lucide/svelte/icons/palette';
   import CloudIcon from '@lucide/svelte/icons/cloud';
+  import PenLineIcon from '@lucide/svelte/icons/pen-line';
+  import { writingState } from '$lib/runes/writing.svelte.js';
   import { appState, THEME_PALETTES } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { goto } from '$app/navigation';
@@ -28,6 +30,7 @@
 
   const SECTIONS = [
     { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
+    { id: 'writing', label: 'Writing', icon: PenLineIcon },
     { id: 'ai', label: 'AI', icon: CpuIcon },
     { id: 'sync', label: 'Cloud Sync', icon: CloudIcon },
   ];
@@ -302,6 +305,62 @@
                   <p class="text-sm text-muted-foreground mt-3 tracking-tight">
                     Where version history for each writing is kept.
                   </p>
+                </div>
+              </div>
+            </section>
+          {:else if activeSection === 'writing'}
+            <section>
+              <div class="flex items-center gap-2 mb-6">
+                <h3 class="text-2xl font-normal">Writing</h3>
+              </div>
+              <div class="grid gap-8">
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-lg font-normal">Spellcheck</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Underline misspelled words while you write.
+                    </p>
+                  </div>
+                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                    <Button
+                      variant={writingState.spellcheck ? 'secondary' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setSpellcheck(true)}
+                      disabled={false}
+                    >
+                      On
+                    </Button>
+                    <Button
+                      variant={!writingState.spellcheck ? 'secondary' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setSpellcheck(false)}
+                      disabled={false}
+                    >
+                      Off
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <label for="settings-daily-goal" class="text-lg font-normal">Daily word goal</label>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Shown next to the word count in the editor. Leave empty for no goal.
+                      Binder goals are set from the word count while writing.
+                    </p>
+                  </div>
+                  <input
+                    id="settings-daily-goal"
+                    type="number"
+                    min="0"
+                    step="100"
+                    placeholder="No goal"
+                    value={writingState.dailyGoal || ''}
+                    onchange={(e) => writingState.setDailyGoal(Number(e.currentTarget.value))}
+                    class="w-32 h-9 rounded-md border border-border bg-transparent px-3 text-right text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  />
                 </div>
               </div>
             </section>

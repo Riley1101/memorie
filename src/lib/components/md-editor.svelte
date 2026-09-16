@@ -11,6 +11,7 @@
   import { editorViewCtx } from '@milkdown/kit/core';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { untrack } from 'svelte';
+  import { parseWriting, serializeWriting } from '$lib/front-matter.js';
 
   /** Strip .md for display */
   function stripMd(name) {
@@ -30,6 +31,22 @@
    * a rename can move the URL without remounting the editor.
    */
   let { fileName, body: content, isDraft = false, docKey = 0 } = $props();
+
+  // The editor only ever sees the body; metadata lives in editorState and is
+  // put back on save.
+  let parsed = $derived(parseWriting(content));
+
+  /** @param {string} markdown - Body from the editor. */
+  function fileContent(markdown) {
+    return serializeWriting(editorState.meta, editorState.metaExtra, markdown, editorState.metaOriginal);
+  }
+
+  // Reload metadata when the document changes or is restored to another version.
+  $effect(() => {
+    void docKey;
+    void appState.ui.editorVersion;
+    untrack(() => editorState.loadMeta(parsed));
+  });
 
   /** The path we are currently saving to. Follows the prop, and any rename we perform. */
   let currentName = $state(fileName);
@@ -116,7 +133,7 @@
 
     materializing = (async () => {
       try {
-        await fileManager.createFileAt(full, markdown);
+        await fileManager.createFileAt(full, fileContent(markdown));
         if (docKey !== startKey) return; // writer already moved on
         draft = false;
         autoTitle = !typed;
@@ -232,7 +249,7 @@
         await materialize(markdown);
         return;
       }
-      await fileManager.saveFile(currentName, markdown);
+      await fileManager.saveFile(currentName, fileContent(markdown));
       await maybeAutoRename(markdown);
       invalidateAll();
     } catch (e) {
@@ -258,7 +275,7 @@
   />
   <div class="writing-area__body">
     {#key `${docKey}:${appState.ui.editorVersion}`}
-      <Editor defaultValue={content} {onSave} autofocus={draft} />
+      <Editor defaultValue={parsed.body} {onSave} autofocus={draft} />
     {/key}
   </div>
 </div>

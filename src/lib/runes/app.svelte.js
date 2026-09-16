@@ -37,6 +37,19 @@ class AppState {
     isHelpModalOpen: false,
     /** "New writing in…" location picker (⌘⇧N). */
     isNewPickerOpen: false,
+    /** Find and replace across all writings (⌘⇧F). */
+    isProjectSearchOpen: false,
+    /**
+     * Export dialog. `fileName` is the writing it was opened from (null from
+     * the home screen), `dir` the folder or binder offered as the default scope.
+     * @type {{ fileName: string | null, dir: string } | null}
+     */
+    exportTarget: null,
+    /**
+     * Import dialog; `dir` is the suggested destination. null when closed.
+     * @type {{ dir: string } | null}
+     */
+    importTarget: null,
     /** Binder selected on the home screen; null = All Writings. Survives navigation. */
     activeBinder: /** @type {string | null} */ (null),
     theme: 'dark',
@@ -166,6 +179,30 @@ class AppState {
     this.ui = {
       ...this.ui,
       isHelpModalOpen: state,
+    };
+  }
+
+  /** @param {boolean} state */
+  toggleProjectSearch(state) {
+    this.ui = {
+      ...this.ui,
+      isProjectSearchOpen: state,
+    };
+  }
+
+  /** @param {{ fileName: string | null, dir: string } | null} target - null closes the dialog. */
+  openExport(target) {
+    this.ui = {
+      ...this.ui,
+      exportTarget: target,
+    };
+  }
+
+  /** @param {{ dir: string } | null} target - null closes the dialog. */
+  openImport(target) {
+    this.ui = {
+      ...this.ui,
+      importTarget: target,
     };
   }
 

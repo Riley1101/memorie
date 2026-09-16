@@ -2,6 +2,9 @@
   import CirclePlusIcon from '@lucide/svelte/icons/circle-plus';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import SettingsIcon from '@lucide/svelte/icons/settings';
+  import TextSearchIcon from '@lucide/svelte/icons/text-search';
+  import FileOutputIcon from '@lucide/svelte/icons/file-output';
+  import FileInputIcon from '@lucide/svelte/icons/file-input';
   import * as Command from '$lib/components/ui/command/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
@@ -142,6 +145,21 @@
         <FolderIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>New writing in…</span>
         <Command.Shortcut class="">{MOD_KEY}⇧N</Command.Shortcut>
+      </Command.Item>
+      <Command.Item value="find replace text in all writings" onSelect={() => { close(); appState.toggleProjectSearch(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+        <TextSearchIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+        <span>Find and replace in all writings</span>
+        <Command.Shortcut class="">{MOD_KEY}⇧F</Command.Shortcut>
+      </Command.Item>
+      {#if appState.ui.activeBinder}
+        <Command.Item value="export compile binder word pdf epub" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openExport({ fileName: null, dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+          <FileOutputIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+          <span>Export {appState.ui.activeBinder}…</span>
+        </Command.Item>
+      {/if}
+      <Command.Item value="import word docx scrivener markdown obsidian rtf" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openImport({ dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+        <FileInputIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+        <span>Import from Word, Scrivener, Markdown…</span>
       </Command.Item>
       <Command.Item value="settings preferences" onSelect={handleOpenSettings} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <SettingsIcon strokeWidth={1.5} class="size-3.5 mr-2" />

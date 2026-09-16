@@ -13,6 +13,11 @@
   import * as DropdownMenu from './ui/dropdown-menu/index.js';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FolderInputIcon from '@lucide/svelte/icons/folder-input';
+  import FileInputIcon from '@lucide/svelte/icons/file-input';
+  import ListTreeIcon from '@lucide/svelte/icons/list-tree';
+  import LayoutGridIcon from '@lucide/svelte/icons/layout-grid';
+  import BinderCards from './binder-cards.svelte';
+  import { appState } from '$lib/runes/app.svelte.js';
   import { formatFileName, formatDate, formatTime } from '@/utils';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
@@ -135,6 +140,27 @@
   // Binder selected: browse it as a chapters/scenes tree instead of a flat
   // date-grouped list.
   let showTree = $derived(activeBinder !== null);
+
+  /** Tree or corkboard-style cards for a binder. Remembered across launches. */
+  let binderView = $state(/** @type {'tree' | 'cards'} */ (readBinderView()));
+
+  function readBinderView() {
+    try {
+      return localStorage.getItem('binderView') === 'cards' ? 'cards' : 'tree';
+    } catch {
+      return 'tree';
+    }
+  }
+
+  /** @param {'tree' | 'cards'} view */
+  function setBinderView(view) {
+    binderView = view;
+    try {
+      localStorage.setItem('binderView', view);
+    } catch {
+      // Not remembered; fine.
+    }
+  }
   let fileTree = $derived.by(() =>
     showTree ? buildFileTree(favourites, activeBinder, fileManager.folders) : []
   );
@@ -369,16 +395,40 @@
             {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
               · drop to move to {activeBinder}{/if}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            class="text-muted-foreground/70 hover:text-foreground gap-1.5"
-            onclick={() => handleTreeCreateFolder([])}
-            disabled={false}
-          >
-            <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
-            New folder
-          </Button>
+          <div class="flex items-center gap-1">
+            {#if binderView === 'tree'}
+              <Button
+                variant="ghost"
+                size="sm"
+                class="text-muted-foreground/70 hover:text-foreground gap-1.5"
+                onclick={() => handleTreeCreateFolder([])}
+                disabled={false}
+              >
+                <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
+                New folder
+              </Button>
+            {/if}
+            <div class="flex rounded-md border border-border/50 p-0.5" role="group" aria-label="View">
+              <button
+                type="button"
+                onclick={() => setBinderView('tree')}
+                aria-pressed={binderView === 'tree'}
+                title="Tree"
+                class="size-7 flex items-center justify-center rounded {binderView === 'tree' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+              >
+                <ListTreeIcon class="size-3.5" strokeWidth={1.5} />
+              </button>
+              <button
+                type="button"
+                onclick={() => setBinderView('cards')}
+                aria-pressed={binderView === 'cards'}
+                title="Cards"
+                class="size-7 flex items-center justify-center rounded {binderView === 'cards' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+              >
+                <LayoutGridIcon class="size-3.5" strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {#if draft && draft.subPath.length === 0}
@@ -402,6 +452,8 @@
 
         {#if !fileManager.hasLoadedFiles}
           {@render loadingRows()}
+        {:else if binderView === 'cards' && filteredFiles.length > 0}
+          <BinderCards binder={activeBinder} />
         {:else if fileTree.length === 0 && !draft}
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
             <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
@@ -544,10 +596,16 @@
               <p class="text-muted-foreground/60 max-w-xs text-sm">
                   Start writing and Memoire names the file from your first line. You can rename it any time.
               </p>
-              <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4 gap-1.5" disabled={false}>
-                  <PlusIcon class="size-3.5" strokeWidth={1.5} />
-                  Start writing
-              </Button>
+              <div class="mt-4 flex gap-2">
+                <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="gap-1.5" disabled={false}>
+                    <PlusIcon class="size-3.5" strokeWidth={1.5} />
+                    Start writing
+                </Button>
+                <Button onclick={() => appState.openImport({ dir: '' })} variant="ghost" class="gap-1.5" disabled={false}>
+                    <FileInputIcon class="size-3.5" strokeWidth={1.5} />
+                    Import…
+                </Button>
+              </div>
           </div>
       {/if}
     </div>

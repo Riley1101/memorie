@@ -65,6 +65,58 @@ class EditorState {
   flushSave = $state(null);
 
   /**
+   * Scene metadata of the open writing (from its front matter).
+   * @type {import('$lib/front-matter.js').SceneMeta}
+   */
+  meta = $state({});
+
+  /**
+   * Front matter lines the app doesn't understand, written back unchanged.
+   * @type {string[]}
+   */
+  metaExtra = [];
+
+  /**
+   * Metadata and front matter block as loaded, so an unchanged block is saved
+   * back exactly as it was.
+   * @type {{ meta: import('$lib/front-matter.js').SceneMeta, raw: string }}
+   */
+  metaOriginal = { meta: {}, raw: '' };
+
+  /**
+   * Replaces the metadata when a writing is (re)loaded. Doesn't save.
+   * @param {import('$lib/front-matter.js').ParsedWriting} parsed
+   */
+  loadMeta(parsed) {
+    this.meta = parsed.meta;
+    this.metaExtra = parsed.extra;
+    this.metaOriginal = { meta: parsed.meta, raw: parsed.raw };
+  }
+
+  /**
+   * Changes metadata (synopsis, status…) and saves the writing.
+   * @param {Partial<import('$lib/front-matter.js').SceneMeta>} patch
+   */
+  async updateMeta(patch) {
+    this.meta = { ...this.meta, ...patch };
+    if (this.flushSave) await this.flushSave();
+  }
+
+  /**
+   * A search match to select once the target writing's editor is ready.
+   * `occurrence` is the match's index within that writing.
+   * @type {{ query: string, options: { caseSensitive: boolean, wholeWord: boolean, regex: boolean }, occurrence: number } | null}
+   */
+  pendingReveal = null;
+
+  /**
+   * Registered by the mounted editor: selects `pendingReveal` in the open
+   * writing. Null when no editor is open.
+   * @type {(() => void) | null}
+   */
+  revealPending = null;
+
+  /**
    * Sets the editor instance.
    * @param editorInstance {import("@milkdown/kit/core").Editor} - The Milkdown editor instance.
    */

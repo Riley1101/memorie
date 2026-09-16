@@ -23,6 +23,13 @@
   import TerminalIcon from '@lucide/svelte/icons/square-terminal';
   import SearchIcon from '@lucide/svelte/icons/search';
   import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
+  import FocusIcon from '@lucide/svelte/icons/focus';
+  import SpellCheckIcon from '@lucide/svelte/icons/spell-check';
+  import FileOutputIcon from '@lucide/svelte/icons/file-output';
+  import FileInputIcon from '@lucide/svelte/icons/file-input';
+  import TextSearchIcon from '@lucide/svelte/icons/text-search';
+  import EditorStats from '$lib/components/editor-stats.svelte';
+  import { writingState } from '$lib/runes/writing.svelte.js';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { editorViewCtx } from '@milkdown/kit/core';
   import { invoke } from '@tauri-apps/api/core';
@@ -132,6 +139,47 @@
       key: 'o',
       shift: true,
       icon: TableOfContentsIcon,
+    },
+    {
+      cmd: ':focus',
+      description: 'Toggle focus mode',
+      action: 'toggleFocus',
+      shortcutLabel: `${MOD_KEY}.`,
+      key: '.',
+      icon: FocusIcon,
+    },
+    {
+      cmd: ':find',
+      description: 'Find and replace in all writings',
+      action: 'projectSearch',
+      shortcutLabel: `${MOD_KEY}⇧F`,
+      key: '', // handled globally in the root layout
+      icon: TextSearchIcon,
+    },
+    {
+      cmd: ':export',
+      description: 'Export (Word, PDF, EPUB…)',
+      action: 'export',
+      shortcutLabel: `${MOD_KEY}⇧E`,
+      key: 'e',
+      shift: true,
+      icon: FileOutputIcon,
+    },
+    {
+      cmd: ':import',
+      description: 'Import (Word, Scrivener, Markdown…)',
+      action: 'import',
+      shortcutLabel: '',
+      key: '',
+      icon: FileInputIcon,
+    },
+    {
+      cmd: ':spell',
+      description: 'Toggle spellcheck',
+      action: 'toggleSpellcheck',
+      shortcutLabel: '',
+      key: '',
+      icon: SpellCheckIcon,
     },
     {
       cmd: ':h',
@@ -262,6 +310,22 @@
         break;
       case 'toggleOutline':
         appState.toggleOutline();
+        break;
+      case 'toggleFocus':
+        writingState.toggleFocusMode();
+        break;
+      case 'projectSearch':
+        appState.toggleProjectSearch(true);
+        break;
+      case 'export':
+        appState.openExport({ fileName: isDraft ? null : (fileName ?? null), dir: dirOf(fileName ?? '') });
+        break;
+      case 'import':
+        appState.openImport({ dir: dirOf(fileName ?? '') });
+        break;
+      case 'toggleSpellcheck':
+        writingState.setSpellcheck(!writingState.spellcheck);
+        toast.info(writingState.spellcheck ? 'Spellcheck on' : 'Spellcheck off');
         break;
       case 'sidebar':
         goto(resolve('/'));
@@ -424,6 +488,12 @@
           e.preventDefault();
           return;
         }
+        // Only when nothing else (a dialog, a popover) is going to take the Escape.
+        if (writingState.focusMode && !document.querySelector('[role="dialog"], [data-slot="popover-content"]')) {
+          e.preventDefault();
+          writingState.toggleFocusMode(false);
+          return;
+        }
       }
 
       // 2. Handle Shortcuts
@@ -557,10 +627,13 @@
   {:else}
     <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] font-mono">
       <!-- File/version state -->
-      <div class="flex items-center gap-2 px-3.5 text-muted-foreground/80 shrink-0">
+      <div class="flex items-center gap-3 px-3.5 text-muted-foreground/80 shrink-0">
         <span class="tracking-wide">
           {isDraft ? 'DRAFT' : appState.ui.isHistoryOpen ? 'HISTORY' : `v${currentVersion}`}
         </span>
+        {#if fileName}
+          <EditorStats {fileName} {isDraft} />
+        {/if}
         {#if zoomPercent !== 100}
           <span class="tracking-wide">{zoomPercent}%</span>
         {/if}

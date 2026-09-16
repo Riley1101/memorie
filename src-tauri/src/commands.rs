@@ -858,3 +858,123 @@ pub async fn git_commit_and_push(message: String, state: State<'_, AppState>) ->
     )
     .map_err(|e| e.to_string())
 }
+
+/**
+ *  Export Commands
+ */
+
+/// Compiles the given writings into one file in the Downloads folder and
+/// returns its path.
+#[tauri::command]
+pub async fn export_manuscript(
+    request: crate::export::ExportRequest,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    let out_dir = dirs::download_dir()
+        .or_else(dirs::home_dir)
+        .ok_or_else(|| "Could not find a Downloads folder".to_string())?;
+    tokio::task::spawn_blocking(move || crate::export::export(&request, &content_dir, &out_dir))
+        .await
+        .map_err(|e| e.to_string())?
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+/**
+ *  Project Search Commands
+ */
+
+#[tauri::command]
+pub async fn search_project(
+    query: String,
+    options: crate::search::SearchOptions,
+    state: State<'_, AppState>,
+) -> Result<crate::search::SearchResults, String> {
+    let regex = crate::search::build_regex(&query, &options)?;
+    let content_dir = state.config.lock().await.content_directory.clone();
+    let files = fs::discover_files(&content_dir).map_err(|e| e.to_string())?;
+
+    let mut contents = fs::read_contents_batch(files)
+        .await
+        .into_iter()
+        .filter_map(|(file, result)| result.ok().map(|content| (file.name, content)))
+        .collect::<Vec<_>>();
+    // Reads finish in any order; results read best alphabetically.
+    contents.sort_by(|a, b| a.0.cmp(&b.0));
+
+    tokio::task::spawn_blocking(move || crate::search::search_contents(&regex, contents))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Replaces every match in the named writings. Each changed writing gets a
+/// version recorded before and after, so the replace can be undone from history.
+#[tauri::command]
+pub async fn replace_in_project(
+    query: String,
+    replacement: String,
+    options: crate::search::SearchOptions,
+    names: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::search::Replaced>, String> {
+    let regex = crate::search::build_regex(&query, &options)?;
+    let config = state.config.lock().await;
+    let content_dir = config.content_directory.clone();
+    let undotree_dir = config.undotree_dir.clone();
+    drop(config);
+
+    let mut replaced = Vec::new();
+    let mut undo_tree = state.undotree.lock().await;
+    for name in names {
+        if std::path::Path::new(&name)
+            .components()
+            .any(|c| !matches!(c, std::path::Component::Normal(_)))
+        {
+            return Err(format!("Invalid writing name: {name}"));
+        }
+        let path = content_dir.join(&name);
+        let original = match std::fs::read_to_string(&path) {
+            Ok(content) => content,
+            Err(e) => {
+                eprintln!("Skipping {name} during replace: {e}");
+                continue;
+            }
+        };
+        let (updated, count) = crate::search::replace_content(&regex, &original, &replacement, &options);
+        if count == 0 || updated == original {
+            continue;
+        }
+        std::fs::write(&path, &updated).map_err(|e| format!("Could not write \"{name}\": {e}"))?;
+        undo_tree.add_change(&name, &original);
+        undo_tree.add_change(&name, &updated);
+        replaced.push(crate::search::Replaced { name, count });
+    }
+    if !replaced.is_empty() {
+        undo_tree
+            .save(&undotree_dir)
+            .unwrap_or_else(|e| eprintln!("Failed to save undo tree: {}", e));
+    }
+    Ok(replaced)
+}
+
+/**
+ *  Import Commands
+ */
+
+/// Imports Word documents, Scrivener projects, RTF, Markdown files and
+/// folders into `target_dir` (content-relative, "" for the top level).
+#[tauri::command]
+pub async fn import_sources(
+    sources: Vec<String>,
+    target_dir: String,
+    split_docx: bool,
+    state: State<'_, AppState>,
+) -> Result<crate::import::ImportReport, String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    let sources: Vec<std::path::PathBuf> = sources.into_iter().map(std::path::PathBuf::from).collect();
+    tokio::task::spawn_blocking(move || {
+        crate::import::import_sources(&sources, &target_dir, split_docx, &content_dir)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
