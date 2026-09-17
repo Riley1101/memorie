@@ -37,8 +37,18 @@
   let collapsed = $state({});
   /** Asks for a second click before replacing everywhere. */
   let confirmAll = $state(false);
+  /** Whether results are narrowed to the active binder. */
+  let scope = $state(/** @type {'binder' | 'all'} */ ('all'));
 
   let inputEl = $state(/** @type {HTMLInputElement | null} */ (null));
+
+  /** Results narrowed to the active binder when scoped, else every result. */
+  let scopedFiles = $derived(
+    scope === 'binder' && appState.ui.activeBinder
+      ? (results?.files ?? []).filter((f) => dirOf(f.name) === appState.ui.activeBinder)
+      : (results?.files ?? [])
+  );
+  let scopedTotal = $derived(scopedFiles.reduce((sum, f) => sum + f.matches.length, 0));
 
   let options = $derived({ caseSensitive, wholeWord, regex: useRegex });
 
@@ -81,6 +91,7 @@
 
   $effect(() => {
     if (appState.ui.isProjectSearchOpen) {
+      scope = appState.ui.activeBinder ? 'binder' : 'all';
       // The dialog focuses its first element; select any previous query instead.
       queueMicrotask(() => inputEl?.select());
     }
@@ -160,7 +171,7 @@
       confirmAll = true;
       return;
     }
-    replaceIn(results?.files.map((f) => f.name) ?? []);
+    replaceIn(scopedFiles.map((f) => f.name));
   }
 
   /** @param {string} name */
@@ -176,14 +187,14 @@
     return [m.preview.slice(0, m.start), m.preview.slice(m.start, m.end), m.preview.slice(m.end)];
   }
 
-  let fileCount = $derived(results?.files.length ?? 0);
+  let fileCount = $derived(scopedFiles.length);
 
   let summary = $derived.by(() => {
     if (error) return error;
     if (!query) return 'Search every writing in your library.';
     if (!results) return searching ? 'Searching…' : '';
-    if (results.total === 0) return 'No matches.';
-    const matches = `${results.total}${results.truncated ? '+' : ''} ${results.total === 1 ? 'match' : 'matches'}`;
+    if (scopedTotal === 0) return 'No matches.';
+    const matches = `${scopedTotal}${results.truncated ? '+' : ''} ${scopedTotal === 1 ? 'match' : 'matches'}`;
     return `${matches} in ${fileCount} ${fileCount === 1 ? 'writing' : 'writings'}`;
   });
 </script>
@@ -251,6 +262,38 @@
         {@render toggle('.*', 'Regular expression', useRegex, () => (useRegex = !useRegex))}
       </div>
 
+      {#if appState.ui.activeBinder}
+        <div class="flex items-center gap-2 pl-8">
+          <span class="text-xs text-muted-foreground">Search</span>
+          <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+            <Button
+              variant={scope === 'binder' ? 'secondary' : 'ghost'}
+              size="sm"
+              class="px-3 h-8 text-xs font-medium"
+              aria-pressed={scope === 'binder'}
+              onclick={() => {
+                scope = 'binder';
+                confirmAll = false;
+              }}
+            >
+              {formatFileName(appState.ui.activeBinder)}
+            </Button>
+            <Button
+              variant={scope === 'all' ? 'secondary' : 'ghost'}
+              size="sm"
+              class="px-3 h-8 text-xs font-medium"
+              aria-pressed={scope === 'all'}
+              onclick={() => {
+                scope = 'all';
+                confirmAll = false;
+              }}
+            >
+              All writings
+            </Button>
+          </div>
+        </div>
+      {/if}
+
       {#if showReplace}
         <div class="flex items-center gap-1 pl-8">
           <input
@@ -264,11 +307,11 @@
           <Button
             size="sm"
             variant={confirmAll ? 'destructive' : 'secondary'}
-            disabled={replacing || !results || results.total === 0}
+            disabled={replacing || scopedTotal === 0}
             onclick={replaceAll}
           >
             <ReplaceIcon strokeWidth={1.5} />
-            {confirmAll ? `Replace ${results?.total ?? 0}?` : 'Replace all'}
+            {confirmAll ? `Replace ${scopedTotal}?` : 'Replace all'}
           </Button>
         </div>
       {/if}
@@ -279,7 +322,7 @@
     </div>
 
     <div class="max-h-[60vh] overflow-y-auto p-2">
-      {#each results?.files ?? [] as file (file.name)}
+      {#each scopedFiles as file (file.name)}
         {@const isOpen = !collapsed[file.name]}
         <section class="mb-1">
           <div class="group flex items-center gap-1 rounded-md hover:bg-muted/40">
@@ -329,7 +372,7 @@
                     <span class="min-w-0 truncate font-writer text-sm text-muted-foreground">
                       {before}<mark class="rounded-sm bg-warning/40 text-foreground px-0.5"
                         >{hit}</mark
-                      >{#if showReplace && replacement !== undefined && query}<ins
+                      >{#if showReplace && replacement && query}<ins
                           class="no-underline rounded-sm bg-success/25 text-foreground px-0.5"
                           >{replacement}</ins
                         >{/if}{after}

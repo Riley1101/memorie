@@ -532,10 +532,10 @@ pub async fn create_document_context(
     match document_context {
         Some(document) => {
             let result = memory.get_dirty_document_chunk(document.id.unwrap()).await;
-            return Ok(Response::success(result));
+            Ok(Response::success(result))
         }
         None => {
-            return Ok(Response::success(Vec::new()));
+            Ok(Response::success(Vec::new()))
         }
     }
 }
@@ -554,14 +554,14 @@ pub async fn get_document_context(
                 match thing_id {
                     Some(id) => {
                         let result = memory.get_dirty_document_chunk(id).await;
-                        return Ok(Response::success(result));
+                        Ok(Response::success(result))
                     }
                     None => {
-                        return Ok(Response::success(Vec::new()));
+                        Ok(Response::success(Vec::new()))
                     }
                 }
             } else {
-                return Ok(Response::success(Vec::new()));
+                Ok(Response::success(Vec::new()))
             }
         }
         Err(_) => todo!(),

@@ -74,13 +74,11 @@ fn utf16_len(s: &str) -> usize {
 /// with the match bounds re-expressed in UTF-16 units.
 fn preview(line: &str, start: usize, end: usize) -> SearchMatch {
     let mut from = start;
-    let mut chars_back = 0;
-    for (i, _) in line[..start].char_indices().rev() {
+    for (chars_back, (i, _)) in line[..start].char_indices().rev().enumerate() {
         if chars_back == PREVIEW_CONTEXT {
             break;
         }
         from = i;
-        chars_back += 1;
     }
     let mut to = end;
     for (count, (i, c)) in line[end..].char_indices().enumerate() {

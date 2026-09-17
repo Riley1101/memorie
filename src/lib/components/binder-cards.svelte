@@ -4,7 +4,7 @@
   import { resolve } from '$app/paths';
   import { SvelteMap } from 'svelte/reactivity';
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
-  import { buildFileTree, formatFileName } from '$lib/utils.js';
+  import { buildFileTree, formatFileName, formatDate } from '$lib/utils.js';
   import { parseWriting, serializeWriting } from '$lib/front-matter.js';
   import { countWords, markdownToPlainText } from '$lib/runes/writing.svelte.js';
   import { toast } from '$lib/toast.js';
@@ -124,9 +124,8 @@
   function statusTone(status) {
     const s = status.toLowerCase();
     if (/done|final|complete/.test(s)) return 'bg-success/15 text-success';
-    if (/revis/.test(s)) return 'bg-primary/15 text-primary';
     if (/draft/.test(s)) return 'bg-warning/20 text-foreground';
-    return 'bg-muted text-muted-foreground';
+    return 'bg-primary/15 text-primary';
   }
 </script>
 
@@ -160,7 +159,7 @@
           {#each shown as file (file.name)}
             {@const card = cache.get(file.name)}
             <li
-              class="group relative flex flex-col min-h-40 rounded-lg border border-border/60 bg-muted/10 p-3 transition-colors hover:border-border hover:bg-muted/25"
+              class="group relative flex flex-col min-h-40 rounded-xl border border-border/60 bg-muted/10 p-3 transition-colors hover:border-border hover:bg-muted/25"
             >
               <div class="flex items-start gap-2">
                 <a
@@ -169,7 +168,7 @@
                     e.preventDefault();
                     goto(resolve(`/${encodeURIComponent(file.name)}`));
                   }}
-                  class="flex-1 min-w-0 text-base leading-snug hover:underline underline-offset-2"
+                  class="flex-1 min-w-0 font-writer text-base leading-snug hover:underline underline-offset-2"
                 >
                   {formatFileName(baseOf(file.name))}
                 </a>
@@ -203,7 +202,7 @@
                   type="button"
                   onclick={() => startEdit(file.name)}
                   title="Edit synopsis"
-                  class="mt-2 flex-1 text-left font-sans text-sm leading-snug rounded-md -mx-1 px-1 hover:bg-muted/40"
+                  class="mt-2 flex-1 text-left font-writer text-sm leading-snug rounded-md -mx-1 px-1 hover:bg-muted/40"
                 >
                   {#if !card && loading}
                     <span class="text-muted-foreground/50">…</span>
@@ -217,8 +216,14 @@
                 </button>
               {/if}
 
-              <div class="mt-2 flex items-center justify-between font-sans text-[0.6875rem] text-muted-foreground/60 tabular-nums">
-                <span>{card ? `${format.format(card.words)} words` : ''}</span>
+              <div class="mt-2 flex items-center justify-between font-mono text-[0.6875rem] text-metadata tabular-nums">
+                <span class="flex items-center gap-1.5">
+                  {#if card}
+                    <span>{formatDate(card.modified)}</span>
+                    <span class="opacity-30">|</span>
+                    <span>{format.format(card.words)} words</span>
+                  {/if}
+                </span>
                 {#if editing !== file.name}
                   <PencilIcon strokeWidth={1.5} class="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 {/if}

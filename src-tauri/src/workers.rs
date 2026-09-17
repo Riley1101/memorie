@@ -317,7 +317,7 @@ async fn run_chat_worker(
 
         match provider {
             ProviderKind::Local => {
-                let mut chat_session = model.run_chat(&model_id, &"", app_handle.clone()).await.map_err(|e| e.to_string())?;
+                let mut chat_session = model.run_chat(&model_id, "", app_handle.clone()).await.map_err(|e| e.to_string())?;
 
                 let mut stream = chat_session.add_message(prompt);
 

@@ -33,7 +33,7 @@
 >
   <Drawer.Content
     data-testid="ai-drawer-content"
-    class="{appState.ui.theme} min-w-1/2 text-foreground font-writer h-full flex flex-col bg-background/95 backdrop-blur-sm"
+    class="{appState.ui.theme} min-w-1/2 text-foreground h-full flex flex-col bg-background/95 backdrop-blur-sm"
   >
     <ScrollFade class="h-dvh overflow-hidden flex-1 grow shrink-0">
       <ScrollArea data-testid="ai-drawer-scroll" class="h-full">

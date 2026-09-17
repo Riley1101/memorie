@@ -158,7 +158,7 @@
     {#if appState.ui.isHistoryOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <div class="px-4 py-3">
-          <h2 class="font-semibold text-sm">History</h2>
+          <h2 class="text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">History</h2>
         </div>
         <ScrollFade class="flex-1 h-full">
           <ScrollArea class="h-full" type="scroll">
@@ -250,20 +250,20 @@
 
   <aside
     class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md shrink-0
-    {appState.ui.isOutlineOpen && !focusMode ? 'w-60 border-l border-border/40' : 'w-0'} overflow-hidden"
+    {appState.ui.isOutlineOpen && !focusMode ? 'w-65 border-l border-border/40' : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isOutlineOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <ScrollFade class="flex-1 h-full">
           <ScrollArea class="h-full" type="scroll">
-            <h2 class="px-4 py-3 font-semibold text-sm">Scene</h2>
+            <h2 class="px-4 py-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">Scene</h2>
             {#key fileName}
               <EditorSceneInfo {fileName} {isDraft} />
             {/key}
-            <h2 class="px-4 pt-4 pb-3 font-semibold text-sm border-t border-border/40">Contents</h2>
+            <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">Contents</h2>
             <EditorOutline />
             {#if !isDraft}
-              <h2 class="px-4 pt-4 pb-3 font-semibold text-sm border-t border-border/40">
+              <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">
                 Referenced by
               </h2>
               <EditorBacklinks {fileName} />

@@ -1,11 +1,6 @@
-export const LANE_COLORS = [
-  '#3b82f6', // blue (trunk)
-  '#ec4899', // pink
-  '#22c55e', // green
-  '#f59e0b', // amber
-  '#a855f7', // purple
-  '#06b6d4', // cyan
-];
+/** Trunk reads as the clay accent; every other branch is teal — the app's two
+ *  brand colors, so history stays legible without a rainbow of lane colors. */
+export const LANE_COLORS = ['var(--color-primary)', 'var(--color-teal)'];
 
 /**
  * @typedef {Object} HistoryNode
@@ -26,6 +21,7 @@ export const LANE_COLORS = [
  * @property {boolean} hasIncoming - true when a newer commit exists above in
  *   the same lane (so a line should be drawn into the top of this row).
  * @property {boolean} isRoot
+ * @property {boolean} isCurrent - true for the version currently checked out.
  * @property {string} content
  * @property {{ lane: number, color: string }[]} passthrough - other lanes
  *   that are "in flight" through this row and need a plain vertical segment.

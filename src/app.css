@@ -8,13 +8,21 @@
 
 :root {
   --background: oklch(0.985 0.002 85);
+  --titlebar-background: oklch(0.97 0.002 85);
   --foreground: oklch(0.17 0.005 85);
+  --heading-foreground: oklch(0.14 0.005 85);
+  --reading-foreground: oklch(0.22 0.005 85);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.17 0.005 85);
   --popover: oklch(0.995 0.002 85);
   --popover-foreground: oklch(0.17 0.005 85);
-  --primary: oklch(0.2 0.005 85);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: #d97757;
+  --primary-hover: #cf6a48;
+  --primary-foreground: #1c0f08;
+  --placeholder: oklch(0.6 0.006 85);
+  --metadata: oklch(0.5 0.006 85);
+  --disabled: oklch(0.75 0.006 85);
+  --teal: #4c8794;
   --secondary: oklch(0.94 0.003 85);
   --secondary-foreground: oklch(0.17 0.005 85);
   --muted: oklch(0.955 0.003 85);
@@ -31,9 +39,9 @@
   --info-foreground: oklch(0.98 0 0);
   --border: oklch(0.905 0.004 85);
   --input: oklch(0.93 0.004 85);
-  --ring: oklch(0.45 0.006 85);
-  --chart-1: oklch(0.81 0.17 75.35);
-  --chart-2: oklch(0.55 0.22 264.53);
+  --ring: #d97757;
+  --chart-1: #d97757;
+  --chart-2: #4c8794;
   --chart-3: oklch(0.72 0 0);
   --chart-4: oklch(0.92 0 0);
   --chart-5: oklch(0.56 0 0);
@@ -45,10 +53,10 @@
   --sidebar-accent-foreground: oklch(0 0 0);
   --sidebar-border: oklch(0.94 0 0);
   --sidebar-ring: oklch(0 0 0);
-  --font-sans: Geist, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: monospace;
-  --radius: 0rem;
+  --font-sans: 'Public Sans', ui-sans-serif, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius: 0.625rem;
   --shadow-x: 0px;
   --shadow-y: 1px;
   --shadow-blur: 2px;
@@ -68,20 +76,28 @@
 }
 
 .dark {
-  --background: oklch(0.145 0.004 260);
-  --foreground: oklch(0.92 0.003 85);
-  --card: oklch(0.18 0.004 260);
-  --card-foreground: oklch(0.92 0.003 85);
-  --popover: oklch(0.2 0.004 260);
-  --popover-foreground: oklch(0.92 0.003 85);
-  --primary: oklch(0.92 0.003 85);
-  --primary-foreground: oklch(0.16 0.004 260);
-  --secondary: oklch(0.26 0.004 260);
-  --secondary-foreground: oklch(0.92 0.003 85);
-  --muted: oklch(0.23 0.004 260);
-  --muted-foreground: oklch(0.68 0.004 85);
-  --accent: oklch(0.3 0.004 260);
-  --accent-foreground: oklch(0.95 0.003 85);
+  --background: #121110;
+  --titlebar-background: #0d0c0b;
+  --foreground: #ece6da;
+  --heading-foreground: #f7f2e9;
+  --reading-foreground: #dcd4c6;
+  --card: #171512;
+  --card-foreground: #ece6da;
+  --popover: #171512;
+  --popover-foreground: #ece6da;
+  --primary: #d97757;
+  --primary-hover: #e08868;
+  --primary-foreground: #1c0f08;
+  --secondary: #211e1a;
+  --secondary-foreground: #ece6da;
+  --muted: #1c1a17;
+  --muted-foreground: #9a9384;
+  --placeholder: #877f70;
+  --metadata: #6b6457;
+  --disabled: #4e483d;
+  --accent: #211e1a;
+  --accent-foreground: #ece6da;
+  --teal: #6fa8b5;
   --destructive: oklch(0.69 0.2 23.91);
   --destructive-foreground: oklch(0 0 0);
   --success: oklch(0.72 0.19 145);
@@ -90,26 +106,26 @@
   --warning-foreground: oklch(0.2 0.05 75);
   --info: oklch(0.7 0.2 264);
   --info-foreground: oklch(0.15 0.02 264);
-  --border: oklch(0.27 0.004 260);
-  --input: oklch(0.3 0.004 260);
-  --ring: oklch(0.6 0.004 85);
-  --chart-1: oklch(0.81 0.17 75.35);
-  --chart-2: oklch(0.58 0.21 260.84);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #d97757;
+  --chart-1: #d97757;
+  --chart-2: #6fa8b5;
   --chart-3: oklch(0.56 0 0);
   --chart-4: oklch(0.44 0 0);
   --chart-5: oklch(0.92 0 0);
-  --sidebar: oklch(0.18 0 0);
-  --sidebar-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(1 0 0);
-  --sidebar-primary-foreground: oklch(0 0 0);
-  --sidebar-accent: oklch(0.32 0 0);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.32 0 0);
-  --sidebar-ring: oklch(0.72 0 0);
-  --font-sans: Geist, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: monospace;
-  --radius: 0rem;
+  --sidebar: #171512;
+  --sidebar-foreground: #ece6da;
+  --sidebar-primary: #d97757;
+  --sidebar-primary-foreground: #1c0f08;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #ece6da;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #d97757;
+  --font-sans: 'Public Sans', ui-sans-serif, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius: 0.625rem;
   --shadow-x: 0px;
   --shadow-y: 1px;
   --shadow-blur: 2px;
@@ -231,7 +247,15 @@
 
 @theme inline {
   --color-background: var(--background);
+  --color-titlebar-background: var(--titlebar-background);
   --color-foreground: var(--foreground);
+  --color-heading-foreground: var(--heading-foreground);
+  --color-reading-foreground: var(--reading-foreground);
+  --color-placeholder: var(--placeholder);
+  --color-metadata: var(--metadata);
+  --color-disabled: var(--disabled);
+  --color-teal: var(--teal);
+  --color-primary-hover: var(--primary-hover);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -287,7 +311,7 @@
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
 
-  --font-writer: 'EB Garamond', var(--font-serif);
+  --font-writer: var(--font-serif);
 
   /* Writing experience: consistent spacing (4px base). Overridden by .style-* flavour. */
   --writer-padding-x: 1.5rem;
@@ -305,7 +329,7 @@
 
 /* Stylistic themes. Apply .style-{name} on root layout. Affects entire app. */
 .style-default {
-  --font-writer: 'EB Garamond', var(--font-serif);
+  --font-writer: var(--font-serif);
   --radius: 0rem;
   --writer-padding-x: 1.5rem;
   --writer-padding-y: 1.5rem;
@@ -355,30 +379,156 @@
   --app-page-padding: 2rem;
 }
 
+/* Paper: a printed page sitting on a desk. Light = cream page on a warm
+   desk; dark = aged, low-glare page on a near-black desk. Every paper colour
+   goes through these tokens so both modes stay in step. */
 .style-paper {
-  --font-writer: 'EB Garamond', var(--font-serif);
+  --font-writer: var(--font-serif);
+  --font-writer-heading: 'Playfair Display', var(--font-serif);
+  --paper-desk: #e6dfd1;
+  --paper-page: #f4eee0;
+  --paper-ink: #2e2419;
+  --paper-body: #3a2f24;
+  --paper-meta: #7a6a58;
+  --paper-ornament: #8a5a2f;
+  --paper-rule: #d9cdb6;
+  --paper-selection: #e3cfae;
   --radius: 0.25rem;
-  --writer-padding-x: 2.5rem;
-  --writer-padding-y: 2.5rem;
+  --writer-padding-x: 3.5rem;
+  --writer-padding-y: 4rem;
+  --writer-gap-title: 0.5rem;
   --writer-prose-leading: 1.8;
-  --writer-surface-bg: oklch(0.98 0.005 85);
-  --writer-surface-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
+  --writer-title-size: 2.25rem;
+  --writer-title-size-md: 2.75rem;
+  --writer-surface-bg: var(--paper-page);
+  --writer-surface-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.12), 0 14px 36px -8px oklch(0.3 0.03 60 / 0.28);
+  --writer-placeholder-color: var(--paper-meta);
   --app-page-padding: 2.25rem;
 }
-.dark.style-paper {
-  --writer-surface-bg: oklch(0.14 0.01 85);
-  --writer-surface-shadow: 0 1px 3px oklch(0 0 0 / 0.2);
+.style-paper.dark {
+  --paper-desk: #0e0d0b;
+  --paper-page: #1d1a16;
+  --paper-ink: #f1e8d8;
+  --paper-body: #ddd3c2;
+  --paper-meta: #9b8d79;
+  --paper-ornament: #c99462;
+  --paper-rule: #3a332a;
+  --paper-selection: #5a4430;
+  --writer-surface-shadow: 0 0 0 1px oklch(1 0 0 / 0.05), 0 18px 44px -10px oklch(0 0 0 / 0.7);
+}
+/* Light mode: the app background becomes the desk so the cream page reads
+   as a sheet. Dark mode already has a dark enough desk. */
+.style-paper:not(.dark) {
+  --background: var(--paper-desk);
+  --titlebar-background: #ddd5c5;
 }
 .style-paper .writing-surface {
   background: var(--writer-surface-bg);
+  color: var(--paper-body);
   box-shadow: var(--writer-surface-shadow);
-  border-radius: 2px;
+  border-radius: 6px;
+  margin-block: 1.5rem 3rem;
 }
-.style-paper .markdown :global(code) {
+.style-paper .writing-area .writing-area__title {
+  font-family: var(--font-writer-heading);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+  color: var(--paper-ink);
+}
+.style-paper .writing-area .writing-area__title::placeholder {
+  color: var(--paper-meta);
+  opacity: 0.5;
+}
+.style-paper .writing-area .writing-area__byline {
+  display: block;
+  margin-top: 0.75rem;
+  text-align: center;
+  font-family: var(--font-writer);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--paper-meta);
+}
+.style-paper .writing-area .writing-area__ornament,
+.style-paper .markdown .ProseMirror::after {
+  display: block;
+  text-align: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--paper-ornament);
+  user-select: none;
+}
+.style-paper .writing-area .writing-area__ornament {
+  margin-top: 2.25rem;
+  margin-bottom: 1.5rem;
+}
+.style-paper .markdown .ProseMirror::after {
+  content: '\2767';
+  margin-top: 2.5rem;
+}
+.style-paper .markdown {
+  color: var(--paper-body);
+  --tw-prose-body: var(--paper-body);
+  --tw-prose-headings: var(--paper-ink);
+  --tw-prose-bold: var(--paper-ink);
+  --tw-prose-links: var(--paper-ink);
+  --tw-prose-quotes: var(--paper-body);
+  --tw-prose-counters: var(--paper-meta);
+  --tw-prose-bullets: var(--paper-meta);
+  --tw-prose-hr: var(--paper-rule);
+  --tw-prose-code: var(--paper-ink);
+  --tw-prose-invert-body: var(--paper-body);
+  --tw-prose-invert-headings: var(--paper-ink);
+  --tw-prose-invert-bold: var(--paper-ink);
+  --tw-prose-invert-links: var(--paper-ink);
+  --tw-prose-invert-quotes: var(--paper-body);
+  --tw-prose-invert-counters: var(--paper-meta);
+  --tw-prose-invert-bullets: var(--paper-meta);
+  --tw-prose-invert-hr: var(--paper-rule);
+  --tw-prose-invert-code: var(--paper-ink);
+}
+.style-paper .markdown :is(h1, h2, h3, h4) {
+  font-family: var(--font-writer-heading);
+  color: var(--paper-ink);
+}
+.style-paper .markdown blockquote {
+  color: var(--paper-body);
+}
+.style-paper .markdown hr {
+  border-color: var(--paper-rule);
+}
+.style-paper .markdown ::selection {
+  background: var(--paper-selection);
+  color: var(--paper-ink);
+}
+.style-paper .markdown code {
   border-radius: 3px;
+  background: color-mix(in oklab, var(--paper-rule) 45%, transparent);
+}
+.style-paper .markdown .ProseMirror p.is-empty:first-child::before {
+  font-style: italic;
 }
 .style-paper .page-container {
   border-radius: 2px;
+}
+/* Drop cap on the first paragraph of a Paper document. Only while reading:
+   a floated ::first-letter inside contenteditable throws the caret around,
+   and on an empty paragraph it would grab the placeholder's first letter. */
+.style-paper .markdown .ProseMirror:not(:focus) > p:first-of-type:not(.is-empty)::first-letter {
+  font-family: var(--font-writer-heading);
+  font-weight: 700;
+  color: var(--paper-ornament);
+  float: left;
+  font-size: 3.4em;
+  line-height: 0.85;
+  padding-right: 0.08em;
+  padding-top: 0.05em;
+}
+@media (max-width: 640px) {
+  .style-paper {
+    --writer-padding-x: 1.5rem;
+    --writer-padding-y: 2.5rem;
+  }
 }
 
 .style-technical {
@@ -394,7 +544,7 @@
 .style-technical .markdown {
   @apply prose-headings:font-semibold prose-headings:tracking-tight;
 }
-.style-technical .markdown :global(code) {
+.style-technical .markdown code {
   font-size: 0.875em;
 }
 .style-technical .writing-area .writing-area__title {
@@ -402,7 +552,7 @@
   letter-spacing: -0.03em;
   font-size: 1.75rem;
 }
-.style-technical .markdown :global(blockquote) {
+.style-technical .markdown blockquote {
   font-style: normal;
   border-left-width: 3px;
   border-left-color: var(--primary);
@@ -411,19 +561,19 @@
   border-radius: 0 var(--radius, 0.25rem) var(--radius, 0.25rem) 0;
 }
 
-.style-paper .markdown :global(blockquote) {
+.style-paper .markdown blockquote {
   border-left: none;
   padding-inline: 0;
   position: relative;
   font-size: 1.05em;
 }
-.style-paper .markdown :global(blockquote)::before {
+.style-paper .markdown blockquote::before {
   content: '\201C';
-  font-family: var(--font-writer);
+  font-family: var(--font-writer-heading);
   font-size: 2.5em;
   line-height: 0;
-  color: var(--foreground);
-  opacity: 0.25;
+  color: var(--paper-ornament);
+  opacity: 0.7;
   position: absolute;
   left: -0.6em;
   top: 0.3em;
@@ -535,14 +685,14 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
     prose-code:bg-muted/30 prose-code:px-[0.35em] prose-code:py-[0.15em] prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-normal prose-code:text-[0.9em]
     prose-pre:bg-muted/10 prose-pre:border prose-pre:border-border/40 prose-pre:rounded-xl prose-pre:p-[1.25em] prose-pre:my-[1.25em]
     prose-hr:border-border/60 prose-hr:my-[2.5em]
-    text-foreground/95;
+    text-reading-foreground;
   }
   .markdown p {
     line-height: var(--writer-prose-leading, 1.75);
   }
 
   /* Markdown tables: borders, spacing, header, horizontal auto-scroll when wide */
-  .markdown :global(table) {
+  .markdown table {
     display: block;
     width: max-content;
     max-width: 100%;
@@ -551,21 +701,21 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
     margin-block: 1.5em;
     font-size: 0.95em;
   }
-  .markdown :global(thead),
-  .markdown :global(tbody) {
+  .markdown thead,
+  .markdown tbody {
     display: table-row-group;
   }
-  .markdown :global(tr) {
+  .markdown tr {
     display: table-row;
   }
-  .markdown :global(th),
-  .markdown :global(td) {
+  .markdown th,
+  .markdown td {
     display: table-cell;
   }
-  .markdown :global(thead) {
+  .markdown thead {
     border-bottom: 2px solid var(--border);
   }
-  .markdown :global(th) {
+  .markdown th {
     font-weight: 600;
     text-align: left;
     padding: 0.6em 0.875em;
@@ -574,36 +724,36 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
     border: 1px solid var(--border);
     white-space: nowrap;
   }
-  .markdown :global(tbody tr) {
+  .markdown tbody tr {
     border-bottom: 1px solid var(--border);
   }
-  .markdown :global(tbody tr:hover) {
+  .markdown tbody tr:hover {
     background: var(--accent);
   }
-  .markdown :global(td) {
+  .markdown td {
     padding: 0.6em 0.875em;
     border: 1px solid var(--border);
     vertical-align: top;
   }
-  .markdown :global(td:first-child),
-  .markdown :global(th:first-child) {
+  .markdown td:first-child,
+  .markdown th:first-child {
     padding-inline-start: 0.875em;
   }
-  .markdown :global(td:last-child),
-  .markdown :global(th:last-child) {
+  .markdown td:last-child,
+  .markdown th:last-child {
     padding-inline-end: 0.875em;
   }
 
   /* Images: contained, rounded, breathing room */
-  .markdown :global(img) {
+  .markdown img {
     max-width: 100%;
     border-radius: var(--radius, 0.5rem);
     margin-block: 1.25em;
   }
 
   /* Task list checkboxes: match theme instead of raw browser control */
-  .markdown :global(li[data-checked] > input[type='checkbox']),
-  .markdown :global(input[type='checkbox']) {
+  .markdown li[data-checked] > input[type='checkbox'],
+  .markdown input[type='checkbox'] {
     appearance: none;
     width: 1em;
     height: 1em;
@@ -614,11 +764,11 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
     position: relative;
     cursor: pointer;
   }
-  .markdown :global(input[type='checkbox']:checked) {
+  .markdown input[type='checkbox']:checked {
     background: var(--primary);
     border-color: var(--primary);
   }
-  .markdown :global(input[type='checkbox']:checked)::after {
+  .markdown input[type='checkbox']:checked::after {
     content: '';
     position: absolute;
     left: 0.28em;
@@ -637,8 +787,8 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   }
 
   /* Thin themed scrollbar for wide code blocks / tables */
-  .markdown :global(pre),
-  .markdown :global(table) {
+  .markdown pre,
+  .markdown table {
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }

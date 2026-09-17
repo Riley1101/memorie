@@ -48,9 +48,9 @@
   open={appState.ui.isHelpModalOpen} 
   onOpenChange={(v) => appState.toggleHelpModal(v)}
 >
-  <Dialog.Content class="sm:max-w-[480px] p-0 overflow-hidden border-border/40 font-writer" portalProps={{}}>
+  <Dialog.Content class="sm:max-w-[480px] p-0 overflow-hidden border-border/40" portalProps={{}}>
     <Dialog.Header class="px-6 pt-6 pb-4 bg-muted/20 border-b border-border/20">
-      <Dialog.Title class="text-xl font-normal tracking-tight">Keyboard Shortcuts</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal font-writer tracking-tight">Keyboard Shortcuts</Dialog.Title>
       <Dialog.Description class="text-sm text-muted-foreground/60">
         Master your workflow with Memorie's quick commands.
       </Dialog.Description>

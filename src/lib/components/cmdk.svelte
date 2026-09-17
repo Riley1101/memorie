@@ -118,7 +118,7 @@
         >
           <div class="flex flex-col gap-0.5 min-w-0 font-writer">
             <span class="text-base font-normal truncate">{formatFileName(baseOf(file.name))}</span>
-            <div class="flex items-center gap-2 text-[0.6875rem] text-muted-foreground/60 font-mono">
+            <div class="flex items-center gap-2 text-[0.6875rem] text-metadata font-mono">
               {#if file.folder}
                 <span class="flex items-center gap-1">
                   <FolderIcon strokeWidth={1.5} class="size-2.5" />

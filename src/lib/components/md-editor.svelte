@@ -12,6 +12,7 @@
   import { getMarkdown } from '@milkdown/kit/utils';
   import { untrack } from 'svelte';
   import { parseWriting, serializeWriting } from '$lib/front-matter.js';
+  import { formatDate, formatTime } from '$lib/utils.js';
 
   /** Strip .md for display */
   function stripMd(name) {
@@ -60,6 +61,16 @@
   let autoTitle = $state(isDraft);
   let isRenaming = $state(false);
   let titleInput = $state(/** @type {HTMLInputElement | null} */ (null));
+
+  /** Byline under the title (Paper style only): folder · last modified. */
+  let byline = $derived.by(() => {
+    const dir = dirOf(currentName);
+    const where = dir ? dir.replaceAll('/', ' / ') : '';
+    const modified = fileManager.files.find((f) => f.name === currentName)?.last_modified;
+    const stamp = modified ?? Math.floor(Date.now() / 1000);
+    const when = `${formatDate(stamp)}, ${formatTime(stamp)}`;
+    return where ? `${where} · ${when}` : when;
+  });
 
   $effect(() => {
     currentName = fileName;
@@ -273,6 +284,8 @@
     spellcheck="false"
     autocomplete="off"
   />
+  <p class="writing-area__byline" aria-hidden="true">{byline}</p>
+  <div class="writing-area__ornament" aria-hidden="true">❧</div>
   <div class="writing-area__body">
     {#key `${docKey}:${appState.ui.editorVersion}`}
       <Editor defaultValue={parsed.body} {onSave} autofocus={draft} />
@@ -283,6 +296,12 @@
 <style>
   .writing-area {
     padding-bottom: 0;
+  }
+
+  /* Byline and ornament are Paper-only; see .style-paper in app.css. */
+  .writing-area__byline,
+  .writing-area__ornament {
+    display: none;
   }
 
   .writing-area__body {

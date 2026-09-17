@@ -29,7 +29,9 @@
   );
   let projectGoal = $derived(binder ? (writingState.projectGoals[binder] ?? 0) : 0);
 
-  let readingMinutes = $derived(Math.max(1, Math.round(writingState.docWords / WORDS_PER_MINUTE)));
+  let readingMinutes = $derived(
+    writingState.docWords === 0 ? 0 : Math.max(1, Math.round(writingState.docWords / WORDS_PER_MINUTE))
+  );
 
   /** Reads the binder's other writings once per popover open. */
   async function loadBinderWords() {

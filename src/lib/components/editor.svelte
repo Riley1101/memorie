@@ -275,10 +275,22 @@
     if (!writingState.focusMode || !editorInstance) return;
     editorInstance.action((ctx) => centerCaret(ctx.get(editorViewCtx), 'instant'));
   });
+
+  // ProseMirror mounts its own contenteditable div inside ours; set spellcheck
+  // on it directly instead of relying on attribute inheritance, which some
+  // webviews (e.g. Tauri's) don't apply consistently to contenteditable nodes.
+  $effect(() => {
+    const enabled = writingState.spellcheck;
+    if (!editorInstance) return;
+    editorInstance.action((ctx) => {
+      ctx.get(editorViewCtx).dom.spellcheck = enabled;
+    });
+  });
 </script>
 
 <main
   class="markdown w-full"
+  class:manuscript-paragraphs={writingState.paragraphStyle === 'indented'}
   style="font-size: {appState.ui.fontSize}px;"
 >
     <div
@@ -329,9 +341,21 @@
 
     main :global(.ProseMirror p.is-empty:first-child::before) {
         content: attr(data-placeholder);
-        color: var(--writer-placeholder-color, #9ca3af);
+        color: var(--writer-placeholder-color, var(--placeholder));
         pointer-events: none;
         height: 0;
         float: left;
+    }
+
+    /* Manuscript paragraph style: first-line indent, no gap between
+       paragraphs, the way a typeset page reads. The first paragraph after a
+       heading (or the very first paragraph) stays flush, as in print. */
+    main.manuscript-paragraphs :global(.ProseMirror > p) {
+        margin-block: 0;
+        text-indent: 1.6em;
+    }
+    main.manuscript-paragraphs :global(.ProseMirror > p:first-child),
+    main.manuscript-paragraphs :global(.ProseMirror > :is(h1, h2, h3, h4, h5, h6) + p) {
+        text-indent: 0;
     }
 </style>

@@ -183,6 +183,9 @@ function escapeRegExp(s) {
  * read again until they change.
  * @type {Map<string, { modified: number, content: string | null }>}
  */
+// Not reactive state: a module-level cache read inside async functions, so a
+// SvelteMap would only add overhead.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
 const contentCache = new Map();
 
 /**
@@ -222,6 +225,7 @@ export async function findBacklinks(target) {
   await refreshContentCache(others);
 
   // Milkdown writes the encoded href, but accept a hand-typed raw path too.
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- plain dedupe, not state
   const hrefs = [...new Set([encodeURIComponent(target), target])].map(
     (h) => `${DOC_REF_PREFIX}${h}`
   );

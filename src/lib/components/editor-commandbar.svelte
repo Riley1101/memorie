@@ -568,7 +568,7 @@
   }
 </script>
 
-<div class="relative bg-background z-40 command-bar">
+<div class="relative bg-titlebar-background z-40 command-bar">
   <div
     class="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-border to-transparent"
   ></div>
@@ -755,9 +755,9 @@
       </div>
 
       <Dialog.Root bind:open={isDownloadDialogOpen}>
-        <Dialog.Content class="sm:max-w-[420px] font-writer" portalProps={{}}>
+        <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
           <Dialog.Header class="">
-            <Dialog.Title class="text-xl font-normal">Set up local AI</Dialog.Title>
+            <Dialog.Title class="text-xl font-normal font-writer">Set up local AI</Dialog.Title>
             <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
               Memoire runs AI entirely on your machine. The first time it needs to download a
               language model (about 1.5 GB). Nothing you write leaves this device.

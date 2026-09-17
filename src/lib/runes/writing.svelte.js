@@ -9,6 +9,13 @@ const STORAGE_KEY = 'writing';
 /** Days of history kept in the progress log. */
 const LOG_DAYS = 90;
 
+/**
+ * How paragraphs read in the editor and in most export formats.
+ * - 'spaced': a blank gap between paragraphs, no indent (blog / doc style).
+ * - 'indented': first-line indent, no gap, the way a printed manuscript reads.
+ */
+export const PARAGRAPH_STYLES = /** @type {const} */ (['spaced', 'indented']);
+
 const segmenter =
   typeof Intl !== 'undefined' && 'Segmenter' in Intl
     ? new Intl.Segmenter(undefined, { granularity: 'word' })
@@ -38,7 +45,7 @@ export function countWords(text) {
  */
 export function markdownToPlainText(markdown) {
   return markdown
-    .replace(/^---\n[\s\S]*?\n---\n/, '')
+    .replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, '')
     .replace(/```[\s\S]*?```/g, '')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -84,6 +91,9 @@ class WritingState {
   /** Distraction-free writing: chrome hidden, current paragraph highlighted, caret centred. */
   focusMode = $state(false);
 
+  /** @type {(typeof PARAGRAPH_STYLES)[number]} */
+  paragraphStyle = $state('spaced');
+
   /** Live counts for the open document. */
   docWords = $state(0);
   docChars = $state(0);
@@ -120,6 +130,7 @@ class WritingState {
         this.projectGoals = saved.projectGoals;
       }
       if (saved.log && typeof saved.log === 'object') this.log = saved.log;
+      if (PARAGRAPH_STYLES.includes(saved.paragraphStyle)) this.paragraphStyle = saved.paragraphStyle;
     } catch (e) {
       console.warn('Could not load writing preferences:', e);
     }
@@ -134,6 +145,7 @@ class WritingState {
           dailyGoal: this.dailyGoal,
           projectGoals: this.projectGoals,
           log: this.log,
+          paragraphStyle: this.paragraphStyle,
         })
       );
     } catch (e) {
@@ -148,6 +160,12 @@ class WritingState {
       this.#persistTimer = null;
       this.#persist();
     }, 1000);
+  }
+
+  /** @param {(typeof PARAGRAPH_STYLES)[number]} style */
+  setParagraphStyle(style) {
+    this.paragraphStyle = PARAGRAPH_STYLES.includes(style) ? style : 'spaced';
+    this.#persist();
   }
 
   /** @param {boolean} enabled */

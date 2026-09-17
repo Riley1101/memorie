@@ -16,7 +16,7 @@
   import CloudIcon from '@lucide/svelte/icons/cloud';
   import PenLineIcon from '@lucide/svelte/icons/pen-line';
   import { writingState } from '$lib/runes/writing.svelte.js';
-  import { appState, THEME_PALETTES } from '$lib/runes/app.svelte.js';
+  import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -126,7 +126,7 @@
 
 <div class="page-container w-full h-full flex flex-col overflow-hidden">
   <div class="flex items-center justify-between mb-8">
-    <h2 class="text-5xl font-normal text-foreground">Settings</h2>
+    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Settings</h2>
     <Button
       variant="ghost"
       size="icon"
@@ -163,9 +163,33 @@
             <!-- Appearance Section -->
             <section>
               <div class="flex items-center gap-2 mb-6">
-                <h3 class="text-2xl font-normal">Appearance</h3>
+                <h3 class="font-writer text-2xl font-normal">Appearance</h3>
               </div>
               <div class="grid gap-8">
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <p class="text-lg font-normal">Style</p>
+                  <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
+                    How the page itself looks — typeface, spacing, and the paper effect. Separate from
+                    the accent color below.
+                  </p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    {#each STYLE_FLAVOURS as flavour (flavour.id)}
+                      <button
+                        type="button"
+                        onclick={() => appState.setStyleFlavour(flavour.id)}
+                        aria-pressed={appState.ui.styleFlavour === flavour.id}
+                        class="text-left p-4 rounded-lg border transition-colors
+                          {appState.ui.styleFlavour === flavour.id
+                            ? 'border-primary bg-primary/5 shadow-[0_0_0_3px_var(--color-primary)/12%]'
+                            : 'border-border/60 hover:border-border hover:bg-muted/30'}"
+                      >
+                        <span class="text-sm font-medium">{flavour.label}</span>
+                        <p class="text-xs text-muted-foreground mt-1 leading-snug">{flavour.description}</p>
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+
                 <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Theme</p>
@@ -175,7 +199,7 @@
                   </div>
                   <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
                     <Button
-                      variant={appState.ui.themePreference === 'system' ? 'secondary' : 'ghost'}
+                      variant={appState.ui.themePreference === 'system' ? 'default' : 'ghost'}
                       size="sm"
                       class="gap-2 px-3 h-8 text-xs font-medium"
                       onclick={() => appState.setTheme('system')}
@@ -185,7 +209,7 @@
                       System
                     </Button>
                     <Button
-                      variant={appState.ui.themePreference === 'light' ? 'secondary' : 'ghost'}
+                      variant={appState.ui.themePreference === 'light' ? 'default' : 'ghost'}
                       size="sm"
                       class="gap-2 px-3 h-8 text-xs font-medium"
                       onclick={() => appState.setTheme('light')}
@@ -195,7 +219,7 @@
                       Light
                     </Button>
                     <Button
-                      variant={appState.ui.themePreference === 'dark' ? 'secondary' : 'ghost'}
+                      variant={appState.ui.themePreference === 'dark' ? 'default' : 'ghost'}
                       size="sm"
                       class="gap-2 px-3 h-8 text-xs font-medium"
                       onclick={() => appState.setTheme('dark')}
@@ -216,7 +240,7 @@
                   </div>
                   <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
                     <Button
-                      variant={appState.ui.density === 'default' ? 'secondary' : 'ghost'}
+                      variant={appState.ui.density === 'default' ? 'default' : 'ghost'}
                       size="sm"
                       class="gap-2 px-3 h-8 text-xs font-medium"
                       onclick={() => appState.setDensity('default')}
@@ -226,7 +250,7 @@
                       Default
                     </Button>
                     <Button
-                      variant={appState.ui.density === 'compact' ? 'secondary' : 'ghost'}
+                      variant={appState.ui.density === 'compact' ? 'default' : 'ghost'}
                       size="sm"
                       class="gap-2 px-3 h-8 text-xs font-medium"
                       onclick={() => appState.setDensity('compact')}
@@ -277,14 +301,14 @@
             <!-- App Paths Section -->
             <section>
               <div class="flex items-center gap-2 mb-8">
-                <h3 class="text-2xl font-normal">Storage</h3>
+                <h3 class="font-writer text-2xl font-normal">Storage</h3>
               </div>
 
               <div class="grid gap-8">
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">Content Directory</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Content Directory</span>
                   </div>
                   <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.content_directory || 'Loading...'}
@@ -297,7 +321,7 @@
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">History Directory</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">History Directory</span>
                   </div>
                   <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.undotree_dir || 'Loading...'}
@@ -311,9 +335,39 @@
           {:else if activeSection === 'writing'}
             <section>
               <div class="flex items-center gap-2 mb-6">
-                <h3 class="text-2xl font-normal">Writing</h3>
+                <h3 class="font-writer text-2xl font-normal">Writing</h3>
               </div>
               <div class="grid gap-8">
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-lg font-normal">Paragraph style</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Spaced reads like a document; indented reads like a printed manuscript page —
+                      the style export uses for "Standard manuscript format".
+                    </p>
+                  </div>
+                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                    <Button
+                      variant={writingState.paragraphStyle === 'spaced' ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setParagraphStyle('spaced')}
+                      disabled={false}
+                    >
+                      Spaced
+                    </Button>
+                    <Button
+                      variant={writingState.paragraphStyle === 'indented' ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setParagraphStyle('indented')}
+                      disabled={false}
+                    >
+                      Indented
+                    </Button>
+                  </div>
+                </div>
+
                 <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Spellcheck</p>
@@ -323,7 +377,7 @@
                   </div>
                   <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
                     <Button
-                      variant={writingState.spellcheck ? 'secondary' : 'ghost'}
+                      variant={writingState.spellcheck ? 'default' : 'ghost'}
                       size="sm"
                       class="px-3 h-8 text-xs font-medium"
                       onclick={() => writingState.setSpellcheck(true)}
@@ -332,7 +386,7 @@
                       On
                     </Button>
                     <Button
-                      variant={!writingState.spellcheck ? 'secondary' : 'ghost'}
+                      variant={!writingState.spellcheck ? 'default' : 'ghost'}
                       size="sm"
                       class="px-3 h-8 text-xs font-medium"
                       onclick={() => writingState.setSpellcheck(false)}
@@ -368,7 +422,7 @@
             <!-- AI Section -->
             <section>
               <div class="flex items-center gap-2 mb-8">
-                <h3 class="text-2xl font-normal">AI Configuration</h3>
+                <h3 class="font-writer text-2xl font-normal">AI Configuration</h3>
               </div>
 
               <div class="grid gap-8">
@@ -401,7 +455,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">AI Provider</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">AI Provider</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Choose whether chat, autocomplete, and grammar checks run locally on your
@@ -429,7 +483,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">OpenRouter</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">OpenRouter</span>
                   </div>
 
                   {#if configManager.hasOpenRouterApiKey}
@@ -487,7 +541,7 @@
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">Supported models (Kalosm)</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Supported models (Kalosm)</span>
                   </div>
 
                   {#if llmManager.error}
@@ -576,7 +630,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">Note Search</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Note Search</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Your notes are indexed on this device so the assistant can search them. Saved
@@ -619,7 +673,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">System Prompt</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">System Prompt</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Set the instructions that guide the behavior of the AI in the sidebar chat.
@@ -644,7 +698,7 @@
             <!-- Cloud Sync Section -->
             <section>
               <div class="flex items-center gap-2 mb-8">
-                <h3 class="text-2xl font-normal">Cloud Sync</h3>
+                <h3 class="font-writer text-2xl font-normal">Cloud Sync</h3>
               </div>
 
               <div class="grid gap-8">
@@ -652,7 +706,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest opacity-50">Account</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Account</span>
                   </div>
 
                   {#if gitManager.error}
@@ -740,7 +794,7 @@
                   <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                     <div class="flex items-center gap-2 text-muted-foreground mb-1">
                       <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                      <span class="text-xs font-mono uppercase tracking-widest opacity-50">Repository</span>
+                      <span class="text-xs font-mono uppercase tracking-widest text-metadata">Repository</span>
                     </div>
                     <p class="text-sm text-muted-foreground">
                       Writing in your content directory is committed &amp; pushed to this GitHub repository.
@@ -788,7 +842,7 @@
                     <div class="flex items-center justify-between mb-1">
                       <div class="flex items-center gap-2 text-muted-foreground">
                         <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                        <span class="text-xs font-mono uppercase tracking-widest opacity-50">Changes</span>
+                        <span class="text-xs font-mono uppercase tracking-widest text-metadata">Changes</span>
                       </div>
                       <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => gitManager.refreshStatus()}>
                         Refresh

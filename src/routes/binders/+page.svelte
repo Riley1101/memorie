@@ -73,9 +73,9 @@
   });
 </script>
 
-<div class="page-container w-full h-full flex flex-col overflow-hidden font-writer">
+<div class="page-container w-full h-full flex flex-col overflow-hidden">
   <div class="flex items-center justify-between mb-8">
-    <h2 class="text-5xl font-normal text-foreground">Binders</h2>
+    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Binders</h2>
     <Button
       variant="ghost"
       size="icon"
@@ -137,7 +137,7 @@
                 >
               {:else}
                 <div class="flex-1 min-w-0">
-                  <p class="text-lg font-normal truncate">{binder}</p>
+                  <p class="font-writer text-lg font-normal truncate">{binder}</p>
                   <p class="text-sm text-muted-foreground">
                     {count} writing{count === 1 ? '' : 's'}
                   </p>
@@ -177,9 +177,9 @@
 </div>
 
 <Dialog.Root bind:open={isDeleteDialogOpen}>
-  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
+  <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal">Delete Binder</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal font-writer">Delete Binder</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
         {#if binderToDelete && binderWritingCount(binderToDelete) > 0}
           <span class="font-bold text-foreground">"{binderToDelete}"</span> still has {binderWritingCount(binderToDelete)}

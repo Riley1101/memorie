@@ -7,17 +7,12 @@ use tokio::sync::mpsc;
 
 /// Which backend serves chat/autocomplete/grammar requests. RAG embeddings and search
 /// always stay local (Kalosm/rbert) regardless of this setting.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderKind {
+    #[default]
     Local,
     OpenRouter,
-}
-
-impl Default for ProviderKind {
-    fn default() -> Self {
-        ProviderKind::Local
-    }
 }
 
 const KEYRING_SERVICE: &str = "memoire";
