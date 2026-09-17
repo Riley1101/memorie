@@ -13,6 +13,11 @@
   import * as DropdownMenu from './ui/dropdown-menu/index.js';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FolderInputIcon from '@lucide/svelte/icons/folder-input';
+  import FileInputIcon from '@lucide/svelte/icons/file-input';
+  import ListTreeIcon from '@lucide/svelte/icons/list-tree';
+  import LayoutGridIcon from '@lucide/svelte/icons/layout-grid';
+  import BinderCards from './binder-cards.svelte';
+  import { appState } from '$lib/runes/app.svelte.js';
   import { formatFileName, formatDate, formatTime } from '@/utils';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
@@ -135,6 +140,27 @@
   // Binder selected: browse it as a chapters/scenes tree instead of a flat
   // date-grouped list.
   let showTree = $derived(activeBinder !== null);
+
+  /** Tree or corkboard-style cards for a binder. Remembered across launches. */
+  let binderView = $state(/** @type {'tree' | 'cards'} */ (readBinderView()));
+
+  function readBinderView() {
+    try {
+      return localStorage.getItem('binderView') === 'cards' ? 'cards' : 'tree';
+    } catch {
+      return 'tree';
+    }
+  }
+
+  /** @param {'tree' | 'cards'} view */
+  function setBinderView(view) {
+    binderView = view;
+    try {
+      localStorage.setItem('binderView', view);
+    } catch {
+      // Not remembered; fine.
+    }
+  }
   let fileTree = $derived.by(() =>
     showTree ? buildFileTree(favourites, activeBinder, fileManager.folders) : []
   );
@@ -315,6 +341,15 @@
     isDeleteDialogOpen = false;
     itemToDelete = null;
   }
+
+  /** Deterministic tile tint per binder. "Work" is always teal (spec); everything
+   *  else cycles through neutral/clay tints so folders stay visually distinct
+   *  without every binder needing an assigned color. */
+  function folderTint(folder) {
+    if (!folder) return { tile: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground/50' };
+    if (folder.toLowerCase() === 'work') return { tile: 'bg-teal/15 text-teal', dot: 'bg-teal' };
+    return { tile: 'bg-primary/10 text-primary', dot: 'bg-primary' };
+  }
 </script>
 
 {#snippet itemMenu(item, Menu)}
@@ -351,7 +386,7 @@
   </div>
 {/snippet}
 
-<div class="flex flex-col w-full h-full font-writer">
+<div class="flex flex-col w-full h-full">
   <ScrollFade class="flex-1 min-h-0">
   <ScrollArea type="scroll" class="h-full">
     {#if showTree}
@@ -365,20 +400,44 @@
         class="min-h-full pb-20 pr-2 rounded-lg transition-colors {isRootDragOver ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''}"
       >
         <div class="flex items-center justify-between gap-2 mb-4 py-1">
-          <span class="text-[0.6875rem] font-medium text-muted-foreground/50 tabular-nums">
+          <span class="text-[0.6875rem] font-mono text-metadata tabular-nums">
             {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
               · drop to move to {activeBinder}{/if}
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            class="text-muted-foreground/70 hover:text-foreground gap-1.5"
-            onclick={() => handleTreeCreateFolder([])}
-            disabled={false}
-          >
-            <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
-            New folder
-          </Button>
+          <div class="flex items-center gap-1">
+            {#if binderView === 'tree'}
+              <Button
+                variant="ghost"
+                size="sm"
+                class="text-muted-foreground/70 hover:text-foreground gap-1.5"
+                onclick={() => handleTreeCreateFolder([])}
+                disabled={false}
+              >
+                <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
+                New folder
+              </Button>
+            {/if}
+            <div class="flex rounded-md border border-border/50 p-0.5" role="group" aria-label="View">
+              <button
+                type="button"
+                onclick={() => setBinderView('tree')}
+                aria-pressed={binderView === 'tree'}
+                title="Tree"
+                class="size-7 flex items-center justify-center rounded {binderView === 'tree' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}"
+              >
+                <ListTreeIcon class="size-3.5" strokeWidth={1.5} />
+              </button>
+              <button
+                type="button"
+                onclick={() => setBinderView('cards')}
+                aria-pressed={binderView === 'cards'}
+                title="Cards"
+                class="size-7 flex items-center justify-center rounded {binderView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}"
+              >
+                <LayoutGridIcon class="size-3.5" strokeWidth={1.5} />
+              </button>
+            </div>
+          </div>
         </div>
 
         {#if draft && draft.subPath.length === 0}
@@ -402,12 +461,14 @@
 
         {#if !fileManager.hasLoadedFiles}
           {@render loadingRows()}
+        {:else if binderView === 'cards' && filteredFiles.length > 0}
+          <BinderCards binder={activeBinder} />
         {:else if fileTree.length === 0 && !draft}
           <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
             <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
               <FolderIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
             </div>
-            <h3 class="text-xl font-normal">{activeBinder} is empty</h3>
+            <h3 class="font-writer text-xl font-normal">{activeBinder} is empty</h3>
             <p class="text-muted-foreground/60 max-w-xs text-sm">
               Start writing here, or add a folder to group chapters and scenes.
             </p>
@@ -444,20 +505,23 @@
       {#each groupedFiles as group (group.id)}
         <div class="relative">
           <div class="flex items-center mb-1 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
-              <h3 class="text-[0.6875rem] font-medium text-muted-foreground/60 bg-background pr-3">
+              <h3 class="text-[0.6875rem] font-medium font-mono uppercase tracking-wider text-metadata bg-background pr-3">
                   {group.label}
               </h3>
           </div>
 
           {#each group.files as item (item.path)}
+            {@const tint = folderTint(item.folder)}
             <ContextMenu.Root>
             <ContextMenu.Trigger>
             <div
-              class="group/item relative flex items-center gap-2.5 py-2.5 pr-1 rounded-md hover:bg-muted/20 transition-colors {menuOpenFor === item.name ? 'bg-muted/20' : ''}"
+              class="group/item relative flex items-center gap-4 py-3.5 px-2 rounded-xl transition-colors hover:bg-muted/20 {menuOpenFor === item.name ? 'bg-muted/20' : ''}"
             >
               {#if renamingItem === item}
-                <div class="flex items-center gap-2 flex-1 min-w-0">
-                  <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                  <div class="size-10 rounded-xl {tint.tile} flex items-center justify-center shrink-0">
+                    <FileIcon class="size-4" strokeWidth={1.5} />
+                  </div>
                   <input
                     value={renameValue}
                     oninput={(e) => (renameValue = e.currentTarget.value)}
@@ -480,27 +544,33 @@
                       startRename(item);
                     }
                   }}
-                  class="flex items-center gap-2 flex-1 min-w-0 text-base text-muted-foreground/90 hover:text-foreground transition-colors"
+                  class="flex items-center gap-4 flex-1 min-w-0"
                 >
-                  <FileIcon class="size-4 shrink-0" strokeWidth={1.5} />
-                  <span class="truncate">{formatFileName(item.name.split('/').pop())}</span>
-                  <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono group-hover/item:opacity-0 transition-opacity {menuOpenFor === item.name ? 'opacity-0' : ''}">
-                    {#if item.folder && activeBinder === null}
-                      <span class="flex items-center gap-1">
-                        <FolderIcon strokeWidth={1.5} class="size-3" />
-                        {item.folder}
-                      </span>
+                  <div class="size-10 rounded-xl {tint.tile} flex items-center justify-center shrink-0">
+                    <FileIcon class="size-4" strokeWidth={1.5} />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="truncate font-writer text-base text-foreground/90 group-hover/item:text-foreground transition-colors">
+                      {formatFileName(item.name.split('/').pop())}
+                    </div>
+                    <div class="mt-0.5 flex items-center gap-1.5 text-[0.6875rem] font-mono text-metadata">
+                      {#if item.folder && activeBinder === null}
+                        <span class="flex items-center gap-1">
+                          <span class="size-1.5 rounded-full {tint.dot}"></span>
+                          {item.folder}
+                        </span>
+                        <span class="opacity-30">•</span>
+                      {/if}
+                      <span>{formatDate(item.last_modified)}</span>
                       <span class="opacity-30">•</span>
-                    {/if}
-                    <span>{formatDate(item.last_modified)}</span>
-                    <span class="opacity-30">•</span>
-                    <span>{formatTime(item.last_modified)}</span>
-                  </span>
+                      <span>{formatTime(item.last_modified)}</span>
+                    </div>
+                  </div>
                 </a>
 
                 <!-- Hover actions: same menu as the tree rows, no right-click needed. -->
                 <div
-                  class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/item:opacity-100 focus-within:opacity-100 transition-opacity {menuOpenFor === item.name ? 'opacity-100' : ''}"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/item:opacity-100 focus-within:opacity-100 transition-opacity {menuOpenFor === item.name ? 'opacity-100' : ''}"
                 >
                   <DropdownMenu.Root
                     open={menuOpenFor === item.name}
@@ -518,7 +588,7 @@
                         </button>
                       {/snippet}
                     </DropdownMenu.Trigger>
-                    <DropdownMenu.Content class="w-52 font-writer" align="end" portalProps={{}}>
+                    <DropdownMenu.Content class="w-52" align="end" portalProps={{}}>
                       {@render itemMenu(item, DropdownMenu)}
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
@@ -527,7 +597,7 @@
 
             </div>
             </ContextMenu.Trigger>
-            <ContextMenu.Content class="w-52 font-writer">
+            <ContextMenu.Content class="w-52">
               {@render itemMenu(item, ContextMenu)}
             </ContextMenu.Content>
             </ContextMenu.Root>
@@ -540,14 +610,20 @@
               <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
                   <FileIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
               </div>
-              <h3 class="text-xl font-normal">Nothing here yet</h3>
+              <h3 class="font-writer text-xl font-normal">Nothing here yet</h3>
               <p class="text-muted-foreground/60 max-w-xs text-sm">
                   Start writing and Memoire names the file from your first line. You can rename it any time.
               </p>
-              <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4 gap-1.5" disabled={false}>
-                  <PlusIcon class="size-3.5" strokeWidth={1.5} />
-                  Start writing
-              </Button>
+              <div class="mt-4 flex gap-2">
+                <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="gap-1.5" disabled={false}>
+                    <PlusIcon class="size-3.5" strokeWidth={1.5} />
+                    Start writing
+                </Button>
+                <Button onclick={() => appState.openImport({ dir: '' })} variant="ghost" class="gap-1.5" disabled={false}>
+                    <FileInputIcon class="size-3.5" strokeWidth={1.5} />
+                    Import…
+                </Button>
+              </div>
           </div>
       {/if}
     </div>
@@ -557,9 +633,9 @@
 </div>
 
 <Dialog.Root bind:open={isDeleteDialogOpen}>
-  <Dialog.Content class="sm:max-w-[400px] font-writer" portalProps={{}}>
+  <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal">Delete Writing</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal font-writer">Delete Writing</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
         Are you sure you want to delete
         <span class="font-bold text-foreground">"{itemToDelete ? formatFileName(itemToDelete.name.split('/').pop()) : ''}"</span>{#if itemToDelete?.folder}
@@ -575,9 +651,9 @@
 </Dialog.Root>
 
 <Dialog.Root bind:open={isDeleteFolderDialogOpen}>
-  <Dialog.Content class="sm:max-w-[440px] font-writer" portalProps={{}}>
+  <Dialog.Content class="sm:max-w-[440px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal">
+      <Dialog.Title class="text-xl font-normal font-writer">
         {folderToDeleteIsEmpty ? 'Delete folder' : 'Remove folder'}
       </Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground/80 pt-2">

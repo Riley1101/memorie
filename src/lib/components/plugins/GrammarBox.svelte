@@ -212,7 +212,7 @@
           <div class="max-h-[300px] overflow-y-auto pr-1">
             {#each suggestionCategories as category (category.name)}
               <div class="mt-2 first:mt-0">
-                <div class="px-1 text-[0.625rem] font-semibold text-muted-foreground/50 uppercase tracking-widest pl-2 mb-1">
+                <div class="px-1 text-[0.625rem] font-mono font-medium text-metadata uppercase tracking-widest pl-2 mb-1">
                   {category.name}
                 </div>
                 <div class="grid grid-cols-1 gap-0.5">

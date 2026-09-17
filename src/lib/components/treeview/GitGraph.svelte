@@ -95,6 +95,9 @@
               <line x1={x} y1={yMid} x2={x} y2={yEnd} stroke={row.color} stroke-width="2" />
             {/if}
 
+            {#if row.isCurrent}
+              <circle cx={x} cy={yMid} r={DOT_RADIUS + 5} fill={row.color} opacity="0.25" />
+            {/if}
             <circle
               cx={x}
               cy={yMid}

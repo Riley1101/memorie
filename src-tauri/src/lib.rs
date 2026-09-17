@@ -1,14 +1,19 @@
 mod commands;
 mod config;
 mod error;
+mod export;
 
 mod fs;
 mod git;
+mod import;
 mod llm;
 mod memory;
+mod pdf;
 mod prompts;
 mod providers;
 mod responses;
+mod rtf;
+mod search;
 mod undotree;
 mod utils;
 mod workers;
@@ -133,6 +138,7 @@ pub async fn run() {
     builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_recents,
             commands::create_file,
@@ -183,6 +189,10 @@ pub async fn run() {
             commands::get_openrouter_models,
             commands::git_pull,
             commands::git_commit_and_push,
+            commands::export_manuscript,
+            commands::search_project,
+            commands::replace_in_project,
+            commands::import_sources,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

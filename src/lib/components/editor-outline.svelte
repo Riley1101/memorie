@@ -79,7 +79,7 @@
           onclick={() => jumpTo(heading)}
           title={heading.text}
           aria-current={i === activeIndex ? 'location' : undefined}
-          class="block w-full truncate rounded px-2 py-1 text-left text-[0.8125rem] transition-colors hover:bg-foreground/5 hover:text-foreground
+          class="block w-full truncate rounded px-2 py-1 text-left font-writer text-[0.8125rem] transition-colors hover:bg-foreground/5 hover:text-foreground
             {i === activeIndex ? 'text-foreground' : 'text-muted-foreground/70'}"
           style="padding-left: {0.5 + (heading.level - minLevel) * 0.75}rem"
         >

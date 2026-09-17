@@ -45,24 +45,19 @@
 
 <div class="px-3 pb-4">
   {#if backlinks.length > 0}
-    <ul class="space-y-0.5">
+    <div class="flex flex-wrap gap-1.5">
       {#each backlinks as link (link.name)}
-        <li>
-          <button
-            onclick={() => goto(resolve(`/${encodeURIComponent(link.name)}`))}
-            title={link.name}
-            class="block w-full rounded px-2 py-1.5 text-left transition-colors hover:bg-foreground/5 group"
-          >
-            <span class="block truncate text-[0.8125rem] text-muted-foreground group-hover:text-foreground">
-              {#if link.folder}<span class="text-muted-foreground/50">{link.folder} / </span>{/if}{link.title}
-            </span>
-            {#if link.snippet}
-              <span class="mt-0.5 line-clamp-2 text-xs text-muted-foreground/60">{link.snippet}</span>
-            {/if}
-          </button>
-        </li>
+        <button
+          onclick={() => goto(resolve(`/${encodeURIComponent(link.name)}`))}
+          title={link.snippet ? `${link.name}\n${link.snippet}` : link.name}
+          class="max-w-full rounded-full border border-border bg-muted/30 px-2.5 py-1 text-left text-[0.75rem] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+        >
+          <span class="truncate block">
+            {#if link.folder}<span class="text-muted-foreground/50">{link.folder} / </span>{/if}{link.title}
+          </span>
+        </button>
       {/each}
-    </ul>
+    </div>
   {:else if !loading}
     <p class="px-2 text-sm text-muted-foreground">No writings link here</p>
   {/if}

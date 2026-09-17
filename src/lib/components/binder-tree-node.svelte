@@ -250,12 +250,12 @@
         {:else}
           <FolderIcon class="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
         {/if}
-        <span class="truncate font-medium">{node.name}</span>
+        <span class="truncate font-writer font-medium">{node.name}</span>
         <span class="ml-1 text-xs tabular-nums text-muted-foreground/50 shrink-0">
           {node.fileCount}
         </span>
         {#if node.lastModified}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono group-hover/folder:opacity-0 transition-opacity">
+          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata font-mono group-hover/folder:opacity-0 transition-opacity">
             <span>{formatDate(node.lastModified)}</span>
             <span class="opacity-30">•</span>
             <span>{formatTime(node.lastModified)}</span>
@@ -298,7 +298,7 @@
               </button>
             {/snippet}
           </DropdownMenu.Trigger>
-          <DropdownMenu.Content class="w-52 font-writer" align="end" portalProps={{}}>
+          <DropdownMenu.Content class="w-52" align="end" portalProps={{}}>
             <DropdownMenu.Item onclick={() => onCreateFile(node.path)}>
               <PlusIcon class="size-3.5" strokeWidth={1.5} />
               New writing here
@@ -327,7 +327,7 @@
     {/if}
   </div>
   </ContextMenu.Trigger>
-  <ContextMenu.Content class="w-52 font-writer">
+  <ContextMenu.Content class="w-52">
     <ContextMenu.Item onclick={() => onCreateFile(node.path)}>
       <PlusIcon class="size-3.5" strokeWidth={1.5} />
       New writing here
@@ -447,8 +447,8 @@
       >
         <span class="size-4 shrink-0"></span>
         <FileIcon class="size-4 shrink-0" strokeWidth={1.5} />
-        <span class="truncate">{formatFileName(node.name)}</span>
-        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50 font-mono group-hover/file:opacity-0 transition-opacity">
+        <span class="truncate font-writer">{formatFileName(node.name)}</span>
+        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata font-mono group-hover/file:opacity-0 transition-opacity">
           <span>{formatDate(node.file.last_modified)}</span>
           <span class="opacity-30">•</span>
           <span>{formatTime(node.file.last_modified)}</span>
@@ -472,7 +472,7 @@
               </button>
             {/snippet}
           </DropdownMenu.Trigger>
-          <DropdownMenu.Content class="w-52 font-writer" align="end" portalProps={{}}>
+          <DropdownMenu.Content class="w-52" align="end" portalProps={{}}>
             <DropdownMenu.Item onclick={() => onCreateFile(node.path ?? [])}>
               <PlusIcon class="size-3.5" strokeWidth={1.5} />
               New writing next to this
@@ -497,7 +497,7 @@
     {/if}
   </div>
   </ContextMenu.Trigger>
-  <ContextMenu.Content class="w-52 font-writer">
+  <ContextMenu.Content class="w-52">
     <ContextMenu.Item onclick={() => onCreateFile(node.path ?? [])}>
       <PlusIcon class="size-3.5" strokeWidth={1.5} />
       New writing next to this

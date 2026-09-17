@@ -159,7 +159,7 @@ impl Memory {
         body: &str,
     ) -> Result<Option<NoteDocument>, MemoryError> {
         let db = &self.db;
-        match self.find_document_by_title(&title).await? {
+        match self.find_document_by_title(title).await? {
             Some(mut result) => {
                 println!(">> Updating existing document: {}", title);
                 result.set_body(body);
@@ -182,13 +182,7 @@ impl Memory {
     pub async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, MemoryError> {
         match &self.embedding_model {
             Some(model) => {
-                let embeddings = model
-                    .embed(text)
-                    .await?
-                    .vector()
-                    .into_iter()
-                    .copied()
-                    .collect();
+                let embeddings = model.embed(text).await?.vector().to_vec();
                 Ok(embeddings)
             }
             None => Err(MemoryError::ModelNotLoaded),

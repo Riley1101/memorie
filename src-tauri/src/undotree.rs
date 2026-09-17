@@ -17,7 +17,7 @@ pub struct Node {
 pub struct NodeIndex(pub usize);
 
 // Represents the complete change history for a single file.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct History {
     pub nodes: Vec<Node>,
     pub current: Option<NodeIndex>,
@@ -26,16 +26,6 @@ pub struct History {
     // not the permanent data structure.
     #[serde(skip, default)]
     redo_stack: Vec<NodeIndex>,
-}
-
-impl Default for History {
-    fn default() -> Self {
-        Self {
-            nodes: Vec::new(),
-            current: None,
-            redo_stack: Vec::new(),
-        }
-    }
 }
 
 impl History {
@@ -108,8 +98,7 @@ impl UndoTree {
         let tmp = path.with_extension("tmp");
         {
             let mut writer = io::BufWriter::new(fs::File::create(&tmp)?);
-            serde_json::to_writer(&mut writer, self)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            serde_json::to_writer(&mut writer, self).map_err(io::Error::other)?;
             writer.flush()?;
         }
         fs::rename(&tmp, path)

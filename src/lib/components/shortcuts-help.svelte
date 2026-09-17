@@ -13,10 +13,15 @@
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import TypeIcon from '@lucide/svelte/icons/type';
   import PlusIcon from '@lucide/svelte/icons/plus';
+  import FocusIcon from '@lucide/svelte/icons/focus';
+  import TextSearchIcon from '@lucide/svelte/icons/text-search';
+  import FileOutputIcon from '@lucide/svelte/icons/file-output';
 
   let shortcuts = $derived(
     [
       { key: `${MOD_LABEL} + K`, description: 'Search writings', icon: SearchIcon },
+      { key: `${MOD_LABEL} + ⇧ + F`, description: 'Find in all writings', icon: TextSearchIcon },
+      { key: `${MOD_LABEL} + ⇧ + E`, description: 'Export', icon: FileOutputIcon },
       { key: `${MOD_LABEL} + N`, description: 'New writing here', icon: PlusIcon },
       { key: `${MOD_LABEL} + ⇧ + N`, description: 'New writing in…', icon: PlusIcon },
       configManager.config?.ai_enabled
@@ -25,6 +30,7 @@
       { key: `${MOD_LABEL} + ⇧ + H`, description: 'Go home', icon: HouseIcon },
       { key: `${MOD_LABEL} + U`, description: 'Toggle history', icon: HistoryIcon },
       { key: `${MOD_LABEL} + ⇧ + O`, description: 'Toggle table of contents', icon: TableOfContentsIcon },
+      { key: `${MOD_LABEL} + .`, description: 'Toggle focus mode', icon: FocusIcon },
       { key: `${MOD_LABEL} + S`, description: 'Save writing', icon: SaveIcon },
       { key: `${MOD_LABEL} + Z`, description: 'Undo typing', icon: UndoIcon },
       { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo typing', icon: RedoIcon },
@@ -42,9 +48,9 @@
   open={appState.ui.isHelpModalOpen} 
   onOpenChange={(v) => appState.toggleHelpModal(v)}
 >
-  <Dialog.Content class="sm:max-w-[480px] p-0 overflow-hidden border-border/40 font-writer" portalProps={{}}>
+  <Dialog.Content class="sm:max-w-[480px] p-0 overflow-hidden border-border/40" portalProps={{}}>
     <Dialog.Header class="px-6 pt-6 pb-4 bg-muted/20 border-b border-border/20">
-      <Dialog.Title class="text-xl font-normal tracking-tight">Keyboard Shortcuts</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal font-writer tracking-tight">Keyboard Shortcuts</Dialog.Title>
       <Dialog.Description class="text-sm text-muted-foreground/60">
         Master your workflow with Memorie's quick commands.
       </Dialog.Description>

@@ -143,7 +143,7 @@ export function buildFileTree(files, binder, folders = []) {
 export function formatTimeAgo(date) {
   if (!date) return '';
   
-  const seconds = Math.floor((new Date() - date) / 1000);
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
 
   if (seconds < 5) {
     return 'just now';

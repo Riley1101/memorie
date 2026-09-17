@@ -8,6 +8,35 @@ class AppState {
   /** @type {('default' | 'compact')[]} */
   static DENSITY_MODES = ['default', 'compact'];
 
+  /**
+   * Reading themes for the whole app, not just the editor: typeface, page
+   * background, spacing and blockquote treatment. Independent of light/dark
+   * and of the accent palette below.
+   * @type {{ id: string, label: string, description: string }[]}
+   */
+  static STYLE_FLAVOURS = [
+    {
+      id: 'paper',
+      label: 'Paper',
+      description: 'A warm page with a soft shadow and ornamental quotes — reads like a printed manuscript.',
+    },
+    {
+      id: 'default',
+      label: 'Classic',
+      description: 'Serif type on a plain background. Understated and book-like without the page effect.',
+    },
+    {
+      id: 'minimal',
+      label: 'Minimal',
+      description: 'Sans-serif and airy. Closer to a plain document than a book.',
+    },
+    {
+      id: 'technical',
+      label: 'Technical',
+      description: 'Compact sans-serif with code-friendly quotes. Built for notes and docs, not prose.',
+    },
+  ];
+
   /** Preset base font size (px) per density mode. */
   static DENSITY_FONT_SIZE = { default: 20, compact: 16 };
 
@@ -20,8 +49,15 @@ class AppState {
    *   isSidebarOpen: boolean,
    *   isCommandMenuOpen: boolean,
    *   isHelpModalOpen: boolean,
+   *   isNewPickerOpen: boolean,
+   *   isProjectSearchOpen: boolean,
+   *   exportTarget: { fileName: string | null, dir: string } | null,
+   *   importTarget: { dir: string } | null,
+   *   activeBinder: string | null,
    *   theme: 'dark' | 'light',
+   *   themePreference: 'light' | 'dark' | 'system',
    *   themePalette: string,
+   *   styleFlavour: string,
    *   density: 'default' | 'compact',
    *   fontSize: number,
    *   editorVersion: number,
@@ -37,13 +73,28 @@ class AppState {
     isHelpModalOpen: false,
     /** "New writing in…" location picker (⌘⇧N). */
     isNewPickerOpen: false,
+    /** Find and replace across all writings (⌘⇧F). */
+    isProjectSearchOpen: false,
+    /**
+     * Export dialog. `fileName` is the writing it was opened from (null from
+     * the home screen), `dir` the folder or binder offered as the default scope.
+     * @type {{ fileName: string | null, dir: string } | null}
+     */
+    exportTarget: null,
+    /**
+     * Import dialog; `dir` is the suggested destination. null when closed.
+     * @type {{ dir: string } | null}
+     */
+    importTarget: null,
     /** Binder selected on the home screen; null = All Writings. Survives navigation. */
     activeBinder: /** @type {string | null} */ (null),
     theme: 'dark',
     /** What the user picked: 'light' | 'dark' | 'system'. `theme` is the resolved value. */
     themePreference: 'system',
     themePalette: 'default',
-    styleFlavour: 'minimal',
+    // 'paper' by default: this is a fiction/long-form writing app, and it
+    // should look like one from the first launch.
+    styleFlavour: 'paper',
     density: 'default',
     fontSize: AppState.DENSITY_FONT_SIZE.default,
     editorVersion: 0,
@@ -170,6 +221,30 @@ class AppState {
   }
 
   /** @param {boolean} state */
+  toggleProjectSearch(state) {
+    this.ui = {
+      ...this.ui,
+      isProjectSearchOpen: state,
+    };
+  }
+
+  /** @param {{ fileName: string | null, dir: string } | null} target - null closes the dialog. */
+  openExport(target) {
+    this.ui = {
+      ...this.ui,
+      exportTarget: target,
+    };
+  }
+
+  /** @param {{ dir: string } | null} target - null closes the dialog. */
+  openImport(target) {
+    this.ui = {
+      ...this.ui,
+      importTarget: target,
+    };
+  }
+
+  /** @param {boolean} state */
   toggleNewPicker(state) {
     this.ui = {
       ...this.ui,
@@ -209,10 +284,27 @@ class AppState {
   }
 
   /**
+   * @param {string} flavour - One of AppState.STYLE_FLAVOURS' ids.
+   */
+  setStyleFlavour(flavour) {
+    const valid = AppState.STYLE_FLAVOURS.some((f) => f.id === flavour);
+    const next = valid ? flavour : 'paper';
+    this.ui = {
+      ...this.ui,
+      styleFlavour: next,
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('styleFlavour', next);
+    }
+  }
+
+  /**
    * @param {string} palette - One of default, zinc, slate, rose, blue, green, violet
    */
   setThemePalette(palette) {
-    const next = AppState.THEME_PALETTES.includes(palette) ? palette : 'default';
+    const next = /** @type {(typeof AppState.THEME_PALETTES)[number]} */ (
+      AppState.THEME_PALETTES.some((p) => p === palette) ? palette : 'default'
+    );
     this.ui = {
       ...this.ui,
       themePalette: next,
@@ -226,7 +318,9 @@ class AppState {
    * @param {string} density - One of default, compact. Sets overall app text size and spacing.
    */
   setDensity(density) {
-    const next = AppState.DENSITY_MODES.includes(density) ? density : 'default';
+    const next = /** @type {(typeof AppState.DENSITY_MODES)[number]} */ (
+      AppState.DENSITY_MODES.some((d) => d === density) ? density : 'default'
+    );
     this.ui = {
       ...this.ui,
       density: next,
@@ -253,5 +347,6 @@ class AppState {
 
 export let appState = new AppState();
 export const THEME_PALETTES = AppState.THEME_PALETTES;
+export const STYLE_FLAVOURS = AppState.STYLE_FLAVOURS;
 export const DENSITY_MODES = AppState.DENSITY_MODES;
 export const DENSITY_FONT_SIZE = AppState.DENSITY_FONT_SIZE;

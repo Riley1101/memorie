@@ -102,7 +102,7 @@
       </div>
 
       <div class="space-y-1">
-        <h3 class="text-lg font-normal">Your writing assistant</h3>
+        <h3 class="font-writer text-lg font-normal">Your writing assistant</h3>
         <p class="text-sm text-muted-foreground/70 max-w-xs">
           {configManager.config?.provider === "openrouter"
             ? "Answers via OpenRouter. Note search stays on this device."

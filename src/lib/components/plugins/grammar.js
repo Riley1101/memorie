@@ -98,7 +98,9 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
           const onScrollOrResize = () => reposition(view);
           window.addEventListener('scroll', onScrollOrResize, { capture: true, passive: true });
           window.addEventListener('resize', onScrollOrResize);
-          container._cleanup = () => {
+          // Listener teardown is parked on the node so the decoration's
+          // `destroy` can reach it.
+          /** @type {HTMLDivElement & { _cleanup?: () => void }} */ (container)._cleanup = () => {
             window.removeEventListener('scroll', onScrollOrResize, { capture: true });
             window.removeEventListener('resize', onScrollOrResize);
           };
@@ -120,7 +122,8 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
           // position) is recreated whenever the selection changes, even when
           // it stays within the same paragraph.
           key: `grammar-${pos}-${selFrom}-${selTo}`,
-          destroy: () => container._cleanup?.(),
+          destroy: () =>
+            /** @type {HTMLDivElement & { _cleanup?: () => void }} */ (container)._cleanup?.(),
         }
       )
     );

@@ -3,15 +3,19 @@
   import Cmdk from '$lib/components/cmdk.svelte';
   import ShortcutsHelp from '$lib/components/shortcuts-help.svelte';
   import NewWritingPicker from '$lib/components/new-writing-picker.svelte';
+  import ExportDialog from '$lib/components/export-dialog.svelte';
+  import ProjectSearch from '$lib/components/project-search.svelte';
+  import ImportDialog from '$lib/components/import-dialog.svelte';
   import { page } from '$app/state';
   import { startNewWriting } from '$lib/new-writing.js';
   import { dirOf } from '$lib/runes/fs.svelte.js';
 
-  import { appState, THEME_PALETTES, DENSITY_MODES } from '@/runes/app.svelte.js';
+  import { appState, THEME_PALETTES, DENSITY_MODES, STYLE_FLAVOURS } from '@/runes/app.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte';
   import { llmManager } from '@/runes/llm.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
+  import { writingState } from '$lib/runes/writing.svelte.js';
   import { onDestroy, onMount } from 'svelte';
   import { isMod, isMac } from '$lib/keyboard.svelte.js';
   import { Toaster } from 'svelte-sonner';
@@ -51,12 +55,16 @@
 
     const savedPalette = localStorage.getItem('themePalette');
 
-    if (savedPalette && THEME_PALETTES.includes(savedPalette)) {
+    if (savedPalette && THEME_PALETTES.some((p) => p === savedPalette)) {
       appState.setThemePalette(savedPalette);
     }
     const savedDensity = localStorage.getItem('density');
-    if (savedDensity && DENSITY_MODES.includes(savedDensity)) {
+    if (savedDensity && DENSITY_MODES.some((d) => d === savedDensity)) {
       appState.setDensity(savedDensity);
+    }
+    const savedFlavour = localStorage.getItem('styleFlavour');
+    if (savedFlavour && STYLE_FLAVOURS.some((f) => f.id === savedFlavour)) {
+      appState.setStyleFlavour(savedFlavour);
     }
     const savedFontSize = localStorage.getItem('fontSize');
     if (savedFontSize) {
@@ -65,6 +73,7 @@
         appState.setFontSize(size);
       }
     }
+    writingState.load();
     if (localStorage.getItem('outlineOpen') === 'true') {
       appState.toggleOutline(true);
     }
@@ -120,18 +129,21 @@
       : ''} style-{appState.ui.styleFlavour} density-{appState.ui
       .density} {onMacOS
       ? 'platform-mac'
-      : ''} font-writer font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
+      : ''} font-sans font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
   >
     {#if onMacOS}
       <!-- Overlay title bar: this strip is what the user grabs to move the window. -->
       <div
         data-tauri-drag-region
-        class="fixed inset-x-0 top-0 z-10 h-[var(--titlebar-height)]"
+        class="fixed inset-x-0 top-0 z-10 h-[var(--titlebar-height)] bg-titlebar-background"
       ></div>
     {/if}
     {@render children()}
     <Cmdk />
     <NewWritingPicker />
+    <ExportDialog />
+    <ProjectSearch />
+    <ImportDialog />
     <ShortcutsHelp />
     <Toaster
       theme={appState.ui.theme}
@@ -140,7 +152,7 @@
       closeButton
       toastOptions={{
         class:
-          'font-writer !bg-popover !text-popover-foreground !border-border !shadow-lg !rounded-xl',
+          'font-sans !bg-popover !text-popover-foreground !border-border !shadow-lg !rounded-xl',
         descriptionClass: '!text-muted-foreground',
       }}
     />
@@ -174,6 +186,11 @@
       }
     }
 
+    if (e.key.toLowerCase() === 'f' && isMod(e) && e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      appState.toggleProjectSearch(true);
+    }
+
     if (e.key.toLowerCase() === 'p' && e.ctrlKey && e.shiftKey) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
@@ -193,96 +210,53 @@
 
 <style>
   /**
-     * EB Garamond Font Family
-     */
-
-  /* Regular */
+   * Source Serif 4 — display/body serif (variable weight)
+   */
   @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-Regular.ttf') format('truetype');
-    font-weight: 400;
+    font-family: 'Source Serif 4';
+    src: url('/fonts/SourceSerif4/source-serif4-normal.woff2') format('woff2');
+    font-weight: 200 900;
     font-style: normal;
     font-display: swap;
   }
-
-  /* Italic */
   @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-Italic.ttf') format('truetype');
-    font-weight: 400;
+    font-family: 'Source Serif 4';
+    src: url('/fonts/SourceSerif4/source-serif4-italic.woff2') format('woff2');
+    font-weight: 200 900;
     font-style: italic;
     font-display: swap;
   }
 
-  /* Medium */
+  /**
+   * Public Sans — UI/chrome sans (variable weight)
+   */
   @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-Medium.ttf') format('truetype');
-    font-weight: 500;
+    font-family: 'Public Sans';
+    src: url('/fonts/PublicSans/public-sans.woff2') format('woff2');
+    font-weight: 100 900;
     font-style: normal;
     font-display: swap;
   }
 
-  /* Medium Italic */
+  /**
+   * JetBrains Mono — metadata/mono (variable weight)
+   */
   @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-MediumItalic.ttf') format('truetype');
-    font-weight: 500;
-    font-style: italic;
-    font-display: swap;
-  }
-
-  /* SemiBold */
-  @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-SemiBold.ttf') format('truetype');
-    font-weight: 600;
+    font-family: 'JetBrains Mono';
+    src: url('/fonts/JetBrainsMono/jetbrains-mono.woff2') format('woff2');
+    font-weight: 100 800;
     font-style: normal;
     font-display: swap;
   }
 
-  /* SemiBold Italic */
+  /**
+   * Playfair Display — Paper style headings only (variable weight)
+   */
   @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-SemiBoldItalic.ttf') format('truetype');
-    font-weight: 600;
-    font-style: italic;
-    font-display: swap;
-  }
-
-  /* Bold */
-  @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-Bold.ttf') format('truetype');
-    font-weight: 700;
+    font-family: 'Playfair Display';
+    src: url('/fonts/PlayfairDisplay/playfair-display.woff2') format('woff2');
+    font-weight: 400 900;
     font-style: normal;
-    font-display: swap;
-  }
-
-  /* Bold Italic */
-  @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-BoldItalic.ttf') format('truetype');
-    font-weight: 700;
-    font-style: italic;
-    font-display: swap;
-  }
-
-  /* ExtraBold */
-  @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-ExtraBold.ttf') format('truetype');
-    font-weight: 800;
-    font-style: normal;
-    font-display: swap;
-  }
-
-  /* ExtraBold Italic */
-  @font-face {
-    font-family: 'EB Garamond';
-    src: url('/fonts/EBGaramond/EBGaramond-ExtraBoldItalic.ttf') format('truetype');
-    font-weight: 800;
-    font-style: italic;
     font-display: swap;
   }
 </style>

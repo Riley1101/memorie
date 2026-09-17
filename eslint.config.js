@@ -11,7 +11,14 @@ const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 export default [
   includeIgnoreFile(gitignorePath),
   {
-    ignores: ['./src/lib/components/ui'], // Global ignores
+    // Global ignores. Paths are globs relative to this file: a leading './'
+    // never matches, and a directory needs '/**' to cover what's inside it.
+    ignores: [
+      'src/lib/components/ui/**',
+      'src-tauri/target/**',
+      'build/**',
+      '.svelte-kit/**',
+    ],
   },
   js.configs.recommended,
   ...svelte.configs.recommended,

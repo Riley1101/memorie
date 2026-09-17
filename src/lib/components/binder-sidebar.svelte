@@ -127,26 +127,29 @@
     onSelect?.();
     goto(resolve('/settings'));
   }
+
+  /** "Work" is always teal (spec); other binders share the clay accent. */
+  function binderTint(name) {
+    return name?.toLowerCase() === 'work'
+      ? { icon: 'text-teal', activeBg: 'bg-teal/10', activeText: 'text-teal' }
+      : { icon: 'text-muted-foreground/60', activeBg: 'bg-primary/10', activeText: 'text-primary' };
+  }
 </script>
 
+{#snippet searchField(onSelect)}
+  <button
+    type="button"
+    onclick={() => openSearch(onSelect)}
+    class="flex items-center gap-2 w-full h-8 px-3 rounded-lg border border-border bg-input/40 text-left text-[0.8125rem] text-placeholder hover:border-ring/40 hover:text-muted-foreground transition-colors"
+  >
+    <SearchIcon strokeWidth={1.5} class="size-3.5 shrink-0" />
+    <span class="flex-1 truncate">Search</span>
+    <span class="text-[0.625rem] font-mono text-disabled shrink-0">{MOD_KEY}K</span>
+  </button>
+{/snippet}
+
 {#snippet topActions(onSelect)}
-  <Tooltip.Root>
-    <Tooltip.Trigger>
-      {#snippet child({ props })}
-        <Button
-          {...props}
-          onclick={() => openSearch(onSelect)}
-          variant="ghost"
-          size="icon-sm"
-          class="text-muted-foreground hover:text-foreground rounded-full"
-          aria-label="Search"
-        >
-          <SearchIcon strokeWidth={1.5} class="size-4" />
-        </Button>
-      {/snippet}
-    </Tooltip.Trigger>
-    <Tooltip.Content side="bottom" portalProps={{}}>Search · {MOD_KEY}K</Tooltip.Content>
-  </Tooltip.Root>
+  {@render searchField(onSelect)}
   <Tooltip.Root>
     <Tooltip.Trigger>
       {#snippet child({ props })}
@@ -155,7 +158,7 @@
           onclick={() => openSettings(onSelect)}
           variant="ghost"
           size="icon-sm"
-          class="text-muted-foreground hover:text-foreground rounded-full"
+          class="text-muted-foreground hover:text-foreground rounded-full shrink-0"
           aria-label="Settings"
         >
           <SettingIcon strokeWidth={1.5} class="size-4" />
@@ -184,6 +187,7 @@
     </button>
     <div class="my-1 border-t border-border/30"></div>
     {#each fileManager.binders as binder (binder)}
+      {@const tint = binderTint(binder)}
       <button
         onclick={() => {
           selectBinder(binder);
@@ -191,10 +195,10 @@
         }}
         class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left transition-colors {activeBinder ===
         binder
-          ? 'bg-primary/10 text-primary font-medium'
+          ? `${tint.activeBg} ${tint.activeText} font-medium`
           : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
       >
-        <FolderIcon strokeWidth={1.5} class="size-4 shrink-0" />
+        <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 {activeBinder === binder ? '' : tint.icon}" />
         <span class="truncate flex-1">{binder}</span>
         <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{binderCount(binder)}</span>
       </button>
@@ -283,12 +287,12 @@
      (~12rem) or it'd sit on top of text, so this only kicks in at xl (1280px+).
      Narrower windows (tablet, tiled/split desktop, phone) use the sheet trigger below. -->
 <aside
-  class="hidden xl:flex xl:absolute xl:top-0 xl:left-0 xl:z-30 w-44 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col font-writer"
+  class="hidden xl:flex xl:absolute xl:top-0 xl:left-0 xl:z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
 >
-  <div class="pt-8 flex items-center justify-end gap-0.5 -mr-1">
+  <div class="pt-8 flex items-center gap-2">
     {@render topActions()}
   </div>
-  <div class="mb-4 md:mb-8"></div>
+  <div class="mb-4 md:mb-6"></div>
   {@render binderPanel()}
 </aside>
 
@@ -303,17 +307,36 @@
 </button>
 
 <Sheet.Root bind:open={isMobileSheetOpen}>
-  <Sheet.Content side="left" class="w-64 font-writer flex flex-col" portalProps={{}}>
+  <Sheet.Content side="left" class="w-64 flex flex-col" portalProps={{}}>
     <Sheet.Header class="pb-0 flex-row items-center justify-between">
       <button onclick={goToManageBinders} class="text-left">
-        <Sheet.Title class="text-lg font-normal hover:text-primary transition-colors"
+        <Sheet.Title class="font-writer text-lg font-normal hover:text-primary transition-colors"
           >Binders</Sheet.Title
         >
       </button>
-      <div class="flex items-center gap-0.5 pr-8">
-        {@render topActions(() => (isMobileSheetOpen = false))}
+      <div class="pr-8">
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <Button
+                {...props}
+                onclick={() => openSettings(() => (isMobileSheetOpen = false))}
+                variant="ghost"
+                size="icon-sm"
+                class="text-muted-foreground hover:text-foreground rounded-full"
+                aria-label="Settings"
+              >
+                <SettingIcon strokeWidth={1.5} class="size-4" />
+              </Button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="bottom" portalProps={{}}>Settings</Tooltip.Content>
+        </Tooltip.Root>
       </div>
     </Sheet.Header>
+    <div class="px-2 pt-2 pb-1.5 shrink-0">
+      {@render searchField(() => (isMobileSheetOpen = false))}
+    </div>
     {@render binderPanel(() => (isMobileSheetOpen = false))}
   </Sheet.Content>
 </Sheet.Root>
