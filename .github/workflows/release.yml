@@ -29,6 +29,9 @@ jobs:
             args: ''
 
     runs-on: ${{ matrix.platform }}
+    concurrency:
+      group: publish-${{ github.run_id }}-${{ matrix.platform }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
