@@ -4,7 +4,8 @@ export const LANE_COLORS = ['var(--color-primary)', 'var(--color-teal)'];
 
 /**
  * @typedef {Object} HistoryNode
- * @property {string} content
+ * @property {string} [preview] - Short excerpt of the version's text.
+ * @property {number | null} [createdAt] - Milliseconds since the epoch.
  * @property {number | null} parent
  * @property {number[]} children
  */
@@ -22,7 +23,8 @@ export const LANE_COLORS = ['var(--color-primary)', 'var(--color-teal)'];
  *   the same lane (so a line should be drawn into the top of this row).
  * @property {boolean} isRoot
  * @property {boolean} isCurrent - true for the version currently checked out.
- * @property {string} content
+ * @property {string} preview
+ * @property {number | null} createdAt
  * @property {{ lane: number, color: string }[]} passthrough - other lanes
  *   that are "in flight" through this row and need a plain vertical segment.
  */
@@ -104,7 +106,8 @@ export function buildGitGraph(nodes, current) {
       hasIncoming: id !== range.max,
       isRoot: parentId === null,
       isCurrent: id === current,
-      content: node.content,
+      preview: node.preview ?? '',
+      createdAt: node.createdAt ?? null,
       passthrough,
     };
   });

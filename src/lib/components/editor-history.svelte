@@ -1,7 +1,8 @@
 <script>
   /**
    * @typedef {Object} Node
-   * @property {string} content - The text content of this history state.
+   * @property {string} [preview] - A short excerpt of this history state.
+   * @property {number | null} [createdAt] - When this state was saved, in ms since the epoch.
    * @property {number | null} parent - The index in the `nodes` array of the parent node.
    * @property {number[]} children - An array of indices for all child nodes.
    */

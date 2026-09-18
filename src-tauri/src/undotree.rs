@@ -10,6 +10,36 @@ pub struct Node {
     pub content: String,
     pub parent: Option<NodeIndex>,
     pub children: Vec<NodeIndex>,
+
+    // Milliseconds since the epoch. Histories written before this field
+    // existed have no timestamp, so the graph falls back to the version id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<i64>,
+}
+
+/// Milliseconds since the Unix epoch, for stamping a new version.
+fn now_millis() -> Option<i64> {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as i64)
+}
+
+/// First non-empty line of a version, trimmed and capped, so the graph can
+/// show what a version says without shipping the whole version over IPC.
+fn preview_of(content: &str) -> String {
+    const MAX_CHARS: usize = 64;
+    let line = content
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("");
+    if line.chars().count() <= MAX_CHARS {
+        return line.to_string();
+    }
+    let mut out: String = line.chars().take(MAX_CHARS).collect();
+    out.push('\u{2026}');
+    out
 }
 
 // Wrapping usize ensures we don't accidentally mix up integers with indices.
@@ -46,13 +76,18 @@ impl History {
 
 /// A node without its content, for drawing the history graph.
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NodeSummary {
     pub parent: Option<NodeIndex>,
     pub children: Vec<NodeIndex>,
+    pub created_at: Option<i64>,
+    /// A short excerpt, never the full version content.
+    pub preview: String,
 }
 
-/// History shape without version contents. The graph never shows content, and
-/// shipping every full version over IPC on each save grows with the history.
+/// History shape without version contents. The graph shows only a short
+/// excerpt per version; shipping every full version over IPC on each save
+/// grows with the history.
 #[derive(Clone, Debug, Serialize)]
 pub struct HistorySummary {
     pub nodes: Vec<NodeSummary>,
@@ -65,7 +100,12 @@ impl From<&History> for HistorySummary {
             nodes: history
                 .nodes
                 .iter()
-                .map(|n| NodeSummary { parent: n.parent, children: n.children.clone() })
+                .map(|n| NodeSummary {
+                    parent: n.parent,
+                    children: n.children.clone(),
+                    created_at: n.created_at,
+                    preview: preview_of(&n.content),
+                })
                 .collect(),
             current: history.current,
         }
@@ -121,6 +161,7 @@ impl UndoTree {
             content: content.to_string(),
             parent: history.current,
             children: Vec::new(),
+            created_at: now_millis(),
         };
 
         history.nodes.push(new_node);
@@ -299,11 +340,17 @@ mod tests {
         assert!(!path.with_extension("tmp").exists());
 
         let summary = HistorySummary::from(history);
-        let json = serde_json::to_string(&summary).unwrap();
-        assert_eq!(
-            json,
-            r#"{"nodes":[{"parent":null,"children":[1]},{"parent":0,"children":[2]},{"parent":1,"children":[]}],"current":2}"#
-        );
+        let json: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&summary).unwrap()).unwrap();
+        assert_eq!(json["current"], 2);
+        assert_eq!(json["nodes"][0]["parent"], serde_json::Value::Null);
+        assert_eq!(json["nodes"][0]["children"], serde_json::json!([1]));
+        assert_eq!(json["nodes"][2]["parent"], 1);
+        // The summary carries an excerpt and a timestamp, never full content.
+        assert_eq!(json["nodes"][0]["preview"], "one");
+        assert_eq!(json["nodes"][2]["preview"], "three");
+        assert!(json["nodes"][0]["createdAt"].is_i64());
+        assert!(json["nodes"][0].get("content").is_none());
     }
 
     #[test]

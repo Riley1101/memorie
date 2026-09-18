@@ -157,8 +157,11 @@
   >
     {#if appState.ui.isHistoryOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
-        <div class="px-4 py-3">
+        <div class="flex items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
           <h2 class="text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">History</h2>
+          <span class="truncate text-[0.6875rem] font-mono text-metadata" title={baseOf(fileName)}>
+            {baseOf(fileName)}
+          </span>
         </div>
         <ScrollFade class="flex-1 h-full">
           <ScrollArea class="h-full" type="scroll">
