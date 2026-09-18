@@ -12,7 +12,45 @@ on:
         default: ''
 
 jobs:
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: get version
+        id: version
+        run: echo "value=$(node -p "require('./src-tauri/tauri.conf.json').version")" >> $GITHUB_OUTPUT
+
+      - name: create release
+        id: create-release
+        uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ github.event.inputs.version || format('app-v{0}', steps.version.outputs.value) }}
+          RELEASE_NAME: ${{ github.event.inputs.version || format('App v{0}', steps.version.outputs.value) }}
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: process.env.TAG_NAME,
+              name: process.env.RELEASE_NAME,
+              body: 'See the assets to download this version and install.',
+              draft: true,
+              prerelease: false
+            })
+            return data.id
+
   publish-tauri:
+    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -84,9 +122,5 @@ jobs:
           # like Arch, Fedora, NixOS and openSUSE. See tauri-apps/tauri#15976
           # and .github/scripts/strip-appimage-egl-libs.sh.
           tauriScript: ${{ matrix.platform == 'ubuntu-22.04' && 'bash ./.github/scripts/tauri-build.sh' || '' }}
-          tagName: ${{ github.event.inputs.version || 'app-v__VERSION__' }}
-          releaseName: "App ${{ github.event.inputs.version || 'v__VERSION__' }}"
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}

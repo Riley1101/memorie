@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- SEO -->
+<title>Memoire — Writing at the speed of thought</title>
+<meta name="description" content="A local-first, distraction-free writing app. Keyboard-driven, private by default, and fast enough to keep up with your thoughts.">
+
+<!-- Tailwind (CDN build — instant, no toolchain) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Fonts: Geist for UI, Noto Serif for prose -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+<script>
+  /* Design tokens mirrored from the app's OKLCH palette, flattened to hex for the CDN build. */
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans:  ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+          serif: ['Noto Serif', 'Georgia', 'serif'],
+          mono:  ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        },
+        colors: {
+          background: '#08090a',          /* near-black canvas with a slate cast */
+          surface:    '#0e1012',          /* raised panels */
+          card:       '#121517',
+          border:     '#23272b',
+          'border-strong': '#31363b',
+          foreground: '#f5f6f7',
+          muted:      '#8b9299',          /* body copy */
+          'muted-dim':'#5f676e',          /* captions, metadata */
+          accent:     '#c8b89a',          /* warm parchment — used sparingly */
+        },
+        animation: {
+          'fade-in':  'fadeIn 0.9s ease-out forwards',
+          'slide-up': 'slideUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards',
+          'caret':    'caret 1.1s steps(1) infinite',
+        },
+        keyframes: {
+          fadeIn:  { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+          slideUp: { '0%': { transform: 'translateY(24px)', opacity: '0' },
+                     '100%': { transform: 'translateY(0)', opacity: '1' } },
+          caret:   { '0%,49%': { opacity: '1' }, '50%,100%': { opacity: '0' } },
+        },
+      },
+    },
+  }
+</script>
+
+<style>
+  body { background-color: #08090a; }
+
+  /* Hairline scrollbar so the chrome never competes with the prose. */
+  ::-webkit-scrollbar { width: 9px; }
+  ::-webkit-scrollbar-track { background: #08090a; }
+  ::-webkit-scrollbar-thumb { background: #2a2f34; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3c4349; }
+
+  .text-balance { text-wrap: balance; }
+
+  /* Faint ruled-paper texture behind the hero. */
+  .paper-lines {
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 100% 2rem;
+    mask-image: radial-gradient(ellipse 70% 55% at 50% 40%, #000 0%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 40%, #000 0%, transparent 78%);
+  }
+
+  /* Reusable glow used by the Pro tier and the closing banner. */
+  .glow-ring {
+    box-shadow: 0 0 0 1px rgba(200,184,154,0.28),
+                0 0 60px -12px rgba(200,184,154,0.22),
+                inset 0 1px 0 0 rgba(255,255,255,0.05);
+  }
+
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.6875rem; line-height: 1;
+  }
+
+  /* Respect users who'd rather not watch things move. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .animate-fade-in, .animate-slide-up { opacity: 1 !important; }
+  }
+</style>
+</head>
+
+<body class="bg-background text-foreground font-sans antialiased selection:bg-accent selection:text-background">
+
+<!-- ═══════════════════════════════ NAV ═══════════════════════════════ -->
+<nav class="fixed inset-x-0 top-0 z-50 border-b border-border/70 bg-background/70 backdrop-blur-xl backdrop-saturate-150">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-6">
+
+    <!-- Wordmark -->
+    <a href="#top" class="flex items-center gap-2.5 group">
+      <svg class="h-5 w-5 text-foreground transition-transform duration-300 group-hover:-rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+        <path d="M19.5 14.25v4.5A2.25 2.25 0 0117.25 21H5.25A2.25 2.25 0 013 18.75V6.75A2.25 2.25 0 015.25 4.5h4.5"/>
+      </svg>
+      <span class="font-serif text-lg tracking-tight">Memoire</span>
+    </a>
+
+    <!-- Desktop links -->
+    <div class="hidden items-center gap-8 md:flex">
+      <a href="#features"     class="text-sm text-muted transition-colors hover:text-foreground">Features</a>
+      <a href="#inside"       class="text-sm text-muted transition-colors hover:text-foreground">Inside</a>
+      <a href="#ai"           class="text-sm text-muted transition-colors hover:text-foreground">AI</a>
+      <a href="#workflow"     class="text-sm text-muted transition-colors hover:text-foreground">Workflow</a>
+      <a href="#testimonials" class="text-sm text-muted transition-colors hover:text-foreground">Testimonials</a>
+      <a href="#roadmap"     class="text-sm text-muted transition-colors hover:text-foreground">Roadmap</a>
+      <a href="#download"    class="text-sm text-muted transition-colors hover:text-foreground">Download</a>
+    </div>
+
+    <!-- Desktop actions -->
+    <div class="hidden items-center gap-2 md:flex">
+      <a href="#" class="rounded-full px-4 py-2 text-sm text-muted transition-colors hover:bg-card hover:text-foreground">Sign in</a>
+      <a href="#download" class="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-white">Get started</a>
+    </div>
+
+    <!-- Mobile toggle -->
+    <button id="menu-btn" type="button"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:text-foreground md:hidden"
+            aria-label="Toggle navigation" aria-expanded="false" aria-controls="mobile-menu">
+      <svg id="icon-open" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/>
+      </svg>
+      <svg id="icon-close" class="hidden h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <path d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile drawer -->
+  <div id="mobile-menu" class="hidden border-t border-border bg-background/95 backdrop-blur-xl md:hidden">
+    <div class="space-y-1 px-5 py-4">
+      <a href="#features"     class="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-card hover:text-foreground">Features</a>
+      <a href="#inside"       class="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-card hover:text-foreground">Inside</a>
+      <a href="#ai"           class="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-card hover:text-foreground">AI</a>
+      <a href="#workflow"     class="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-card hover:text-foreground">Workflow</a>
+      <a href="#testimonials" class="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-card hover:text-foreground">Testimonials</a>
+      <a href="#roadmap"     class="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-card hover:text-foreground">Roadmap</a>
+      <a href="#download"    class="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-card hover:text-foreground">Download</a>
+      <div class="mt-3 flex gap-2 border-t border-border pt-4">
+        <a href="#" class="flex-1 rounded-full border border-border px-4 py-2.5 text-center text-sm text-muted">Sign in</a>
+        <a href="#download" class="flex-1 rounded-full bg-foreground px-4 py-2.5 text-center text-sm font-medium text-background">Get started</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+
+<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+<header class="relative overflow-hidden pt-32 pb-20 sm:pt-40 lg:pt-48">
+  <!-- Ambient background: ruled paper + a single soft light source -->
+  <div class="pointer-events-none absolute inset-0 paper-lines" aria-hidden="true"></div>
+  <div class="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-accent/[0.07] blur-[140px]" aria-hidden="true"></div>
+
+  <div class="relative mx-auto max-w-4xl px-5 text-center sm:px-6">
+
+    <!-- Pre-headline -->
+    <div class="animate-fade-in mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3.5 py-1.5 opacity-0 backdrop-blur" style="animation-delay:.1s">
+      <span class="text-xs">✨</span>
+      <span class="text-xs font-medium tracking-wide text-muted">Introducing Memoire 2.0 — writing at the speed of thought</span>
+    </div>
+
+    <h1 class="animate-slide-up mb-7 text-balance font-serif text-[2.75rem] leading-[1.08] tracking-tight opacity-0 sm:text-6xl lg:text-7xl" style="animation-delay:.2s">
+      Where thoughts become<br class="hidden sm:block">
+      manuscripts <span class="italic text-muted">without friction.</span>
+    </h1>
+
+    <p class="animate-slide-up mx-auto mb-10 max-w-xl text-balance text-base font-light leading-relaxed text-muted opacity-0 sm:text-lg" style="animation-delay:.3s">
+      Every file stays on your disk — no account, no sync you didn't ask for.
+      A quiet interface and a keyboard-first command layer keep your hands on the words.
+    </p>
+
+    <div class="animate-slide-up flex flex-col items-center justify-center gap-3 opacity-0 sm:flex-row" style="animation-delay:.4s">
+      <a href="#download" class="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-foreground px-6 py-3.5 text-sm font-medium text-background transition-all hover:bg-white sm:w-auto">
+        Start writing free
+        <kbd class="rounded border border-black/20 bg-black/10 px-1.5 py-1 text-background/70">⌘K</kbd>
+      </a>
+      <a href="#workflow" class="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-border px-6 py-3.5 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-card sm:w-auto">
+        <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z"/>
+        </svg>
+        Watch 1-min demo
+      </a>
+    </div>
+  </div>
+
+  <!-- ─── App mockup: macOS window ─── -->
+  <div class="animate-fade-in relative mx-auto mt-20 max-w-6xl px-4 opacity-0 sm:px-6" style="animation-delay:.6s">
+    <div class="pointer-events-none absolute left-1/2 top-1/3 h-[340px] w-[620px] -translate-x-1/2 rounded-full bg-accent/[0.06] blur-[120px]" aria-hidden="true"></div>
+
+    <div class="relative overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/70">
+
+      <!-- Title bar -->
+      <div class="flex h-10 items-center border-b border-border px-4">
+        <div class="flex gap-2" aria-hidden="true">
+          <span class="h-3 w-3 rounded-full bg-[#ff5f56]"></span>
+          <span class="h-3 w-3 rounded-full bg-[#ffbd2e]"></span>
+          <span class="h-3 w-3 rounded-full bg-[#27c93f]"></span>
+        </div>
+        <span class="absolute left-1/2 -translate-x-1/2 text-xs text-muted-dim">the-lighthouse-keeper.md — Zen</span>
+      </div>
+
+      <div class="flex">
+        <!-- Sidebar (desktop only — it's the first thing Zen mode hides) -->
+        <aside class="hidden w-60 shrink-0 border-r border-border p-5 lg:block">
+          <div class="mb-5 flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-xs text-muted-dim">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+            </svg>
+            Search or start…
+          </div>
+          <p class="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Manuscript</p>
+          <ul class="space-y-0.5 text-sm">
+            <li class="rounded-md border border-border/70 bg-card px-2.5 py-2">
+              <p class="font-serif text-foreground">Ch. 7 — The Lighthouse</p>
+              <p class="mt-0.5 text-[10px] text-muted-dim">2,318 words</p>
+            </li>
+            <li class="rounded-md px-2.5 py-2 opacity-55">
+              <p class="font-serif">Ch. 8 — Low Tide</p>
+              <p class="mt-0.5 text-[10px] text-muted-dim">941 words</p>
+            </li>
+            <li class="rounded-md px-2.5 py-2 opacity-55">
+              <p class="font-serif">Notes — Ferry timetable</p>
+              <p class="mt-0.5 text-[10px] text-muted-dim">Yesterday</p>
+            </li>
+          </ul>
+        </aside>
+
+        <!-- Editor canvas -->
+        <div class="relative min-h-[340px] flex-1 px-6 pb-12 pt-10 sm:min-h-[420px] sm:px-10 lg:px-16">
+          <div class="mx-auto max-w-xl">
+            <h2 class="mb-8 font-serif text-2xl tracking-tight sm:text-3xl">Chapter Seven</h2>
+            <div class="space-y-5 font-serif text-[15px] leading-[1.85] text-muted sm:text-lg">
+              <p>The lamp had not been lit in eleven years, and still she climbed the stairs each evening at dusk, counting them aloud.</p>
+              <p>Forty-two. The same as the year her father stopped speaking.</p>
+              <p class="text-foreground">
+                What she wanted was not the light but the climbing<span class="ml-0.5 inline-block h-5 w-[2px] translate-y-[3px] animate-caret bg-accent align-baseline"></span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Status bar -->
+          <div class="absolute inset-x-0 bottom-0 flex h-9 items-center justify-between border-t border-border px-4 text-[10px] text-muted-dim sm:px-6">
+            <div class="flex items-center gap-3">
+              <span class="rounded border border-border px-1.5 py-0.5 font-mono text-foreground">ZEN</span>
+              <span>2,318 words</span>
+              <span class="hidden sm:inline">9 min read</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="hidden items-center gap-1.5 sm:flex">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Saved locally
+              </span>
+              <span><kbd class="rounded border border-border px-1 py-0.5">⌘K</kbd> commands</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════ METRICS ═══════════════════ -->
+<section class="border-t border-border py-20" aria-label="Key metrics">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+    <!-- Stats ribbon -->
+    <dl class="grid grid-cols-1 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <div class="px-6 py-7 text-center">
+        <dt class="text-xs uppercase tracking-widest text-muted-dim">Offline uptime</dt>
+        <dd class="mt-2 font-serif text-3xl">99.9%</dd>
+      </div>
+      <div class="px-6 py-7 text-center">
+        <dt class="text-xs uppercase tracking-widest text-muted-dim">Input lag</dt>
+        <dd class="mt-2 font-serif text-3xl">0<span class="text-xl text-muted">ms</span></dd>
+      </div>
+      <div class="px-6 py-7 text-center">
+        <dt class="text-xs uppercase tracking-widest text-muted-dim">Private</dt>
+        <dd class="mt-2 font-serif text-3xl">100%</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<!-- ═══════════════════ FEATURES — BENTO GRID ═══════════════════ -->
+<section id="features" class="border-t border-border py-24 sm:py-32">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+
+    <div class="mb-14 max-w-2xl">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Features</p>
+      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+        Four things that matter. Nothing that doesn't.
+      </h2>
+      <p class="mt-4 text-muted">
+        Memoire ships the smallest surface area we could defend — every panel earns its place or gets cut.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+
+      <!-- Card 1 — spans 2 -->
+      <article class="group relative overflow-hidden rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong md:col-span-2 md:p-9">
+        <div class="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-accent/[0.06] blur-3xl transition-opacity duration-500 group-hover:opacity-100" aria-hidden="true"></div>
+        <div class="relative">
+          <div class="mb-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+            </svg>
+          </div>
+          <h3 class="mb-2.5 font-serif text-xl tracking-tight">True distraction-free canvas</h3>
+          <p class="max-w-lg text-sm leading-relaxed text-muted">
+            Measured line lengths, optical margins, and a type scale tuned for hours — not screenshots.
+            Ambient backgrounds shift with the time of day, and Zen mode dissolves every control until you reach for one.
+          </p>
+
+          <!-- Inline typography specimen -->
+          <div class="mt-7 rounded-xl border border-border bg-background/60 p-5">
+            <p class="font-serif text-lg leading-relaxed text-foreground">She wrote the way the tide came in —</p>
+            <p class="font-serif text-lg leading-relaxed text-muted">unhurried, and then all at once.</p>
+            <div class="mt-4 flex flex-wrap gap-2 text-[10px] text-muted-dim">
+              <span class="rounded border border-border px-2 py-1 font-mono">18px / 1.85</span>
+              <span class="rounded border border-border px-2 py-1 font-mono">68ch measure</span>
+              <span class="rounded border border-border px-2 py-1 font-mono">Serif · Sans · Mono</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 2 -->
+      <article class="group rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
+        <div class="mb-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"/>
+          </svg>
+        </div>
+        <h3 class="mb-2.5 font-serif text-xl tracking-tight">Instant command palette</h3>
+        <p class="text-sm leading-relaxed text-muted">
+          One shortcut reaches everything: jump between chapters, split a scene, export to EPUB or DOCX. Your hands never leave the keys.
+        </p>
+        <div class="mt-6 space-y-1.5 rounded-xl border border-border bg-background/60 p-3 font-mono text-[11px]">
+          <div class="flex items-center justify-between rounded px-2 py-1.5 text-foreground">
+            <span>Export → EPUB</span><kbd class="rounded border border-border px-1.5 py-0.5 text-muted-dim">⏎</kbd>
+          </div>
+          <div class="flex items-center justify-between rounded px-2 py-1.5 text-muted-dim">
+            <span>Toggle Zen mode</span><kbd class="rounded border border-border px-1.5 py-0.5">⌘⇧Z</kbd>
+          </div>
+          <div class="flex items-center justify-between rounded px-2 py-1.5 text-muted-dim">
+            <span>Word-count goal</span><kbd class="rounded border border-border px-1.5 py-0.5">⌘G</kbd>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 3 -->
+      <article class="group rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
+        <div class="mb-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 12.75v6.75a2.25 2.25 0 002.25 2.25z"/>
+          </svg>
+        </div>
+        <h3 class="mb-2.5 font-serif text-xl tracking-tight">Local-first &amp; encrypted</h3>
+        <p class="text-sm leading-relaxed text-muted">
+          Plain Markdown on your disk, readable in fifty years. Sync is optional, end-to-end encrypted, and the app works exactly the same on a plane.
+        </p>
+        <div class="mt-6 space-y-2.5 text-xs text-muted-dim">
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Works fully offline</p>
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> AES-256 at rest</p>
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> No telemetry, ever</p>
+        </div>
+      </article>
+
+      <!-- Card 4 — spans 2 -->
+      <article class="group relative overflow-hidden rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong md:col-span-2 md:p-9">
+        <div class="pointer-events-none absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-accent/[0.06] blur-3xl" aria-hidden="true"></div>
+        <div class="relative md:flex md:items-start md:gap-10">
+          <div class="md:flex-1">
+            <div class="mb-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>
+              </svg>
+            </div>
+            <h3 class="mb-2.5 font-serif text-xl tracking-tight">A writing assistant that waits to be asked</h3>
+            <p class="max-w-lg text-sm leading-relaxed text-muted">
+              No ghost text finishing your sentences. Select a passage, summon the menu, and choose a single deliberate edit — tighten, clarify, shift the register. Every suggestion arrives as a diff you accept or dismiss.
+            </p>
+          </div>
+
+          <!-- Contextual menu mock -->
+          <div class="mt-7 w-full shrink-0 rounded-xl border border-border bg-background/70 p-1.5 shadow-xl md:mt-0 md:w-64">
+            <p class="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Polish</p>
+            <button type="button" class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs text-foreground transition-colors hover:bg-card">
+              Tighten this paragraph <kbd class="text-muted-dim">⌘1</kbd>
+            </button>
+            <button type="button" class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs text-muted transition-colors hover:bg-card">
+              Improve clarity <kbd class="text-muted-dim">⌘2</kbd>
+            </button>
+            <p class="mt-1 border-t border-border px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Tone</p>
+            <button type="button" class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs text-muted transition-colors hover:bg-card">
+              More formal <kbd class="text-muted-dim">⌘3</kbd>
+            </button>
+            <button type="button" class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs text-muted transition-colors hover:bg-card">
+              Plainer language <kbd class="text-muted-dim">⌘4</kbd>
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ INSIDE THE APP — UI DEEP DIVE ═══════════════════ -->
+<!-- Every panel below mirrors a real surface in the app: the vim-style command
+     bar, the inline AI widget, the branching version graph, and the export sheet. -->
+<section id="inside" class="border-t border-border py-24 sm:py-32">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+
+    <div class="mb-16 max-w-2xl">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Inside the app</p>
+      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+        A closer look at the surfaces you'll actually use.
+      </h2>
+      <p class="mt-4 text-muted">
+        Four panels, one shortcut each. Nothing floats over your page unless you called it.
+      </p>
+    </div>
+
+    <div class="space-y-20 sm:space-y-28">
+
+      <!-- ─── 1 · Command bar ─── -->
+      <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        <div class="lg:order-2">
+          <p class="mb-3 font-mono text-xs text-accent">01 — Command bar</p>
+          <h3 class="mb-3 font-serif text-2xl tracking-tight">Type a colon. Run anything.</h3>
+          <p class="mb-6 text-sm leading-relaxed text-muted">
+            The status line doubles as a vim-style prompt. Press <kbd class="rounded border border-border px-1.5 py-0.5 text-muted-dim">:</kbd>
+            and start typing — commands match on their name <em>or</em> their description, so
+            <span class="font-mono text-foreground">:ex</span> and
+            <span class="font-mono text-foreground">word</span> both find what you meant.
+          </p>
+          <ul class="space-y-2.5 text-sm text-muted">
+            <li class="flex gap-3"><span class="font-mono text-xs text-muted-dim">⌘⇧E</span> Export to Word, PDF, EPUB</li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-muted-dim">⌘.</span> Toggle focus mode</li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-muted-dim">⌘⇧O</span> Toggle table of contents</li>
+            <li class="flex gap-3"><span class="font-mono text-xs text-muted-dim">⌘U</span> Version history sidebar</li>
+          </ul>
+        </div>
+
+        <!-- Mockup: suggestion list sitting above the status line -->
+        <div class="lg:order-1">
+          <div class="overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/50">
+            <!-- A sliver of page above, so the bar reads as anchored to the editor -->
+            <div class="space-y-3 px-6 pb-8 pt-7">
+              <p class="font-serif text-[15px] leading-relaxed text-muted-dim">…and the ferry would not come again until Thursday.</p>
+            </div>
+
+            <!-- Suggestions -->
+            <div class="border-t border-border bg-background/60 p-1.5 font-mono text-[11px]">
+              <div class="flex items-center gap-3 rounded-md bg-card px-2.5 py-2 text-foreground">
+                <svg class="h-3.5 w-3.5 shrink-0 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25"/></svg>
+                <span class="w-16 shrink-0 text-accent">:export</span>
+                <span class="flex-1 truncate text-muted">Export (Word, PDF, EPUB…)</span>
+                <kbd class="rounded border border-border bg-card px-1.5 py-0.5 text-muted-dim">⌘⇧E</kbd>
+              </div>
+              <div class="flex items-center gap-3 rounded-md px-2.5 py-2">
+                <svg class="h-3.5 w-3.5 shrink-0 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+                <span class="w-16 shrink-0 text-muted">:import</span>
+                <span class="flex-1 truncate text-muted-dim">Import (Word, Scrivener, Markdown…)</span>
+              </div>
+              <div class="flex items-center gap-3 rounded-md px-2.5 py-2">
+                <svg class="h-3.5 w-3.5 shrink-0 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12H12m-8.25 5.25h16.5"/></svg>
+                <span class="w-16 shrink-0 text-muted">:toc</span>
+                <span class="flex-1 truncate text-muted-dim">Toggle table of contents</span>
+                <kbd class="rounded border border-border px-1.5 py-0.5 text-muted-dim">⌘⇧O</kbd>
+              </div>
+            </div>
+
+            <!-- Command-mode input, exactly as it replaces the status line -->
+            <div class="flex items-center border-t border-border px-3 py-2.5 font-mono text-xs">
+              <span class="text-foreground">:ex</span>
+              <span class="ml-px inline-block h-4 w-[2px] animate-caret bg-accent"></span>
+            </div>
+          </div>
+
+          <!-- Resting state of the same bar -->
+          <div class="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface px-3.5 py-2.5 font-mono text-[10px] text-muted-dim">
+            <div class="flex items-center gap-3">
+              <span class="tracking-wide text-muted">v5</span>
+              <span class="tabular-nums text-muted">2,318 words</span>
+              <span>· 68% today</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span>?</span><span>:</span><span>⌘K</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 2 · Inline AI widget ─── -->
+      <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        <div>
+          <p class="mb-3 font-mono text-xs text-accent">02 — Inline assistance</p>
+          <h3 class="mb-3 font-serif text-2xl tracking-tight">A suggestion you accept, or don't.</h3>
+          <p class="mb-6 text-sm leading-relaxed text-muted">
+            Put the caret in a paragraph and a small widget appears beside it — never over your text.
+            Pick an edit, read the rewrite in place, then accept it or walk away. Formatting marks
+            live in the same pill, so bold and italic never cost you a trip to a toolbar.
+          </p>
+          <div class="flex flex-wrap gap-2 text-[11px] text-muted-dim">
+            <span class="rounded-full border border-border px-2.5 py-1">Polish</span>
+            <span class="rounded-full border border-border px-2.5 py-1">Tone</span>
+            <span class="rounded-full border border-border px-2.5 py-1">Length</span>
+            <span class="rounded-full border border-border px-2.5 py-1">Style</span>
+            <span class="rounded-full border border-border px-2.5 py-1">Custom prompt</span>
+          </div>
+        </div>
+
+        <!-- Mockup: GrammarBox + its dropdown -->
+        <div class="rounded-xl border border-border bg-surface p-5 shadow-2xl shadow-black/50 sm:p-6">
+          <p class="mb-5 font-serif text-[15px] leading-relaxed text-muted">
+            The lamp had not been lit in eleven years, and <span class="rounded bg-accent/15 px-0.5 text-foreground">still she climbed the stairs each evening at dusk.</span>
+          </p>
+
+          <!-- Suggestion card -->
+          <div class="rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur-sm">
+            <div class="flex items-start gap-3.5">
+              <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="font-serif text-[15px] leading-relaxed tracking-tight text-foreground">
+                  Still, each evening at dusk, she climbed the stairs.
+                </p>
+                <div class="mt-3.5 flex items-center gap-2">
+                  <button type="button" class="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3.5 py-1.5 text-[11px] font-medium text-background transition-transform active:scale-95">
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                    Accept
+                  </button>
+                  <button type="button" class="rounded-full px-3 py-1.5 text-[11px] text-muted transition-colors hover:text-foreground">Discard</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mark toolbar + Ask AI trigger -->
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-0.5 rounded-full border border-border bg-background p-0.5">
+              <span class="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-muted">B</span>
+              <span class="flex h-6 w-6 items-center justify-center rounded-full font-serif text-[12px] italic text-muted">I</span>
+              <span class="flex h-6 w-6 items-center justify-center rounded-full text-[11px] text-muted line-through">S</span>
+              <span class="flex h-6 w-6 items-center justify-center rounded-full font-mono text-[10px] text-muted">&lt;/&gt;</span>
+            </div>
+            <span class="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1.5 text-[10px] font-medium tracking-wide text-muted">
+              <svg class="h-3 w-3 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
+              Ask AI
+              <svg class="h-2.5 w-2.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+            </span>
+          </div>
+
+          <!-- The dropdown it opens -->
+          <div class="mt-3 rounded-xl border border-border bg-background/95 p-2 shadow-2xl backdrop-blur-xl">
+            <div class="rounded-lg border border-border/60 bg-card/40 p-3 text-[11px] text-muted-dim">
+              Tell it what to change…
+            </div>
+            <div class="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-3">
+              <div>
+                <p class="mb-1 px-2 font-mono text-[9px] uppercase tracking-widest text-muted-dim">Polish</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-foreground">Polish grammar</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Improve clarity</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Logical flow</p>
+              </div>
+              <div>
+                <p class="mb-1 px-2 font-mono text-[9px] uppercase tracking-widest text-muted-dim">Tone</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Make formal</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Make friendly</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Make academic</p>
+              </div>
+              <div>
+                <p class="mb-1 px-2 font-mono text-[9px] uppercase tracking-widest text-muted-dim">Length</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Expand</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Shorten</p>
+              </div>
+              <div>
+                <p class="mb-1 px-2 font-mono text-[9px] uppercase tracking-widest text-muted-dim">Style</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Simplify</p>
+                <p class="rounded-lg px-2.5 py-1.5 text-[11px] text-muted">Creative</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 3 · Version history ─── -->
+      <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        <div class="lg:order-2">
+          <p class="mb-3 font-mono text-xs text-accent">03 — Version history</p>
+          <h3 class="mb-3 font-serif text-2xl tracking-tight">Undo that branches, not a straight line.</h3>
+          <p class="mb-6 text-sm leading-relaxed text-muted">
+            Every save is a node. Step back with <kbd class="rounded border border-border px-1.5 py-0.5 text-muted-dim">⌘⌥Z</kbd>,
+            write something different, and the old path stays right where you left it — a second branch
+            rather than a version you destroyed. Open the graph with
+            <kbd class="rounded border border-border px-1.5 py-0.5 text-muted-dim">⌘U</kbd> and read any node before you jump.
+          </p>
+          <p class="text-sm leading-relaxed text-muted">
+            Nothing is uploaded to make this work. The tree is a file next to your writing.
+          </p>
+        </div>
+
+        <!-- Mockup: git graph sidebar -->
+        <div class="lg:order-1">
+          <div class="overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/50">
+            <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
+              <span class="font-mono text-[10px] uppercase tracking-widest text-muted-dim">History</span>
+              <span class="font-mono text-[10px] text-muted-dim">ch-07.md</span>
+            </div>
+
+            <div class="flex gap-4 p-5">
+              <!-- Graph rail -->
+              <svg class="w-14 shrink-0" viewBox="0 0 56 230" fill="none" aria-hidden="true">
+                <!-- trunk -->
+                <path d="M16 18 V 96" stroke="#31363b" stroke-width="1.5"/>
+                <path d="M16 96 V 212" stroke="#31363b" stroke-width="1.5"/>
+                <!-- branch off to the right -->
+                <path d="M16 96 C 16 124, 42 116, 42 146 V 176" stroke="#31363b" stroke-width="1.5"/>
+                <!-- nodes -->
+                <circle cx="16" cy="18"  r="4.5" fill="#08090a" stroke="#5f676e" stroke-width="1.5"/>
+                <circle cx="16" cy="57"  r="4.5" fill="#08090a" stroke="#5f676e" stroke-width="1.5"/>
+                <circle cx="16" cy="96"  r="4.5" fill="#08090a" stroke="#8b9299" stroke-width="1.5"/>
+                <circle cx="42" cy="146" r="4.5" fill="#08090a" stroke="#5f676e" stroke-width="1.5"/>
+                <circle cx="42" cy="176" r="4.5" fill="#08090a" stroke="#5f676e" stroke-width="1.5"/>
+                <!-- current -->
+                <circle cx="16" cy="212" r="6"   fill="#c8b89a"/>
+                <circle cx="16" cy="212" r="10"  stroke="#c8b89a" stroke-opacity="0.3" stroke-width="1.5"/>
+              </svg>
+
+              <!-- Node list, aligned to the rail -->
+              <ol class="flex-1 space-y-[22px] pt-[7px] text-[11px]">
+                <li><p class="font-mono text-muted-dim">v1 · 09:12</p><p class="truncate text-muted">The lamp had not been lit…</p></li>
+                <li><p class="font-mono text-muted-dim">v2 · 09:40</p><p class="truncate text-muted">…in eleven years, and still</p></li>
+                <li><p class="font-mono text-muted-dim">v3 · 10:05</p><p class="truncate text-muted">Counting them aloud. Forty-two.</p></li>
+                <li class="pt-[6px]"><p class="font-mono text-muted-dim">v4a · 10:31 <span class="ml-1 rounded border border-border px-1 py-px">branch</span></p><p class="truncate text-muted">She stopped at the landing…</p></li>
+                <li><p class="font-mono text-muted-dim">v4b · 10:47</p><p class="truncate text-muted">The rail was cold under…</p></li>
+                <li class="pt-[2px]"><p class="font-mono text-accent">v5 · 11:02 · current</p><p class="truncate text-foreground">What she wanted was not the light</p></li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── 4 · Export ─── -->
+      <div class="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
+        <div>
+          <p class="mb-3 font-mono text-xs text-accent">04 — Export</p>
+          <h3 class="mb-3 font-serif text-2xl tracking-tight">Manuscript-ready, in one sheet.</h3>
+          <p class="mb-6 text-sm leading-relaxed text-muted">
+            Export one writing or a whole binder. Standard manuscript format, chapter page breaks,
+            and scene separators are checkboxes — not a template you have to find and fix afterwards.
+          </p>
+          <dl class="space-y-3 text-sm">
+            <div class="flex gap-3"><dt class="w-24 shrink-0 text-foreground">Word</dt><dd class="text-muted">For agents, editors and Word or Pages.</dd></div>
+            <div class="flex gap-3"><dt class="w-24 shrink-0 text-foreground">EPUB</dt><dd class="text-muted">Apple Books, Kobo, or uploading to KDP.</dd></div>
+            <div class="flex gap-3"><dt class="w-24 shrink-0 text-foreground">PDF</dt><dd class="text-muted">Typeset and ready to read, print, or send.</dd></div>
+          </dl>
+        </div>
+
+        <!-- Mockup: export dialog -->
+        <div class="rounded-xl border border-border bg-surface p-5 shadow-2xl shadow-black/50 sm:p-6">
+          <h4 class="font-serif text-lg tracking-tight">Export</h4>
+          <p class="mt-1 text-xs text-muted-dim">Typeset and ready to read, print, or send.</p>
+
+          <div class="mt-5 space-y-4">
+            <div>
+              <p class="mb-1.5 text-[11px] text-muted">Scope</p>
+              <div class="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">
+                <span>Whole binder — The Lighthouse Keeper (14 writings)</span>
+                <svg class="h-3 w-3 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+              </div>
+            </div>
+
+            <div>
+              <p class="mb-1.5 text-[11px] text-muted">Format</p>
+              <div class="flex flex-wrap gap-1.5">
+                <span class="rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground">Word</span>
+                <span class="rounded-md px-3 py-1.5 text-xs text-muted">PDF</span>
+                <span class="rounded-md px-3 py-1.5 text-xs text-muted">EPUB</span>
+                <span class="rounded-md px-3 py-1.5 text-xs text-muted">Web page</span>
+                <span class="rounded-md px-3 py-1.5 text-xs text-muted">Markdown</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <p class="mb-1.5 text-[11px] text-muted">Title</p>
+                <div class="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">The Lighthouse Keeper</div>
+              </div>
+              <div>
+                <p class="mb-1.5 text-[11px] text-muted">Author</p>
+                <div class="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">I. Moreau</div>
+              </div>
+            </div>
+
+            <div class="space-y-2 border-t border-border pt-4 text-xs text-muted">
+              <p class="flex items-center gap-2.5"><span class="flex h-3.5 w-3.5 items-center justify-center rounded-[3px] bg-accent text-background"><svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span> Use writing titles as headings</p>
+              <p class="flex items-center gap-2.5"><span class="flex h-3.5 w-3.5 items-center justify-center rounded-[3px] bg-accent text-background"><svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span> Page break between chapters</p>
+              <p class="flex items-center gap-2.5"><span class="h-3.5 w-3.5 rounded-[3px] border border-border-strong"></span> Standard manuscript format</p>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-1">
+              <span class="rounded-full px-4 py-2 text-xs text-muted">Cancel</span>
+              <span class="rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background">Export</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Secondary panels: outline, goals, binders ─── -->
+    <div class="mt-20 grid grid-cols-1 gap-4 sm:mt-28 md:grid-cols-3">
+
+      <!-- Table of contents -->
+      <article class="rounded-2xl border border-border bg-surface p-6">
+        <h3 class="font-serif text-lg tracking-tight">Live outline</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          Built from your headings as you type. The one you're reading stays lit.
+        </p>
+        <div class="mt-5 space-y-0.5 rounded-xl border border-border bg-background/60 p-2 font-serif text-[13px]">
+          <p class="rounded px-2 py-1 text-foreground">Chapter Seven</p>
+          <p class="rounded px-2 py-1 pl-5 text-muted-dim">The climb</p>
+          <p class="rounded bg-card px-2 py-1 pl-5 text-foreground">Forty-two steps</p>
+          <p class="rounded px-2 py-1 pl-8 text-muted-dim">What her father said</p>
+          <p class="rounded px-2 py-1 pl-5 text-muted-dim">Low tide</p>
+        </div>
+      </article>
+
+      <!-- Goals popover -->
+      <article class="rounded-2xl border border-border bg-surface p-6">
+        <h3 class="font-serif text-lg tracking-tight">Goals, not streaks</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          Words today and words in the binder. No chain to break, no badge to lose.
+        </p>
+        <div class="mt-5 rounded-xl border border-border bg-background/60 p-4">
+          <dl class="grid grid-cols-3 gap-3 border-b border-border pb-3.5">
+            <div><dt class="text-[10px] text-muted-dim">Words</dt><dd class="font-serif text-lg tabular-nums">2,318</dd></div>
+            <div><dt class="text-[10px] text-muted-dim">Chars</dt><dd class="font-serif text-lg tabular-nums">12,704</dd></div>
+            <div><dt class="text-[10px] text-muted-dim">Reading</dt><dd class="font-serif text-lg tabular-nums">10 min</dd></div>
+          </dl>
+          <div class="pt-3.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-foreground">Today</span>
+              <span class="font-mono text-[10px] text-muted-dim">1,020 / 1,500</span>
+            </div>
+            <div class="mt-2 h-1 w-full overflow-hidden rounded-full bg-card">
+              <div class="h-full w-[68%] rounded-full bg-accent"></div>
+            </div>
+            <div class="mt-4 flex items-center justify-between text-xs">
+              <span class="truncate text-foreground">The Lighthouse Keeper</span>
+              <span class="font-mono text-[10px] text-muted-dim">38,412 / 90,000</span>
+            </div>
+            <div class="mt-2 h-1 w-full overflow-hidden rounded-full bg-card">
+              <div class="h-full w-[43%] rounded-full bg-muted"></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Binders -->
+      <article class="rounded-2xl border border-border bg-surface p-6">
+        <h3 class="font-serif text-lg tracking-tight">Binders</h3>
+        <p class="mt-1.5 text-sm leading-relaxed text-muted">
+          Folders on disk, drag-and-drop in the app. Rename one anywhere; nothing breaks.
+        </p>
+        <div class="mt-5 space-y-0.5 rounded-xl border border-border bg-background/60 p-2 text-[13px]">
+          <div class="flex items-center gap-2 rounded px-2 py-1.5 text-muted">
+            <svg class="h-3.5 w-3.5 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+            All Writings
+          </div>
+          <div class="flex items-center gap-2 rounded bg-card px-2 py-1.5 text-foreground">
+            <svg class="h-3.5 w-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+            The Lighthouse Keeper
+          </div>
+          <p class="truncate rounded px-2 py-1.5 pl-8 font-serif text-muted">Ch. 7 — The Lighthouse</p>
+          <p class="truncate rounded px-2 py-1.5 pl-8 font-serif text-muted-dim">Ch. 8 — Low Tide</p>
+          <div class="flex items-center gap-2 rounded px-2 py-1.5 text-muted">
+            <svg class="h-3.5 w-3.5 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/></svg>
+            Essays
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ OPTIONAL AI ═══════════════════ -->
+<!-- Grounded in the real config: ai_enabled defaults to false, provider is
+     'local' | 'openrouter', and SUPPORTED_MODELS in src-tauri/src/llm.rs
+     covers chat, reasoning, and coding presets. -->
+<section id="ai" class="border-t border-border py-24 sm:py-32">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+
+    <div class="mb-14 max-w-2xl">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Optional AI</p>
+      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+        Off by default. Yours to switch on, with the model you pick.
+      </h2>
+      <p class="mt-4 text-muted">
+        Memoire is a text editor first. The assistant ships disabled — no model downloaded, no
+        key required, nothing listening. Turn it on and you choose where it runs and which
+        model answers.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+      <!-- On-device -->
+      <article class="flex flex-col rounded-2xl border border-border bg-surface p-7 sm:p-8">
+        <div class="mb-5 flex items-center gap-3">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z"/>
+            </svg>
+          </span>
+          <h3 class="font-serif text-xl tracking-tight">On this device</h3>
+        </div>
+        <p class="mb-5 text-sm leading-relaxed text-muted">
+          Quantised GGUF models run locally on your own hardware. The first one you pick downloads
+          once — around 1.5&nbsp;GB for the default — then works forever with the network off.
+          Nothing you write is transmitted, because there is nowhere for it to go.
+        </p>
+        <div class="mt-auto space-y-2.5 text-xs text-muted-dim">
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Works on a plane, in a cabin, behind a firewall</p>
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> No API key, no account, no per-token bill</p>
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Swap models any time without losing a draft</p>
+        </div>
+      </article>
+
+      <!-- Hosted -->
+      <article class="flex flex-col rounded-2xl border border-border bg-surface p-7 sm:p-8">
+        <div class="mb-5 flex items-center gap-3">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/>
+            </svg>
+          </span>
+          <h3 class="font-serif text-xl tracking-tight">Or a hosted model</h3>
+        </div>
+        <p class="mb-5 text-sm leading-relaxed text-muted">
+          Prefer something larger than your laptop can hold? Point Memoire at OpenRouter with your
+          own key and pick any model it offers. The key is stored on your machine, and the choice
+          is a dropdown — not a migration.
+        </p>
+        <div class="mt-auto space-y-2.5 text-xs text-muted-dim">
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-accent"></span> Your key, your account, your usage limits</p>
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-accent"></span> Switch back to local in one click</p>
+          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-accent"></span> Only the passage you select is ever sent</p>
+        </div>
+      </article>
+    </div>
+
+    <!-- Settings → AI mockup + model roster -->
+    <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-5">
+
+      <!-- Mockup -->
+      <div class="rounded-2xl border border-border bg-surface p-5 shadow-2xl shadow-black/40 sm:p-6 lg:col-span-3">
+        <div class="mb-5 flex items-center justify-between border-b border-border pb-3">
+          <span class="font-serif text-base tracking-tight">AI</span>
+          <span class="font-mono text-[10px] text-muted-dim">Settings</span>
+        </div>
+
+        <div class="space-y-5 text-xs">
+          <!-- Master switch -->
+          <div class="flex items-center justify-between">
+            <div class="pr-4">
+              <p class="text-sm text-foreground">Enable AI features</p>
+              <p class="mt-0.5 text-[11px] text-muted-dim">Chat, autocomplete, and the inline edit menu. Off until you say so.</p>
+            </div>
+            <span class="relative h-5 w-9 shrink-0 rounded-full bg-accent" role="img" aria-label="Enabled">
+              <span class="absolute right-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-background"></span>
+            </span>
+          </div>
+
+          <!-- Provider -->
+          <div>
+            <p class="mb-2 text-[11px] text-muted">Provider</p>
+            <div class="grid grid-cols-2 gap-1 rounded-lg border border-border bg-background p-1">
+              <span class="rounded-md bg-card px-3 py-1.5 text-center text-foreground">On this device</span>
+              <span class="rounded-md px-3 py-1.5 text-center text-muted-dim">OpenRouter</span>
+            </div>
+          </div>
+
+          <!-- Model picker -->
+          <div>
+            <p class="mb-2 text-[11px] text-muted">Model</p>
+            <div class="space-y-1 rounded-lg border border-border bg-background p-1.5">
+              <div class="flex items-center gap-3 rounded-md bg-card px-2.5 py-2">
+                <span class="flex-1 truncate text-foreground">Qwen 2.5 1.5B Instruct</span>
+                <span class="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-accent">Default</span>
+                <svg class="h-3.5 w-3.5 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              </div>
+              <div class="flex items-center gap-3 rounded-md px-2.5 py-2">
+                <span class="flex-1 truncate text-muted">Llama 3.2 3B Instruct</span>
+                <span class="font-mono text-[10px] text-muted-dim">2.0 GB</span>
+                <svg class="h-3.5 w-3.5 shrink-0 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+              </div>
+              <div class="flex items-center gap-3 rounded-md px-2.5 py-2">
+                <span class="flex-1 truncate text-muted">Mistral 7B Instruct</span>
+                <span class="font-mono text-[10px] text-muted-dim">4.4 GB</span>
+                <svg class="h-3.5 w-3.5 shrink-0 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+              </div>
+              <div class="flex items-center gap-3 rounded-md px-2.5 py-2">
+                <span class="flex-1 truncate text-muted">DeepSeek R1 Distill Qwen 7B</span>
+                <span class="rounded border border-border px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-muted-dim">Reasoning</span>
+              </div>
+            </div>
+            <p class="mt-2.5 flex items-center gap-2 text-[11px] text-muted-dim">
+              <span class="h-1 w-24 overflow-hidden rounded-full bg-card"><span class="block h-full w-2/3 rounded-full bg-accent"></span></span>
+              Downloading Llama 3.2 3B — 64%
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model roster -->
+      <div class="rounded-2xl border border-border bg-surface p-7 sm:p-8 lg:col-span-2">
+        <h3 class="font-serif text-lg tracking-tight">Eighteen presets, three kinds</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Pick by what your machine can hold — from a 0.5B that runs on anything to an 8B for a
+          workstation.
+        </p>
+
+        <div class="mt-6 space-y-5">
+          <div>
+            <p class="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted-dim">Chat</p>
+            <div class="flex flex-wrap gap-1.5 text-[11px]">
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">Qwen 2.5 · 0.5B–7B</span>
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">Llama 3.2 · 1B, 3B</span>
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">Llama 3.1 8B</span>
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">Mistral 7B</span>
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">Phi 3.5 Mini</span>
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">TinyLlama 1.1B</span>
+            </div>
+          </div>
+          <div>
+            <p class="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted-dim">Reasoning</p>
+            <div class="flex flex-wrap gap-1.5 text-[11px]">
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">DeepSeek R1 Distill · Qwen 1.5B–14B</span>
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">DeepSeek R1 Distill · Llama 8B</span>
+            </div>
+          </div>
+          <div>
+            <p class="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted-dim">Coding</p>
+            <div class="flex flex-wrap gap-1.5 text-[11px]">
+              <span class="rounded-full border border-border px-2.5 py-1 text-muted">Code Llama · 7B, 13B, 34B</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="mt-7 border-t border-border pt-5 text-xs leading-relaxed text-muted-dim">
+          Never want any of it? Leave the switch off and Memoire stays a plain, fast editor —
+          no model is ever fetched.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ WORKFLOW ═══════════════════ -->
+<section id="workflow" class="border-t border-border bg-surface/40 py-24 sm:py-32">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+
+    <div class="mb-16 max-w-2xl">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Workflow</p>
+      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+        Open. Write. Ship. Three keys, start to finish.
+      </h2>
+    </div>
+
+    <ol class="grid grid-cols-1 gap-8 md:grid-cols-3">
+      <li class="relative border-t border-border-strong pt-6">
+        <span class="font-mono text-xs text-accent">01</span>
+        <h3 class="mt-3 font-serif text-lg tracking-tight">Capture without ceremony</h3>
+        <p class="mt-2.5 text-sm leading-relaxed text-muted">
+          <kbd class="rounded border border-border px-1.5 py-0.5 text-muted-dim">⌘N</kbd> opens a blank page in under 40&nbsp;ms. No project wizard, no template picker, no folder to name before you've had the idea.
+        </p>
+      </li>
+      <li class="relative border-t border-border-strong pt-6">
+        <span class="font-mono text-xs text-accent">02</span>
+        <h3 class="mt-3 font-serif text-lg tracking-tight">Stay in the flow state</h3>
+        <p class="mt-2.5 text-sm leading-relaxed text-muted">
+          Zen mode dims everything but the current paragraph. Session goals track words written today — never total, never a streak you're afraid to break.
+        </p>
+      </li>
+      <li class="relative border-t border-border-strong pt-6">
+        <span class="font-mono text-xs text-accent">03</span>
+        <h3 class="mt-3 font-serif text-lg tracking-tight">Export anywhere</h3>
+        <p class="mt-2.5 text-sm leading-relaxed text-muted">
+          One command produces EPUB, DOCX with your editor's styles intact, clean PDF, or Markdown your static site already understands.
+        </p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═══════════════════ TESTIMONIALS ═══════════════════ -->
+<section id="testimonials" class="border-t border-border py-24 sm:py-32">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+
+    <div class="mb-14 max-w-2xl">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Testimonials</p>
+      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+        From people who write for a living.
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+
+      <figure class="flex flex-col rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
+        <blockquote class="flex-1 font-serif text-[15px] leading-relaxed text-foreground">
+          “I drafted an entire novel in Memoire without once seeing a notification. The word-count goal is the only number it ever shows me, and I turned that off in week three.”
+        </blockquote>
+        <figcaption class="mt-6 flex items-center gap-3 border-t border-border pt-5">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 font-serif text-sm text-accent" aria-hidden="true">IM</span>
+          <div class="min-w-0">
+            <p class="truncate text-sm text-foreground">Ines Moreau</p>
+            <p class="truncate text-xs text-muted-dim">Novelist · <span class="text-muted">Harrow &amp; Finch</span></p>
+          </div>
+        </figcaption>
+      </figure>
+
+      <figure class="flex flex-col rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
+        <blockquote class="flex-1 font-serif text-[15px] leading-relaxed text-foreground">
+          “Our docs live in Git, so local Markdown files were non-negotiable. Memoire is the first editor that respected that and still felt designed.”
+        </blockquote>
+        <figcaption class="mt-6 flex items-center gap-3 border-t border-border pt-5">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-400/15 font-serif text-sm text-sky-300" aria-hidden="true">DO</span>
+          <div class="min-w-0">
+            <p class="truncate text-sm text-foreground">Daniel Okafor</p>
+            <p class="truncate text-xs text-muted-dim">Technical writer · <span class="text-muted">dev.notes</span></p>
+          </div>
+        </figcaption>
+      </figure>
+
+      <figure class="flex flex-col rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
+        <blockquote class="flex-1 font-serif text-[15px] leading-relaxed text-foreground">
+          “I file from trains, cabins, and one memorable basement. It has never lost a sentence, and it has never asked me to log in to keep writing.”
+        </blockquote>
+        <figcaption class="mt-6 flex items-center gap-3 border-t border-border pt-5">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 font-serif text-sm text-emerald-300" aria-hidden="true">SV</span>
+          <div class="min-w-0">
+            <p class="truncate text-sm text-foreground">Saoirse Vance</p>
+            <p class="truncate text-xs text-muted-dim">Essayist · <span class="text-muted">The Paris Quarterly</span></p>
+          </div>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ ROADMAP / PENDING ═══════════════════ -->
+<!-- Everything here is unreleased. Git sync is built but still in testing
+     (GitHub login, owner/repo, :push, auto-push on exit); the rest is planned. -->
+<section id="roadmap" class="border-t border-border bg-surface/40 py-24 sm:py-32">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+
+    <div class="mb-14 max-w-2xl">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">On the way</p>
+      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+        Not shipped yet — but being built in the open.
+      </h2>
+      <p class="mt-4 text-muted">
+        None of the below is in the current release. We'd rather list it honestly than let you
+        find out after downloading.
+      </p>
+    </div>
+
+    <!-- Lead item: version control & Git sync -->
+    <article class="grid grid-cols-1 gap-8 rounded-2xl border border-border bg-background p-7 sm:p-9 lg:grid-cols-2 lg:gap-12">
+      <div>
+        <div class="mb-5 flex flex-wrap items-center gap-3">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 3v12m0 0a3 3 0 103 3m-3-3a3 3 0 113-3m9-6a3 3 0 11-3 3m3-3a3 3 0 10-3 3m0 0v3a3 3 0 01-3 3H9"/>
+            </svg>
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-amber-300">
+            <span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span> In testing
+          </span>
+        </div>
+
+        <h3 class="mb-3 font-serif text-2xl tracking-tight">Version control, with real Git sync</h3>
+        <p class="mb-5 text-sm leading-relaxed text-muted">
+          The branching history you already have stays local. This adds the other half: point Memoire
+          at a GitHub repository and every save becomes a commit you own, in a repo you can clone,
+          diff, and read without us.
+        </p>
+        <p class="text-sm leading-relaxed text-muted">
+          Sign in with GitHub, give it an <span class="font-mono text-foreground">owner/repo</span>,
+          and push with <span class="font-mono text-foreground">:push</span> — or let it commit
+          everything automatically when you close the app. Already have drafts on GitHub? Import
+          pulls them down into your writing folder.
+        </p>
+
+        <ul class="mt-6 space-y-2.5 text-sm text-muted">
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Plain Markdown commits — no proprietary sync format</li>
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Auto-push on exit, or manual, or never</li>
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Private repos; your token never leaves the machine</li>
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Works alongside the local version graph, not instead of it</li>
+        </ul>
+      </div>
+
+      <!-- Mockup: Settings → Cloud Sync -->
+      <div class="rounded-xl border border-border bg-surface p-5 shadow-2xl shadow-black/40">
+        <div class="mb-5 flex items-center justify-between border-b border-border pb-3">
+          <span class="font-serif text-base tracking-tight">Cloud Sync</span>
+          <span class="flex items-center gap-1.5 font-mono text-[10px] text-muted-dim">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Connected
+          </span>
+        </div>
+
+        <div class="space-y-4 text-xs">
+          <div class="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+            <svg class="h-4 w-4 shrink-0 text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.5 9.5 0 015 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.86v2.75c0 .27.18.58.69.48A10 10 0 0012 2z"/>
+            </svg>
+            <span class="flex-1 text-foreground">i-moreau</span>
+            <span class="text-muted-dim">Sign out</span>
+          </div>
+
+          <div>
+            <p class="mb-1.5 text-[11px] text-muted">Repository</p>
+            <div class="flex gap-2">
+              <div class="flex-1 rounded-lg border border-border bg-background px-3 py-2 font-mono text-foreground">i-moreau/lighthouse</div>
+              <span class="rounded-lg border border-border px-3 py-2 text-muted">Import</span>
+            </div>
+            <p class="mt-2 text-[11px] leading-relaxed text-muted-dim">
+              Writing in your content directory is committed &amp; pushed to this repository.
+            </p>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-border pt-4">
+            <div class="pr-4">
+              <p class="text-foreground">Auto-push on exit</p>
+              <p class="mt-0.5 text-[11px] text-muted-dim">Commit &amp; push pending changes when you close Memoire.</p>
+            </div>
+            <span class="relative h-5 w-9 shrink-0 rounded-full bg-accent" role="img" aria-label="Enabled">
+              <span class="absolute right-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-background"></span>
+            </span>
+          </div>
+
+          <div class="border-t border-border pt-4">
+            <div class="rounded-lg border border-border bg-background px-3 py-2 text-muted-dim">Update writing — 17 Sep, 11:02</div>
+            <div class="mt-2 flex items-center justify-between">
+              <span class="font-mono text-[10px] text-muted-dim">3 changed · 2 ahead</span>
+              <span class="rounded-full bg-foreground px-3.5 py-1.5 text-[11px] font-medium text-background">Commit &amp; push</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Everything else still queued -->
+    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+
+      <article class="rounded-2xl border border-border bg-background p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <svg class="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/>
+          </svg>
+          <span class="rounded-full border border-border px-2.5 py-1 text-[10px] uppercase tracking-widest text-muted-dim">Planned</span>
+        </div>
+        <h3 class="font-serif text-lg tracking-tight">Mobile companion</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Read and capture on a phone, syncing through the same Git repo. Drafting stays a desktop job.
+        </p>
+      </article>
+
+      <article class="rounded-2xl border border-border bg-background p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <svg class="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z"/>
+          </svg>
+          <span class="rounded-full border border-border px-2.5 py-1 text-[10px] uppercase tracking-widest text-muted-dim">Planned</span>
+        </div>
+        <h3 class="font-serif text-lg tracking-tight">Margin notes &amp; review</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Comments and tracked changes for a copy-editor, exported as suggestions in the DOCX they already use.
+        </p>
+      </article>
+
+      <article class="rounded-2xl border border-border bg-background p-6">
+        <div class="mb-4 flex items-center justify-between">
+          <svg class="h-5 w-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 01-.657.643 48.39 48.39 0 01-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 01-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 00-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 01-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 00.657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 01-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 005.427-.63 48.05 48.05 0 00.582-4.717.532.532 0 00-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 00.658-.663 48.422 48.422 0 00-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 01-.61-.58v0z"/>
+          </svg>
+          <span class="rounded-full border border-border px-2.5 py-1 text-[10px] uppercase tracking-widest text-muted-dim">Exploring</span>
+        </div>
+        <h3 class="font-serif text-lg tracking-tight">Plugin API</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Your own commands in the palette and your own panels beside the page, without forking the app.
+        </p>
+      </article>
+    </div>
+
+    <p class="mt-8 text-center text-xs text-muted-dim">
+      Dates are deliberately absent. Follow the repo if you want to watch it land.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════ DOWNLOAD ═══════════════════ -->
+<!-- Platforms mirror the release matrix in .github/workflows/release.yml:
+     macOS aarch64 + x86_64, Windows, and Linux (AppImage/deb). -->
+<section id="download" class="border-t border-border bg-surface/40 py-24 sm:py-32">
+  <div class="mx-auto max-w-5xl px-5 sm:px-6">
+
+    <div class="mb-12 text-center">
+      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Download</p>
+      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+        Begin your archive.
+      </h2>
+      <p class="mx-auto mt-4 max-w-md text-muted">
+        A real desktop app — not a browser tab pretending to be one. No account to create before your first sentence.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+      <!-- macOS · Apple Silicon (the recommended build) -->
+      <a href="#" class="group flex flex-col rounded-2xl border border-accent/25 bg-background p-6 transition-colors hover:border-accent/40">
+        <div class="mb-4 flex items-start justify-between">
+          <svg class="h-7 w-7 text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17.05 12.54c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.71-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.18-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.61 2.25 2.75 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.33-3.54zM14.88 5.9c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.56 1.31-.56.65-1.05 1.69-.92 2.69.97.07 1.96-.49 2.58-1.22z"/>
+          </svg>
+          <span class="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">Recommended</span>
+        </div>
+        <h3 class="font-serif text-lg tracking-tight">macOS</h3>
+        <p class="mt-1 text-xs text-muted-dim">Apple Silicon · M1 and later</p>
+        <p class="mt-5 flex items-center gap-1.5 text-sm text-foreground">
+          Download .dmg
+          <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        </p>
+      </a>
+
+      <!-- macOS · Intel -->
+      <a href="#" class="group flex flex-col rounded-2xl border border-border bg-background p-6 transition-colors hover:border-border-strong">
+        <svg class="mb-4 h-7 w-7 text-muted transition-colors group-hover:text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M17.05 12.54c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.71-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.18-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.61 2.25 2.75 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.33-3.54zM14.88 5.9c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.56 1.31-.56.65-1.05 1.69-.92 2.69.97.07 1.96-.49 2.58-1.22z"/>
+        </svg>
+        <h3 class="font-serif text-lg tracking-tight">macOS</h3>
+        <p class="mt-1 text-xs text-muted-dim">Intel · x86_64</p>
+        <p class="mt-5 flex items-center gap-1.5 text-sm text-muted transition-colors group-hover:text-foreground">
+          Download .dmg
+          <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        </p>
+      </a>
+
+      <!-- Windows -->
+      <a href="#" class="group flex flex-col rounded-2xl border border-border bg-background p-6 transition-colors hover:border-border-strong">
+        <svg class="mb-4 h-7 w-7 text-muted transition-colors group-hover:text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M3 5.4l6.9-.95v6.67H3V5.4zm0 13.2l6.9.95v-6.58H3v5.63zm7.65 1.05L21 21v-8.03h-10.35v6.68zM10.65 4.35v6.77H21V3l-10.35 1.35z"/>
+        </svg>
+        <h3 class="font-serif text-lg tracking-tight">Windows</h3>
+        <p class="mt-1 text-xs text-muted-dim">10 and 11 · x64</p>
+        <p class="mt-5 flex items-center gap-1.5 text-sm text-muted transition-colors group-hover:text-foreground">
+          Download .msi
+          <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        </p>
+      </a>
+
+      <!-- Linux -->
+      <a href="#" class="group flex flex-col rounded-2xl border border-border bg-background p-6 transition-colors hover:border-border-strong">
+        <svg class="mb-4 h-7 w-7 text-muted transition-colors group-hover:text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75a3 3 0 016 0v4.5c0 1.2.5 2 1.2 2.9 1 1.3 1.8 2.6 1.8 4.35a6 6 0 11-12 0c0-1.75.8-3.05 1.8-4.35.7-.9 1.2-1.7 1.2-2.9v-4.5z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6.75h.008v.008H10.5V6.75zm3 0h.008v.008H13.5V6.75z"/>
+        </svg>
+        <h3 class="font-serif text-lg tracking-tight">Linux</h3>
+        <p class="mt-1 text-xs text-muted-dim">AppImage &amp; .deb</p>
+        <p class="mt-5 flex items-center gap-1.5 text-sm text-muted transition-colors group-hover:text-foreground">
+          Download
+          <svg class="h-3.5 w-3.5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        </p>
+      </a>
+    </div>
+
+    <!-- Release metadata -->
+    <div class="mt-8 flex flex-col items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-dim sm:flex-row">
+      <span class="font-mono">v0.1.0</span>
+      <span class="hidden sm:inline">·</span>
+      <a href="#" class="underline underline-offset-4 transition-colors hover:text-foreground">Release notes</a>
+      <span class="hidden sm:inline">·</span>
+      <a href="#" class="underline underline-offset-4 transition-colors hover:text-foreground">All builds &amp; checksums</a>
+      <span class="hidden sm:inline">·</span>
+      <span>Free, and updates itself</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ FINAL CTA ═══════════════════ -->
+<section id="cta" class="border-t border-border py-24 sm:py-32">
+  <div class="mx-auto max-w-4xl px-5 sm:px-6">
+    <div class="glow-ring relative overflow-hidden rounded-2xl border border-accent/25 bg-surface px-6 py-14 text-center sm:px-12">
+      <div class="pointer-events-none absolute left-1/2 top-0 h-72 w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-[110px]" aria-hidden="true"></div>
+
+      <div class="relative">
+        <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
+          Reclaim your creative flow today.
+        </h2>
+        <p class="mx-auto mt-4 max-w-md text-muted">
+          Free to start, offline by default, and yours to keep. No card, no account.
+        </p>
+
+        <form class="mx-auto mt-9 flex max-w-md flex-col gap-3 sm:flex-row" onsubmit="return false;">
+          <label for="email" class="sr-only">Email address</label>
+          <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com"
+                 class="w-full rounded-full border border-border bg-background px-5 py-3 text-sm text-foreground placeholder:text-muted-dim focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/30">
+          <button type="submit"
+                  class="shrink-0 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-colors hover:bg-white">
+            Get early access
+          </button>
+        </form>
+
+        <p class="mt-4 text-xs text-muted-dim">One email when 2.0 ships. Nothing else.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer class="border-t border-border py-16">
+  <div class="mx-auto max-w-6xl px-5 sm:px-6">
+    <div class="grid grid-cols-2 gap-10 md:grid-cols-5">
+
+      <!-- Manifesto -->
+      <div class="col-span-2 md:col-span-2">
+        <div class="mb-4 flex items-center gap-2.5">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+            <path d="M19.5 14.25v4.5A2.25 2.25 0 0117.25 21H5.25A2.25 2.25 0 013 18.75V6.75A2.25 2.25 0 015.25 4.5h4.5"/>
+          </svg>
+          <span class="font-serif text-lg tracking-tight">Memoire</span>
+        </div>
+        <p class="max-w-xs text-sm leading-relaxed text-muted">
+          A writing tool should disappear. Your words belong to you, in files you can open without us — today, and in fifty years.
+        </p>
+      </div>
+
+      <nav aria-label="Product">
+        <h3 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-dim">Product</h3>
+        <ul class="space-y-2.5 text-sm text-muted">
+          <li><a href="#features" class="transition-colors hover:text-foreground">Features</a></li>
+          <li><a href="#inside" class="transition-colors hover:text-foreground">Inside the app</a></li>
+          <li><a href="#ai" class="transition-colors hover:text-foreground">Optional AI</a></li>
+          <li><a href="#workflow" class="transition-colors hover:text-foreground">Workflow</a></li>
+          <li><a href="#download" class="transition-colors hover:text-foreground">Download</a></li>
+          <li><a href="#roadmap" class="transition-colors hover:text-foreground">Roadmap</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Changelog</a></li>
+        </ul>
+      </nav>
+
+      <nav aria-label="Resources">
+        <h3 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-dim">Resources</h3>
+        <ul class="space-y-2.5 text-sm text-muted">
+          <li><a href="#" class="transition-colors hover:text-foreground">Documentation</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Keyboard shortcuts</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Writers' guide</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Community</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Support</a></li>
+        </ul>
+      </nav>
+
+      <nav aria-label="Legal">
+        <h3 class="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-dim">Legal</h3>
+        <ul class="space-y-2.5 text-sm text-muted">
+          <li><a href="#" class="transition-colors hover:text-foreground">Privacy</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Terms</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Licences</a></li>
+          <li><a href="#" class="transition-colors hover:text-foreground">Security</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="mt-14 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 sm:flex-row">
+      <p class="text-xs text-muted-dim">© 2026 Memoire Labs. Made for people with something to say.</p>
+      <div class="flex gap-6 text-xs uppercase tracking-widest text-muted-dim">
+        <a href="#" class="transition-colors hover:text-foreground">GitHub</a>
+        <a href="#" class="transition-colors hover:text-foreground">Mastodon</a>
+        <a href="#" class="transition-colors hover:text-foreground">Email</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ── Mobile navigation ───────────────────────────────────────────── */
+  const menuBtn   = document.getElementById('menu-btn');
+  const menu      = document.getElementById('mobile-menu');
+  const iconOpen  = document.getElementById('icon-open');
+  const iconClose = document.getElementById('icon-close');
+
+  const setMenu = (open) => {
+    menu.classList.toggle('hidden', !open);
+    iconOpen.classList.toggle('hidden', open);
+    iconClose.classList.toggle('hidden', !open);
+    menuBtn.setAttribute('aria-expanded', String(open));
+  };
+
+  menuBtn.addEventListener('click', () => setMenu(menu.classList.contains('hidden')));
+
+  // Close the drawer after following an in-page link.
+  menu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setMenu(false)));
+
+  // Escape closes it too.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !menu.classList.contains('hidden')) setMenu(false);
+  });
+
+</script>
+
+</body>
+</html>
