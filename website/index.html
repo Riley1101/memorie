@@ -94,6 +94,46 @@
     font-size: 0.6875rem; line-height: 1;
   }
 
+
+  /* ── Focus mode demo ──────────────────────────────────────────────
+     One loop of what ⌘. does: chrome fades, every block but the one
+     holding the caret drops to 30%, then Esc gives it all back.
+     Timings mirror the real transitions (300ms chrome, 200ms blocks). */
+  .fm-cycle { --fm: 9s; }
+  .fm-cycle.fm-playing .fm-chrome  { animation: fmChrome var(--fm) ease-in-out infinite; }
+  .fm-cycle.fm-playing .fm-dim     { animation: fmDim    var(--fm) ease-in-out infinite; }
+  .fm-cycle.fm-playing .fm-page    { animation: fmPage   var(--fm) ease-in-out infinite; }
+  .fm-cycle.fm-playing .fm-key-in  { animation: fmKeyIn  var(--fm) ease-in-out infinite; }
+  .fm-cycle.fm-playing .fm-key-out { animation: fmKeyOut var(--fm) ease-in-out infinite; }
+
+  @keyframes fmChrome {
+    0%, 24%   { opacity: 1; }
+    32%, 70%  { opacity: 0; }
+    78%, 100% { opacity: 1; }
+  }
+  @keyframes fmDim {
+    0%, 24%   { opacity: 1; }
+    32%, 70%  { opacity: 0.3; }
+    78%, 100% { opacity: 1; }
+  }
+  @keyframes fmPage {
+    0%, 24%   { transform: scale(1); }
+    34%, 70%  { transform: scale(1.015); }
+    80%, 100% { transform: scale(1); }
+  }
+  @keyframes fmKeyIn {
+    0%, 20%   { opacity: 0; transform: translateY(4px); }
+    26%, 34%  { opacity: 1; transform: translateY(0); }
+    40%, 100% { opacity: 0; transform: translateY(0); }
+  }
+  @keyframes fmKeyOut {
+    0%, 66%   { opacity: 0; transform: translateY(4px); }
+    72%, 80%  { opacity: 1; transform: translateY(0); }
+    86%, 100% { opacity: 0; transform: translateY(0); }
+  }
+
+
+
   /* Respect users who'd rather not watch things move. */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -102,6 +142,17 @@
       transition-duration: 0.01ms !important;
     }
     .animate-fade-in, .animate-slide-up { opacity: 1 !important; }
+
+    /* Pressing Play is an explicit request, so the clamp above must not
+       swallow the focus-mode loop. Nothing plays until that button is used. */
+    .fm-cycle.fm-playing .fm-chrome,
+    .fm-cycle.fm-playing .fm-dim,
+    .fm-cycle.fm-playing .fm-page,
+    .fm-cycle.fm-playing .fm-key-in,
+    .fm-cycle.fm-playing .fm-key-out {
+      animation-duration: var(--fm) !important;
+      animation-iteration-count: infinite !important;
+    }
   }
 </style>
 </head>
@@ -495,11 +546,17 @@
     </div>
 
     <!-- The writing surface, recreated from src/routes/[lexical]/+page.svelte -->
-    <figure class="relative overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/60">
+    <figure id="fm" class="fm-cycle fm-playing relative overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/60">
       <div class="pointer-events-none absolute left-1/2 top-0 h-[280px] w-[520px] -translate-x-1/2 rounded-full bg-accent/[0.05] blur-[110px]" aria-hidden="true"></div>
 
+      <!-- Keycaps: what is being pressed at each end of the loop -->
+      <div class="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2" aria-hidden="true">
+        <span class="fm-key-in absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-accent/30 bg-background/90 px-3 py-1.5 font-mono text-[11px] text-accent opacity-0 backdrop-blur">⌘ .</span>
+        <span class="fm-key-out absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background/90 px-3 py-1.5 font-mono text-[11px] text-muted opacity-0 backdrop-blur">Esc</span>
+      </div>
+
       <!-- Breadcrumb chrome -->
-      <div class="relative flex h-10 items-center gap-3 px-4 font-mono text-[11px] text-muted-dim">
+      <div class="fm-chrome relative flex h-10 items-center gap-3 px-4 font-mono text-[11px] text-muted-dim">
         <div class="flex gap-2" aria-hidden="true">
           <span class="h-3 w-3 rounded-full bg-[#ff5f56]"></span>
           <span class="h-3 w-3 rounded-full bg-[#ffbd2e]"></span>
@@ -513,33 +570,33 @@
       </div>
 
       <!-- The page -->
-      <div class="relative mx-3 rounded-t-xl bg-surface/70 px-6 pb-12 pt-12 sm:mx-8 sm:px-10 sm:pt-16">
+      <div class="fm-page relative mx-3 rounded-t-xl bg-surface/70 px-6 pb-12 pt-12 sm:mx-8 sm:px-10 sm:pt-16">
         <div class="mx-auto max-w-2xl">
-          <h3 class="text-center font-serif text-3xl font-semibold tracking-tight sm:text-[2.6rem]">The Lamp Room</h3>
-          <p class="mt-4 text-center font-serif text-sm italic text-muted sm:text-base">
+          <h3 class="fm-dim text-center font-serif text-3xl font-semibold tracking-tight sm:text-[2.6rem]">The Lamp Room</h3>
+          <p class="fm-dim mt-4 text-center font-serif text-sm italic text-muted sm:text-base">
             The Lighthouse Keeper / Chapter Nine · Sep 17, 10:48 PM
           </p>
-          <p class="my-8 text-center text-sm text-accent" aria-hidden="true">❧</p>
+          <p class="fm-dim my-8 text-center text-sm text-accent" aria-hidden="true">❧</p>
 
           <div class="space-y-6 font-serif text-[15px] leading-[1.85] text-foreground/90 sm:text-lg">
-            <p class="first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.4rem] first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-accent">
+            <p class="fm-dim first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.4rem] first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-accent">
               The lamp had not been lit in eleven years, and still she climbed the stairs each evening at dusk, counting them aloud against the wind.
             </p>
-            <p>
+            <p class="fm-dim">
               Forty-two — the same as the year her father stopped speaking. She had learned the number before she learned the word for it, and the sound of it in her mouth was the sound of the stair itself: worn granite, a hollow under the seventh tread, salt in every seam.
             </p>
-            <p>
+            <p class="fm-dim">
               The glass at the top was intact. That was the part nobody in the village believed. Every winter someone swore the storm had finally taken it, and every spring she carried the same bucket up and washed the same panes, and the light that went through them went nowhere at all.
             </p>
             <p>What she wanted was not the light. What she wanted was the climbing.</p>
           </div>
 
-          <p class="mt-10 text-center text-sm text-accent/70" aria-hidden="true">❧</p>
+          <p class="fm-dim mt-10 text-center text-sm text-accent/70" aria-hidden="true">❧</p>
         </div>
       </div>
 
       <!-- Status line -->
-      <div class="relative flex items-center justify-between gap-4 px-4 py-3 font-mono text-[11px] text-muted-dim">
+      <div class="fm-chrome relative flex items-center justify-between gap-4 px-4 py-3 font-mono text-[11px] text-muted-dim">
         <span class="truncate">v7 · 153 words · 21% today · 90%</span>
         <span class="flex shrink-0 items-center gap-3" aria-hidden="true">
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"/></svg>
@@ -550,9 +607,16 @@
       </div>
 
       <figcaption class="relative flex items-center justify-between gap-4 border-t border-border px-5 py-3 text-xs text-muted-dim">
-        <span>The page as it sits before you press anything.</span>
-        <span class="hidden shrink-0 items-center gap-1.5 sm:flex">
-          <kbd class="rounded border border-border px-1.5 py-0.5 font-mono">⌘.</kbd> takes the rest away
+        <span id="fm-label">Focus mode engaging and releasing, on a loop.</span>
+        <span class="flex shrink-0 items-center gap-3">
+          <span class="hidden items-center gap-1.5 sm:flex">
+            <kbd class="rounded border border-border px-1.5 py-0.5 font-mono">⌘.</kbd> in,
+            <kbd class="rounded border border-border px-1.5 py-0.5 font-mono">Esc</kbd> out
+          </span>
+          <button id="fm-toggle" type="button" aria-controls="fm"
+                  class="rounded-full border border-border px-3 py-1 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-foreground">
+            Pause
+          </button>
         </span>
       </figcaption>
     </figure>
@@ -1547,6 +1611,41 @@
 </section>
 
 </main>
+
+<script>
+  /* The focus-mode loop. It plays by default, but a system-level "reduce
+     motion" preference wins until someone asks for it with the button. */
+  (function () {
+    const fig = document.getElementById('fm');
+    const btn = document.getElementById('fm-toggle');
+    const label = document.getElementById('fm-label');
+    if (!fig || !btn) return;
+
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const rest = 'Focus mode, at rest. Press play to watch ⌘. engage it.';
+    const loop = 'Focus mode engaging and releasing, on a loop.';
+
+    function render() {
+      const playing = fig.classList.contains('fm-playing');
+      btn.textContent = playing ? 'Pause' : 'Play';
+      btn.setAttribute('aria-pressed', String(playing));
+      label.textContent = playing ? loop : rest;
+    }
+
+    if (calm.matches) fig.classList.remove('fm-playing');
+    calm.addEventListener('change', (e) => {
+      fig.classList.toggle('fm-playing', !e.matches);
+      render();
+    });
+
+    btn.addEventListener('click', () => {
+      fig.classList.toggle('fm-playing');
+      render();
+    });
+
+    render();
+  })();
+</script>
 
 <!-- ═══════════════════ FOOTER ═══════════════════ -->
 <footer class="border-t border-border py-12">
