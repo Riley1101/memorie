@@ -1,6 +1,10 @@
-# Memoire
+<p align="center">
+  <img src="src-tauri/icons/128x128@2x.png" alt="" width="128" height="128">
+</p>
 
-Writing at the speed of thought.
+<h1 align="center">Memoire</h1>
+
+<p align="center">Writing at the speed of thought.</p>
 
 Memoire is a local-first, privacy-focused writing and knowledge management app.
 Your notes, files, and ideas live on your machine. An integrated assistant,
