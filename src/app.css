@@ -8,7 +8,7 @@
 
 :root {
   --background: oklch(0.985 0.002 85);
-  --titlebar-background: oklch(0.97 0.002 85);
+  --titlebar-background: var(--background);
   --foreground: oklch(0.17 0.005 85);
   --heading-foreground: oklch(0.14 0.005 85);
   --reading-foreground: oklch(0.22 0.005 85);
@@ -77,7 +77,7 @@
 
 .dark {
   --background: #121110;
-  --titlebar-background: #0d0c0b;
+  --titlebar-background: var(--background);
   --foreground: #ece6da;
   --heading-foreground: #f7f2e9;
   --reading-foreground: #dcd4c6;
@@ -420,7 +420,7 @@
    as a sheet. Dark mode already has a dark enough desk. */
 .style-paper:not(.dark) {
   --background: var(--paper-desk);
-  --titlebar-background: #ddd5c5;
+  --titlebar-background: var(--background);
 }
 .style-paper .writing-surface {
   background: var(--writer-surface-bg);
@@ -649,7 +649,7 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
 /* macOS overlay title bar: keep the top-left clear of the traffic lights. */
 .platform-mac {
   --titlebar-inset-left: 4.75rem;
-  --titlebar-height: 1.75rem;
+  --titlebar-height: 2.75rem;
 }
 
 @layer base {

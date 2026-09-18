@@ -126,8 +126,7 @@
   <div
     class="{appState.ui.theme} {appState.ui.themePalette !== 'default'
       ? `theme-${appState.ui.themePalette}`
-      : ''} style-{appState.ui.styleFlavour} density-{appState.ui
-      .density} {onMacOS
+      : ''} style-{appState.ui.styleFlavour} density-{appState.ui.density} {onMacOS
       ? 'platform-mac'
       : ''} font-sans font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
   >
@@ -135,7 +134,7 @@
       <!-- Overlay title bar: this strip is what the user grabs to move the window. -->
       <div
         data-tauri-drag-region
-        class="fixed inset-x-0 top-0 z-10 h-[var(--titlebar-height)] bg-titlebar-background"
+        class="fixed inset-x-0 top-0 z-10 h-(--titlebar-height) bg-titlebar-background cursor-default select-none"
       ></div>
     {/if}
     {@render children()}
