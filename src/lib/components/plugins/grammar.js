@@ -1,8 +1,9 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import { mount } from 'svelte';
+import { mount, unmount } from 'svelte';
 import GrammarBox from './GrammarBox.svelte';
+import { applySuggestion } from './apply-suggestion.js';
 
 /**
  * A Milkdown plugin that adds grammar correction widgets to selected paragraphs.
@@ -88,10 +89,12 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
         nodeEnd,
         (view, getPos) => {
           const handleFix = (fixedText) => {
-            const { tr } = view.state;
-            const start = (getPos() || 0) - node.nodeSize + 1;
-            const end = (getPos() || 0) - 1;
-            view.dispatch(tr.replaceWith(start, end, view.state.schema.text(fixedText)));
+            const pos = getPos();
+            if (pos == null) return;
+            const tr = applySuggestion(view.state, pos, fixedText);
+            if (!tr) return;
+            view.dispatch(tr);
+            view.focus();
           };
 
           reposition(view);
@@ -100,12 +103,7 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
           window.addEventListener('resize', onScrollOrResize);
           // Listener teardown is parked on the node so the decoration's
           // `destroy` can reach it.
-          /** @type {HTMLDivElement & { _cleanup?: () => void }} */ (container)._cleanup = () => {
-            window.removeEventListener('scroll', onScrollOrResize, { capture: true });
-            window.removeEventListener('resize', onScrollOrResize);
-          };
-
-          mount(GrammarBox, {
+          const component = mount(GrammarBox, {
             target: container,
             props: {
               sequence: 0,
@@ -114,6 +112,11 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
               view,
             },
           });
+          /** @type {HTMLDivElement & { _cleanup?: () => void }} */ (container)._cleanup = () => {
+            window.removeEventListener('scroll', onScrollOrResize, { capture: true });
+            window.removeEventListener('resize', onScrollOrResize);
+            unmount(component);
+          };
           return container;
         },
         {
@@ -122,6 +125,11 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
           // position) is recreated whenever the selection changes, even when
           // it stays within the same paragraph.
           key: `grammar-${pos}-${selFrom}-${selTo}`,
+          // The box is UI, not document: keep the editor from treating clicks
+          // in it as caret moves, which would collapse the selection and tear
+          // the box down before Apply's click lands.
+          stopEvent: () => true,
+          ignoreSelection: true,
           destroy: () =>
             /** @type {HTMLDivElement & { _cleanup?: () => void }} */ (container)._cleanup?.(),
         }

@@ -7,6 +7,8 @@
   import ProjectSearch from '$lib/components/project-search.svelte';
   import ImportDialog from '$lib/components/import-dialog.svelte';
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { startNewWriting } from '$lib/new-writing.js';
   import { dirOf } from '$lib/runes/fs.svelte.js';
 
@@ -25,6 +27,30 @@
   let { children } = $props();
 
   const onMacOS = isMac();
+
+  /**
+   * ⌘B: back to the previous screen. While typing (editor or a text field) ⌘B
+   * stays bold, so this only fires from the rest of the app. With no earlier
+   * in-app entry to return to (e.g. the app opened straight on a writing), it
+   * goes home instead of doing nothing.
+   * @param {KeyboardEvent} e
+   */
+  function goBack(e) {
+    const target = e.target;
+    const isTyping =
+      target instanceof HTMLElement &&
+      (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    if (isTyping) return;
+
+    e.preventDefault();
+    // SvelteKit numbers its history entries; 0 is the first one this session.
+    const index = history.state?.['sveltekit:history'] ?? 0;
+    if (index > 0) {
+      history.back();
+    } else if (page.url.pathname !== '/') {
+      goto(resolve('/'));
+    }
+  }
 
   /**
    * ⌘N: a new writing where the writer already is. In the editor that is the
@@ -169,6 +195,10 @@
       if (!isInput) {
         e.preventDefault();
       }
+    }
+
+    if (e.key.toLowerCase() === 'b' && isMod(e) && !e.shiftKey && !e.altKey) {
+      goBack(e);
     }
 
     if (e.key === 'k' && isMod(e)) {

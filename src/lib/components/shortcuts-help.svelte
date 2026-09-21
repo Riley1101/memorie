@@ -4,6 +4,7 @@
   import { configManager } from '$lib/runes/config.svelte.js';
   import { MOD_LABEL } from '$lib/keyboard.svelte.js';
   import HouseIcon from '@lucide/svelte/icons/house';
+  import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
   import SearchIcon from '@lucide/svelte/icons/search';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
   import SaveIcon from '@lucide/svelte/icons/save';
@@ -27,6 +28,7 @@
       configManager.config?.ai_enabled
         ? { key: `${MOD_LABEL} + L`, description: 'Toggle AI chat', icon: SparklesIcon }
         : null,
+      { key: `${MOD_LABEL} + B`, description: 'Go back (bold while typing)', icon: ArrowLeftIcon },
       { key: `${MOD_LABEL} + ⇧ + H`, description: 'Go home', icon: HouseIcon },
       { key: `${MOD_LABEL} + U`, description: 'Toggle history', icon: HistoryIcon },
       { key: `${MOD_LABEL} + ⇧ + O`, description: 'Toggle table of contents', icon: TableOfContentsIcon },

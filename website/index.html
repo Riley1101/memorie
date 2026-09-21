@@ -134,6 +134,46 @@
 
 
 
+  /* ── Writing styles in the focus demo ─────────────────────────────
+     Mirrors .style-{default,minimal,paper,technical} in src/app.css.
+     The markup is the Paper page; the other styles strip or swap parts. */
+  .fm-style { color: #8b9299; }                                   /* muted */
+  .fm-style:hover { color: #f5f6f7; }                             /* foreground */
+  .fm-style[aria-pressed="true"] { background: #f5f6f7; color: #08090a; }
+
+  #fm .fm-page, #fm .fm-title, #fm .fm-body { transition: background-color .3s ease, padding .3s ease; }
+
+  /* Only Paper sits the page on a raised sheet with byline, ornaments and a drop cap. */
+  #fm:not([data-style="paper"]) .fm-page { background: transparent; }
+  #fm:not([data-style="paper"]) .fm-byline,
+  #fm:not([data-style="paper"]) .fm-ornament { display: none; }
+  #fm:not([data-style="paper"]) .fm-title { text-align: left; }
+  #fm:not([data-style="paper"]) .fm-body { margin-top: 1.75rem; }
+  #fm:not([data-style="paper"]) .fm-dropcap::first-letter {
+    float: none; margin: 0; font-size: inherit; font-weight: inherit;
+    line-height: inherit; color: inherit;
+  }
+
+  /* Default: serif, square, left-set title. */
+  #fm[data-style="default"] .fm-body { line-height: 1.75; }
+
+  /* Minimal: sans everywhere, lighter headings. */
+  #fm[data-style="minimal"] .fm-title,
+  #fm[data-style="minimal"] .fm-body { font-family: 'Geist', system-ui, sans-serif; }
+  #fm[data-style="minimal"] .fm-title { font-weight: 600; letter-spacing: -0.025em; }
+  #fm[data-style="minimal"] .fm-body { line-height: 1.7; }
+
+  /* Technical: dense sans, heavy tight title. */
+  #fm[data-style="technical"] .fm-title,
+  #fm[data-style="technical"] .fm-body { font-family: 'Geist', system-ui, sans-serif; }
+  #fm[data-style="technical"] .fm-title { font-weight: 700; letter-spacing: -0.03em; font-size: 1.75rem; }
+  #fm[data-style="technical"] .fm-body { line-height: 1.65; font-size: 15px; }
+  #fm[data-style="technical"] .fm-body > * + * { margin-top: 1rem; }
+  #fm[data-style="technical"] .fm-page { padding-top: 2rem; padding-bottom: 2rem; }
+  @media (min-width: 640px) {
+    #fm[data-style="technical"] .fm-title { font-size: 2rem; }
+  }
+
   /* Respect users who'd rather not watch things move. */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -154,6 +194,13 @@
       animation-iteration-count: infinite !important;
     }
   }
+
+  /* Sync provider tabs. The panels use Tailwind's `grid`, which would beat the
+     browser's own [hidden] rule, so hidden panels are forced off here. */
+  #sync [role="tabpanel"][hidden] { display: none !important; }
+  .sync-tab { color: #8b9299; }                                   /* muted */
+  .sync-tab:hover { color: #f5f6f7; }                             /* foreground */
+  .sync-tab[aria-selected="true"] { background: #f5f6f7; color: #08090a; }
 </style>
 </head>
 
@@ -408,7 +455,7 @@
     <div class="mb-14 max-w-2xl">
       <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Features</p>
       <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-        Four things that matter. Nothing that doesn't.
+        Five things that matter. Nothing that doesn't.
       </h2>
       <p class="mt-4 text-muted">
         Memoire ships the smallest surface area we could defend — every panel earns its place or gets cut.
@@ -476,13 +523,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 12.75v6.75a2.25 2.25 0 002.25 2.25z"/>
           </svg>
         </div>
-        <h3 class="mb-2.5 font-serif text-xl tracking-tight">Local-first &amp; encrypted</h3>
+        <h3 class="mb-2.5 font-serif text-xl tracking-tight">Local-first</h3>
         <p class="text-sm leading-relaxed text-muted">
-          Plain Markdown on your disk, readable in fifty years. Sync is optional, end-to-end encrypted, and the app works exactly the same on a plane.
+          Plain Markdown on your disk, readable in fifty years. Sync is optional, and the app works exactly the same on a plane.
         </p>
         <div class="mt-6 space-y-2.5 text-xs text-muted-dim">
           <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Works fully offline</p>
-          <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> AES-256 at rest</p>
           <p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> No telemetry, ever</p>
         </div>
       </article>
@@ -522,6 +568,58 @@
           </div>
         </div>
       </article>
+
+      <!-- Card 5 — full width. Shipped: src-tauri/src/git.rs, src-tauri/src/dropbox.rs -->
+      <article class="group relative overflow-hidden rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong md:col-span-3 md:p-9">
+        <div class="pointer-events-none absolute -right-24 -bottom-24 h-64 w-64 rounded-full bg-accent/[0.06] blur-3xl" aria-hidden="true"></div>
+        <div class="relative md:flex md:items-start md:gap-10">
+          <div class="md:flex-1">
+            <div class="mb-5 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+              </svg>
+            </div>
+            <h3 class="mb-2.5 font-serif text-xl tracking-tight">Sync to GitHub or Dropbox</h3>
+            <p class="max-w-lg text-sm leading-relaxed text-muted">
+              Pick where your writing lives off-disk. A GitHub repo turns every save into a commit you own;
+              a Dropbox folder keeps the same plain Markdown files, no commits required. Push and pull on
+              demand, or let Memoire push when you close it.
+            </p>
+            <a href="#sync" class="mt-5 inline-flex items-center gap-1.5 text-sm text-foreground transition-colors hover:text-accent">
+              How sync works <span aria-hidden="true">→</span>
+            </a>
+          </div>
+
+          <!-- Provider picker mock, mirrors Settings → Cloud Sync -->
+          <div class="mt-7 w-full shrink-0 space-y-2 md:mt-0 md:w-72">
+            <div class="flex items-center gap-3 rounded-xl border border-border bg-background/70 px-4 py-3">
+              <svg class="h-4 w-4 shrink-0 text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.5 9.5 0 015 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.86v2.75c0 .27.18.58.69.48A10 10 0 0012 2z"/>
+              </svg>
+              <div class="flex-1">
+                <p class="text-xs text-foreground">GitHub</p>
+                <p class="font-mono text-[10px] text-muted-dim">i-moreau/lighthouse</p>
+              </div>
+              <span class="font-mono text-[10px] text-muted-dim">commit &amp; push</span>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border border-accent/30 bg-background/70 px-4 py-3">
+              <svg class="h-4 w-4 shrink-0 text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M6.5 3L1 6.5 6.5 10 12 6.5 6.5 3zm11 0L12 6.5 17.5 10 23 6.5 17.5 3zM1 13.5L6.5 17 12 13.5 6.5 10 1 13.5zm16.5-3.5L12 13.5 17.5 17 23 13.5 17.5 10zM6.5 18.1l5.5 3.5 5.5-3.5-5.5-3.4-5.5 3.4z"/>
+              </svg>
+              <div class="flex-1">
+                <p class="text-xs text-foreground">Dropbox</p>
+                <p class="font-mono text-[10px] text-muted-dim">/Memoire</p>
+              </div>
+              <span class="flex items-center gap-1.5 font-mono text-[10px] text-muted-dim">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> in sync
+              </span>
+            </div>
+            <p class="px-1 pt-1 text-[11px] leading-relaxed text-muted-dim">
+              Only changed files move. Tokens stay in your OS keychain.
+            </p>
+          </div>
+        </div>
+      </article>
     </div>
   </div>
 </section>
@@ -545,8 +643,19 @@
       </p>
     </div>
 
+    <!-- Writing styles: the same page in each of the app's Settings → Style options -->
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <p class="text-xs text-muted-dim">Writing style — same page, set in Settings.</p>
+      <div id="fm-styles" role="group" aria-label="Writing style" class="inline-flex rounded-full border border-border bg-background p-1 text-xs">
+        <button type="button" data-style="default"   aria-pressed="false" class="fm-style rounded-full px-3 py-1 transition-colors">Default</button>
+        <button type="button" data-style="minimal"   aria-pressed="false" class="fm-style rounded-full px-3 py-1 transition-colors">Minimal</button>
+        <button type="button" data-style="paper"     aria-pressed="true"  class="fm-style rounded-full px-3 py-1 transition-colors">Paper</button>
+        <button type="button" data-style="technical" aria-pressed="false" class="fm-style rounded-full px-3 py-1 transition-colors">Technical</button>
+      </div>
+    </div>
+
     <!-- The writing surface, recreated from src/routes/[lexical]/+page.svelte -->
-    <figure id="fm" class="fm-cycle fm-playing relative overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/60">
+    <figure id="fm" data-style="paper" class="fm-cycle fm-playing relative overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/60">
       <div class="pointer-events-none absolute left-1/2 top-0 h-[280px] w-[520px] -translate-x-1/2 rounded-full bg-accent/[0.05] blur-[110px]" aria-hidden="true"></div>
 
       <!-- Keycaps: what is being pressed at each end of the loop -->
@@ -572,14 +681,14 @@
       <!-- The page -->
       <div class="fm-page relative mx-3 rounded-t-xl bg-surface/70 px-6 pb-12 pt-12 sm:mx-8 sm:px-10 sm:pt-16">
         <div class="mx-auto max-w-2xl">
-          <h3 class="fm-dim text-center font-serif text-3xl font-semibold tracking-tight sm:text-[2.6rem]">The Lamp Room</h3>
-          <p class="fm-dim mt-4 text-center font-serif text-sm italic text-muted sm:text-base">
+          <h3 class="fm-dim fm-title text-center font-serif text-3xl font-semibold tracking-tight sm:text-[2.6rem]">The Lamp Room</h3>
+          <p class="fm-dim fm-byline mt-4 text-center font-serif text-sm italic text-muted sm:text-base">
             The Lighthouse Keeper / Chapter Nine · Sep 17, 10:48 PM
           </p>
-          <p class="fm-dim my-8 text-center text-sm text-accent" aria-hidden="true">❧</p>
+          <p class="fm-dim fm-ornament my-8 text-center text-sm text-accent" aria-hidden="true">❧</p>
 
-          <div class="space-y-6 font-serif text-[15px] leading-[1.85] text-foreground/90 sm:text-lg">
-            <p class="fm-dim first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.4rem] first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-accent">
+          <div class="fm-body space-y-6 font-serif text-[15px] leading-[1.85] text-foreground/90 sm:text-lg">
+            <p class="fm-dim fm-dropcap first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.4rem] first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-accent">
               The lamp had not been lit in eleven years, and still she climbed the stairs each evening at dusk, counting them aloud against the wind.
             </p>
             <p class="fm-dim">
@@ -591,7 +700,7 @@
             <p>What she wanted was not the light. What she wanted was the climbing.</p>
           </div>
 
-          <p class="fm-dim mt-10 text-center text-sm text-accent/70" aria-hidden="true">❧</p>
+          <p class="fm-dim fm-ornament mt-10 text-center text-sm text-accent/70" aria-hidden="true">❧</p>
         </div>
       </div>
 
@@ -1243,19 +1352,44 @@
   </div>
 </section>
 
-<!-- ═══════════════════ GIT SYNC ═══════════════════ -->
-<!-- Shipped: src-tauri/src/git.rs, Settings → Cloud Sync, :push, auto_push_on_exit. -->
+<!-- ═══════════════════ SYNC ═══════════════════ -->
+<!-- Shipped: src-tauri/src/git.rs and src-tauri/src/dropbox.rs, Settings → Cloud Sync.
+     One provider at a time; the tabs below mirror that choice. -->
 <section id="sync" class="scroll-mt-24 border-t border-border py-24 sm:py-32">
   <div class="mx-auto max-w-6xl px-5 sm:px-6">
 
-    <div class="mb-14 max-w-2xl">
+    <div class="mb-10 max-w-2xl">
       <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Sync</p>
       <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-        Your backup is a Git repo you already know how to read.
+        Your backup is plain Markdown, somewhere you already know how to read.
       </h2>
+      <p class="mt-4 text-muted">
+        Pick one home for your writing off-disk: a GitHub repo if you like history you can diff, a
+        Dropbox folder if you'd rather never think about commits. Switch any time in Settings.
+      </p>
     </div>
 
-    <article class="grid grid-cols-1 gap-8 rounded-2xl border border-border bg-background p-7 sm:p-9 lg:grid-cols-2 lg:gap-12">
+    <!-- Provider tabs -->
+    <div role="tablist" aria-label="Sync provider" class="mb-6 inline-flex rounded-full border border-border bg-surface p-1">
+      <button type="button" role="tab" id="sync-tab-github" aria-controls="sync-panel-github" aria-selected="true"
+        class="sync-tab inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition-colors">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2a10 10 0 00-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.5 9.5 0 015 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.86v2.75c0 .27.18.58.69.48A10 10 0 0012 2z"/>
+        </svg>
+        GitHub
+      </button>
+      <button type="button" role="tab" id="sync-tab-dropbox" aria-controls="sync-panel-dropbox" aria-selected="false" tabindex="-1"
+        class="sync-tab inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition-colors">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M6.5 3L1 6.5 6.5 10 12 6.5 6.5 3zm11 0L12 6.5 17.5 10 23 6.5 17.5 3zM1 13.5L6.5 17 12 13.5 6.5 10 1 13.5zm16.5-3.5L12 13.5 17.5 17 23 13.5 17.5 10zM6.5 18.1l5.5 3.5 5.5-3.5-5.5-3.4-5.5 3.4z"/>
+        </svg>
+        Dropbox
+      </button>
+    </div>
+
+    <!-- GitHub panel -->
+    <article role="tabpanel" id="sync-panel-github" aria-labelledby="sync-tab-github" tabindex="0"
+      class="grid grid-cols-1 gap-8 rounded-2xl border border-border bg-background p-7 sm:p-9 lg:grid-cols-2 lg:gap-12">
       <div>
         <div class="mb-5 flex flex-wrap items-center gap-3">
           <span class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
@@ -1339,12 +1473,102 @@
       </div>
     </article>
 
+    <!-- Dropbox panel. Facts from src-tauri/src/dropbox.rs: PKCE login, content_hash diffing,
+         .md files only, "<name> (Dropbox conflict).md" on pull, dropbox_auto_push_on_exit. -->
+    <article role="tabpanel" id="sync-panel-dropbox" aria-labelledby="sync-tab-dropbox" tabindex="0" hidden
+      class="grid grid-cols-1 gap-8 rounded-2xl border border-border bg-background p-7 sm:p-9 lg:grid-cols-2 lg:gap-12">
+      <div>
+        <div class="mb-5 flex flex-wrap items-center gap-3">
+          <span class="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-accent">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"/>
+            </svg>
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-widest text-emerald-300">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span> Shipped
+          </span>
+        </div>
+
+        <h3 class="mb-3 font-serif text-2xl tracking-tight">A Dropbox folder, and nothing to learn</h3>
+        <p class="mb-5 text-sm leading-relaxed text-muted">
+          No repos, no commit messages. Connect your Dropbox account, name a folder like
+          <span class="font-mono text-foreground">/Memoire</span>, and your chapters sit there as the
+          same Markdown files you see on disk — open them from any device Dropbox runs on.
+        </p>
+        <p class="text-sm leading-relaxed text-muted">
+          Push uploads what you changed, pull brings down what changed elsewhere, and Memoire can push
+          on its own when you close it. If a file changed in both places, nothing is overwritten: pull
+          keeps yours and saves Dropbox's copy beside it as
+          <span class="font-mono text-foreground">Chapter 3 (Dropbox conflict).md</span>.
+        </p>
+
+        <ul class="mt-6 space-y-2.5 text-sm text-muted">
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Only files that differ move — compared by Dropbox's own content hash</li>
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Conflicts become a second file, never a lost draft</li>
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Browser sign-in; the login token lives in your OS keychain</li>
+          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Auto-push on exit, or manual, or never</li>
+        </ul>
+      </div>
+
+      <!-- Mockup: Settings → Cloud Sync, Dropbox selected -->
+      <div class="rounded-xl border border-border bg-surface p-5 shadow-2xl shadow-black/40">
+        <div class="mb-5 flex items-center justify-between border-b border-border pb-3">
+          <span class="font-serif text-base tracking-tight">Cloud Sync</span>
+          <span class="flex items-center gap-1.5 font-mono text-[10px] text-muted-dim">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Connected
+          </span>
+        </div>
+
+        <div class="space-y-4 text-xs">
+          <div class="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
+            <svg class="h-4 w-4 shrink-0 text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M6.5 3L1 6.5 6.5 10 12 6.5 6.5 3zm11 0L12 6.5 17.5 10 23 6.5 17.5 3zM1 13.5L6.5 17 12 13.5 6.5 10 1 13.5zm16.5-3.5L12 13.5 17.5 17 23 13.5 17.5 10zM6.5 18.1l5.5 3.5 5.5-3.5-5.5-3.4-5.5 3.4z"/>
+            </svg>
+            <span class="flex-1 text-foreground">Isabelle Moreau</span>
+            <span class="text-muted-dim">Sign out</span>
+          </div>
+
+          <div>
+            <p class="mb-1.5 text-[11px] text-muted">Folder</p>
+            <div class="flex gap-2">
+              <div class="flex-1 rounded-lg border border-border bg-background px-3 py-2 font-mono text-foreground">/Memoire</div>
+              <span class="rounded-lg border border-border px-3 py-2 text-muted">Pull</span>
+            </div>
+            <p class="mt-2 text-[11px] leading-relaxed text-muted-dim">
+              Writing in your content directory is uploaded to this Dropbox folder.
+            </p>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-border pt-4">
+            <div class="pr-4">
+              <p class="text-foreground">Auto-push on exit</p>
+              <p class="mt-0.5 text-[11px] text-muted-dim">Upload any changed writing to Dropbox when you close Memoire.</p>
+            </div>
+            <span class="relative h-5 w-9 shrink-0 rounded-full bg-accent" role="img" aria-label="Enabled">
+              <span class="absolute right-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-background"></span>
+            </span>
+          </div>
+
+          <div class="border-t border-border pt-4">
+            <div class="space-y-1.5 font-mono text-[11px]">
+              <div class="flex justify-between"><span class="text-foreground">Lighthouse/Chapter 3.md</span><span class="text-muted-dim">modified</span></div>
+              <div class="flex justify-between"><span class="text-foreground">Lighthouse/Notes.md</span><span class="text-muted-dim">new</span></div>
+            </div>
+            <div class="mt-3 flex items-center justify-between">
+              <span class="font-mono text-[10px] text-muted-dim">2 to upload</span>
+              <span class="rounded-full bg-foreground px-3.5 py-1.5 text-[11px] font-medium text-background">Push to Dropbox</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
 
   </div>
 </section>
 
 <!-- ═══════════════════ ROADMAP / PENDING ═══════════════════ -->
-<!-- Everything here is unreleased. Git sync shipped and moved to its own section above. -->
+<!-- Everything here is unreleased. Git and Dropbox sync shipped: see the features grid and the sync section above. -->
 <section id="roadmap" class="border-t border-border bg-surface/40 py-24 sm:py-32">
   <div class="mx-auto max-w-6xl px-5 sm:px-6">
 
@@ -1360,20 +1584,7 @@
     </div>
 
     <!-- Everything else still queued -->
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-      <article class="rounded-2xl border border-border bg-background p-6">
-        <div class="mb-4 flex items-center justify-between">
-          <svg class="h-5 w-5 text-muted" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M6.5 3L1 6.5 6.5 10 12 6.5 6.5 3zm11 0L12 6.5 17.5 10 23 6.5 17.5 3zM1 13.5L6.5 17 12 13.5 6.5 10 1 13.5zm16.5-3.5L12 13.5 17.5 17 23 13.5 17.5 10zM6.5 18.1l5.5 3.5 5.5-3.5-5.5-3.4-5.5 3.4z"/>
-          </svg>
-          <span class="rounded-full border border-border px-2.5 py-1 text-[10px] uppercase tracking-widest text-muted-dim">Planned</span>
-        </div>
-        <h3 class="font-serif text-lg tracking-tight">Dropbox sync</h3>
-        <p class="mt-2 text-sm leading-relaxed text-muted">
-          The same plain Markdown files, backed up to a Dropbox folder instead of a repo — for writers who'd rather not think about commits.
-        </p>
-      </article>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
       <article class="rounded-2xl border border-border bg-background p-6">
         <div class="mb-4 flex items-center justify-between">
@@ -1644,6 +1855,42 @@
     });
 
     render();
+  })();
+
+  /* Writing-style switcher for the focus demo. */
+  (function () {
+    const fig = document.getElementById('fm');
+    const btns = document.querySelectorAll('#fm-styles [data-style]');
+    btns.forEach((btn) => btn.addEventListener('click', () => {
+      fig.dataset.style = btn.dataset.style;
+      btns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+    }));
+  })();
+
+  /* Sync provider tabs: click, or arrow keys once a tab has focus. */
+  (function () {
+    const tabs = Array.from(document.querySelectorAll('#sync [role="tab"]'));
+    if (!tabs.length) return;
+
+    function select(tab) {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      }
+    }
+
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (e) => {
+        const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+        if (!step) return;
+        const next = tabs[(i + step + tabs.length) % tabs.length];
+        select(next);
+        next.focus();
+      });
+    });
   })();
 </script>
 

@@ -9,7 +9,7 @@ use std::path::Path;
 /// Set at build time via `GITHUB_CLIENT_ID=... cargo build` / `.cargo/config.toml` env,
 /// since this ends up baked into the compiled binary either way (device-flow client ids
 /// are not secret — gh CLI and VSCode ship theirs the same way).
-const GITHUB_CLIENT_ID: &str = match option_env!("GITHUB_CLIENT_ID") {
+const GITHUB_CLIENT_ID: &str = match option_env!("GIT_CLIENT_ID") {
     Some(id) => id,
     None => "Iv23licYPOLsngZ7NztG",
 };

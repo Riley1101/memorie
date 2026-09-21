@@ -29,6 +29,18 @@
 
   let customPrompt = $state('');
 
+  /**
+   * Follows the text as it streams in, so the newest words stay visible once
+   * the suggestion outgrows its max height. Re-runs whenever the content changes.
+   * @param {HTMLElement} el
+   */
+  function followStream(el) {
+    llmManager.editActionContent;
+    if (llmManager.editActionInProgress) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
   const markButtons = [
     { label: 'Bold', markName: 'strong', icon: BoldIcon },
     { label: 'Italic', markName: 'emphasis', icon: ItalicIcon },
@@ -112,8 +124,12 @@
           <SparklesIcon strokeWidth={1.5} class={cn("size-4", llmManager.editActionInProgress ? "animate-pulse" : "")} />
         </div>
         
-        <div class="flex-1 space-y-3">
-          <div class="text-base leading-relaxed text-foreground font-writer tracking-tight">
+        <div class="flex-1 min-w-0 space-y-3">
+          <!-- Long suggestions scroll here so Apply/Discard stay in view. -->
+          <div
+            {@attach followStream}
+            class="max-h-64 overflow-y-auto overscroll-contain pr-1 text-base leading-relaxed text-foreground font-writer tracking-tight"
+          >
             {#if llmManager.editActionContent}
               {llmManager.editActionContent}
             {:else}
@@ -124,6 +140,7 @@
           <div class="flex items-center gap-2">
             {#if llmManager.editActionContent && !llmManager.editActionInProgress}
               <Button 
+                onmousedown={(e) => e.preventDefault()}
                 onclick={handleAccept} 
                 size="sm" 
                 disabled={false}
@@ -134,6 +151,7 @@
               </Button>
             {/if}
             <Button 
+              onmousedown={(e) => e.preventDefault()}
               onclick={() => {
                 if (llmManager.editActionInProgress) {
                   llmManager.cancelMessage();

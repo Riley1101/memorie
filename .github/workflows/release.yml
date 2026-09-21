@@ -112,6 +112,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY || secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD || secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Dropbox app key, baked into the binary by `option_env!` at compile
+          # time. Not a secret — the login is PKCE, so there is no client
+          # secret — it just shouldn't be hardcoded per fork. If the repo
+          # secret is unset this builds fine and Dropbox sync reports that the
+          # build has no app key, rather than failing the login silently.
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
           # This variable fixes the EGL_BAD_ALLOC crash on many Linux distros
           WEBKIT_DISABLE_COMPOSITING_MODE: 1
         with:

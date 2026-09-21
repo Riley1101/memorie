@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod dropbox;
 mod error;
 mod export;
 
@@ -18,7 +19,7 @@ mod undotree;
 mod utils;
 mod workers;
 
-use config::AppConfig;
+use config::{AppConfig, SyncProvider};
 use tauri::Manager;
 use tokio::sync::Mutex;
 use undotree::UndoTree;
@@ -92,11 +93,20 @@ pub async fn run() {
                     let window = window_for_close.clone();
                     tauri::async_runtime::spawn(async move {
                         let state = app_handle.state::<AppState>();
-                        let (should_push, content_dir) = {
+                        // Only the preferred storage pushes on exit, so closing
+                        // the app never fans the same writing out to two remotes.
+                        let (should_push, content_dir, dropbox_folder) = {
                             let config = state.config.lock().await;
+                            let provider = config.sync_provider.clone();
                             (
-                                config.auto_push_on_exit && config.github_repo.is_some(),
+                                provider == SyncProvider::Github
+                                    && config.auto_push_on_exit
+                                    && config.github_repo.is_some(),
                                 config.content_directory.clone(),
+                                (provider == SyncProvider::Dropbox
+                                    && config.dropbox_auto_push_on_exit)
+                                    .then(|| config.dropbox_folder.clone())
+                                    .flatten(),
                             )
                         };
 
@@ -118,6 +128,12 @@ pub async fn run() {
                                         &author_email,
                                     );
                                 }
+                            }
+                        }
+
+                        if let Some(folder) = dropbox_folder {
+                            if let Err(e) = dropbox::push(&content_dir, &folder).await {
+                                eprintln!("Dropbox auto-push on exit failed: {e}");
                             }
                         }
 
@@ -193,6 +209,17 @@ pub async fn run() {
             commands::search_project,
             commands::replace_in_project,
             commands::import_sources,
+            commands::dropbox_start_login,
+            commands::dropbox_poll_login,
+            commands::dropbox_cancel_login,
+            commands::dropbox_logout,
+            commands::dropbox_get_account,
+            commands::dropbox_set_folder,
+            commands::set_dropbox_auto_push_on_exit,
+            commands::dropbox_status,
+            commands::dropbox_push,
+            commands::dropbox_pull,
+            commands::set_sync_provider,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
