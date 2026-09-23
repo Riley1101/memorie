@@ -137,3 +137,36 @@ pub enum GitError {
     #[error("File I/O error")]
     Io(#[from] std::io::Error),
 }
+
+#[derive(Error, Debug)]
+pub enum DropboxError {
+    #[error("Network error: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("Keychain error: {0}")]
+    Keyring(#[from] keyring::Error),
+
+    #[error("File I/O error")]
+    Io(#[from] std::io::Error),
+
+    #[error("Content directory error: {0}")]
+    File(#[from] FileError),
+
+    #[error("Not connected to Dropbox")]
+    NotLoggedIn,
+
+    #[error("No Dropbox folder configured")]
+    NoFolderConfigured,
+
+    #[error("This build has no Dropbox app key — rebuild with DROPBOX_APP_KEY set")]
+    NoAppKey,
+
+    #[error("Dropbox login error: {0}")]
+    Auth(String),
+
+    #[error("Could not listen for the Dropbox login redirect: {0}")]
+    Loopback(String),
+
+    #[error("Dropbox API error: {0}")]
+    Api(String),
+}

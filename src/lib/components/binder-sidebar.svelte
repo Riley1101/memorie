@@ -4,8 +4,7 @@
   import { treeState } from '@/runes/tree.svelte.js';
   import { naturalCollator } from '@/utils';
   import CornerDownRightIcon from '@lucide/svelte/icons/corner-down-right';
-  import { gitManager } from '@/runes/git.svelte.js';
-  import { configManager } from '@/runes/config.svelte.js';
+  import { syncTarget, refreshSyncStatus, publish } from '@/runes/sync.svelte.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import FileIcon from '@lucide/svelte/icons/file';
@@ -20,7 +19,6 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import ScrollFade from './scroll-fade.svelte';
-  import { toast } from '$lib/toast.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
 
@@ -101,21 +99,11 @@
     else cancelCreateBinder();
   }
 
-  async function handlePublish() {
-    await gitManager.commitAndPush(`Update writing — ${new Date().toLocaleString()}`);
-    if (gitManager.pushResult === 'error') {
-      toast.error('Publish failed', gitManager.error);
-    } else {
-      toast.success('Published to GitHub');
-    }
-  }
+  /** Publish goes to the preferred storage only, matching `:sync` and auto-push on exit. */
+  const target = $derived(syncTarget());
 
-  onMount(async () => {
-    if (!configManager.config) await configManager.getConfig();
-    await gitManager.checkSession();
-    if (gitManager.user && configManager.config?.github_repo) {
-      gitManager.refreshStatus();
-    }
+  onMount(() => {
+    refreshSyncStatus();
   });
 
   function openSearch(onSelect) {
@@ -264,18 +252,17 @@
     </ScrollArea>
   </ScrollFade>
 
-  {#if gitManager.user && configManager.config?.github_repo && gitManager.status.length > 0}
+  {#if target.ready && target.pending > 0}
     <div class="px-2 pb-2 pt-2 shrink-0 border-t border-border/30">
       <button
-        onclick={handlePublish}
-        disabled={gitManager.isPushing}
+        onclick={publish}
+        disabled={target.busy}
+        title="Publish to {target.label}"
         class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
       >
         <UploadCloudIcon strokeWidth={1.5} class="size-4 shrink-0" />
         <span
-          >{gitManager.isPushing
-            ? 'Publishing…'
-            : `Publish (${gitManager.status.length})`}</span
+          >{target.busy ? 'Publishing…' : `Publish (${target.pending})`}</span
         >
       </button>
     </div>

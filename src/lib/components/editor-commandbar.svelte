@@ -8,7 +8,7 @@
   import { llmManager } from '@/runes/llm.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte';
-  import { gitManager } from '@/runes/git.svelte.js';
+  import { publish } from '@/runes/sync.svelte.js';
   import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
   import SaveIcon from '@lucide/svelte/icons/save';
   import HistoryIcon from '@lucide/svelte/icons/history';
@@ -67,6 +67,7 @@
    * @property {string} cmd - The command string (e.g., ":w").
    * @property {string} description - A brief description.
    * @property {string} action - Action identifier.
+   * @property {string[]} [aliases] - Other names that run it, without the colon (e.g. old names).
    * @property {string} [shortcutLabel] - Visual shortcut display (e.g. '⌘S').
    * @property {string} [key] - Key to listen for together with Meta/Ctrl (e.g., 's'). Empty = no shortcut.
    * @property {boolean} [shift] - Shortcut also needs Shift.
@@ -222,8 +223,10 @@
       icon: AiSparkleIcon,
     },
     {
-      cmd: ':push',
-      description: 'Sync writing to GitHub (commit & push)',
+      cmd: ':sync',
+      // "push" in the description keeps `:push` (the old name) findable.
+      description: 'Publish (push) writing to your cloud sync — set in Settings',
+      aliases: ['push'],
       action: 'push',
       shortcutLabel: '',
       key: '',
@@ -287,7 +290,8 @@
    */
   async function executeCommand(cmd) {
     // Match either full command (like ":w") or the part without colon (like "w")
-    const command = commands.find((c) => c.cmd === cmd || c.cmd.slice(1) === cmd);
+    const name = cmd.startsWith(':') ? cmd.slice(1) : cmd;
+    const command = commands.find((c) => c.cmd.slice(1) === name || c.aliases?.includes(name));
     if (!command) return;
 
     // Drafts have no versions yet and nothing to push.
@@ -337,17 +341,9 @@
         onSave();
         break;
       case 'push':
-        if (!gitManager.user) {
-          toast.info('Not connected to GitHub', 'Log in under Settings → Cloud Sync first.');
-          break;
-        }
+        // Save first so the open writing's latest edits go out too.
         await onSave();
-        await gitManager.commitAndPush(`Update writing — ${new Date().toLocaleString()}`);
-        if (gitManager.pushResult === 'error') {
-          toast.error('Push failed', gitManager.error);
-        } else {
-          toast.success('Pushed to GitHub');
-        }
+        await publish();
         break;
       case 'close':
         goto(resolve('/'));

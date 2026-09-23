@@ -110,8 +110,8 @@ pub async fn rename_file(
 ) -> Result<File, String> {
     let config = state.config.lock().await;
 
-    let old_path = config.content_directory.join(&old_name);
-    let result = fs::rename_file(&old_path, &new_name).map_err(|e| e.to_string())?;
+    let result =
+        fs::rename_file(&config.content_directory, &old_name, &new_name).map_err(|e| e.to_string())?;
 
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.rename_entry(&old_name, &new_name);
@@ -857,6 +857,132 @@ pub async fn git_commit_and_push(message: String, state: State<'_, AppState>) ->
         &author_email,
     )
     .map_err(|e| e.to_string())
+}
+
+/**
+ *  Cloud Sync Commands
+ */
+
+/// Picks the preferred storage. Each backend keeps its own credentials and
+/// settings, so switching back and forth doesn't require setting up again.
+#[tauri::command]
+pub async fn set_sync_provider(
+    provider: crate::config::SyncProvider,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    config.sync_provider = provider;
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/**
+ *  Dropbox Commands
+ */
+
+#[tauri::command]
+pub async fn dropbox_start_login() -> Result<super::dropbox::DropboxAuthStart, String> {
+    super::dropbox::start_login().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn dropbox_poll_login() -> Result<super::dropbox::AuthPollResult, String> {
+    super::dropbox::poll_login().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn dropbox_cancel_login() -> Result<(), String> {
+    super::dropbox::cancel_login();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn dropbox_logout() -> Result<(), String> {
+    super::dropbox::clear_refresh_token().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn dropbox_get_account() -> Result<Option<super::dropbox::DropboxAccount>, String> {
+    super::dropbox::current_account().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn dropbox_set_folder(folder: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    config.dropbox_folder = Some(super::dropbox::normalize_folder(&folder));
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_dropbox_auto_push_on_exit(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let config_path = super::utils::get_app_dir()
+        .map_err(|e| e.to_string())?
+        .join("config.yaml");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| "Config path not UTF-8".to_string())?;
+
+    let mut config = state.config.lock().await;
+    config.dropbox_auto_push_on_exit = enabled;
+    config.save(config_path_str).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// The content directory and the Dropbox folder are both read only while the
+/// config lock is held, so the lock is released before any network work.
+async fn dropbox_target(
+    state: &State<'_, AppState>,
+) -> Result<(std::path::PathBuf, String), String> {
+    let config = state.config.lock().await;
+    let folder = config
+        .dropbox_folder
+        .clone()
+        .ok_or_else(|| "No Dropbox folder configured".to_string())?;
+    Ok((config.content_directory.clone(), folder))
+}
+
+#[tauri::command]
+pub async fn dropbox_status(
+    state: State<'_, AppState>,
+) -> Result<Vec<super::dropbox::DropboxFileStatus>, String> {
+    let (content_dir, folder) = dropbox_target(&state).await?;
+    super::dropbox::status(&content_dir, &folder)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn dropbox_push(state: State<'_, AppState>) -> Result<super::dropbox::SyncResult, String> {
+    let (content_dir, folder) = dropbox_target(&state).await?;
+    super::dropbox::push(&content_dir, &folder)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn dropbox_pull(state: State<'_, AppState>) -> Result<super::dropbox::SyncResult, String> {
+    let (content_dir, folder) = dropbox_target(&state).await?;
+    super::dropbox::pull(&content_dir, &folder)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /**

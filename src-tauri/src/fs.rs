@@ -284,7 +284,10 @@ pub fn delete_file(file: &File) -> Result<(), FileError> {
 pub fn move_file(directory: &Path, old_name: &str, new_name: &str) -> Result<File, FileError> {
     let old_path = directory.join(old_name);
     let new_path = directory.join(new_name);
-    if new_path.exists() {
+    // A case-only change ("scene.md" -> "Scene.md") resolves to the same file on
+    // case-insensitive filesystems (macOS, Windows), so it is not a clash.
+    let case_only = old_name != new_name && old_name.to_lowercase() == new_name.to_lowercase();
+    if new_path.exists() && !case_only {
         return Err(FileError::AlreadyExists(new_name.to_string()));
     }
     if let Some(parent) = new_path.parent() {
@@ -295,17 +298,64 @@ pub fn move_file(directory: &Path, old_name: &str, new_name: &str) -> Result<Fil
     Ok(File::new(new_path, modified))
 }
 
-pub fn rename_file(old_path: &Path, new_name: &str) -> Result<File, FileError> {
-    let new_path = old_path.parent().unwrap_or(Path::new("")).join(new_name);
-    fs::rename(old_path, &new_path)?;
-    let modified = fs::metadata(&new_path)?.modified().ok();
-    Ok(File::new(new_path, modified))
+/// Renames a writing. Both names are full content-relative paths (e.g.
+/// `Novel/Ch 1/Scene.md`), as the frontend and the undo/memory indexes use them.
+pub fn rename_file(directory: &Path, old_name: &str, new_name: &str) -> Result<File, FileError> {
+    move_file(directory, old_name, new_name)
 }
 
 #[cfg(test)]
 mod fs_tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn rename_file_in_nested_folder_stays_in_place() {
+        let dir = tempdir().unwrap();
+        let chapter = dir.path().join("Novel").join("Ch 1");
+        fs::create_dir_all(&chapter).unwrap();
+        fs::write(chapter.join("Scene.md"), "text").unwrap();
+
+        rename_file(dir.path(), "Novel/Ch 1/Scene.md", "Novel/Ch 1/Opening.md").unwrap();
+
+        assert!(!chapter.join("Scene.md").exists());
+        assert_eq!(fs::read_to_string(chapter.join("Opening.md")).unwrap(), "text");
+    }
+
+    #[test]
+    fn rename_file_at_top_level() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a.md"), "text").unwrap();
+
+        rename_file(dir.path(), "a.md", "b.md").unwrap();
+
+        assert!(!dir.path().join("a.md").exists());
+        assert!(dir.path().join("b.md").exists());
+    }
+
+    #[test]
+    fn rename_file_refuses_to_overwrite() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a.md"), "a").unwrap();
+        fs::write(dir.path().join("b.md"), "b").unwrap();
+
+        assert!(rename_file(dir.path(), "a.md", "b.md").is_err());
+        assert_eq!(fs::read_to_string(dir.path().join("b.md")).unwrap(), "b");
+    }
+
+    #[test]
+    fn rename_file_allows_case_only_change() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("scene.md"), "text").unwrap();
+
+        rename_file(dir.path(), "scene.md", "Scene.md").unwrap();
+
+        let names: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        assert_eq!(names, vec!["Scene.md".to_string()]);
+    }
 
     #[test]
     fn test_file_new_and_read_content() {

@@ -5,6 +5,18 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Where writing is synced to. Only one backend is active at a time — the
+/// preferred storage — so a save never races two remotes against each other.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SyncProvider {
+    /// Local-only: writing never leaves the machine.
+    #[default]
+    None,
+    Github,
+    Dropbox,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AppConfig {
     pub content_directory: PathBuf,
@@ -33,6 +45,17 @@ pub struct AppConfig {
     /// `provider` is `OpenRouter`. The API key itself is stored in the OS keyring, not here.
     #[serde(default)]
     pub openrouter_model: Option<String>,
+    /// Dropbox folder writing is synced to, e.g. "/Memoire". The refresh token
+    /// itself is stored in the OS keyring, not here.
+    #[serde(default)]
+    pub dropbox_folder: Option<String>,
+    /// If true, push any pending changes to Dropbox when the app is closed.
+    #[serde(default)]
+    pub dropbox_auto_push_on_exit: bool,
+    /// Preferred storage: which backend Cloud Sync uses. The other backend's
+    /// settings are kept, just inactive.
+    #[serde(default)]
+    pub sync_provider: SyncProvider,
 }
 
 impl AppConfig {
@@ -50,6 +73,9 @@ impl AppConfig {
             ai_enabled: false,
             provider: ProviderKind::Local,
             openrouter_model: None,
+            dropbox_folder: None,
+            dropbox_auto_push_on_exit: false,
+            sync_provider: SyncProvider::None,
         })
     }
 
@@ -77,7 +103,15 @@ impl AppConfig {
 
     pub fn load(path: &str) -> Result<Self, ConfigurationError> {
         let config_str = fs::read_to_string(path)?;
-        let config: AppConfig = serde_yaml::from_str(&config_str)?;
+        let mut config: AppConfig = serde_yaml::from_str(&config_str)?;
+
+        // Configs from before `sync_provider` existed had GitHub as the only
+        // backend. Keep it active for them, or auto-push on exit and the GitHub
+        // settings would silently switch off on upgrade.
+        let raw: serde_yaml::Value = serde_yaml::from_str(&config_str)?;
+        if raw.get("sync_provider").is_none() && config.github_repo.is_some() {
+            config.sync_provider = SyncProvider::Github;
+        }
 
         if !config.content_directory.exists() {
             fs::create_dir_all(&config.content_directory)?;
@@ -108,9 +142,39 @@ impl AppConfig {
 
 #[cfg(test)]
 mod config_tests {
-    use super::AppConfig;
+    use super::{AppConfig, SyncProvider};
     use std::fs;
     use tempfile::tempdir;
+
+    fn load_with(extra: &str) -> AppConfig {
+        let dir = tempdir().unwrap();
+        let config_path = dir.path().join("config.yaml");
+        let yaml_content = format!(
+            "content_directory: {:?}\nundotree_dir: {:?}\ndefault_llm_model: {:?}\n{extra}",
+            dir.path().join("content"),
+            dir.path().join("history"),
+            dir.path().join("default_llm_model"),
+        );
+        fs::write(&config_path, yaml_content).unwrap();
+        AppConfig::load(config_path.to_str().unwrap()).unwrap()
+    }
+
+    #[test]
+    fn legacy_github_config_keeps_github_as_sync_provider() {
+        let config = load_with("github_repo: owner/repo\nauto_push_on_exit: true");
+        assert_eq!(config.sync_provider, SyncProvider::Github);
+    }
+
+    #[test]
+    fn explicit_sync_provider_is_respected() {
+        let config = load_with("github_repo: owner/repo\nsync_provider: none");
+        assert_eq!(config.sync_provider, SyncProvider::None);
+    }
+
+    #[test]
+    fn config_without_github_defaults_to_no_sync() {
+        assert_eq!(load_with("").sync_provider, SyncProvider::None);
+    }
 
     #[test]
     fn test_load_config() {

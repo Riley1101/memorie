@@ -12,7 +12,10 @@ class ConfigManager {
    *   auto_push_on_exit?: boolean,
    *   ai_enabled?: boolean,
    *   provider?: 'local' | 'openrouter',
-   *   openrouter_model?: string | null
+   *   openrouter_model?: string | null,
+   *   dropbox_folder?: string | null,
+   *   dropbox_auto_push_on_exit?: boolean,
+   *   sync_provider?: 'none' | 'github' | 'dropbox'
    * } | null}
    */
   config = $state(null);
@@ -70,6 +73,28 @@ class ConfigManager {
       await this.getConfig();
     } catch (err) {
       console.error('Failed to set auto push on exit:', err);
+      this.error = err;
+    }
+  }
+
+  /** Pick which backend Cloud Sync uses: 'none', 'github' or 'dropbox'. */
+  async setSyncProvider(provider) {
+    try {
+      await invoke('set_sync_provider', { provider });
+      await this.getConfig();
+    } catch (err) {
+      console.error('Failed to set sync provider:', err);
+      this.error = err;
+    }
+  }
+
+  /** Toggle pushing writing to Dropbox automatically when the app closes. */
+  async setDropboxAutoPushOnExit(enabled) {
+    try {
+      await invoke('set_dropbox_auto_push_on_exit', { enabled });
+      await this.getConfig();
+    } catch (err) {
+      console.error('Failed to set Dropbox auto push on exit:', err);
       this.error = err;
     }
   }

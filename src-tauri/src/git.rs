@@ -9,7 +9,7 @@ use std::path::Path;
 /// Set at build time via `GITHUB_CLIENT_ID=... cargo build` / `.cargo/config.toml` env,
 /// since this ends up baked into the compiled binary either way (device-flow client ids
 /// are not secret — gh CLI and VSCode ship theirs the same way).
-const GITHUB_CLIENT_ID: &str = match option_env!("GITHUB_CLIENT_ID") {
+const GITHUB_CLIENT_ID: &str = match option_env!("GIT_CLIENT_ID") {
     Some(id) => id,
     None => "Iv23licYPOLsngZ7NztG",
 };
@@ -172,7 +172,7 @@ pub fn status(path: &Path) -> Result<Vec<GitFileStatus>, GitError> {
     Ok(statuses
         .iter()
         .filter_map(|entry| {
-            let path = entry.path()?.to_string();
+            let path = entry.path().ok()?.to_string();
             let flags = entry.status();
             let status = if flags.is_wt_new() || flags.is_index_new() {
                 "added"
@@ -222,7 +222,7 @@ pub fn pull(path: &Path, token: &str) -> Result<(), GitError> {
         remote.fetch(&[] as &[&str], Some(&mut fetch_opts), None)?;
     }
 
-    let branch = match repo.head().ok().and_then(|h| h.shorthand().map(String::from)) {
+    let branch = match repo.head().ok().and_then(|h| h.shorthand().ok().map(String::from)) {
         Some(name) if repo.find_reference(&format!("refs/remotes/origin/{name}")).is_ok() => name,
         _ => ["main", "master"]
             .into_iter()

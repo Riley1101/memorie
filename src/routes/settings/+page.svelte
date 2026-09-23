@@ -23,10 +23,12 @@
   import { llmManager } from '$lib/runes/llm.svelte.js';
   import { memoryManager } from '$lib/runes/memory.svelte.js';
   import { gitManager } from '$lib/runes/git.svelte.js';
+  import { dropboxManager } from '$lib/runes/dropbox.svelte.js';
   import { fileManager } from '$lib/runes/fs.svelte.js';
   import GithubIcon from '@lucide/svelte/icons/git-branch';
   import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
   import DownloadCloudIcon from '@lucide/svelte/icons/download-cloud';
+  import DropboxIcon from '@lucide/svelte/icons/box';
 
   const SECTIONS = [
     { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
@@ -38,6 +40,7 @@
   let activeSection = $state('appearance');
   let repoInput = $state('');
   let commitMessage = $state('');
+  let dropboxFolderInput = $state('');
 
   let openRouterKeyInput = $state('');
 
@@ -57,6 +60,11 @@
     });
     gitManager.checkSession().then(() => {
       if (gitManager.user) gitManager.refreshStatus();
+    });
+    dropboxManager.checkSession().then(() => {
+      if (dropboxManager.account && configManager.config?.dropbox_folder) {
+        dropboxManager.refreshStatus();
+      }
     });
   });
 
@@ -122,9 +130,48 @@
     await gitManager.commitAndPush(commitMessage.trim());
     if (gitManager.pushResult === 'success') commitMessage = '';
   }
+
+  /** Preferred storage: 'none', 'github' or 'dropbox'. */
+  const syncProvider = $derived(configManager.config?.sync_provider ?? 'none');
+
+  async function handleSelectSyncProvider(provider) {
+    if (syncProvider === provider) return;
+    await configManager.setSyncProvider(provider);
+    if (provider === 'github') {
+      await gitManager.checkSession();
+      if (gitManager.user) gitManager.refreshStatus();
+    } else if (provider === 'dropbox') {
+      await dropboxManager.checkSession();
+      if (dropboxManager.account && configManager.config?.dropbox_folder) {
+        dropboxManager.refreshStatus();
+      }
+    }
+  }
+
+  $effect(() => {
+    if (configManager.config?.dropbox_folder && !dropboxFolderInput) {
+      dropboxFolderInput = configManager.config.dropbox_folder;
+    }
+  });
+
+  async function handleSaveDropboxFolder() {
+    if (!dropboxFolderInput.trim()) return;
+    await dropboxManager.setFolder(dropboxFolderInput.trim());
+    await dropboxManager.refreshStatus();
+  }
+
+  async function handleDropboxPull() {
+    if (!dropboxFolderInput.trim()) return;
+    await dropboxManager.setFolder(dropboxFolderInput.trim());
+    await dropboxManager.pull();
+    if (dropboxManager.pullResult === 'success') {
+      await fileManager.getRecents();
+      await fileManager.getBinders();
+    }
+  }
 </script>
 
-<div class="page-container w-full h-full flex flex-col overflow-hidden">
+<div class="page-container max-w-5xl w-full h-full flex flex-col overflow-hidden">
   <div class="flex items-center justify-between mb-8">
     <h2 class="font-writer text-5xl font-normal text-heading-foreground">Settings</h2>
     <Button
@@ -165,7 +212,7 @@
               <div class="flex items-center gap-2 mb-6">
                 <h3 class="font-writer text-2xl font-normal">Appearance</h3>
               </div>
-              <div class="grid gap-8">
+              <div class="grid grid-cols-1 gap-8">
                 <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
                   <p class="text-lg font-normal">Style</p>
                   <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
@@ -197,7 +244,7 @@
                       Light, dark, or follow your system setting.
                     </p>
                   </div>
-                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
                     <Button
                       variant={appState.ui.themePreference === 'system' ? 'default' : 'ghost'}
                       size="sm"
@@ -238,7 +285,7 @@
                       Overall text size and spacing across the app.
                     </p>
                   </div>
-                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
                     <Button
                       variant={appState.ui.density === 'default' ? 'default' : 'ghost'}
                       size="sm"
@@ -304,7 +351,7 @@
                 <h3 class="font-writer text-2xl font-normal">Storage</h3>
               </div>
 
-              <div class="grid gap-8">
+              <div class="grid grid-cols-1 gap-8">
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
@@ -337,7 +384,7 @@
               <div class="flex items-center gap-2 mb-6">
                 <h3 class="font-writer text-2xl font-normal">Writing</h3>
               </div>
-              <div class="grid gap-8">
+              <div class="grid grid-cols-1 gap-8">
                 <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Paragraph style</p>
@@ -346,7 +393,7 @@
                       the style export uses for "Standard manuscript format".
                     </p>
                   </div>
-                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
                     <Button
                       variant={writingState.paragraphStyle === 'spaced' ? 'default' : 'ghost'}
                       size="sm"
@@ -375,7 +422,7 @@
                       Underline misspelled words while you write.
                     </p>
                   </div>
-                  <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
                     <Button
                       variant={writingState.spellcheck ? 'default' : 'ghost'}
                       size="sm"
@@ -425,7 +472,7 @@
                 <h3 class="font-writer text-2xl font-normal">AI Configuration</h3>
               </div>
 
-              <div class="grid gap-8">
+              <div class="grid grid-cols-1 gap-8">
                 <!-- Enable AI -->
                 <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div>
@@ -461,7 +508,7 @@
                     Choose whether chat, autocomplete, and grammar checks run locally on your
                     machine or through OpenRouter. Note search always stays local.
                   </p>
-                  <div class="flex gap-2 mt-2">
+                  <div class="flex flex-wrap gap-2 mt-2">
                     <Button
                       variant={(configManager.config?.provider ?? 'local') === 'local' ? 'default' : 'outline'}
                       size="sm"
@@ -495,7 +542,7 @@
                     </div>
 
                     <p class="text-sm text-muted-foreground mt-2">
-                      Model: <strong>{configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}</strong>
+                      Model: <strong class="wrap-anywhere">{configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}</strong>
                     </p>
 
                     {#if configManager.isLoadingOpenRouterModels}
@@ -525,7 +572,7 @@
                     <div class="flex gap-2 mt-2">
                       <input
                         type="password"
-                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         placeholder="sk-or-..."
                         bind:value={openRouterKeyInput}
                       />
@@ -545,7 +592,7 @@
                   </div>
 
                   {#if llmManager.error}
-                    <div class="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                    <div class="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
                       {llmManager.error}
                     </div>
                   {/if}
@@ -701,7 +748,47 @@
                 <h3 class="font-writer text-2xl font-normal">Cloud Sync</h3>
               </div>
 
-              <div class="grid gap-8">
+              <div class="grid grid-cols-1 gap-8">
+                <!-- Preferred storage -->
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                    <CloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Preferred storage</span>
+                  </div>
+                  <p class="text-sm text-muted-foreground">
+                    Where your writing is synced. One backend is active at a time; the other keeps
+                    its settings and stays idle.
+                  </p>
+                  <div class="flex flex-wrap gap-2 mt-2">
+                    <Button
+                      variant={syncProvider === 'none' ? 'default' : 'outline'}
+                      size="sm"
+                      onclick={() => handleSelectSyncProvider('none')}
+                    >
+                      This machine only
+                    </Button>
+                    <Button
+                      variant={syncProvider === 'github' ? 'default' : 'outline'}
+                      size="sm"
+                      class="gap-1.5"
+                      onclick={() => handleSelectSyncProvider('github')}
+                    >
+                      <GithubIcon strokeWidth={1.5} class="size-3.5" />
+                      GitHub
+                    </Button>
+                    <Button
+                      variant={syncProvider === 'dropbox' ? 'default' : 'outline'}
+                      size="sm"
+                      class="gap-1.5"
+                      onclick={() => handleSelectSyncProvider('dropbox')}
+                    >
+                      <DropboxIcon strokeWidth={1.5} class="size-3.5" />
+                      Dropbox
+                    </Button>
+                  </div>
+                </div>
+
+                {#if syncProvider === 'github'}
                 <!-- Account -->
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
@@ -710,7 +797,7 @@
                   </div>
 
                   {#if gitManager.error}
-                    <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                    <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
                       {typeof gitManager.error === 'string' ? gitManager.error : 'Something went wrong.'}
                     </div>
                   {/if}
@@ -800,12 +887,12 @@
                       Writing in your content directory is committed &amp; pushed to this GitHub repository.
                       Already have writing on GitHub? Import pulls it into this content directory.
                     </p>
-                    <div class="flex items-center gap-2 mt-1">
+                    <div class="flex flex-wrap items-center gap-2 mt-1">
                       <input
                         type="text"
                         bind:value={repoInput}
                         placeholder="owner/repo"
-                        class="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
  />
                       <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveRepo}>
                         Save
@@ -827,11 +914,11 @@
                       </Button>
                     </div>
                     {#if gitManager.importResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success">
+                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
                         Imported from GitHub.
                       </div>
                     {:else if gitManager.importResult === 'error'}
-                      <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+                      <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
                         Import failed: {typeof gitManager.error === 'string' ? gitManager.error : 'unknown error'}
                       </div>
                     {/if}
@@ -874,7 +961,7 @@
                     ></textarea>
 
                     {#if gitManager.pushResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success">
+                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
                         Pushed to GitHub.
                       </div>
                     {/if}
@@ -893,6 +980,212 @@
                       {/if}
                     </Button>
                   </div>
+                {/if}
+                {:else if syncProvider === 'dropbox'}
+                <!-- Dropbox account -->
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                    <DropboxIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Account</span>
+                  </div>
+
+                  {#if dropboxManager.error}
+                    <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
+                      {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'Something went wrong.'}
+                    </div>
+                  {/if}
+
+                  {#if dropboxManager.isCheckingSession}
+                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                      Checking session…
+                    </div>
+                  {:else if dropboxManager.account}
+                    <div class="flex items-center justify-between gap-3">
+                      <div class="flex items-center gap-3 min-w-0">
+                        {#if dropboxManager.account.photo_url}
+                          <img src={dropboxManager.account.photo_url} alt="" class="size-9 rounded-full" />
+                        {/if}
+                        <div class="flex flex-col min-w-0">
+                          <span class="text-sm font-medium truncate">{dropboxManager.account.name}</span>
+                          {#if dropboxManager.account.email}
+                            <span class="text-xs text-muted-foreground truncate">{dropboxManager.account.email}</span>
+                          {/if}
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" class="text-xs h-8" onclick={() => dropboxManager.logout()}>
+                        Disconnect
+                      </Button>
+                    </div>
+                  {:else if dropboxManager.isConnecting}
+                    <div class="flex flex-col items-start gap-2">
+                      <p class="text-sm text-muted-foreground">
+                        Approve Memoire in the Dropbox page that opened in your browser.
+                      </p>
+                      <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        Waiting for approval…
+                      </div>
+                      <Button variant="ghost" size="sm" class="text-xs h-7 mt-1" onclick={() => dropboxManager.cancelLogin()}>
+                        Cancel
+                      </Button>
+                    </div>
+                  {:else}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="gap-2 text-xs h-8 w-fit"
+                      onclick={() => dropboxManager.startLogin()}
+                    >
+                      <DropboxIcon strokeWidth={1.5} class="size-3.5" />
+                      Connect Dropbox
+                    </Button>
+                  {/if}
+                </div>
+
+                {#if dropboxManager.account}
+                  <!-- Auto push on exit -->
+                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
+                    <div>
+                      <p class="text-lg font-normal">Auto-push on exit</p>
+                      <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                        Upload any changed writing to Dropbox when you close Memoire.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-label="Auto-push to Dropbox on exit"
+                      aria-checked={configManager.config?.dropbox_auto_push_on_exit ?? false}
+                      onclick={() =>
+                        configManager.setDropboxAutoPushOnExit(
+                          !(configManager.config?.dropbox_auto_push_on_exit ?? false)
+                        )}
+                      class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
+                        {configManager.config?.dropbox_auto_push_on_exit ? 'bg-primary' : 'bg-muted-foreground/30'}"
+                    >
+                      <span
+                        class="inline-block size-4 transform rounded-full bg-background transition-transform
+                          {configManager.config?.dropbox_auto_push_on_exit ? 'translate-x-6' : 'translate-x-1'}"
+                      ></span>
+                    </button>
+                  </div>
+
+                  <!-- Folder -->
+                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                      <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                      <span class="text-xs font-mono uppercase tracking-widest text-metadata">Folder</span>
+                    </div>
+                    <p class="text-sm text-muted-foreground">
+                      Writing in your content directory is uploaded to this Dropbox folder, which is
+                      created if it doesn't exist yet. Pull brings writing from Dropbox down into
+                      this content directory.
+                    </p>
+                    <div class="flex flex-wrap items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        bind:value={dropboxFolderInput}
+                        placeholder="/Memoire"
+                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+ />
+                      <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveDropboxFolder}>
+                        Save
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="gap-1.5 text-xs h-9"
+                        onclick={handleDropboxPull}
+                        disabled={dropboxManager.isPulling || !dropboxFolderInput.trim()}
+                      >
+                        {#if dropboxManager.isPulling}
+                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                          Pulling…
+                        {:else}
+                          <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
+                          Pull
+                        {/if}
+                      </Button>
+                    </div>
+                    {#if dropboxManager.pullResult === 'success'}
+                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
+                        Pulled {dropboxManager.lastSync?.downloaded ?? 0} file(s) from Dropbox.
+                        {#if dropboxManager.lastSync?.conflicts}
+                          {dropboxManager.lastSync.conflicts} file(s) changed on both sides — Dropbox's version
+                          was saved beside yours as "(Dropbox conflict)".
+                        {/if}
+                      </div>
+                    {:else if dropboxManager.pullResult === 'error'}
+                      <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
+                        Pull failed: {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'unknown error'}
+                      </div>
+                    {/if}
+                  </div>
+
+                  <!-- Status & push -->
+                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                    <div class="flex items-center justify-between mb-1">
+                      <div class="flex items-center gap-2 text-muted-foreground">
+                        <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                        <span class="text-xs font-mono uppercase tracking-widest text-metadata">Changes</span>
+                      </div>
+                      <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => dropboxManager.refreshStatus()}>
+                        Refresh
+                      </Button>
+                    </div>
+
+                    {#if dropboxManager.isLoadingStatus}
+                      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        Loading status…
+                      </div>
+                    {:else if dropboxManager.status.length === 0}
+                      <p class="text-sm text-muted-foreground italic">Everything is in sync.</p>
+                    {:else}
+                      <div class="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                        {#each dropboxManager.status as file (file.path)}
+                          <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
+                            <span class="font-mono truncate">{file.path}</span>
+                            <span class="text-[0.625rem] uppercase tracking-wider shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+
+                    {#if dropboxManager.pushResult === 'success'}
+                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
+                        Pushed {dropboxManager.lastSync?.uploaded ?? 0} file(s) to Dropbox.
+                        {#if dropboxManager.lastSync?.conflicts}
+                          Skipped {dropboxManager.lastSync.conflicts} file(s) changed on both sides — pull to
+                          keep both versions.
+                        {/if}
+                      </div>
+                    {/if}
+
+                    <Button
+                      class="gap-2 w-fit mt-2"
+                      onclick={() => dropboxManager.push()}
+                      disabled={dropboxManager.isPushing || !configManager.config?.dropbox_folder}
+                    >
+                      {#if dropboxManager.isPushing}
+                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                        Pushing…
+                      {:else}
+                        <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
+                        Push to Dropbox
+                      {/if}
+                    </Button>
+                  </div>
+                {/if}
+                {:else}
+                <div class="flex flex-col gap-2 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <p class="text-lg font-normal">This machine only</p>
+                  <p class="text-sm text-muted-foreground tracking-tight">
+                    Nothing leaves your machine. Pick GitHub or Dropbox above to sync your writing —
+                    whichever you've already set up stays configured.
+                  </p>
+                </div>
                 {/if}
               </div>
             </section>

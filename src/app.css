@@ -810,13 +810,14 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   /* Page container for home, settings, etc. Uses flavour’s --app-page-padding */
   .page-container {
     padding: var(--app-page-padding, 2rem);
+    /* The macOS overlay title bar sits over the top of the window; a flavour
+       with tight padding (Technical) would tuck the page heading under it. */
+    padding-top: max(
+      var(--app-page-padding, 2rem),
+      calc(var(--titlebar-height, 0px) + 0.75rem)
+    );
     max-width: 48rem;
     margin-inline: auto;
-  }
-  @media (min-width: 768px) {
-    .page-container {
-      padding: var(--app-page-padding, 2rem);
-    }
   }
 
   /* Writing area title (input is inside a component, so global) */

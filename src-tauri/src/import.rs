@@ -171,7 +171,7 @@ enum DocBlock {
 fn attr(e: &BytesStart, name: &[u8]) -> Option<String> {
     e.attributes()
         .flatten()
-        .find(|a| a.key.local_name().as_ref() == name)
+        .find(|a| a.key.local_name().as_ref().as_bytes() == name)
         .and_then(|a| a.unescape_value().ok().map(|v| v.into_owned()))
 }
 
@@ -222,8 +222,8 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
         let event = reader.read_event().map_err(|e| format!("Unreadable Word document: {e}"))?;
         if in_fallback > 0 {
             match &event {
-                Event::Start(e) if e.local_name().as_ref() == b"Fallback" => in_fallback += 1,
-                Event::End(e) if e.local_name().as_ref() == b"Fallback" => in_fallback -= 1,
+                Event::Start(e) if e.local_name().as_ref().as_bytes() == b"Fallback" => in_fallback += 1,
+                Event::End(e) if e.local_name().as_ref().as_bytes() == b"Fallback" => in_fallback -= 1,
                 Event::Eof => break,
                 _ => {}
             }
@@ -233,7 +233,7 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
             Event::Start(ref e) | Event::Empty(ref e) => {
                 let empty = matches!(event, Event::Empty(_));
                 let outer = paragraph_depth <= 1;
-                match e.local_name().as_ref() {
+                match e.local_name().as_ref().as_bytes() {
                     b"Fallback" if !empty => in_fallback = 1,
                     b"p" if !empty => {
                         if paragraph_depth == 0 {
@@ -270,7 +270,7 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
                     _ => {}
                 }
             }
-            Event::End(ref e) => match e.local_name().as_ref() {
+            Event::End(ref e) => match e.local_name().as_ref().as_bytes() {
                 b"t" => in_text = false,
                 b"rPr" => in_run_props = false,
                 b"pPr" => in_para_props = false,
@@ -309,11 +309,11 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
                 _ => {}
             },
             Event::Text(ref t) if in_text && in_deleted == 0 => {
-                let text = t.decode().map_err(|e| e.to_string())?;
+                let text = t.xml10_content();
                 push_run(&mut runs, &text, bold, italic);
             }
             Event::GeneralRef(ref r) if in_text && in_deleted == 0 => {
-                let name = r.decode().map_err(|e| e.to_string())?;
+                let name = r.xml10_content();
                 if let Ok(text) = quick_xml::escape::unescape(&format!("&{name};")) {
                     push_run(&mut runs, &text, bold, italic);
                 }
@@ -487,7 +487,7 @@ fn parse_scrivx(xml: &str) -> Result<ScrivenerProject, String> {
     loop {
         match reader.read_event().map_err(|e| format!("Unreadable Scrivener project: {e}"))? {
             Event::Start(e) => {
-                let name = e.local_name().as_ref().to_vec();
+                let name = e.local_name().as_ref().as_bytes().to_vec();
                 match name.as_slice() {
                     b"BinderItem" => stack.push(BinderItem {
                         id: attr(&e, b"UUID").or_else(|| attr(&e, b"ID")).unwrap_or_default(),
@@ -508,19 +508,19 @@ fn parse_scrivx(xml: &str) -> Result<ScrivenerProject, String> {
             }
             Event::Text(t) => {
                 if capture.is_some() {
-                    text.push_str(&t.decode().map_err(|e| e.to_string())?);
+                    text.push_str(&t.xml10_content());
                 }
             }
             Event::GeneralRef(r) => {
                 if capture.is_some() {
-                    let name = r.decode().map_err(|e| e.to_string())?;
+                    let name = r.xml10_content();
                     if let Ok(t) = quick_xml::escape::unescape(&format!("&{name};")) {
                         text.push_str(&t);
                     }
                 }
             }
             Event::End(e) => {
-                let name = e.local_name().as_ref().to_vec();
+                let name = e.local_name().as_ref().as_bytes().to_vec();
                 if let Some((captured, id)) = capture.take_if(|(n, _)| *n == name) {
                     let value = text.trim().to_string();
                     match (captured.as_slice(), stack.last_mut()) {
