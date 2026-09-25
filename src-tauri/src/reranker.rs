@@ -6,9 +6,10 @@
 //! it only rescores the few dozen candidates `Memory::search_hybrid` found.
 //!
 //! The model is `cross-encoder/ms-marco-MiniLM-L-6-v2` (22M parameters,
-//! English): rescoring a search's 16 candidates takes up to about 1.6s on the
-//! CPU in a release build when every passage is full-size, less for shorter
-//! ones. It downloads (~90MB) into the same cache as the other models on first use.
+//! English). It runs on the same device as the other models: Metal on Apple
+//! Silicon, the CPU elsewhere. On the CPU, rescoring a search's 16 candidates
+//! takes up to about 1.8s in a release build when every passage is full-size.
+//! It downloads (~90MB) into the same cache as the other models on first use.
 
 use candle_core::{DType, Device, IndexOp, Tensor};
 use candle_nn::{Linear, Module, VarBuilder};
@@ -76,7 +77,9 @@ impl Reranker {
             ..Default::default()
         }));
 
-        let device = Device::Cpu;
+        // The GPU on Apple Silicon (Metal), the CPU elsewhere; the same device the
+        // embedder and local model use.
+        let device = kalosm_common::accelerated_device_if_available().map_err(|e| e.to_string())?;
         // SAFETY: the weights file lives in the model cache and isn't modified
         // while the app runs.
         let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights], DType::F32, &device) }
@@ -115,7 +118,8 @@ impl Reranker {
             let type_ids = tensor(|e| e.get_type_ids())?;
             let mask = tensor(|e| e.get_attention_mask())?;
             let hidden = self.model.forward(&ids, &type_ids, Some(&mask))?;
-            let cls = hidden.i((.., 0))?;
+            // Contiguous copy of the [CLS] row: Metal's matmul rejects the strided view.
+            let cls = hidden.i((.., 0))?.contiguous()?;
             let pooled = self.pooler.forward(&cls)?.tanh()?;
             self.classifier.forward(&pooled)?.squeeze(1)?.to_vec1::<f32>()
         };
@@ -131,6 +135,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn reranker_prefers_the_passage_that_answers() {
+        // Holds the GPU throughout, as app code does, so it can run beside the other tests.
+        let _gpu = crate::gpu::lock().await;
         let reranker = Reranker::load().await.unwrap();
         let passages = vec![
             "Soup: simmer the carrots for twenty minutes.".to_string(),

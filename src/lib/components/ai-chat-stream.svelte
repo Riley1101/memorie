@@ -20,6 +20,7 @@
   import { memoryManager } from "@/runes/memory.svelte";
   import { configManager } from "@/runes/config.svelte.js";
   import { toast } from "$lib/toast.js";
+  import SearchThoughts from "$lib/components/search-thoughts.svelte";
 
   let messages = $derived(llmManager.messages);
   let isBusy = $derived(llmManager.isLoading);
@@ -180,12 +181,13 @@
 
         <div class="flex min-w-0 flex-1 flex-col gap-2 {message.role === 'user' ? 'items-end' : ''}">
           {#if message.role === "assistant" && message.route?.intent === "search_notes"}
-            <div class="flex items-center gap-1.5 text-xs text-muted-foreground/70 font-sans">
-              <SearchIcon strokeWidth={1.5} class="size-3" />
-              <span class="truncate">
-                Searched {message.route.binder ?? "notes"} for “{message.route.query}”{message.references?.length === 0 ? " · no matches" : ""}
-              </span>
-            </div>
+            <SearchThoughts
+              query={message.route.query}
+              binder={message.route.binder}
+              passages={message.passages}
+              elapsedMs={message.searchMs}
+              onOpen={openNote}
+            />
           {:else if message.role === "assistant" && message.route?.intent === "current_document"}
             <div class="flex items-center gap-1.5 text-xs text-muted-foreground/70 font-sans">
               <FileText strokeWidth={1.5} class="size-3" />

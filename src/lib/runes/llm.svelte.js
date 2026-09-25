@@ -22,7 +22,10 @@ const LLM_EVENTS = {
 
   /** How the backend chose to answer: `{ intent, query, documentTitle, binder }`. */
   ROUTE: 'chat-route',
-  /** Source notes for a reply that searched notes: `{ results: [{ title, score }] }`. */
+  /**
+   * What a notes search found: `{ results: [{ title, score }], passages, elapsedMs }`.
+   * `results` is one entry per note; `passages` every passage given to the model.
+   */
   SOURCES: 'chat-sources',
 };
 
@@ -54,6 +57,21 @@ const HISTORY_MESSAGES = 6;
  * @property {string} content - The text content of the message.
  * @property {MessageRoute} [route] - How the assistant decided to answer.
  * @property {{ title: string, score: number }[]} [references] - Notes a search drew on.
+ * @property {Passage[]} [passages] - Every passage a search gave the model.
+ * @property {number} [searchMs] - How long the search took.
+ */
+
+/**
+ * A passage a notes search handed to the model, as shown in the chat.
+ * @typedef {object} Passage
+ * @property {string} title - Note path, e.g. `Novel/Chapter 3.md`.
+ * @property {string} section - Headings above it joined with " › ", or "".
+ * @property {number} startLine
+ * @property {number} endLine
+ * @property {number} similarity - Cosine similarity to the question, 0–1.
+ * @property {number | null} rerankScore - Reranker logit; above 0 usually answers the question.
+ * @property {string[]} foundBy - `"meaning"` and/or `"keywords"`.
+ * @property {string} excerpt
  */
 
 /**
@@ -195,6 +213,8 @@ export class LlmManager {
         const lastMessage = this._lastAssistantMessage();
         if (lastMessage) {
           lastMessage.references = event.payload.results;
+          lastMessage.passages = event.payload.passages ?? [];
+          lastMessage.searchMs = event.payload.elapsedMs;
         }
       })
     );

@@ -199,6 +199,7 @@ impl Memory {
     pub async fn reranker(&self) -> Option<Arc<Reranker>> {
         self.reranker
             .get_or_init(|| async {
+                let _gpu = crate::gpu::lock().await;
                 match Reranker::load().await {
                     Ok(reranker) => Some(Arc::new(reranker)),
                     Err(e) => {
@@ -231,12 +232,16 @@ impl Memory {
                     .collect();
                 let query = query.to_string();
                 let started = std::time::Instant::now();
+                let _gpu = crate::gpu::lock().await;
                 let scored = tokio::task::spawn_blocking(move || reranker.score(&query, &passages)).await;
                 match scored {
                     Ok(Ok(scores)) if scores.len() == results.len() => {
-                        let mut ranked: Vec<(f32, SearchResult)> = scores.into_iter().zip(results).collect();
-                        ranked.sort_by(|a, b| b.0.total_cmp(&a.0));
-                        results = ranked.into_iter().map(|(_, r)| r).collect();
+                        for (result, score) in results.iter_mut().zip(scores) {
+                            result.rerank_score = Some(score);
+                        }
+                        results.sort_by(|a, b| {
+                            b.rerank_score.unwrap_or(f32::MIN).total_cmp(&a.rerank_score.unwrap_or(f32::MIN))
+                        });
                         println!(">> Reranked {} passages in {:?}", results.len(), started.elapsed());
                     }
                     Ok(Ok(_)) => eprintln!("Reranker returned the wrong number of scores"),
@@ -253,6 +258,7 @@ impl Memory {
     pub async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, MemoryError> {
         match &self.embedding_model {
             Some(model) => {
+                let _gpu = crate::gpu::lock().await;
                 let embeddings = model.embed(text).await?.vector().to_vec();
                 Ok(embeddings)
             }
@@ -490,6 +496,8 @@ impl Memory {
                     section: c.section.unwrap_or_default(),
                     start_line: c.start_line.unwrap_or_default(),
                     end_line: c.end_line.unwrap_or_default(),
+                    found_by: c.found_by,
+                    rerank_score: None,
                 })
             })
             .collect();
@@ -556,16 +564,22 @@ fn strong_keyword_matches(chunks: Vec<ScoredChunk>) -> Vec<ScoredChunk> {
         .collect()
 }
 
-/// Merges ranked lists by reciprocal rank fusion and keeps the top `limit`.
+/// Merges ranked lists by reciprocal rank fusion and keeps the top `limit`. Each
+/// chunk's `found_by` records which lists it came from (bit `1 << n` for list `n`).
 fn fuse_ranked<const N: usize>(lists: [Vec<ScoredChunk>; N], limit: usize) -> Vec<ScoredChunk> {
     let mut fused: Vec<(f32, ScoredChunk)> = Vec::new();
     let mut position: HashMap<Thing, usize> = HashMap::new();
-    for list in lists {
-        for (rank, chunk) in list.into_iter().enumerate() {
+    for (n, list) in lists.into_iter().enumerate() {
+        let bit = 1u8 << n;
+        for (rank, mut chunk) in list.into_iter().enumerate() {
             let points = 1.0 / (RRF_K + rank as f32 + 1.0);
             match position.get(&chunk.id) {
-                Some(&i) => fused[i].0 += points,
+                Some(&i) => {
+                    fused[i].0 += points;
+                    fused[i].1.found_by |= bit;
+                }
                 None => {
+                    chunk.found_by = bit;
                     position.insert(chunk.id.clone(), fused.len());
                     fused.push((points, chunk));
                 }
@@ -656,7 +670,15 @@ pub struct SearchResult {
     pub section: String,
     pub start_line: usize,
     pub end_line: usize,
+    /// Which searches found it: `FOUND_BY_MEANING`, `FOUND_BY_KEYWORDS`, or both.
+    pub found_by: u8,
+    /// The reranker's logit when it ran: above 0 usually means the passage answers.
+    pub rerank_score: Option<f32>,
 }
+
+/// `SearchResult::found_by` bits.
+pub const FOUND_BY_MEANING: u8 = 1;
+pub const FOUND_BY_KEYWORDS: u8 = 2;
 
 #[derive(Debug, Deserialize)]
 struct ScoredChunk {
@@ -674,6 +696,9 @@ struct ScoredChunk {
     /// Keyword search only: summed BM25 over the matched terms.
     #[serde(default)]
     bm25: Option<f32>,
+    /// Set by `fuse_ranked`: bit `1 << n` for each input list it appeared in.
+    #[serde(skip)]
+    found_by: u8,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -1167,6 +1192,8 @@ mod memory_tests {
         let contents: Vec<&str> = results.iter().map(|r| r.content.as_str()).collect();
         // Found by both searches, so first; then the name the embedding missed.
         assert_eq!(contents, vec!["The dragon sleeps under the mountain", "Zephyrine draws the maps"]);
+        assert_eq!(results[0].found_by, FOUND_BY_MEANING | FOUND_BY_KEYWORDS);
+        assert_eq!(results[1].found_by, FOUND_BY_KEYWORDS);
         // Scores stay cosine similarities, whichever search found the passage.
         assert!(results[1].score.abs() < 1e-4);
     }
@@ -1222,6 +1249,52 @@ mod memory_tests {
         assert_eq!(keyword_terms(&"word ".repeat(3)), vec!["word"]);
         let many: String = (0..20).map(|i| format!("term{i} ")).collect();
         assert_eq!(keyword_terms(&many).len(), MAX_QUERY_TERMS);
+    }
+
+    /// Two models embedding at once. Without `gpu::lock` this aborts the process
+    /// on Apple Silicon (Metal); with it they take turns. Downloads bge-small on
+    /// first run: `cargo test --release -- --ignored models_can_run_side_by_side`.
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore]
+    async fn models_can_run_side_by_side() {
+        let text = "She walked along the harbour wall. ".repeat(20);
+        let mut jobs = Vec::new();
+        for _ in 0..2 {
+            let model = Bert::builder().build().await.unwrap();
+            let text = text.clone();
+            jobs.push(tokio::spawn(async move {
+                for _ in 0..40 {
+                    let _gpu = crate::gpu::lock().await;
+                    model.embed(&text).await.unwrap();
+                }
+            }));
+        }
+        for job in jobs {
+            job.await.unwrap();
+        }
+    }
+
+    /// Embedding speed on this machine; downloads bge-small on first run.
+    /// Meaningful only in release: `cargo test --release -- --ignored embedder_speed`.
+    #[tokio::test]
+    #[ignore]
+    async fn embedder_speed() {
+        // Holds the GPU throughout, as app code does, so it can run beside the other tests.
+        let _gpu = crate::gpu::lock().await;
+        let model = Bert::builder().build().await.unwrap();
+        let passage = "She walked along the harbour wall, counting the boats. ".repeat(18);
+        model.embed("warm up").await.unwrap();
+
+        let started = std::time::Instant::now();
+        model.embed("where did she walk?").await.unwrap();
+        println!("1 query in {:?}", started.elapsed());
+
+        let batch: Vec<String> = (0..32).map(|i| format!("Novel › Part {i}\n{passage}")).collect();
+        let started = std::time::Instant::now();
+        for text in &batch {
+            model.embed(text).await.unwrap();
+        }
+        println!("32 full passages in {:?}", started.elapsed());
     }
 
     #[test]

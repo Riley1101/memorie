@@ -7,6 +7,7 @@ mod export;
 
 mod fs;
 mod git;
+mod gpu;
 mod import;
 mod indexer;
 mod llm;

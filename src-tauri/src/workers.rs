@@ -1,4 +1,6 @@
-use crate::memory::{pretty_title, MemoryDocumentAnalysisExt, SearchResult};
+use crate::memory::{
+    pretty_title, MemoryDocumentAnalysisExt, SearchResult, FOUND_BY_KEYWORDS, FOUND_BY_MEANING,
+};
 use crate::utils::{ChatContext, ChatTurn, EditAction};
 
 use super::prompts::{
@@ -84,14 +86,15 @@ impl LlmEventService {
                             statuses_clone.insert(job.id, JobStatus::Cancelled);
                             Err("Cancelled".to_string())
                         }
-                        res = run_chat_worker(
+                        // One job at a time on the GPU; see `gpu`.
+                        res = crate::gpu::exclusive(run_chat_worker(
                             app_handle.clone(),
                             job.message.clone(),
                             job.context.clone(),
                             job.cancellation_token.clone(),
                             job.mode.clone(),
                             job.edit_action.clone(),
-                            ) => {
+                            )) => {
                             res
                         }
                     };
@@ -222,6 +225,7 @@ async fn run_chat_worker(
 
         let user_message = match route.intent {
             Intent::SearchNotes => {
+                let started = std::time::Instant::now();
                 let results = {
                     let memory = &state.memory;
                     memory
@@ -232,7 +236,11 @@ async fn run_chat_worker(
                 app_handle
                     .emit(
                         ChatEvents::Sources.as_str(),
-                        serde_json::json!({ "results": source_refs(&results) }),
+                        serde_json::json!({
+                            "results": source_refs(&results),
+                            "passages": passage_refs(&results),
+                            "elapsedMs": started.elapsed().as_millis() as u64,
+                        }),
                     )
                     .ok();
                 build_rag_message(&results, &route.question)
@@ -742,6 +750,36 @@ fn source_refs(results: &[SearchResult]) -> Vec<serde_json::Value> {
         .collect()
 }
 
+/// Longest excerpt of a passage shown in the chat's search details.
+const PASSAGE_EXCERPT_CHARS: usize = 280;
+
+/// Every passage the answer is built from, in the order the model sees them, for
+/// showing what the search found. Excerpts are cut to `PASSAGE_EXCERPT_CHARS`.
+fn passage_refs(results: &[SearchResult]) -> Vec<serde_json::Value> {
+    results
+        .iter()
+        .map(|result| {
+            let mut found_by = Vec::new();
+            if result.found_by & FOUND_BY_MEANING != 0 {
+                found_by.push("meaning");
+            }
+            if result.found_by & FOUND_BY_KEYWORDS != 0 {
+                found_by.push("keywords");
+            }
+            serde_json::json!({
+                "title": result.title,
+                "section": result.section,
+                "startLine": result.start_line,
+                "endLine": result.end_line,
+                "similarity": result.score,
+                "rerankScore": result.rerank_score,
+                "foundBy": found_by,
+                "excerpt": truncate_chars(result.content.trim(), PASSAGE_EXCERPT_CHARS),
+            })
+        })
+        .collect()
+}
+
 /// Loads the OpenRouter API key from the OS keyring, mapping a missing key to a
 /// user-facing error string.
 fn openrouter_api_key() -> Result<String, String> {
@@ -918,6 +956,8 @@ mod routing_tests {
             section: String::new(),
             start_line: 0,
             end_line: 0,
+            found_by: FOUND_BY_MEANING,
+            rerank_score: None,
         }
     }
 
@@ -1052,6 +1092,28 @@ mod routing_tests {
         assert!(message.contains(
             "<excerpt note=\"Novel › Ch 3\" section=\"Part 1 › Scene 2\" lines=\"12-18\">\nShe ran.\n</excerpt>"
         ));
+    }
+
+    #[test]
+    fn passage_refs_describe_each_passage_in_order() {
+        let mut hit = result("Novel/Ch 3.md", &"word ".repeat(100), 0.8);
+        hit.section = "Part 1".to_string();
+        hit.start_line = 4;
+        hit.end_line = 9;
+        hit.found_by = FOUND_BY_MEANING | FOUND_BY_KEYWORDS;
+        hit.rerank_score = Some(6.5);
+        let other = result("Ideas.md", "short", 0.4);
+
+        let refs = passage_refs(&[hit, other]);
+        assert_eq!(refs.len(), 2);
+        assert_eq!(refs[0]["title"], "Novel/Ch 3.md");
+        assert_eq!(refs[0]["section"], "Part 1");
+        assert_eq!((refs[0]["startLine"].as_u64(), refs[0]["endLine"].as_u64()), (Some(4), Some(9)));
+        assert_eq!(refs[0]["foundBy"], serde_json::json!(["meaning", "keywords"]));
+        assert_eq!(refs[0]["rerankScore"], 6.5);
+        assert!(refs[0]["excerpt"].as_str().unwrap().chars().count() <= PASSAGE_EXCERPT_CHARS + 1);
+        assert_eq!(refs[1]["excerpt"], "short");
+        assert_eq!(refs[1]["rerankScore"], serde_json::Value::Null);
     }
 
     #[test]

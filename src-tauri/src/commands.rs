@@ -324,6 +324,7 @@ pub async fn load_models(handle: tauri::AppHandle, state: State<'_, AppState>) -
             .to_string()
     };
     let mut model = state.model.lock().await;
+    let _gpu = crate::gpu::lock().await;
     model
         .download_or_load_model_by_id(&model_id, ModelType::Chat, handle.clone())
         .await
