@@ -476,9 +476,9 @@
                 <!-- Enable AI -->
                 <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div>
-                    <p class="text-lg font-normal">Enable local AI</p>
+                    <p class="text-lg font-normal">Enable AI</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Turns on local AI chat, autocomplete, and model downloads. Off by default so
+                      Turns on AI chat, autocomplete, and model downloads. Off by default so
                       Memoire starts as a plain writing app.
                     </p>
                   </div>

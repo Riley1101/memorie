@@ -94,9 +94,9 @@ pub async fn run() {
         };
         app.manage(app_state);
 
-        // Load (and on first run download) the reranker in the background, so the
-        // first notes search doesn't wait for it. Nothing else holds the config
-        // lock yet during setup.
+        // Load (and on first run download) the embedding model and reranker in the
+        // background, so neither delays the window nor the first notes search.
+        // Nothing else holds the config lock yet during setup.
         let ai_enabled = app
             .state::<AppState>()
             .config
@@ -106,7 +106,11 @@ pub async fn run() {
         if ai_enabled {
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                handle.state::<AppState>().memory.reranker().await;
+                let memory = &handle.state::<AppState>().memory;
+                if let Err(e) = memory.embedder().await {
+                    eprintln!("Could not load the embedding model: {e}");
+                }
+                memory.reranker().await;
             });
         }
 

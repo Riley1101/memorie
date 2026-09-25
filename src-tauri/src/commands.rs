@@ -453,7 +453,10 @@ pub async fn create_document_context(
     let memory = &state.memory;
     let document = NoteDocument::from_parts(&name, &content);
 
-    let document_context = memory.to_document_context(document).await;
+    let document_context = memory
+        .to_document_context(document)
+        .await
+        .map_err(|e| e.to_string())?;
     match document_context {
         Some(document) => {
             let result = memory.get_dirty_document_chunk(document.id.unwrap()).await;

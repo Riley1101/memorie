@@ -23,6 +23,9 @@ const CHUNK_TABLE: &str = "chunk";
 /// hash, so existing chunks stop matching and are re-embedded on the next index pass.
 pub const EMBED_VERSION: &str = "v3-sections";
 
+/// Chunks embedded per forward pass while indexing.
+const EMBED_BATCH: usize = 32;
+
 /// Chunks scoring below this cosine similarity are never considered a match.
 const MIN_SIMILARITY: f32 = 0.3;
 /// Chunks more than this far below the best hit are dropped, so one strong match
@@ -80,7 +83,11 @@ pub fn pretty_title(name: &str) -> String {
 /// and optional embedding model.
 pub struct Memory {
     pub db: Surreal<Db>,
-    pub embedding_model: Option<Bert>,
+    /// Loaded on first use (see `embedder`), so opening the app doesn't wait on
+    /// loading, or on first run downloading, the model.
+    embedding_model: tokio::sync::OnceCell<Bert>,
+    /// False in tests, which run without a model.
+    load_embedder: bool,
     /// Set once the HNSW index exists. Without it the nearest-neighbour operator
     /// quietly returns nothing, so searches must scan instead.
     pub vector_index: AtomicBool,
@@ -94,48 +101,70 @@ pub struct Memory {
 impl Memory {
     /// Establishes a connection to the SurrealDB database and prepares the document table.
     ///
-    /// This function initializes a local SurrealDB instance, sets the namespace,
-    /// and builds a document table configured to store embeddings in a separate file.
+    /// This function initializes a local SurrealDB instance and sets the namespace.
+    /// The embedding model is not loaded here; see `embedder`.
     pub async fn new() -> Result<Self, MemoryError> {
         // TODO! Make the path configurable via app settings
         let root_dir = utils::get_app_dir()?.join("db/memory/");
         let db = Surreal::new::<SurrealKv>(root_dir.clone()).await?;
-        // TODO! Make the model configurable via app settings
-        let model = Bert::builder()
-            .build_with_loading_handler(|progress| match &progress {
-                ModelLoadingProgress::Downloading {
-                    source,
-                    progress: file_loading_progress,
-                } => {
-                    let elapsed = file_loading_progress.start_time.elapsed().as_secs_f32();
-                    let progress = (progress.progress() * 100.0) as u32;
-                    println!("Downloading file {source} {progress}% ({elapsed}s)");
-                }
-                ModelLoadingProgress::Loading { progress } => {
-                    let progress = (progress * 100.0) as u32;
-                    println!("Loading model {progress}%");
-                }
-            })
-            .await?;
-
         db.use_ns("embeddings_ns").use_db("embeddings").await?;
 
         let memory = Memory {
             db,
-            embedding_model: Some(model),
+            embedding_model: tokio::sync::OnceCell::new(),
+            load_embedder: true,
             vector_index: AtomicBool::new(false),
             reranker: tokio::sync::OnceCell::new(),
         };
-        // Search still works without the indexes (by scanning), so a failure here
-        // is logged rather than keeping the app from starting.
-        let dimension = match memory.generate_embedding("dimension probe").await {
-            Ok(v) if !v.is_empty() => Some(v.len()),
-            _ => None,
-        };
-        if let Err(e) = memory.ensure_indexes(dimension).await {
+        // The vector index needs the model's output size, so it is set up once the
+        // model loads. Search still works without the indexes (by scanning), so a
+        // failure here is logged rather than keeping the app from starting.
+        if let Err(e) = memory.ensure_indexes(None).await {
             eprintln!("Could not set up search indexes: {e}");
         }
         Ok(memory)
+    }
+
+    /// The embedding model, loading (and on first run downloading) it if needed,
+    /// then setting up the vector index for its output size. A failed load is
+    /// retried on the next call. The app warms this up at startup when AI is on.
+    pub async fn embedder(&self) -> Result<&Bert, MemoryError> {
+        if !self.load_embedder {
+            return Err(MemoryError::ModelNotLoaded);
+        }
+        self.embedding_model
+            .get_or_try_init(|| async {
+                let (model, dimension) = {
+                    let _gpu = crate::gpu::lock().await;
+                    // TODO! Make the model configurable via app settings
+                    let model = Bert::builder()
+                        .build_with_loading_handler(|progress| match &progress {
+                            ModelLoadingProgress::Downloading {
+                                source,
+                                progress: file_loading_progress,
+                            } => {
+                                let elapsed = file_loading_progress.start_time.elapsed().as_secs_f32();
+                                let progress = (progress.progress() * 100.0) as u32;
+                                println!("Downloading file {source} {progress}% ({elapsed}s)");
+                            }
+                            ModelLoadingProgress::Loading { progress } => {
+                                let progress = (progress * 100.0) as u32;
+                                println!("Loading model {progress}%");
+                            }
+                        })
+                        .await?;
+                    let dimension = match model.embed("dimension probe").await {
+                        Ok(v) if !v.vector().is_empty() => Some(v.vector().len()),
+                        _ => None,
+                    };
+                    (model, dimension)
+                };
+                if let Err(e) = self.ensure_indexes(dimension).await {
+                    eprintln!("Could not set up search indexes: {e}");
+                }
+                Ok(model)
+            })
+            .await
     }
 
     pub async fn find_text_chunk_by_id(
@@ -169,15 +198,13 @@ impl Memory {
         let db = &self.db;
         match self.find_document_by_title(title).await? {
             Some(mut result) => {
-                println!(">> Updating existing document: {}", title);
                 result.set_body(body);
                 result.set_title(title);
                 let mut result: Vec<NoteDocument> =
-                    db.upsert(DOCUMENT_TABLE).content(result).await.unwrap();
+                    db.upsert(DOCUMENT_TABLE).content(result).await?;
                 Ok(result.pop())
             }
             None => {
-                println!(">> created a new doc: {}", title);
                 let document = NoteDocument::from_parts(title, body);
                 let note_document: Option<NoteDocument> =
                     db.create(DOCUMENT_TABLE).content(document).await?;
@@ -256,14 +283,26 @@ impl Memory {
 
     /// Helper function to generate an embedding vector for a given text
     pub async fn generate_embedding(&self, text: &str) -> Result<Vec<f32>, MemoryError> {
-        match &self.embedding_model {
-            Some(model) => {
-                let _gpu = crate::gpu::lock().await;
-                let embeddings = model.embed(text).await?.vector().to_vec();
-                Ok(embeddings)
-            }
-            None => Err(MemoryError::ModelNotLoaded),
+        let model = self.embedder().await?;
+        let _gpu = crate::gpu::lock().await;
+        Ok(model.embed(text).await?.vector().to_vec())
+    }
+
+    /// Embeds `texts` in batches, returning vectors in the same order. Much faster
+    /// than one `generate_embedding` per text, since each batch is one forward
+    /// pass. The GPU is released between batches so a chat can get in.
+    pub async fn generate_embeddings(&self, texts: Vec<String>) -> Result<Vec<Vec<f32>>, MemoryError> {
+        if texts.is_empty() {
+            return Ok(Vec::new());
         }
+        let model = self.embedder().await?;
+        let mut vectors = Vec::with_capacity(texts.len());
+        for batch in texts.chunks(EMBED_BATCH) {
+            let _gpu = crate::gpu::lock().await;
+            let embeddings = model.embed_batch(batch.iter()).await?;
+            vectors.extend(embeddings.into_iter().map(|e| e.vector().to_vec()));
+        }
+        Ok(vectors)
     }
 
     /// Makes sure the search indexes exist: HNSW over chunk embeddings of `dimension`
@@ -629,6 +668,8 @@ impl NoteDocument {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TextChunk {
+    /// Left out when unset, so new chunks get an id from the database.
+    #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<Thing>,
     pub parent: Thing,
     pub content: String,
@@ -653,9 +694,21 @@ pub struct TextChunk {
 }
 
 impl TextChunk {
+    #[cfg(test)]
     pub fn get_thing_id(&self) -> Option<Thing> {
         self.id.clone()
     }
+}
+
+/// A kept chunk's new place in its note, after edits above it moved it.
+#[derive(Serialize)]
+struct MovedChunk {
+    id: Thing,
+    content: String,
+    sequence: usize,
+    section: String,
+    start_line: usize,
+    end_line: usize,
 }
 
 /// A chunk matched by a notes search, with the title of the note it came from and
@@ -727,7 +780,10 @@ pub trait MemoryDocumentAnalysisExt {
         binder: Option<&str>,
     ) -> Result<Vec<SearchResult>, MemoryError>;
     async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk>;
-    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument>;
+    async fn to_document_context(
+        &self,
+        embedding_document: NoteDocument,
+    ) -> Result<Option<NoteDocument>, MemoryError>;
     async fn update_dirty_chunk(&self, chunk: TextChunk, new_content: &str) -> Vec<TextChunk>;
     async fn rename_document(&self, old_title: &str, new_title: &str) -> Result<(), MemoryError>;
     /// Re-titles every document whose title starts with `old_prefix/` so it
@@ -777,143 +833,134 @@ impl MemoryDocumentAnalysisExt for Memory {
         response.take(0).unwrap()
     }
 
-    async fn to_document_context(&self, embedding_document: NoteDocument) -> Option<NoteDocument> {
+    async fn to_document_context(
+        &self,
+        embedding_document: NoteDocument,
+    ) -> Result<Option<NoteDocument>, MemoryError> {
         let db = &self.db;
 
         let note_document = self
             .create_or_update_document(&embedding_document.title, &embedding_document.body)
-            .await
-            .unwrap();
+            .await?;
+        let parent_id = note_document
+            .as_ref()
+            .and_then(|doc| doc.id.clone())
+            .ok_or_else(|| {
+                MemoryError::DocumentUpdateInsertError(format!(
+                    "no record for '{}'",
+                    embedding_document.title
+                ))
+            })?;
 
-        println!(
-            ">> Starting Document Reconciliation for '{}'",
-            embedding_document.title
-        );
-
-        let parent_id = note_document.as_ref().and_then(|doc| doc.id.clone());
         let title = pretty_title(&embedding_document.title);
         let new_segments = chunk_markdown(&embedding_document.body);
-        let sql = "SELECT * FROM chunk WHERE parent = $id";
-        let mut response = db.query(sql).bind(("id", parent_id.clone())).await.unwrap();
-        let existing_chunks: Vec<TextChunk> = response.take(0).unwrap();
+        let mut response = db
+            .query("SELECT * FROM chunk WHERE parent = $id")
+            .bind(("id", parent_id.clone()))
+            .await?;
+        let existing_chunks: Vec<TextChunk> = response.take(0)?;
 
         let mut old_chunk_map: HashMap<String, TextChunk> = HashMap::new();
-
         for chunk in existing_chunks {
             old_chunk_map.insert(chunk.content_hash.clone(), chunk);
         }
-        println!(
-            ">> Reconciliation Start: {} new paragraphs vs {} existing",
-            new_segments.len(),
-            old_chunk_map.len()
-        );
 
+        let mut moved = Vec::new();
+        // Chunks with no match are embedded together after this loop.
+        let mut new_chunks = Vec::new();
+        let mut unchanged = 0;
         for (i, segment) in new_segments.iter().enumerate() {
             let new_hash = chunk_hash(segment);
             let section = segment.headings.join(SECTION_SEP);
-            let short_preview = segment
-                .text
-                .chars()
-                .take(20)
-                .collect::<String>()
-                .replace('\n', " ");
 
-            if let Some(old_chunk) = old_chunk_map.remove(&new_hash) {
+            match old_chunk_map.remove(&new_hash) {
                 // Same text, but edits above it may have moved it.
-                if old_chunk.sequence != i
-                    || old_chunk.start_line != segment.start_line
-                    || old_chunk.end_line != segment.end_line
+                Some(old_chunk)
+                    if old_chunk.sequence != i
+                        || old_chunk.start_line != segment.start_line
+                        || old_chunk.end_line != segment.end_line =>
                 {
-                    let _: Vec<TextChunk> = db
-                        .upsert(CHUNK_TABLE)
-                        .content(TextChunk {
-                            id: old_chunk.id.clone(),
-                            parent: parent_id.clone().unwrap(),
+                    if let Some(id) = old_chunk.id {
+                        moved.push(MovedChunk {
+                            id,
                             content: segment.text.clone(),
                             sequence: i,
-                            content_hash: new_hash,
-                            correction: old_chunk.correction,
-                            is_dirty: false,
-                            embedding: old_chunk.embedding,
-                            created_at: old_chunk.created_at,
                             section,
                             start_line: segment.start_line,
                             end_line: segment.end_line,
-                        })
-                        .await
-                        .unwrap();
-                } else {
-                    println!(
-                        "   [MATCH]  idx {}: '{}...' (Skipping DB Write)",
-                        i, short_preview
-                    );
-                }
-            } else {
-                // The note title and headings are embedded with every chunk so a
-                // question that names the note or section ("my dragon backstory
-                // notes") still matches its paragraphs.
-                let embedding = match self
-                    .generate_embedding(&embed_input(&title, segment))
-                    .await
-                {
-                    Ok(emb) if !emb.is_empty() => Some(emb),
-                    Ok(_) => None,
-                    Err(e) => {
-                        println!("Failed to generate embedding: {:?}", e);
-                        None
+                        });
                     }
-                };
-                let _: Option<TextChunk> = db
-                    .create(CHUNK_TABLE)
-                    .content(TextChunk {
-                        id: None,
-                        parent: parent_id.clone().unwrap(),
-                        content: segment.text.clone(),
-                        sequence: i,
-                        content_hash: new_hash,
-                        correction: None,
-                        is_dirty: true,
-                        embedding,
-                        created_at: Utc::now().timestamp(),
-                        section,
-                        start_line: segment.start_line,
-                        end_line: segment.end_line,
-                    })
-                    .await
-                    .unwrap();
-                println!(
-                    "   [NEW]    idx {}: '{}...' (Marked Dirty)",
-                    i, short_preview
-                );
+                }
+                Some(_) => unchanged += 1,
+                None => new_chunks.push((i, segment, new_hash, section)),
             }
         }
 
-        if !old_chunk_map.is_empty() {
-            println!(
-                ">> Cleaning up {} deleted paragraphs...",
-                old_chunk_map.len()
-            );
-            for (_, unused_chunk) in old_chunk_map {
-                let unused_chunkid = unused_chunk.get_thing_id().unwrap();
-                println!(
-                    "   [DELETED] idx {}: '{}...'",
-                    unused_chunkid,
-                    unused_chunk
-                        .content
-                        .chars()
-                        .take(20)
-                        .collect::<String>()
-                        .replace('\n', " ")
-                );
-
-                let _: Option<TextChunk> = db
-                    .delete((CHUNK_TABLE, unused_chunkid.id.to_string()))
-                    .await
-                    .unwrap();
-                println!("      -> Deleted chunk ID: {:?}", unused_chunk);
+        // The note title and headings are embedded with every chunk so a question
+        // that names the note or section ("my dragon backstory notes") still
+        // matches its paragraphs.
+        let inputs = new_chunks
+            .iter()
+            .map(|(_, segment, ..)| embed_input(&title, segment))
+            .collect();
+        let embeddings = match self.generate_embeddings(inputs).await {
+            Ok(vectors) => vectors,
+            Err(e) => {
+                eprintln!("Failed to generate embeddings for '{}': {e}", embedding_document.title);
+                Vec::new()
             }
+        };
+        let mut embeddings = embeddings.into_iter();
+        let created_at = Utc::now().timestamp();
+        let created: Vec<TextChunk> = new_chunks
+            .into_iter()
+            .map(|(i, segment, new_hash, section)| TextChunk {
+                id: None,
+                parent: parent_id.clone(),
+                content: segment.text.clone(),
+                sequence: i,
+                content_hash: new_hash,
+                correction: None,
+                is_dirty: true,
+                embedding: embeddings.next().filter(|emb| !emb.is_empty()),
+                created_at,
+                section,
+                start_line: segment.start_line,
+                end_line: segment.end_line,
+            })
+            .collect();
+        let removed: Vec<Thing> = old_chunk_map.into_values().filter_map(|c| c.id).collect();
+
+        println!(
+            ">> Indexed '{}': {} new, {} moved, {} removed, {} unchanged",
+            embedding_document.title,
+            created.len(),
+            moved.len(),
+            removed.len(),
+            unchanged
+        );
+
+        // One round trip per note, applied all or nothing, so a note is never
+        // left half updated.
+        if !(created.is_empty() && moved.is_empty() && removed.is_empty()) {
+            db.query(
+                "BEGIN TRANSACTION; \
+                 FOR $c IN $moved { \
+                     UPDATE $c.id MERGE { content: $c.content, sequence: $c.sequence, \
+                         section: $c.section, start_line: $c.start_line, \
+                         end_line: $c.end_line, is_dirty: false }; \
+                 }; \
+                 FOR $c IN $created { CREATE chunk CONTENT $c; }; \
+                 DELETE chunk WHERE id IN $removed; \
+                 COMMIT TRANSACTION;",
+            )
+            .bind(("moved", moved))
+            .bind(("created", created))
+            .bind(("removed", removed))
+            .await?
+            .check()?;
         }
-        note_document
+        Ok(note_document)
     }
 
     async fn rename_document(&self, old_title: &str, new_title: &str) -> Result<(), MemoryError> {
@@ -996,7 +1043,8 @@ mod memory_tests {
         db.use_ns("test").use_db("test").await.unwrap();
         Memory {
             db,
-            embedding_model: None,
+            embedding_model: tokio::sync::OnceCell::new(),
+            load_embedder: false,
             vector_index: AtomicBool::new(false),
             reranker: tokio::sync::OnceCell::new_with(Some(None)),
         }
@@ -1124,7 +1172,7 @@ mod memory_tests {
     async fn indexing_stores_sections_and_follows_moved_passages() {
         let memory = test_memory().await;
         let note = "---\nstatus: \"Done\"\n---\n\n# Part 1\n\nOpening.\n\n## Scene 2\n\nShe runs.\n";
-        memory.to_document_context(NoteDocument::from_parts("Novel.md", note)).await;
+        memory.to_document_context(NoteDocument::from_parts("Novel.md", note)).await.unwrap();
 
         let chunks = chunks_of(&memory, "Novel.md").await;
         let got: Vec<(&str, &str, usize, usize)> = chunks
@@ -1142,13 +1190,22 @@ mod memory_tests {
         // A line added above moves both passages; they keep their records.
         let ids: Vec<_> = chunks.iter().map(|c| c.get_thing_id()).collect();
         let edited = note.replace("# Part 1", "Preface.\n\n# Part 1");
-        memory.to_document_context(NoteDocument::from_parts("Novel.md", &edited)).await;
+        memory.to_document_context(NoteDocument::from_parts("Novel.md", &edited)).await.unwrap();
 
         let chunks = chunks_of(&memory, "Novel.md").await;
         assert_eq!(chunks.len(), 3);
         assert_eq!(chunks[0].content, "Preface.");
         assert_eq!((chunks[1].start_line, chunks[2].start_line), (7, 11));
         assert_eq!(vec![chunks[1].get_thing_id(), chunks[2].get_thing_id()], ids);
+
+        // Removing a passage deletes its chunk; the ones below move back up in the
+        // same write, keeping their records.
+        memory.to_document_context(NoteDocument::from_parts("Novel.md", note)).await.unwrap();
+
+        let chunks = chunks_of(&memory, "Novel.md").await;
+        let got: Vec<(usize, usize)> = chunks.iter().map(|c| (c.sequence, c.start_line)).collect();
+        assert_eq!(got, vec![(0, 5), (1, 9)]);
+        assert_eq!(chunks.iter().map(|c| c.get_thing_id()).collect::<Vec<_>>(), ids);
     }
 
     #[tokio::test]

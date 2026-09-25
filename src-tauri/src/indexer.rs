@@ -5,7 +5,8 @@
 //! whose mtime or size moved, and re-embeds only those whose text actually
 //! changed, so a pass over an unchanged folder is a directory walk. A file
 //! watcher starts a pass whenever notes change on disk, whether the app saved
-//! them or a git pull, Dropbox pull or another editor did.
+//! them or a git pull, Dropbox pull or another editor did; when only notes
+//! changed, that pass checks just those files instead of walking the folder.
 
 use crate::fs;
 use crate::memory::{IndexStats, MemoryDocumentAnalysisExt, NoteDocument, EMBED_VERSION};
@@ -115,6 +116,51 @@ fn is_note_path(root: &Path, path: &Path) -> bool {
     }
 }
 
+/// What a batch of watcher events asks the indexer to look at.
+#[derive(Debug, PartialEq, Eq)]
+enum WatchChange {
+    Nothing,
+    /// Only these notes changed (created, edited, renamed or deleted).
+    Notes(HashSet<PathBuf>),
+    /// A folder changed, which may have moved or removed any number of notes.
+    Everything,
+}
+
+fn classify_changes<'a>(root: &Path, paths: impl IntoIterator<Item = &'a Path>) -> WatchChange {
+    let mut notes = HashSet::new();
+    for path in paths.into_iter().filter(|p| is_note_path(root, p)) {
+        if path.extension().is_none() {
+            return WatchChange::Everything;
+        }
+        notes.insert(path.to_path_buf());
+    }
+    if notes.is_empty() {
+        WatchChange::Nothing
+    } else {
+        WatchChange::Notes(notes)
+    }
+}
+
+/// The note name (`Novel/Chapter 1/Scene.md`, as `fs::File::name` spells it) and
+/// its folders for a path under `root`, or `None` for a path outside it.
+fn note_name(root: &Path, path: &Path) -> Option<(String, Vec<String>)> {
+    let rel = path.strip_prefix(root).ok()?;
+    let mut parts: Vec<String> = rel
+        .components()
+        .map(|c| match c {
+            Component::Normal(name) => Some(name.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    let file_name = parts.pop()?;
+    let name = if parts.is_empty() {
+        file_name
+    } else {
+        format!("{}/{file_name}", parts.join("/"))
+    };
+    Some((name, parts))
+}
+
 /// Clears the running flag even if a pass panics partway through.
 struct RunningGuard<'a>(&'a AtomicBool);
 
@@ -124,14 +170,26 @@ impl Drop for RunningGuard<'_> {
     }
 }
 
+/// What a pass looks at.
+enum Scope {
+    /// Every note in the content directory; `force` ignores the manifest.
+    Full { force: bool },
+    /// Just these notes, which may have been deleted since.
+    Notes(HashSet<PathBuf>),
+}
+
 pub struct Indexer {
     manifest_path: PathBuf,
     manifest: tokio::sync::Mutex<Manifest>,
     running: AtomicBool,
     /// Another pass was asked for while one was running.
     pending: AtomicBool,
+    /// That pass should walk the whole content directory.
+    pending_full: AtomicBool,
     /// That pass should ignore the manifest and re-read every note.
     pending_force: AtomicBool,
+    /// Notes the watcher saw change, for a pass that isn't full.
+    pending_paths: std::sync::Mutex<HashSet<PathBuf>>,
     watcher: std::sync::Mutex<Option<Debouncer<RecommendedWatcher>>>,
 }
 
@@ -142,7 +200,9 @@ impl Indexer {
             manifest_path,
             running: AtomicBool::new(false),
             pending: AtomicBool::new(false),
+            pending_full: AtomicBool::new(false),
             pending_force: AtomicBool::new(false),
+            pending_paths: std::sync::Mutex::new(HashSet::new()),
             watcher: std::sync::Mutex::new(None),
         }
     }
@@ -159,6 +219,23 @@ impl Indexer {
         if force {
             self.pending_force.store(true, Ordering::SeqCst);
         }
+        self.pending_full.store(true, Ordering::SeqCst);
+        self.start(handle);
+    }
+
+    /// Like `request`, but the pass only checks `paths` (notes under the content
+    /// directory, which may since have been deleted), unless a full pass is also
+    /// pending.
+    fn request_notes(&self, handle: &AppHandle, paths: HashSet<PathBuf>) {
+        self.pending_paths
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .extend(paths);
+        self.start(handle);
+    }
+
+    fn start(&self, handle: &AppHandle) {
+        // Set after the pass's inputs, so a pass that sees it sees them too.
         self.pending.store(true, Ordering::SeqCst);
         if self.running.swap(true, Ordering::SeqCst) {
             return;
@@ -172,8 +249,18 @@ impl Indexer {
                 {
                     let _guard = RunningGuard(&indexer.running);
                     while indexer.pending.swap(false, Ordering::SeqCst) {
+                        let full = indexer.pending_full.swap(false, Ordering::SeqCst);
                         let force = indexer.pending_force.swap(false, Ordering::SeqCst);
-                        match indexer.run_pass(&handle, force).await {
+                        let paths = std::mem::take(
+                            &mut *indexer.pending_paths.lock().unwrap_or_else(|e| e.into_inner()),
+                        );
+                        // A full pass covers any notes the watcher reported.
+                        let scope = if full || force {
+                            Scope::Full { force }
+                        } else {
+                            Scope::Notes(paths)
+                        };
+                        match indexer.run_pass(&handle, scope).await {
                             Ok(Some(stats)) => {
                                 let _ = handle.emit("index-complete", stats);
                             }
@@ -198,9 +285,9 @@ impl Indexer {
         });
     }
 
-    /// One pass over the content directory. Returns `None` when AI is off and
-    /// nothing was indexed.
-    async fn run_pass(&self, handle: &AppHandle, force: bool) -> Result<Option<IndexStats>, String> {
+    /// One pass over the content directory, or over just the notes in `scope`.
+    /// Returns `None` when AI is off and nothing was indexed.
+    async fn run_pass(&self, handle: &AppHandle, scope: Scope) -> Result<Option<IndexStats>, String> {
         let state = handle.state::<AppState>();
         let content_dir = {
             let config = state.config.lock().await;
@@ -211,32 +298,67 @@ impl Indexer {
         };
         let memory = &state.memory;
 
-        let files = fs::discover_files(&content_dir).map_err(|e| e.to_string())?;
-        let on_disk: HashSet<&str> = files.iter().map(|f| f.name.as_str()).collect();
-
+        let mut manifest = self.manifest.lock().await;
+        // Notes indexed under another `EMBED_VERSION` all need a look, not just
+        // the ones that happened to change.
+        let scope = match scope {
+            Scope::Notes(_) if manifest.version != EMBED_VERSION => Scope::Full { force: false },
+            scope => scope,
+        };
+        let mut dirty = false;
+        let mut files = Vec::new();
         let mut in_db: HashSet<String> = HashSet::new();
-        for title in memory.document_titles().await.map_err(|e| e.to_string())? {
-            if on_disk.contains(title.as_str()) {
-                in_db.insert(title);
-            } else {
-                memory.delete_document(&title).await.map_err(|e| e.to_string())?;
+
+        match scope {
+            Scope::Full { force } => {
+                files = fs::discover_files(&content_dir).map_err(|e| e.to_string())?;
+                let on_disk: HashSet<&str> = files.iter().map(|f| f.name.as_str()).collect();
+
+                for title in memory.document_titles().await.map_err(|e| e.to_string())? {
+                    if on_disk.contains(title.as_str()) {
+                        in_db.insert(title);
+                    } else {
+                        memory.delete_document(&title).await.map_err(|e| e.to_string())?;
+                    }
+                }
+
+                if force || manifest.version != EMBED_VERSION {
+                    manifest.entries.clear();
+                    manifest.version = EMBED_VERSION.to_string();
+                    dirty = true;
+                }
+                let before = manifest.entries.len();
+                manifest.entries.retain(|name, _| on_disk.contains(name.as_str()));
+                dirty |= manifest.entries.len() != before;
+            }
+            Scope::Notes(paths) => {
+                // Watcher paths are resolved (/private/var/... for /var/...).
+                let root = content_dir.canonicalize().unwrap_or(content_dir);
+                for path in paths {
+                    let Some((name, dirs)) = note_name(&root, &path) else {
+                        continue;
+                    };
+                    if path.is_file() {
+                        if memory
+                            .find_document_by_title(&name)
+                            .await
+                            .map_err(|e| e.to_string())?
+                            .is_some()
+                        {
+                            in_db.insert(name);
+                        }
+                        files.push(fs::File::with_relative_dir(path, None, dirs));
+                    } else {
+                        memory.delete_document(&name).await.map_err(|e| e.to_string())?;
+                        dirty |= manifest.entries.remove(&name).is_some();
+                    }
+                }
             }
         }
 
-        let mut manifest = self.manifest.lock().await;
-        let mut dirty = false;
-        if force || manifest.version != EMBED_VERSION {
-            manifest.entries.clear();
-            manifest.version = EMBED_VERSION.to_string();
-            dirty = true;
-        }
-        let before = manifest.entries.len();
-        manifest.entries.retain(|name, _| on_disk.contains(name.as_str()));
-        dirty |= manifest.entries.len() != before;
-
         // A note missing from the database is re-indexed whatever the manifest
         // says, so a wiped or rebuilt database fills back up on the next pass.
-        let changed: Vec<(&fs::File, i64, u64)> = files
+        let mut changed: Vec<(&fs::File, i64, u64)> = files
             .iter()
             .filter_map(|file| {
                 let meta = std::fs::metadata(&file.path).ok()?;
@@ -250,6 +372,9 @@ impl Indexer {
                 (!fresh).then_some((file, mtime_ms, size))
             })
             .collect();
+        // Most recently edited first, so what the user is working on becomes
+        // searchable before the rest of a long first pass or a big pull.
+        changed.sort_by_key(|&(_, mtime_ms, _)| std::cmp::Reverse(mtime_ms));
 
         let total = changed.len();
         for (done, (file, mtime_ms, size)) in changed.into_iter().enumerate() {
@@ -269,9 +394,14 @@ impl Indexer {
                 && manifest.entries.get(&file.name).is_some_and(|e| e.hash == hash);
             if !same_text {
                 // No lock on Memory: chat searches run alongside indexing.
-                memory
+                // A note that fails stays out of the manifest, so the next pass retries it.
+                if let Err(e) = memory
                     .to_document_context(NoteDocument::from_parts(&file.name, &content))
-                    .await;
+                    .await
+                {
+                    eprintln!("Could not index '{}': {e}", file.name);
+                    continue;
+                }
             }
             manifest.entries.insert(
                 file.name.clone(),
@@ -317,12 +447,20 @@ impl Indexer {
         let events_root = root.clone();
         let handle = handle.clone();
         let mut debouncer = new_debouncer(WATCH_DEBOUNCE, move |result: DebounceEventResult| {
+            let indexer = &handle.state::<AppState>().indexer;
             match result {
-                Ok(events) if events.iter().any(|e| is_note_path(&events_root, &e.path)) => {
-                    handle.state::<AppState>().indexer.request(&handle, false);
+                Ok(events) => {
+                    match classify_changes(&events_root, events.iter().map(|e| e.path.as_path())) {
+                        WatchChange::Nothing => {}
+                        WatchChange::Notes(paths) => indexer.request_notes(&handle, paths),
+                        WatchChange::Everything => indexer.request(&handle, false),
+                    }
                 }
-                Ok(_) => {}
-                Err(e) => eprintln!("Note watcher error: {e}"),
+                // Events may have been lost, so check everything.
+                Err(e) => {
+                    eprintln!("Note watcher error: {e}");
+                    indexer.request(&handle, false);
+                }
             }
         })
         .map_err(|e| e.to_string())?;
@@ -350,6 +488,45 @@ mod tests {
         assert!(!is_note_path(root, Path::new("/notes/Novel/.hidden.md")));
         assert!(!is_note_path(root, Path::new("/notes/cover.png")));
         assert!(!is_note_path(root, Path::new("/elsewhere/Ideas.md")));
+    }
+
+    #[test]
+    fn note_changes_are_targeted_and_folder_changes_are_not() {
+        let root = Path::new("/notes");
+        fn paths(list: &[&'static str]) -> Vec<&'static Path> {
+            list.iter().map(|p| Path::new(*p)).collect()
+        }
+
+        assert_eq!(
+            classify_changes(root, paths(&["/notes/.git/index", "/notes/cover.png"])),
+            WatchChange::Nothing
+        );
+        assert_eq!(
+            classify_changes(root, paths(&["/notes/a.md", "/notes/Novel/b.md", "/notes/a.md"])),
+            WatchChange::Notes(
+                [PathBuf::from("/notes/a.md"), PathBuf::from("/notes/Novel/b.md")].into()
+            )
+        );
+        assert_eq!(
+            classify_changes(root, paths(&["/notes/a.md", "/notes/Novel"])),
+            WatchChange::Everything
+        );
+    }
+
+    #[test]
+    fn note_names_match_discovered_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("Novel/Ch 1/Scene.md");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "x").unwrap();
+        std::fs::write(dir.path().join("Top.md"), "y").unwrap();
+
+        for file in fs::discover_files(dir.path()).unwrap() {
+            let (name, dirs) = note_name(dir.path(), &file.path).unwrap();
+            assert_eq!(name, file.name);
+            assert_eq!(fs::File::with_relative_dir(file.path.clone(), None, dirs).name, file.name);
+        }
+        assert_eq!(note_name(dir.path(), Path::new("/elsewhere/a.md")), None);
     }
 
     #[test]
