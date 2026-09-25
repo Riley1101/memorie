@@ -20,9 +20,12 @@ const LLM_EVENTS = {
   EDIT_ACTION_IN_PROGRESS: 'chat-edit-action-in-progress',
   EDIT_ACTION_COMPLETED: 'chat-edit-action-completed',
 
-  /** How the backend chose to answer: `{ intent, query, documentTitle }`. */
+  /** How the backend chose to answer: `{ intent, query, documentTitle, binder }`. */
   ROUTE: 'chat-route',
-  /** Source notes for a reply that searched notes: `{ results: [{ title, score }] }`. */
+  /**
+   * What a notes search found: `{ results: [{ title, score }], passages, elapsedMs }`.
+   * `results` is one entry per note; `passages` every passage given to the model.
+   */
   SOURCES: 'chat-sources',
 };
 
@@ -45,6 +48,7 @@ const HISTORY_MESSAGES = 6;
  * @property {'search_notes' | 'current_document' | 'general'} intent
  * @property {string} query - What was searched for, when intent is `search_notes`.
  * @property {string | null} documentTitle - The open document, if any.
+ * @property {string | null} [binder] - The binder a notes search was limited to; null means all notes.
  */
 
 /**
@@ -53,6 +57,21 @@ const HISTORY_MESSAGES = 6;
  * @property {string} content - The text content of the message.
  * @property {MessageRoute} [route] - How the assistant decided to answer.
  * @property {{ title: string, score: number }[]} [references] - Notes a search drew on.
+ * @property {Passage[]} [passages] - Every passage a search gave the model.
+ * @property {number} [searchMs] - How long the search took.
+ */
+
+/**
+ * A passage a notes search handed to the model, as shown in the chat.
+ * @typedef {object} Passage
+ * @property {string} title - Note path, e.g. `Novel/Chapter 3.md`.
+ * @property {string} section - Headings above it joined with " › ", or "".
+ * @property {number} startLine
+ * @property {number} endLine
+ * @property {number} similarity - Cosine similarity to the question, 0–1.
+ * @property {number | null} rerankScore - Reranker logit; above 0 usually answers the question.
+ * @property {string[]} foundBy - `"meaning"` and/or `"keywords"`.
+ * @property {string} excerpt
  */
 
 /**
@@ -194,6 +213,8 @@ export class LlmManager {
         const lastMessage = this._lastAssistantMessage();
         if (lastMessage) {
           lastMessage.references = event.payload.results;
+          lastMessage.passages = event.payload.passages ?? [];
+          lastMessage.searchMs = event.payload.elapsedMs;
         }
       })
     );
@@ -340,7 +361,8 @@ export class LlmManager {
   /**
    * Sends a message along with the last few turns and the open document. The backend
    * decides whether to search notes, answer from the document, or just chat.
-   * Prefix with `/search`, `/doc` or `/chat` to choose explicitly.
+   * Prefix with `/search`, `/doc` or `/chat` to choose explicitly. Searches stay in the
+   * open document's binder; `/search-all` searches every note.
    * @param {string} prompt The user's message.
    * @param {OpenDocument | null} [document] The open document, if any.
    * @returns {Promise<void>}

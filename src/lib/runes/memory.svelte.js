@@ -67,13 +67,14 @@ class MemoryManager {
   }
 
   /**
-   * Indexes every note in the background and prunes deleted ones. Unchanged paragraphs
-   * are skipped, so this is cheap to run on startup.
+   * Indexes changed notes in the background and prunes deleted ones. Notes unchanged
+   * since the last pass aren't read, so this is cheap to run on startup.
+   * @param {boolean} [force] - Re-read every note instead of trusting the last pass.
    */
-  async reindexNotes() {
+  async reindexNotes(force = false) {
     this.indexProgress ??= { done: 0, total: 0, current: null };
     try {
-      await invoke('reindex_notes');
+      await invoke('reindex_notes', { force });
     } catch (err) {
       this.indexProgress = null;
       console.error('Failed to start indexing:', err);

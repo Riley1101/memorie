@@ -64,6 +64,27 @@ typst = "0.15"
 typst-pdf = "0.15"
 typst-kit = { version = "0.15", default-features = false, features = ["embedded-fonts", "scan-fonts"] }
 typst-layout = "0.15"
+notify-debouncer-mini = "0.7.0"
+candle-core = "0.8.4"
+candle-nn = "0.8.4"
+candle-transformers = "0.8.4"
+kalosm-model-types = "0.4.0"
+tokenizers = { version = "0.21", default-features = false }
+
+# Model acceleration. Apple Silicon runs models on the GPU through Metal; Intel
+# Macs stay on the CPU but use Apple's Accelerate BLAS for the matrix math. Other
+# targets are unaffected (edition 2021 resolves target-specific features per
+# target) and run on the plain CPU backend.
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+kalosm = { version = "0.4.0", features = ["metal"] }
+candle-core = { version = "0.8.4", features = ["metal"] }
+candle-nn = { version = "0.8.4", features = ["metal"] }
+candle-transformers = { version = "0.8.4", features = ["metal"] }
+
+[target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies]
+candle-core = { version = "0.8.4", features = ["accelerate"] }
+candle-nn = { version = "0.8.4", features = ["accelerate"] }
+candle-transformers = { version = "0.8.4", features = ["accelerate"] }
 
 [dev-dependencies]
 tempfile = "3.23.0"

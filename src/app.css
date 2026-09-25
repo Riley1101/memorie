@@ -606,6 +606,23 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   border-width: 0;
 }
 
+/* streamdown's Mermaid component ships an unscoped `[data-expanded='true']`
+   rule for its full-screen diagram view, and sonner sets that attribute on
+   toasts while hovered, so in production builds (where that CSS is always
+   loaded) a hovered toast went full screen. Put back sonner's own geometry. */
+[data-sonner-toast][data-expanded='true'] {
+  position: absolute;
+  top: auto;
+  left: auto;
+  z-index: var(--z-index);
+}
+[data-sonner-toast][data-expanded='true'][data-y-position='top'] {
+  top: 0;
+}
+[data-sonner-toast][data-expanded='true'][data-x-position='left'] {
+  left: 0;
+}
+
 /* Overlays open instantly: strip bits-ui/tw-animate enter/exit animations on
    dialogs, sheets, drawers, popovers and menus. Everything else keeps its
    micro-transitions; spinners and pulses keep animating. */
