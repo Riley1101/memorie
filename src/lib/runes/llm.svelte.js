@@ -20,7 +20,7 @@ const LLM_EVENTS = {
   EDIT_ACTION_IN_PROGRESS: 'chat-edit-action-in-progress',
   EDIT_ACTION_COMPLETED: 'chat-edit-action-completed',
 
-  /** How the backend chose to answer: `{ intent, query, documentTitle }`. */
+  /** How the backend chose to answer: `{ intent, query, documentTitle, binder }`. */
   ROUTE: 'chat-route',
   /** Source notes for a reply that searched notes: `{ results: [{ title, score }] }`. */
   SOURCES: 'chat-sources',
@@ -45,6 +45,7 @@ const HISTORY_MESSAGES = 6;
  * @property {'search_notes' | 'current_document' | 'general'} intent
  * @property {string} query - What was searched for, when intent is `search_notes`.
  * @property {string | null} documentTitle - The open document, if any.
+ * @property {string | null} [binder] - The binder a notes search was limited to; null means all notes.
  */
 
 /**
@@ -340,7 +341,8 @@ export class LlmManager {
   /**
    * Sends a message along with the last few turns and the open document. The backend
    * decides whether to search notes, answer from the document, or just chat.
-   * Prefix with `/search`, `/doc` or `/chat` to choose explicitly.
+   * Prefix with `/search`, `/doc` or `/chat` to choose explicitly. Searches stay in the
+   * open document's binder; `/search-all` searches every note.
    * @param {string} prompt The user's message.
    * @param {OpenDocument | null} [document] The open document, if any.
    * @returns {Promise<void>}

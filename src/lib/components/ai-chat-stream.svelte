@@ -153,7 +153,7 @@
           {/each}
         </div>
         <p class="text-xs text-muted-foreground/50">
-          It works out what you mean. Start with <code>/search</code> or <code>/doc</code> to choose.
+          It works out what you mean. Start with <code>/search</code> or <code>/doc</code> to choose. Searches stay in the open binder; <code>/search-all</code> looks everywhere.
         </p>
       {:else}
         <p class="text-xs text-muted-foreground/60">
@@ -183,7 +183,7 @@
             <div class="flex items-center gap-1.5 text-xs text-muted-foreground/70 font-sans">
               <SearchIcon strokeWidth={1.5} class="size-3" />
               <span class="truncate">
-                Searched notes for “{message.route.query}”{message.references?.length === 0 ? " · no matches" : ""}
+                Searched {message.route.binder ?? "notes"} for “{message.route.query}”{message.references?.length === 0 ? " · no matches" : ""}
               </span>
             </div>
           {:else if message.role === "assistant" && message.route?.intent === "current_document"}

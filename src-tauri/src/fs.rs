@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-const DEFAULT_EXTENSION: &str = "md";
+pub const DEFAULT_EXTENSION: &str = "md";
 const MAX_READ_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
 const READ_CONCURRENCY: usize = 24;
 

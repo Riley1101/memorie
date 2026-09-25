@@ -203,6 +203,11 @@ async fn run_chat_worker(
         )
         .await;
 
+        // Searches stay inside the open note's binder unless asked otherwise.
+        let binder = document_title
+            .filter(|_| !route.all_notes)
+            .and_then(binder_of);
+
         app_handle
             .emit(
                 ChatEvents::Route.as_str(),
@@ -210,6 +215,7 @@ async fn run_chat_worker(
                     "intent": route.intent.as_str(),
                     "query": &route.query,
                     "documentTitle": document_title,
+                    "binder": binder,
                 }),
             )
             .ok();
@@ -219,7 +225,7 @@ async fn run_chat_worker(
                 let results = {
                     let memory = &state.memory;
                     memory
-                        .search_documents(&route.query, SEARCH_CHUNK_LIMIT)
+                        .search_documents(&route.query, SEARCH_CHUNK_LIMIT, binder)
                         .await
                         .map_err(|e| e.to_string())?
                 };
@@ -480,6 +486,8 @@ impl Intent {
 
 struct Route {
     intent: Intent,
+    /// Search every note even when a binder's note is open (`/search-all`).
+    all_notes: bool,
     /// Standalone phrase to embed for a notes search; empty for other intents.
     query: String,
     /// The user's message with any `/search`-style command stripped.
@@ -506,11 +514,15 @@ async fn route_message(
 
     for (command, intent) in [
         ("/search", Intent::SearchNotes),
+        ("/search-all", Intent::SearchNotes),
         ("/doc", Intent::CurrentDocument),
         ("/chat", Intent::General),
     ] {
         if let Some(rest) = strip_command(message, command) {
-            return finalize_route(intent, rest.to_string(), rest.to_string(), has_document, has_index);
+            let mut route =
+                finalize_route(intent, rest.to_string(), rest.to_string(), has_document, has_index);
+            route.all_notes = command == "/search-all";
+            return route;
         }
     }
 
@@ -575,7 +587,12 @@ fn finalize_route(
         _ => String::new(),
     };
 
-    Route { intent, query, question }
+    Route { intent, all_notes: false, query, question }
+}
+
+/// The binder (top-level folder) a note lives in, or `None` for a note at the top level.
+fn binder_of(title: &str) -> Option<&str> {
+    title.split_once('/').map(|(binder, _)| binder).filter(|b| !b.is_empty())
 }
 
 /// Returns the text after `command` when the message starts with it followed by
@@ -681,11 +698,14 @@ fn build_rag_message(results: &[SearchResult], question: &str) -> String {
         results
             .iter()
             .map(|result| {
-                format!(
-                    "<excerpt note=\"{}\">\n{}\n</excerpt>",
-                    pretty_title(&result.title),
-                    result.content.trim()
-                )
+                let mut attrs = format!("note=\"{}\"", pretty_title(&result.title));
+                if !result.section.is_empty() {
+                    attrs.push_str(&format!(" section=\"{}\"", result.section.replace('"', "'")));
+                }
+                if result.start_line > 0 {
+                    attrs.push_str(&format!(" lines=\"{}-{}\"", result.start_line, result.end_line));
+                }
+                format!("<excerpt {attrs}>\n{}\n</excerpt>", result.content.trim())
             })
             .collect::<Vec<_>>()
             .join("\n\n")
@@ -895,6 +915,9 @@ mod routing_tests {
             sequence: 0,
             title: title.to_string(),
             score,
+            section: String::new(),
+            start_line: 0,
+            end_line: 0,
         }
     }
 
@@ -906,6 +929,19 @@ mod routing_tests {
         assert_eq!(strip_command("/search", "/search"), None);
         assert_eq!(strip_command("/search   ", "/search"), None);
         assert_eq!(strip_command("please /search x", "/search"), None);
+    }
+
+    #[test]
+    fn binder_is_the_top_level_folder() {
+        assert_eq!(binder_of("Novel/Part 1/Ch 3.md"), Some("Novel"));
+        assert_eq!(binder_of("Novel/Ch 1.md"), Some("Novel"));
+        assert_eq!(binder_of("Ideas.md"), None);
+    }
+
+    #[test]
+    fn search_all_command_widens_the_search() {
+        assert_eq!(strip_command("/search-all dragons", "/search"), None);
+        assert_eq!(strip_command("/search-all dragons", "/search-all"), Some("dragons"));
     }
 
     #[test]
@@ -1003,6 +1039,19 @@ mod routing_tests {
 
         assert!(message.contains("<excerpt note=\"Lore › Dragons\">\nThey hate {question} marks.\n</excerpt>"));
         assert!(message.contains("<question>\nwhy do dragons hoard?\n</question>"));
+    }
+
+    #[test]
+    fn rag_message_cites_section_and_lines_when_known() {
+        let mut hit = result("Novel/Ch 3.md", "She ran.", 0.9);
+        hit.section = "Part 1 › Scene 2".to_string();
+        hit.start_line = 12;
+        hit.end_line = 18;
+        let message = build_rag_message(&[hit], "what happens?");
+
+        assert!(message.contains(
+            "<excerpt note=\"Novel › Ch 3\" section=\"Part 1 › Scene 2\" lines=\"12-18\">\nShe ran.\n</excerpt>"
+        ));
     }
 
     #[test]

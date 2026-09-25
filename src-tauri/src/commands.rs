@@ -1,5 +1,5 @@
 use super::fs::{self, File};
-use super::memory::{IndexStats, MemoryDocumentAnalysisExt, NoteDocument};
+use super::memory::{MemoryDocumentAnalysisExt, NoteDocument};
 use super::responses::Response;
 use super::workers::{Job, JobStatus};
 use super::AppState;
@@ -7,9 +7,7 @@ use crate::llm::{download_model_to_cache, ModelStatus, ModelType, SupportedModel
 use crate::memory::TextChunk;
 use crate::providers::{self, OpenRouterModel, ProviderKind};
 use crate::utils::{ChatContext, ChatMode, EditAction};
-use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{Emitter, Manager, State};
+use tauri::State;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -47,7 +45,7 @@ pub async fn create_file(
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.add_change(&name, &content);
     undo_tree
-        .save(&config.undotree_dir)
+        .save()
         .map_err(|e| e.to_string())?;
 
     Ok(result)
@@ -73,7 +71,7 @@ pub async fn update_file(
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.add_change(&file_to_update.name, content);
     undo_tree
-        .save(&config.undotree_dir)
+        .save()
         .map_err(|e| e.to_string())
         .unwrap_or_else(|e| eprintln!("Failed to save undo tree: {}", e));
     result
@@ -116,7 +114,7 @@ pub async fn rename_file(
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.rename_entry(&old_name, &new_name);
     undo_tree
-        .save(&config.undotree_dir)
+        .save()
         .map_err(|e| e.to_string())?;
 
     // Rename in memory database
@@ -128,15 +126,10 @@ pub async fn rename_file(
 
 #[tauri::command]
 pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<String, String> {
-    let undo_tree = state.undotree.lock().await;
+    let mut undo_tree = state.undotree.lock().await;
 
-    if let Some(history) = undo_tree.get_history(&name) {
-        if let Some(current_index) = history.current {
-            if let Some(current_node) = history.nodes.get(current_index.0) {
-                let content = current_node.content.clone();
-                return Ok(content);
-            }
-        }
+    if let Some(content) = undo_tree.current_content(&name) {
+        return Ok(content);
     }
 
     // Drop the lock on the undo_tree before acquiring the config lock
@@ -213,7 +206,7 @@ pub async fn rename_binder(
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.rename_prefix(&old_name, &new_name);
     undo_tree
-        .save(&config.undotree_dir)
+        .save()
         .map_err(|e| e.to_string())?;
 
     let memory = &state.memory;
@@ -240,7 +233,7 @@ pub async fn move_file(
     let mut undo_tree = state.undotree.lock().await;
     undo_tree.rename_entry(&old_name, &new_name);
     undo_tree
-        .save(&config.undotree_dir)
+        .save()
         .map_err(|e| e.to_string())?;
 
     let memory = &state.memory;
@@ -284,7 +277,7 @@ pub async fn get_file_history(
     name: String,
     state: State<'_, AppState>,
 ) -> Result<Option<super::undotree::HistorySummary>, String> {
-    let undo_tree = state.undotree.lock().await;
+    let mut undo_tree = state.undotree.lock().await;
     Ok(undo_tree.get_history(&name).map(Into::into))
 }
 
@@ -396,17 +389,6 @@ pub async fn cancel_chat(job_id: Uuid, state: State<'_, AppState>) -> Result<boo
  *  RAG Commands
  */
 
-static INDEXING: AtomicBool = AtomicBool::new(false);
-
-/// Clears the indexing flag even if the indexing task panics partway through.
-struct IndexingGuard;
-
-impl Drop for IndexingGuard {
-    fn drop(&mut self) {
-        INDEXING.store(false, Ordering::SeqCst);
-    }
-}
-
 #[derive(serde::Serialize)]
 pub struct IndexStatus {
     documents: usize,
@@ -421,82 +403,24 @@ pub async fn get_index_status(state: State<'_, AppState>) -> Result<IndexStatus,
     Ok(IndexStatus {
         documents: stats.documents,
         passages: stats.passages,
-        indexing: INDEXING.load(Ordering::SeqCst),
+        indexing: state.indexer.is_indexing(),
     })
 }
 
-/// Embeds every note in the content directory and drops index entries for notes that
-/// no longer exist. Unchanged paragraphs are skipped, so repeat runs are cheap. Runs in
-/// the background, reporting `index-progress` and then `index-complete` or `index-error`;
-/// calling it while a pass is already running does nothing.
+/// Brings the note index up to date in the background (see `indexer`). Only notes
+/// that changed since the last pass are read, so this is cheap to call. `force`
+/// re-reads every note; unchanged paragraphs are still not re-embedded.
 #[tauri::command]
-pub async fn reindex_notes(handle: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn reindex_notes(
+    force: Option<bool>,
+    handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     if !state.config.lock().await.ai_enabled {
         return Err("AI is disabled. Enable it in Settings before indexing notes.".to_string());
     }
-    if INDEXING.swap(true, Ordering::SeqCst) {
-        return Ok(());
-    }
-
-    tauri::async_runtime::spawn(async move {
-        let guard = IndexingGuard;
-        let result = reindex_all(&handle).await;
-        drop(guard);
-        match result {
-            Ok(stats) => {
-                let _ = handle.emit("index-complete", stats);
-            }
-            Err(message) => {
-                let _ = handle.emit("index-error", serde_json::json!({ "message": message }));
-            }
-        }
-    });
-
+    state.indexer.request(&handle, force.unwrap_or(false));
     Ok(())
-}
-
-async fn reindex_all(handle: &tauri::AppHandle) -> Result<IndexStats, String> {
-    let state = handle.state::<AppState>();
-    let content_dir = state.config.lock().await.content_directory.clone();
-    let files = fs::discover_files(&content_dir).map_err(|e| e.to_string())?;
-    let total = files.len();
-
-    let on_disk: HashSet<&str> = files.iter().map(|file| file.name.as_str()).collect();
-    {
-        let memory = &state.memory;
-        for title in memory.document_titles().await.map_err(|e| e.to_string())? {
-            if !on_disk.contains(title.as_str()) {
-                memory.delete_document(&title).await.map_err(|e| e.to_string())?;
-            }
-        }
-    }
-
-    for (done, file) in files.iter().enumerate() {
-        let _ = handle.emit(
-            "index-progress",
-            serde_json::json!({ "done": done, "total": total, "current": file.name }),
-        );
-        let content = match file.read_content() {
-            Ok(content) => content,
-            Err(e) => {
-                eprintln!("Skipping '{}' while indexing: {e}", file.name);
-                continue;
-            }
-        };
-        // No lock: Memory is shared, so chat searches run alongside indexing.
-        let memory = &state.memory;
-        memory
-            .to_document_context(NoteDocument::from_parts(&file.name, &content))
-            .await;
-    }
-
-    let _ = handle.emit(
-        "index-progress",
-        serde_json::json!({ "done": total, "total": total, "current": null }),
-    );
-
-    let memory = &state.memory;
-    memory.index_stats().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -621,34 +545,28 @@ pub async fn goto_file_version(
     node_id: usize,
     state: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
-    let config = state.config.lock().await;
     let mut undo_tree = state.undotree.lock().await;
 
-    let result = undo_tree
-        .goto_version(&name, node_id)
-        .map(|content| content.to_string());
+    let result = undo_tree.goto_version(&name, node_id);
 
-    if let Some(content_string) = &result {
+    if result.is_some() {
         undo_tree
-            .save(&config.undotree_dir)
+            .save()
             .map_err(|e| e.to_string())?;
-
-        Ok(Some(content_string.clone()))
-    } else {
-        Ok(None)
     }
+
+    Ok(result)
 }
 
 #[tauri::command]
 pub async fn undo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let config = state.config.lock().await;
     let mut undo_tree = state.undotree.lock().await;
 
-    let result = undo_tree.undo(&name).map(|s| s.to_string());
+    let result = undo_tree.undo(&name);
 
     if result.is_some() {
         undo_tree
-            .save(&config.undotree_dir)
+            .save()
             .map_err(|e| e.to_string())?;
     }
 
@@ -657,14 +575,13 @@ pub async fn undo_file(name: String, state: State<'_, AppState>) -> Result<Optio
 
 #[tauri::command]
 pub async fn redo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let config = state.config.lock().await;
     let mut undo_tree = state.undotree.lock().await;
 
-    let result = undo_tree.redo_latest_branch(&name).map(|s| s.to_string());
+    let result = undo_tree.redo_latest_branch(&name);
 
     if result.is_some() {
         undo_tree
-            .save(&config.undotree_dir)
+            .save()
             .map_err(|e| e.to_string())?;
     }
 
@@ -1046,7 +963,6 @@ pub async fn replace_in_project(
     let regex = crate::search::build_regex(&query, &options)?;
     let config = state.config.lock().await;
     let content_dir = config.content_directory.clone();
-    let undotree_dir = config.undotree_dir.clone();
     drop(config);
 
     let mut replaced = Vec::new();
@@ -1077,7 +993,7 @@ pub async fn replace_in_project(
     }
     if !replaced.is_empty() {
         undo_tree
-            .save(&undotree_dir)
+            .save()
             .unwrap_or_else(|e| eprintln!("Failed to save undo tree: {}", e));
     }
     Ok(replaced)

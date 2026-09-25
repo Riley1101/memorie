@@ -1,3 +1,4 @@
+mod chunker;
 mod commands;
 mod config;
 mod dropbox;
@@ -7,9 +8,11 @@ mod export;
 mod fs;
 mod git;
 mod import;
+mod indexer;
 mod llm;
 mod memory;
 mod pdf;
+mod reranker;
 mod prompts;
 mod providers;
 mod responses;
@@ -33,6 +36,7 @@ pub struct AppState {
     undotree: Mutex<UndoTree>,
     model: Mutex<Model>,
     memory: Memory,
+    indexer: indexer::Indexer,
     workers: LlmEventService,
 }
 
@@ -59,7 +63,15 @@ pub async fn run() {
     #[cfg(debug_assertions)]
     let devtools = tauri_plugin_devtools::init();
 
-    let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|_| UndoTree::new());
+    let watch_dir = app_config.content_directory.clone();
+
+    let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|e| {
+        eprintln!(
+            "Could not open version history at {}: {e}. History will not be kept this session.",
+            app_config.undotree_dir.display()
+        );
+        UndoTree::new()
+    });
 
     let default_model_path = app_config.default_llm_model.clone();
 
@@ -72,9 +84,37 @@ pub async fn run() {
             undotree: Mutex::new(undo_tree),
             model: Mutex::new(model),
             memory: memory_instance,
+            indexer: indexer::Indexer::new(
+                utils::get_app_dir()
+                    .expect("Failed to get app directory")
+                    .join("db/index-manifest.json"),
+            ),
             workers: LlmEventService::new(app_handle),
         };
         app.manage(app_state);
+
+        // Load (and on first run download) the reranker in the background, so the
+        // first notes search doesn't wait for it. Nothing else holds the config
+        // lock yet during setup.
+        let ai_enabled = app
+            .state::<AppState>()
+            .config
+            .try_lock()
+            .map(|config| config.ai_enabled)
+            .unwrap_or(false);
+        if ai_enabled {
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                handle.state::<AppState>().memory.reranker().await;
+            });
+        }
+
+        // Keeps the note index current when notes change on disk. The frontend
+        // asks for a first pass on startup.
+        let watch_dir = watch_dir; // moved in: setup outlives `run`'s locals
+        if let Err(e) = app.state::<AppState>().indexer.watch(app.handle(), &watch_dir) {
+            eprintln!("Could not watch {} for changes: {e}", watch_dir.display());
+        }
 
         if let Some(window) = app.get_webview_window("main") {
             let app_handle = app.handle().clone();

@@ -8,11 +8,10 @@
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { slashMenu } from '$lib/components/plugins/slash-menu.svelte.js';
   import { docRefMenu, DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
-  import { memoryManager } from '$lib/runes/memory.svelte';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
-  import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
-  import { clipboard } from '@milkdown/kit/plugin/clipboard'
+  import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
+  import { clipboard } from '@milkdown/kit/plugin/clipboard';
   import { appState } from '@/runes/app.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { openUrl } from '@tauri-apps/plugin-opener';
@@ -102,31 +101,43 @@
 
   let editorInstance = $state(null);
 
-  const DEBOUNCE_SAVE_MS = 2000;
-  const DEBOUNCE_COUNT_MS = 250;
+  /**
+   * Past this many document positions (roughly characters) the editor lets
+   * the browser skip offscreen blocks, and whole-document work runs less often.
+   */
+  const LARGE_DOC_SIZE = 100_000;
+  let largeDoc = $state(false);
+
+  /** Serializing and saving walk the whole document; wait longer when it's large. */
+  const saveDelay = () => (largeDoc ? 5000 : 2000);
+  /** Same for the outline and word count. */
+  const scanDelay = () => (largeDoc ? 1000 : 250);
 
   /** @type {ReturnType<typeof setTimeout> | null} */
-  let countTimer = null;
+  let scanTimer = null;
   /** @type {import('@milkdown/kit/prose/model').Node | null} */
-  let pendingCountDoc = null;
+  let pendingScanDoc = null;
 
   /** @param {import('@milkdown/kit/prose/model').Node} doc */
   function docText(doc) {
     return doc.textBetween(0, doc.content.size, '\n', ' ');
   }
 
-  /** Word counting walks the whole document, so batch it while typing. */
-  function scheduleCount(doc) {
-    pendingCountDoc = doc;
-    if (countTimer) return;
-    countTimer = setTimeout(flushCount, DEBOUNCE_COUNT_MS);
+  /** The outline and word count both walk the whole document, so batch them while typing. */
+  function scheduleScan(doc) {
+    pendingScanDoc = doc;
+    if (scanTimer) return;
+    scanTimer = setTimeout(flushScan, scanDelay());
   }
 
-  function flushCount() {
-    if (countTimer) clearTimeout(countTimer);
-    countTimer = null;
-    if (pendingCountDoc) writingState.updateDocument(docText(pendingCountDoc));
-    pendingCountDoc = null;
+  function flushScan() {
+    if (scanTimer) clearTimeout(scanTimer);
+    scanTimer = null;
+    if (pendingScanDoc) {
+      editorState.setHeadings(collectHeadings(pendingScanDoc));
+      writingState.updateDocument(docText(pendingScanDoc));
+    }
+    pendingScanDoc = null;
   }
 
   /**
@@ -137,10 +148,8 @@
   async function saveNow(markdown) {
     editorState.setSaveStatus({ status: 'saving' });
     try {
+      // The backend watches the notes folder and re-indexes what was saved.
       if (onSave) await onSave(markdown);
-      if (configManager.config?.ai_enabled) {
-        memoryManager.createDocumentContext();
-      }
       editorState.setSaveStatus({
         lastSaved: new Date(),
         status: 'saved',
@@ -165,7 +174,7 @@
     saveTimer = setTimeout(() => {
       saveTimer = null;
       if (editorInstance) saveNow(editorInstance.action(getMarkdown()));
-    }, DEBOUNCE_SAVE_MS);
+    }, saveDelay());
   }
 
   /**
@@ -193,19 +202,17 @@
    * @param {string} initialValue
    */
   function editorAttachment(dom, initialValue) {
-
     $effect(() => {
       if (editorInstance) return;
 
-      let editorBuilder = Editor
-        .make()
+      let editorBuilder = Editor.make()
         .config((ctx) => {
           // `updated` only fires when the doc actually changed; unlike
           // `markdownUpdated` it doesn't serialize the whole doc each time.
           ctx.get(listenerCtx).updated((ctx, doc) => {
+            largeDoc = doc.content.size > LARGE_DOC_SIZE;
             triggerAutoSave();
-            editorState.setHeadings(collectHeadings(doc));
-            scheduleCount(doc);
+            scheduleScan(doc);
           });
           ctx.get(listenerCtx).selectionUpdated((ctx, selection) => {
             const { from, to } = selection;
@@ -214,8 +221,8 @@
             );
           });
 
-          ctx.set(rootCtx, dom)
-          ctx.set(defaultValueCtx, initialValue)
+          ctx.set(rootCtx, dom);
+          ctx.set(defaultValueCtx, initialValue);
         })
         .use(listener);
 
@@ -243,6 +250,7 @@
             if (editorState.pendingReveal) editorState.revealPending();
             editor.action((ctx) => {
               const { doc } = ctx.get(editorViewCtx).state;
+              largeDoc = doc.content.size > LARGE_DOC_SIZE;
               editorState.setHeadings(collectHeadings(doc));
               writingState.resetBaseline();
               writingState.updateDocument(docText(doc));
@@ -255,7 +263,7 @@
         });
 
       return () => {
-        flushCount();
+        flushScan();
         if (editorInstance) {
           editorInstance = null;
           isReady = false;
@@ -266,7 +274,7 @@
         }
         editorState.setHeadings([]);
       };
-    })
+    });
   }
 
   // Entering focus mode jumps the caret to the middle right away; while typing
@@ -291,71 +299,71 @@
 <main
   class="markdown w-full"
   class:manuscript-paragraphs={writingState.paragraphStyle === 'indented'}
+  class:large-doc={largeDoc}
   style="font-size: {appState.ui.fontSize}px;"
 >
-    <div
-      use:editorAttachment={defaultValue}
-      role="textbox"
-      tabindex="0"
-      spellcheck={writingState.spellcheck}
-      class="outline-none focus:outline-none focus-visible:outline-none"
-      onclick={(e) => {
-        const link = /** @type {HTMLElement} */ (e.target).closest('a[href]');
-        if (!link) return;
-        e.preventDefault();
-        const href = link.getAttribute('href');
-        if (!href) return;
-        if (href.startsWith(DOC_REF_PREFIX)) {
-          const name = decodeURIComponent(href.slice(DOC_REF_PREFIX.length));
-          goto(resolve(`/${encodeURIComponent(name)}`));
-          return;
-        }
-        openUrl(href);
-      }}
-    ></div>
+  <div
+    use:editorAttachment={defaultValue}
+    role="textbox"
+    tabindex="0"
+    spellcheck={writingState.spellcheck}
+    class="outline-none focus:outline-none focus-visible:outline-none"
+    onclick={(e) => {
+      const link = /** @type {HTMLElement} */ (e.target).closest('a[href]');
+      if (!link) return;
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      if (!href) return;
+      if (href.startsWith(DOC_REF_PREFIX)) {
+        const name = decodeURIComponent(href.slice(DOC_REF_PREFIX.length));
+        goto(resolve(`/${encodeURIComponent(name)}`));
+        return;
+      }
+      openUrl(href);
+    }}
+  ></div>
 </main>
 
 <style>
-    main :global(.ProseMirror) {
-        min-height: 280px;
-        text-wrap: wrap;
-        outline: none;
-        position: relative;
-        padding-top: var(--writer-editor-pt, 0.5rem);
-        padding-bottom: var(--writer-editor-pb, 50vh);
-    }
+  main :global(.ProseMirror) {
+    min-height: 280px;
+    text-wrap: wrap;
+    outline: none;
+    position: relative;
+    padding-top: var(--writer-editor-pt, 0.5rem);
+    padding-bottom: var(--writer-editor-pb, 50vh);
+  }
 
-    main :global([role='textbox']) {
-        outline: none;
-    }
+  main :global([role='textbox']) {
+    outline: none;
+  }
 
+  main :global(.milkdown) {
+    overflow: visible !important;
+  }
 
-    main :global(.milkdown) {
-        overflow: visible !important;
-    }
+  main :global(.slash-menu-portal[data-show='false']),
+  main :global(.doc-ref-portal[data-show='false']) {
+    display: none;
+  }
 
-    main :global(.slash-menu-portal[data-show='false']),
-    main :global(.doc-ref-portal[data-show='false']) {
-        display: none;
-    }
+  main :global(.ProseMirror p.is-empty:first-child::before) {
+    content: attr(data-placeholder);
+    color: var(--writer-placeholder-color, var(--placeholder));
+    pointer-events: none;
+    height: 0;
+    float: left;
+  }
 
-    main :global(.ProseMirror p.is-empty:first-child::before) {
-        content: attr(data-placeholder);
-        color: var(--writer-placeholder-color, var(--placeholder));
-        pointer-events: none;
-        height: 0;
-        float: left;
-    }
-
-    /* Manuscript paragraph style: first-line indent, no gap between
+  /* Manuscript paragraph style: first-line indent, no gap between
        paragraphs, the way a typeset page reads. The first paragraph after a
        heading (or the very first paragraph) stays flush, as in print. */
-    main.manuscript-paragraphs :global(.ProseMirror > p) {
-        margin-block: 0;
-        text-indent: 1.6em;
-    }
-    main.manuscript-paragraphs :global(.ProseMirror > p:first-child),
-    main.manuscript-paragraphs :global(.ProseMirror > :is(h1, h2, h3, h4, h5, h6) + p) {
-        text-indent: 0;
-    }
+  main.manuscript-paragraphs :global(.ProseMirror > p) {
+    margin-block: 0;
+    text-indent: 1.6em;
+  }
+  main.manuscript-paragraphs :global(.ProseMirror > p:first-child),
+  main.manuscript-paragraphs :global(.ProseMirror > :is(h1, h2, h3, h4, h5, h6) + p) {
+    text-indent: 0;
+  }
 </style>

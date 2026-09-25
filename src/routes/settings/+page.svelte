@@ -701,7 +701,7 @@
                       size="sm"
                       class="text-xs h-8 shrink-0"
                       disabled={!!memoryManager.indexProgress}
-                      onclick={() => memoryManager.reindexNotes()}
+                      onclick={() => memoryManager.reindexNotes(true)}
                     >
                       Reindex notes
                     </Button>
