@@ -17,10 +17,13 @@
   import FocusIcon from '@lucide/svelte/icons/focus';
   import TextSearchIcon from '@lucide/svelte/icons/text-search';
   import FileOutputIcon from '@lucide/svelte/icons/file-output';
+  import LinkIcon from '@lucide/svelte/icons/link';
 
   let shortcuts = $derived(
     [
       { key: `${MOD_LABEL} + K`, description: 'Search writings', icon: SearchIcon },
+      { key: `${MOD_LABEL} + K`, description: 'Link selected text', icon: LinkIcon },
+      { key: `${MOD_LABEL} + Click`, description: 'Open link', icon: LinkIcon },
       { key: `${MOD_LABEL} + ⇧ + F`, description: 'Find in all writings', icon: TextSearchIcon },
       { key: `${MOD_LABEL} + ⇧ + E`, description: 'Export', icon: FileOutputIcon },
       { key: `${MOD_LABEL} + N`, description: 'New writing here', icon: PlusIcon },

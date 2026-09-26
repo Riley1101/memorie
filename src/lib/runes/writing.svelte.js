@@ -1,5 +1,5 @@
 /**
- * @file Writer-facing preferences and progress: spellcheck, word counts,
+ * @file Writer-facing preferences and progress: spellcheck, typing aids, word counts,
  * daily and per-binder goals, and focus mode. Everything here is a local UI
  * preference, persisted to localStorage like the rest of the app's UI state.
  */
@@ -73,6 +73,12 @@ class WritingState {
   /** Browser spellcheck in the editor. */
   spellcheck = $state(true);
 
+  /** Curly quotes, em dashes and ellipses as you type. */
+  smartPunctuation = $state(true);
+
+  /** Close brackets as you open them, and wrap a selection in them. */
+  autoPair = $state(true);
+
   /** Words per day; 0 means no goal. */
   dailyGoal = $state(0);
 
@@ -125,6 +131,8 @@ class WritingState {
       if (!raw) return;
       const saved = JSON.parse(raw);
       if (typeof saved.spellcheck === 'boolean') this.spellcheck = saved.spellcheck;
+      if (typeof saved.smartPunctuation === 'boolean') this.smartPunctuation = saved.smartPunctuation;
+      if (typeof saved.autoPair === 'boolean') this.autoPair = saved.autoPair;
       if (Number.isFinite(saved.dailyGoal)) this.dailyGoal = saved.dailyGoal;
       if (saved.projectGoals && typeof saved.projectGoals === 'object') {
         this.projectGoals = saved.projectGoals;
@@ -142,6 +150,8 @@ class WritingState {
         STORAGE_KEY,
         JSON.stringify({
           spellcheck: this.spellcheck,
+          smartPunctuation: this.smartPunctuation,
+          autoPair: this.autoPair,
           dailyGoal: this.dailyGoal,
           projectGoals: this.projectGoals,
           log: this.log,
@@ -171,6 +181,18 @@ class WritingState {
   /** @param {boolean} enabled */
   setSpellcheck(enabled) {
     this.spellcheck = enabled;
+    this.#persist();
+  }
+
+  /** @param {boolean} enabled */
+  setSmartPunctuation(enabled) {
+    this.smartPunctuation = enabled;
+    this.#persist();
+  }
+
+  /** @param {boolean} enabled */
+  setAutoPair(enabled) {
+    this.autoPair = enabled;
     this.#persist();
   }
 

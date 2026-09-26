@@ -201,7 +201,8 @@
       goBack(e);
     }
 
-    if (e.key === 'k' && isMod(e)) {
+    // The editor claims ⌘K for links when text is selected or the caret is in one.
+    if (e.key === 'k' && isMod(e) && !e.defaultPrevented) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
     }

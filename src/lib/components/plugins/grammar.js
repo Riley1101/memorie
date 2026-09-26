@@ -6,9 +6,9 @@ import GrammarBox from './GrammarBox.svelte';
 import { applySuggestion } from './apply-suggestion.js';
 
 /**
- * A Milkdown plugin that adds grammar correction widgets to selected paragraphs.
- * When a paragraph is selected, a GrammarBox widget is displayed at the end of the paragraph,
- * allowing users to suggest corrections.
+ * A Milkdown plugin that shows a toolbar under a text selection: formatting
+ * buttons always, and AI suggestions for the paragraph when AI is enabled
+ * (GrammarBox decides).
  *
  * @returns {Plugin} - The Milkdown plugin for grammar correction.
  */

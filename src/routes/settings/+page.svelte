@@ -446,6 +446,64 @@
 
                 <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
+                    <p class="text-lg font-normal">Smart punctuation</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Curly quotes, em dashes from <code>--</code> and ellipses from <code>...</code> as you type. Backspace right after undoes one.
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                    <Button
+                      variant={writingState.smartPunctuation ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setSmartPunctuation(true)}
+                      disabled={false}
+                    >
+                      On
+                    </Button>
+                    <Button
+                      variant={!writingState.smartPunctuation ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setSmartPunctuation(false)}
+                      disabled={false}
+                    >
+                      Off
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-lg font-normal">Auto-close brackets</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Typing an opening bracket adds its closing pair; with text selected, it wraps the selection.
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                    <Button
+                      variant={writingState.autoPair ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setAutoPair(true)}
+                      disabled={false}
+                    >
+                      On
+                    </Button>
+                    <Button
+                      variant={!writingState.autoPair ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setAutoPair(false)}
+                      disabled={false}
+                    >
+                      Off
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
                     <label for="settings-daily-goal" class="text-lg font-normal">Daily word goal</label>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Shown next to the word count in the editor. Leave empty for no goal.

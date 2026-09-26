@@ -28,6 +28,8 @@
   import FileOutputIcon from '@lucide/svelte/icons/file-output';
   import FileInputIcon from '@lucide/svelte/icons/file-input';
   import TextSearchIcon from '@lucide/svelte/icons/text-search';
+  import QuoteIcon from '@lucide/svelte/icons/quote';
+  import BracketsIcon from '@lucide/svelte/icons/parentheses';
   import EditorStats from '$lib/components/editor-stats.svelte';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { getMarkdown } from '@milkdown/kit/utils';
@@ -183,6 +185,22 @@
       icon: SpellCheckIcon,
     },
     {
+      cmd: ':smart',
+      description: 'Toggle smart punctuation (curly quotes, dashes)',
+      action: 'toggleSmartPunctuation',
+      shortcutLabel: '',
+      key: '',
+      icon: QuoteIcon,
+    },
+    {
+      cmd: ':pairs',
+      description: 'Toggle auto-closing brackets',
+      action: 'toggleAutoPair',
+      shortcutLabel: '',
+      key: '',
+      icon: BracketsIcon,
+    },
+    {
       cmd: ':h',
       description: 'Show shortcuts help',
       action: 'help',
@@ -330,6 +348,14 @@
       case 'toggleSpellcheck':
         writingState.setSpellcheck(!writingState.spellcheck);
         toast.info(writingState.spellcheck ? 'Spellcheck on' : 'Spellcheck off');
+        break;
+      case 'toggleSmartPunctuation':
+        writingState.setSmartPunctuation(!writingState.smartPunctuation);
+        toast.info(writingState.smartPunctuation ? 'Smart punctuation on' : 'Smart punctuation off');
+        break;
+      case 'toggleAutoPair':
+        writingState.setAutoPair(!writingState.autoPair);
+        toast.info(writingState.autoPair ? 'Auto-closing brackets on' : 'Auto-closing brackets off');
         break;
       case 'sidebar':
         goto(resolve('/'));
