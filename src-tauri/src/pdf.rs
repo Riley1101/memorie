@@ -30,6 +30,13 @@ pub struct PdfLayout<'a> {
     pub chapter_page_breaks: bool,
     /// Validated ISO 639 code, e.g. "en".
     pub lang: &'a str,
+    /// A contents page listing headings down to this level.
+    pub toc_depth: Option<usize>,
+    /// Text before the page number at the top of each page, e.g.
+    /// "Writer / MY NOVEL" (may be empty). `None` keeps numbers at the bottom.
+    pub running_head: Option<String>,
+    /// Front matter pages, as Typst, placed before the contents.
+    pub front: &'a str,
 }
 
 // ---------------------------------------------------------------------------
@@ -38,7 +45,7 @@ pub struct PdfLayout<'a> {
 
 /// Escapes prose so nothing in it is read as Typst syntax. Quotes are left
 /// alone so Typst turns them into typographic quotes.
-fn escape_text(text: &str) -> String {
+pub(crate) fn escape_text(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 8);
     for c in text.chars() {
         if matches!(
@@ -256,6 +263,18 @@ fn preamble(layout: &PdfLayout) -> String {
         }
         out.push_str("]]\n#counter(page).update(1)\n\n");
     }
+    if let Some(head) = &layout.running_head {
+        let prefix = if head.is_empty() { String::new() } else { format!("{} / ", escape_text(head)) };
+        out.push_str(&format!(
+            "#set page(header: align(right, text(size: 0.9em)[{prefix}#context counter(page).display()]), footer: none)\n"
+        ));
+    }
+    out.push_str(layout.front);
+    if let Some(depth) = layout.toc_depth {
+        out.push_str(&format!(
+            "#page[#align(center, text(size: 1.6em)[Contents])#v(1.5em)#outline(title: none, depth: {depth})]\n\n"
+        ));
+    }
     out
 }
 
@@ -350,7 +369,7 @@ mod tests {
     }
 
     fn layout() -> PdfLayout<'static> {
-        PdfLayout { title: "My Novel", author: "A. Writer", page_size: PageSize::A4, manuscript: false, chapter_page_breaks: true, lang: "en" }
+        PdfLayout { title: "My Novel", author: "A. Writer", page_size: PageSize::A4, manuscript: false, chapter_page_breaks: true, lang: "en", toc_depth: None, running_head: None, front: "" }
     }
 
     #[test]
@@ -381,7 +400,7 @@ mod tests {
 
     #[test]
     fn manuscript_and_letter_layouts_compile() {
-        let layout = PdfLayout { page_size: PageSize::Letter, manuscript: true, chapter_page_breaks: false, title: "", author: "", lang: "de" };
+        let layout = PdfLayout { page_size: PageSize::Letter, manuscript: true, chapter_page_breaks: false, title: "", author: "", lang: "de", toc_depth: None, running_head: None, front: "" };
         let pdf = typeset(&layout, &convert("Plain text.")).expect("compiles");
         assert!(pdf.starts_with(b"%PDF"));
     }

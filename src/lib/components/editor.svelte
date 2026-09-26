@@ -8,15 +8,15 @@
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { slashMenu } from '$lib/components/plugins/slash-menu.svelte.js';
   import { docRefMenu, DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
+  import { linkPopover, openHref } from '$lib/components/plugins/link-popover.svelte.js';
+  import { smartPunctuation, autoPair } from '$lib/components/plugins/typing.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
   import { clipboard } from '@milkdown/kit/plugin/clipboard';
   import { appState } from '@/runes/app.svelte.js';
-  import { configManager } from '@/runes/config.svelte.js';
-  import { openUrl } from '@tauri-apps/plugin-opener';
-  import { beforeNavigate, goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { beforeNavigate } from '$app/navigation';
+  import { isMod } from '$lib/keyboard.svelte.js';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { TextSelection } from '@milkdown/kit/prose/state';
 
@@ -226,19 +226,19 @@
         })
         .use(listener);
 
-      if (configManager.config?.ai_enabled) {
-        editorBuilder = editorBuilder.use(grammarPlugin);
-      }
-
       editorBuilder
+        .use(grammarPlugin)
         .use(exitCodeBlockPlugin)
         .use(placeholderPlugin)
         .use(focusPlugin)
+        .use(autoPair)
         .use(commonmark)
         .use(gfm)
         .use(clipboard)
         .use(slashMenu)
         .use(docRefMenu)
+        .use(linkPopover)
+        .use(smartPunctuation)
         .create()
         .then((editor) => {
           if (editor) {
@@ -313,13 +313,9 @@
       if (!link) return;
       e.preventDefault();
       const href = link.getAttribute('href');
-      if (!href) return;
-      if (href.startsWith(DOC_REF_PREFIX)) {
-        const name = decodeURIComponent(href.slice(DOC_REF_PREFIX.length));
-        goto(resolve(`/${encodeURIComponent(name)}`));
-        return;
-      }
-      openUrl(href);
+      // Doc references open on click; web links need ⌘-click so a plain
+      // click can put the caret in them and bring up the link toolbar.
+      if (href && (href.startsWith(DOC_REF_PREFIX) || isMod(e))) openHref(href);
     }}
   ></div>
 </main>
@@ -343,7 +339,8 @@
   }
 
   main :global(.slash-menu-portal[data-show='false']),
-  main :global(.doc-ref-portal[data-show='false']) {
+  main :global(.doc-ref-portal[data-show='false']),
+  main :global(.link-popover-portal[data-show='false']) {
     display: none;
   }
 

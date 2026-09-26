@@ -927,6 +927,24 @@ pub async fn export_manuscript(
         .map(|path| path.to_string_lossy().into_owned())
 }
 
+/// A binder's saved export settings (JSON), or null if it has none.
+#[tauri::command]
+pub async fn read_compile_settings(binder: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    crate::export::read_compile_settings(&content_dir, &binder)
+}
+
+/// Saves a binder's export settings next to its writings.
+#[tauri::command]
+pub async fn write_compile_settings(
+    binder: String,
+    settings: serde_json::Value,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    crate::export::write_compile_settings(&content_dir, &binder, &settings)
+}
+
 /**
  *  Project Search Commands
  */

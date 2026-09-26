@@ -251,6 +251,8 @@ pub async fn run() {
             commands::git_pull,
             commands::git_commit_and_push,
             commands::export_manuscript,
+            commands::read_compile_settings,
+            commands::write_compile_settings,
             commands::search_project,
             commands::replace_in_project,
             commands::import_sources,

@@ -14,6 +14,7 @@
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
   import { cn } from '$lib/utils';
   import { appState } from '$lib/runes/app.svelte.js';
+  import { configManager } from '$lib/runes/config.svelte.js';
   import { toggleMark } from '@milkdown/kit/prose/commands';
 
   /**
@@ -28,6 +29,9 @@
   let { originalText, onFix, view } = $props();
 
   let customPrompt = $state('');
+
+  /** The formatting buttons always show; the AI parts only when AI is on. */
+  let aiEnabled = $derived(Boolean(configManager.config?.ai_enabled));
 
   /**
    * Follows the text as it streams in, so the newest words stay visible once
@@ -117,7 +121,7 @@
 
 <div class="w-max max-w-sm flex flex-col gap-3 not-prose select-none animate-in fade-in slide-in-from-top-2 duration-300">
   
-  {#if llmManager.editActionContent || llmManager.editActionInProgress}
+  {#if aiEnabled && (llmManager.editActionContent || llmManager.editActionInProgress)}
     <div class="group relative bg-muted/40 backdrop-blur-sm border border-border/40 rounded-xl p-4 shadow-sm transition-all hover:shadow-md hover:bg-muted/50">
       <div class="flex items-start gap-4">
         <div class="mt-1 p-1.5 rounded-full bg-primary/10 text-primary">
@@ -189,68 +193,70 @@
       {/each}
     </div>
 
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        {#snippet child({ props })}
-          <Button
-            {...props}
-            variant="ghost"
-            size="sm"
-            disabled={props.disabled ?? false}
-            class="h-7 px-2.5 bg-background border border-border/40 hover:bg-muted/50 rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
-          >
-            <AiSparkleIcon strokeWidth={1.5} class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
-            AI Suggestions
-            <ChevrondownIcon strokeWidth={1.5} class="size-3 ml-1 opacity-40 group-hover:opacity-100 transition-opacity" />
-          </Button>
-        {/snippet}
-      </DropdownMenu.Trigger>
-      
-      <DropdownMenu.Content portalProps={{}} class="w-72 {appState.ui.theme} p-2 border border-border/40 shadow-2xl rounded-xl backdrop-blur-xl bg-background/95" align="start">
-        <div class="flex flex-col gap-2.5 p-1">
-          <div class="relative group">
-            <Textarea
-              placeholder="Custom instructions..."
-              class="min-h-[80px] text-xs resize-none bg-muted/20 border-border/20 focus:border-primary/30 focus:ring-primary/10 rounded-lg p-3 transition-all"
-              bind:value={customPrompt}
- />
+    {#if aiEnabled}
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          {#snippet child({ props })}
             <Button
-              size="icon"
-              variant="default"
-              onclick={() => handleSend('PromptExpansion')}
-              disabled={!customPrompt.trim()}
-              class="absolute bottom-2 right-2 size-7 rounded-md shadow-sm transition-all active:scale-90"
+              {...props}
+              variant="ghost"
+              size="sm"
+              disabled={props.disabled ?? false}
+              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-muted/50 rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
             >
-              <SendIcon strokeWidth={1.5} class="size-3.5" />
+              <AiSparkleIcon strokeWidth={1.5} class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
+              AI Suggestions
+              <ChevrondownIcon strokeWidth={1.5} class="size-3 ml-1 opacity-40 group-hover:opacity-100 transition-opacity" />
             </Button>
-          </div>
+          {/snippet}
+        </DropdownMenu.Trigger>
+      
+        <DropdownMenu.Content portalProps={{}} class="w-72 {appState.ui.theme} p-2 border border-border/40 shadow-2xl rounded-xl backdrop-blur-xl bg-background/95" align="start">
+          <div class="flex flex-col gap-2.5 p-1">
+            <div class="relative group">
+              <Textarea
+                placeholder="Custom instructions..."
+                class="min-h-[80px] text-xs resize-none bg-muted/20 border-border/20 focus:border-primary/30 focus:ring-primary/10 rounded-lg p-3 transition-all"
+                bind:value={customPrompt}
+   />
+              <Button
+                size="icon"
+                variant="default"
+                onclick={() => handleSend('PromptExpansion')}
+                disabled={!customPrompt.trim()}
+                class="absolute bottom-2 right-2 size-7 rounded-md shadow-sm transition-all active:scale-90"
+              >
+                <SendIcon strokeWidth={1.5} class="size-3.5" />
+              </Button>
+            </div>
           
-          <div class="h-px bg-border/20 mx-1"></div>
+            <div class="h-px bg-border/20 mx-1"></div>
           
-          <div class="max-h-[300px] overflow-y-auto pr-1">
-            {#each suggestionCategories as category (category.name)}
-              <div class="mt-2 first:mt-0">
-                <div class="px-1 text-[0.625rem] font-mono font-medium text-metadata uppercase tracking-widest pl-2 mb-1">
-                  {category.name}
+            <div class="max-h-[300px] overflow-y-auto pr-1">
+              {#each suggestionCategories as category (category.name)}
+                <div class="mt-2 first:mt-0">
+                  <div class="px-1 text-[0.625rem] font-mono font-medium text-metadata uppercase tracking-widest pl-2 mb-1">
+                    {category.name}
+                  </div>
+                  <div class="grid grid-cols-1 gap-0.5">
+                    {#each category.items as item (item.command)}
+                      <DropdownMenu.Item
+                        closeOnSelect={true}
+                        inset={false}
+                        class="flex items-center px-2.5 py-2 text-xs rounded-lg cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors focus:bg-primary/10 focus:text-primary outline-none group/item"
+                        onclick={() => handleSend(item.command)}
+                      >
+                        <span class="flex-1">{item.label}</span>
+                        <AiSparkleIcon strokeWidth={1.5} class="size-3 opacity-0 group-hover/item:opacity-40 transition-opacity" />
+                      </DropdownMenu.Item>
+                    {/each}
+                  </div>
                 </div>
-                <div class="grid grid-cols-1 gap-0.5">
-                  {#each category.items as item (item.command)}
-                    <DropdownMenu.Item
-                      closeOnSelect={true}
-                      inset={false}
-                      class="flex items-center px-2.5 py-2 text-xs rounded-lg cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors focus:bg-primary/10 focus:text-primary outline-none group/item"
-                      onclick={() => handleSend(item.command)}
-                    >
-                      <span class="flex-1">{item.label}</span>
-                      <AiSparkleIcon strokeWidth={1.5} class="size-3 opacity-0 group-hover/item:opacity-40 transition-opacity" />
-                    </DropdownMenu.Item>
-                  {/each}
-                </div>
-              </div>
-            {/each}
+              {/each}
+            </div>
           </div>
-        </div>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+    {/if}
   </div>
 </div>
