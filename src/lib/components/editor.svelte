@@ -10,6 +10,7 @@
   import { docRefMenu, DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
   import { linkPopover, openHref } from '$lib/components/plugins/link-popover.svelte.js';
   import { smartPunctuation, autoPair } from '$lib/components/plugins/typing.js';
+  import { codexMentionsPlugin, setCodexMentions } from '$lib/components/plugins/codex-mentions.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
@@ -91,9 +92,11 @@
    *   defaultValue?: string,
    *   onSave?: (markdown: string) => Promise<void> | void,
    *   autofocus?: boolean,
+   *   codexEntities?: import('$lib/runes/codex.svelte.js').Entity[],
    * }}
+   * `codexEntities` are underlined where the text names them; empty for none.
    */
-  let { defaultValue = '', onSave, autofocus = false } = $props();
+  let { defaultValue = '', onSave, autofocus = false, codexEntities = [] } = $props();
 
   /** @type {ReturnType<typeof setTimeout> | null} */
   let saveTimer = $state(null);
@@ -239,6 +242,7 @@
         .use(docRefMenu)
         .use(linkPopover)
         .use(smartPunctuation)
+        .use(codexMentionsPlugin)
         .create()
         .then((editor) => {
           if (editor) {
@@ -282,6 +286,12 @@
   $effect(() => {
     if (!writingState.focusMode || !editorInstance) return;
     editorInstance.action((ctx) => centerCaret(ctx.get(editorViewCtx), 'instant'));
+  });
+
+  $effect(() => {
+    const entities = $state.snapshot(codexEntities);
+    if (!editorInstance || !isReady) return;
+    editorInstance.action((ctx) => setCodexMentions(ctx.get(editorViewCtx), entities));
   });
 
   // ProseMirror mounts its own contenteditable div inside ours; set spellcheck
@@ -342,6 +352,14 @@
   main :global(.doc-ref-portal[data-show='false']),
   main :global(.link-popover-portal[data-show='false']) {
     display: none;
+  }
+
+  main :global(.codex-mention) {
+    text-decoration: underline dotted;
+    text-decoration-color: color-mix(in oklab, var(--primary) 55%, transparent);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.2em;
+    cursor: help;
   }
 
   main :global(.ProseMirror p.is-empty:first-child::before) {

@@ -220,6 +220,22 @@ class AppState {
     };
   }
 
+  /**
+   * Search and replace to start with the next time project search opens.
+   * @type {{ query: string, replacement: string, binder: string | null } | null}
+   */
+  projectSearchPrefill = null;
+
+  /**
+   * Opens project search on a whole-word, exact-case replace, e.g. after a
+   * codex entry is renamed.
+   * @param {{ query: string, replacement: string, binder: string | null }} prefill
+   */
+  openProjectSearch(prefill) {
+    this.projectSearchPrefill = prefill;
+    this.toggleProjectSearch(true);
+  }
+
   /** @param {boolean} state */
   toggleProjectSearch(state) {
     this.ui = {

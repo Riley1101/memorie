@@ -13,6 +13,8 @@
   import { untrack } from 'svelte';
   import { parseWriting, serializeWriting } from '$lib/front-matter.js';
   import { formatDate, formatTime } from '$lib/utils.js';
+  import { writingState } from '$lib/runes/writing.svelte.js';
+  import { codexManager } from '$lib/runes/codex.svelte.js';
 
   /** Strip .md for display */
   function stripMd(name) {
@@ -90,6 +92,15 @@
   $effect(() => {
     editorState.setName(displayTitle || UNTITLED);
   });
+
+  /** The binder the writing is in; '' at the top level. */
+  let binder = $derived(currentName.includes('/') ? currentName.split('/')[0] : '');
+
+  $effect(() => {
+    if (writingState.codexHighlight) codexManager.load(binder || null);
+  });
+
+  let codexEntities = $derived(writingState.codexHighlight ? codexManager.entities(binder || null) : []);
 
   function focusEditor() {
     editorState.editor?.action((ctx) => {
@@ -288,7 +299,7 @@
   <div class="writing-area__ornament" aria-hidden="true">❧</div>
   <div class="writing-area__body">
     {#key `${docKey}:${appState.ui.editorVersion}`}
-      <Editor defaultValue={parsed.body} {onSave} autofocus={draft} />
+      <Editor defaultValue={parsed.body} {onSave} autofocus={draft} {codexEntities} />
     {/key}
   </div>
 </div>

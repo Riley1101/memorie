@@ -12,6 +12,7 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import HomeIcon from '@lucide/svelte/icons/home';
   import { goto } from '$app/navigation';
+  import { codexManager } from '$lib/runes/codex.svelte.js';
   import { resolve } from '$app/paths';
 
   let newBinderName = $state('');
@@ -24,6 +25,16 @@
 
   function binderWritingCount(name) {
     return fileManager.files.filter((f) => f.folder === name).length;
+  }
+
+  /** Codex entries the binder itself holds (not shared ones), once loaded. */
+  function binderCodexCount(name) {
+    return codexManager.entities(name).filter((e) => e.scope === name).length;
+  }
+
+  /** Anything that keeps a binder from being deleted. */
+  function binderBlocked(name) {
+    return binderWritingCount(name) > 0 || binderCodexCount(name) > 0;
   }
 
   async function handleCreateBinder() {
@@ -53,6 +64,7 @@
   function handleDeleteClick(binder) {
     binderToDelete = binder;
     isDeleteDialogOpen = true;
+    codexManager.load(binder);
   }
 
   function cancelDelete() {
@@ -61,7 +73,7 @@
   }
 
   async function confirmDelete() {
-    if (!binderToDelete || binderWritingCount(binderToDelete) > 0) return;
+    if (!binderToDelete || binderBlocked(binderToDelete)) return;
     await fileManager.deleteBinder(binderToDelete);
     isDeleteDialogOpen = false;
     binderToDelete = null;
@@ -185,6 +197,10 @@
           <span class="font-bold text-foreground">"{binderToDelete}"</span> still has {binderWritingCount(binderToDelete)}
           writing{binderWritingCount(binderToDelete) === 1 ? '' : 's'} in it. Move or delete
           {binderWritingCount(binderToDelete) === 1 ? 'it' : 'them'} first before deleting this binder.
+        {:else if binderToDelete && binderCodexCount(binderToDelete) > 0}
+          <span class="font-bold text-foreground">"{binderToDelete}"</span> still has {binderCodexCount(binderToDelete)}
+          codex entr{binderCodexCount(binderToDelete) === 1 ? 'y' : 'ies'}. Delete
+          {binderCodexCount(binderToDelete) === 1 ? 'it' : 'them'} from the codex first before deleting this binder.
         {:else}
           Are you sure you want to delete <span class="font-bold text-foreground">"{binderToDelete}"</span>?
           <br />This action cannot be undone.
@@ -197,7 +213,7 @@
         variant="destructive"
         onclick={confirmDelete}
         class="flex-1"
-        disabled={binderToDelete ? binderWritingCount(binderToDelete) > 0 : false}
+        disabled={binderToDelete ? binderBlocked(binderToDelete) : false}
         >Delete</Button
       >
     </Dialog.Footer>

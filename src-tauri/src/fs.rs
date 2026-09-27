@@ -119,9 +119,11 @@ pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
     // Sort files by modification time in descending order
     files_with_mod_time.sort_by(|a, b| b.1.cmp(&a.1));
 
+    // Codex entries are files too, but they aren't writings; the codex lists them.
     let files = files_with_mod_time
         .into_iter()
         .map(|(path, mod_time, relative_dir)| File::with_relative_dir(path, Some(mod_time), relative_dir))
+        .filter(|file| !crate::codex::is_codex_name(&file.name))
         .collect();
 
     Ok(files)
@@ -203,7 +205,12 @@ fn collect_folders(
             };
 
             relative_dir.push(dir_name);
-            out.push(relative_dir.join("/"));
+            let folder = relative_dir.join("/");
+            if crate::codex::is_codex_folder(&folder) {
+                relative_dir.pop();
+                continue;
+            }
+            out.push(folder);
             collect_folders(&path, relative_dir, out)?;
             relative_dir.pop();
         }
@@ -221,7 +228,8 @@ pub fn list_binders(directory: &Path) -> Result<Vec<String>, FileError> {
 
         if path.is_dir() {
             if let Some(name) = path.file_name().and_then(OsStr::to_str) {
-                if !name.starts_with('.') {
+                // A top-level `Codex` folder is the shared codex, not a binder.
+                if !name.starts_with('.') && name != crate::codex::CODEX_DIR {
                     binders.push(name.to_string());
                 }
             }
@@ -308,6 +316,23 @@ pub fn rename_file(directory: &Path, old_name: &str, new_name: &str) -> Result<F
 mod fs_tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn codex_entries_are_not_writings_binders_or_tree_folders() {
+        let dir = tempdir().unwrap();
+        for name in ["Novel/Scene.md", "Novel/Codex/Characters/Aria.md", "Codex/Items/Sword.md"] {
+            let path = dir.path().join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, "text").unwrap();
+        }
+
+        let recent: Vec<_> = get_recent(dir.path()).unwrap().into_iter().map(|f| f.name).collect();
+        assert_eq!(recent, vec!["Novel/Scene.md".to_string()]);
+        assert_eq!(list_binders(dir.path()).unwrap(), vec!["Novel".to_string()]);
+        assert_eq!(list_folders(dir.path()).unwrap(), vec!["Novel".to_string()]);
+        // Sync and the note index still see them.
+        assert_eq!(discover_files(dir.path()).unwrap().len(), 3);
+    }
 
     #[test]
     fn rename_file_in_nested_folder_stays_in_place() {

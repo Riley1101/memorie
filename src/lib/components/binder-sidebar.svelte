@@ -9,6 +9,7 @@
   import { resolve } from '$app/paths';
   import FileIcon from '@lucide/svelte/icons/file';
   import FolderIcon from '@lucide/svelte/icons/folder';
+  import BookUserIcon from '@lucide/svelte/icons/book-user';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import MenuIcon from '@lucide/svelte/icons/menu';
   import SearchIcon from '@lucide/svelte/icons/search';
@@ -21,6 +22,7 @@
   import ScrollFade from './scroll-fade.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { openCodex } from '$lib/runes/codex.svelte.js';
 
   let { activeBinder = $bindable(null) } = $props();
 
@@ -191,6 +193,17 @@
         <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{binderCount(binder)}</span>
       </button>
       {#if activeBinder === binder}
+        <button
+          onclick={() => {
+            onSelect?.();
+            openCodex({ binder });
+          }}
+          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground transition-colors"
+          style="padding-left: 1.25rem"
+        >
+          <BookUserIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
+          <span class="truncate flex-1">Codex</span>
+        </button>
         <!-- Chapters and scenes of the open binder: click jumps the tree to that folder. -->
         {#each binderFolders as folder (folder.path)}
           <button

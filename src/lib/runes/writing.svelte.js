@@ -79,6 +79,9 @@ class WritingState {
   /** Close brackets as you open them, and wrap a selection in them. */
   autoPair = $state(true);
 
+  /** Underline codex names and aliases in the editor. */
+  codexHighlight = $state(false);
+
   /** Words per day; 0 means no goal. */
   dailyGoal = $state(0);
 
@@ -133,6 +136,7 @@ class WritingState {
       if (typeof saved.spellcheck === 'boolean') this.spellcheck = saved.spellcheck;
       if (typeof saved.smartPunctuation === 'boolean') this.smartPunctuation = saved.smartPunctuation;
       if (typeof saved.autoPair === 'boolean') this.autoPair = saved.autoPair;
+      if (typeof saved.codexHighlight === 'boolean') this.codexHighlight = saved.codexHighlight;
       if (Number.isFinite(saved.dailyGoal)) this.dailyGoal = saved.dailyGoal;
       if (saved.projectGoals && typeof saved.projectGoals === 'object') {
         this.projectGoals = saved.projectGoals;
@@ -152,6 +156,7 @@ class WritingState {
           spellcheck: this.spellcheck,
           smartPunctuation: this.smartPunctuation,
           autoPair: this.autoPair,
+          codexHighlight: this.codexHighlight,
           dailyGoal: this.dailyGoal,
           projectGoals: this.projectGoals,
           log: this.log,
@@ -193,6 +198,12 @@ class WritingState {
   /** @param {boolean} enabled */
   setAutoPair(enabled) {
     this.autoPair = enabled;
+    this.#persist();
+  }
+
+  /** @param {boolean} enabled */
+  setCodexHighlight(enabled) {
+    this.codexHighlight = enabled;
     this.#persist();
   }
 
