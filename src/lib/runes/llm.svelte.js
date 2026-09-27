@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { toast } from '$lib/toast.js';
+import { codexChat } from '$lib/runes/codex.svelte.js';
+import { memoryManager } from '$lib/runes/memory.svelte.js';
 
 /**
  * LLM events
@@ -27,6 +29,8 @@ const LLM_EVENTS = {
    * `results` is one entry per note; `passages` every passage given to the model.
    */
   SOURCES: 'chat-sources',
+  /** Codex entries given to the model: `{ entities: [{ name, path, kind, full }] }`. */
+  CODEX: 'chat-codex',
 };
 
 const LLM_INVOKE = {
@@ -59,6 +63,16 @@ const HISTORY_MESSAGES = 6;
  * @property {{ title: string, score: number }[]} [references] - Notes a search drew on.
  * @property {Passage[]} [passages] - Every passage a search gave the model.
  * @property {number} [searchMs] - How long the search took.
+ * @property {CodexRef[]} [codex] - Codex entries the reply was given.
+ */
+
+/**
+ * A codex entry given to the model for a reply.
+ * @typedef {object} CodexRef
+ * @property {string} name
+ * @property {string} path
+ * @property {import('$lib/runes/codex.svelte.js').EntityKind} kind
+ * @property {boolean} full - The whole sheet, rather than only its summary.
  */
 
 /**
@@ -215,6 +229,15 @@ export class LlmManager {
           lastMessage.references = event.payload.results;
           lastMessage.passages = event.payload.passages ?? [];
           lastMessage.searchMs = event.payload.elapsedMs;
+        }
+      })
+    );
+
+    this.unlisteners.push(
+      await listen(LLM_EVENTS.CODEX, (event) => {
+        const lastMessage = this._lastAssistantMessage();
+        if (lastMessage) {
+          lastMessage.codex = event.payload.entities ?? [];
         }
       })
     );
@@ -392,6 +415,8 @@ export class LlmManager {
           history,
           documentTitle: document?.title ?? null,
           documentContent: document?.content ?? null,
+          codexExclude: [...codexChat.exclude],
+          codexPin: [...codexChat.pin],
         },
       });
     } catch (e) {
@@ -441,6 +466,8 @@ export class LlmManager {
         message: originalMessage,
         editAction: editInstruction,
         mode: 'EditAction',
+        // The open document's title tells the backend which binder's codex to use.
+        context: { documentTitle: memoryManager.context.fileName || null },
       });
     } catch (e) {
       console.error(e);
@@ -481,6 +508,7 @@ export class LlmManager {
   newSession() {
     this.messages = [];
     this.error = null;
+    codexChat.reset();
   }
 
   /**

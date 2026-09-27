@@ -23,7 +23,7 @@ export const MOD_LABEL = isMac() ? 'Cmd' : 'Ctrl';
 
 /**
  * Checks if the modifier key for the current platform is pressed.
- * @param {KeyboardEvent} e
+ * @param {KeyboardEvent | MouseEvent} e
  * @returns {boolean}
  */
 export function isMod(e) {

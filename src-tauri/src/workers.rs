@@ -53,6 +53,11 @@ const CLASSIFIER_HISTORY_TURNS: usize = 4;
 const CLASSIFIER_TURN_CHARS: usize = 300;
 /// Keeps a long open document from blowing past small local models' context windows.
 const MAX_DOCUMENT_CHARS: usize = 16_000;
+/// Tells the model what the codex block in front of an edit is for.
+const CODEX_EDIT_NOTE: &str = "Use the codex only to keep names and facts consistent. Don't add details from it that the text doesn't already have.";
+/// Room for codex sheets in one reply; see `codex_budget`.
+const CODEX_BUDGET_LOCAL: usize = 2_500;
+const CODEX_BUDGET_REMOTE: usize = 8_000;
 
 impl LlmEventService {
     /// Creates a new LLM event service.
@@ -252,6 +257,35 @@ async fn run_chat_worker(
             Intent::General => route.question.clone(),
         };
 
+        let user_message = if is_small_talk(&message) {
+            user_message
+        } else {
+            let content_dir = state.config.lock().await.content_directory.clone();
+            let codex_binder = document_title.and_then(binder_of).map(str::to_string);
+            let block = codex_context(
+                content_dir,
+                codex_binder,
+                &message,
+                &history,
+                document.as_ref().map(|(_, content)| content.as_str()),
+                &context,
+                codex_budget(&provider),
+                true,
+            )
+            .await;
+            app_handle
+                .emit(
+                    ChatEvents::Codex.as_str(),
+                    serde_json::json!({ "entities": codex_refs(&block) }),
+                )
+                .ok();
+            if block.text.is_empty() {
+                user_message
+            } else {
+                format!("{}\n\n{user_message}", block.text)
+            }
+        };
+
         match provider {
             ProviderKind::Local => {
                 let mut chat_session = model.run_chat(&model_id, &sys_prompt, app_handle.clone()).await.map_err(|e| e.to_string())?;
@@ -316,13 +350,33 @@ async fn run_chat_worker(
         };
         let prompt = prompt.lines().map(|s| s.trim()).collect::<Vec<_>>().join("\n");
 
-        let (model_id, provider, openrouter_model) = {
+        let (model_id, provider, openrouter_model, content_dir) = {
             let config = state.config.lock().await;
             (
                 config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
                 config.provider.clone(),
                 config.openrouter_model.clone(),
+                config.content_directory.clone(),
             )
+        };
+
+        // Sheets for whoever the passage names, so a rewrite keeps names and facts straight.
+        let codex_binder = context.document_title.as_deref().and_then(binder_of).map(str::to_string);
+        let block = codex_context(
+            content_dir,
+            codex_binder,
+            &message,
+            &[],
+            None,
+            &context,
+            codex_budget(&provider) / 2,
+            false,
+        )
+        .await;
+        let prompt = if block.text.is_empty() {
+            prompt
+        } else {
+            format!("{}\n{CODEX_EDIT_NOTE}\n\n{prompt}", block.text)
         };
 
         app_handle
@@ -739,6 +793,69 @@ fn build_document_message(title: &str, content: &str, question: &str) -> String 
         .replace("{document}", &document)
 }
 
+/// Characters of codex sheets a reply can carry. Local models have small context
+/// windows, so they get room for about two full sheets and a few summaries.
+fn codex_budget(provider: &ProviderKind) -> usize {
+    match provider {
+        ProviderKind::Local => CODEX_BUDGET_LOCAL,
+        ProviderKind::OpenRouter => CODEX_BUDGET_REMOTE,
+    }
+}
+
+/// The codex entries relevant to this reply, described for the model. Never
+/// fails: a codex that can't be read just means no sheets.
+async fn codex_context(
+    content_dir: std::path::PathBuf,
+    binder: Option<String>,
+    message: &str,
+    history: &[ChatTurn],
+    document: Option<&str>,
+    context: &ChatContext,
+    budget: usize,
+    use_pinned: bool,
+) -> crate::codex::ContextBlock {
+    let entities = tokio::task::spawn_blocking(move || {
+        crate::codex::list_entities(&content_dir, binder.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())
+    .and_then(|r| r);
+    let entities = match entities {
+        Ok(entities) if !entities.is_empty() => entities,
+        Ok(_) => return Default::default(),
+        Err(e) => {
+            eprintln!("Could not read the codex: {e}");
+            return Default::default();
+        }
+    };
+    let turns: Vec<String> = history.iter().map(|turn| turn.content.clone()).collect();
+    let sources = crate::codex::ContextSources {
+        message,
+        history: &turns,
+        document,
+        exclude: &context.codex_exclude,
+        pin: &context.codex_pin,
+        use_pinned,
+    };
+    crate::codex::build_context(&entities, &sources, budget)
+}
+
+/// The codex entries a reply was given, for showing under it.
+fn codex_refs(block: &crate::codex::ContextBlock) -> Vec<serde_json::Value> {
+    block
+        .used
+        .iter()
+        .map(|(entity, full)| {
+            serde_json::json!({
+                "name": entity.name,
+                "path": entity.path,
+                "kind": entity.kind,
+                "full": full,
+            })
+        })
+        .collect()
+}
+
 /// One entry per note (its best-scoring chunk), best first, capped for display.
 fn source_refs(results: &[SearchResult]) -> Vec<serde_json::Value> {
     let mut seen = std::collections::HashSet::new();
@@ -778,6 +895,42 @@ fn passage_refs(results: &[SearchResult]) -> Vec<serde_json::Value> {
             })
         })
         .collect()
+}
+
+/// One reply to one message, outside the chat: no streaming events, no history.
+/// Waits for the model if a chat reply is using it.
+pub async fn complete_once(app_handle: &AppHandle, system_prompt: &str, message: &str) -> Result<String, String> {
+    let state: tauri::State<crate::AppState> = app_handle.state();
+    let (model_id, provider, openrouter_model) = {
+        let config = state.config.lock().await;
+        (
+            config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
+            config.provider.clone(),
+            config.openrouter_model.clone(),
+        )
+    };
+    match provider {
+        ProviderKind::Local => {
+            let mut model = state.model.lock().await;
+            let mut chat = model
+                .run_chat(&model_id, system_prompt, app_handle.clone())
+                .await
+                .map_err(|e| e.to_string())?;
+            let mut stream = chat.add_message(message.to_string());
+            let mut reply = String::new();
+            while let Some(token) = stream.next().await {
+                reply.push_str(&token);
+            }
+            Ok(reply)
+        }
+        ProviderKind::OpenRouter => {
+            let api_key = openrouter_api_key()?;
+            let model_name = openrouter_model.unwrap_or_else(|| providers::DEFAULT_OPENROUTER_MODEL.to_string());
+            providers::chat_completion(&api_key, &model_name, system_prompt, message)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    }
 }
 
 /// Loads the OpenRouter API key from the OS keyring, mapping a missing key to a
@@ -873,6 +1026,9 @@ pub enum ChatEvents {
     Route,
     /// Distinct source notes (`title`, `score`) for a reply that searched notes.
     Sources,
+    /// Codex entries given to the model for this reply (`entities`: `name`, `path`,
+    /// `kind`, `full`); empty when none were.
+    Codex,
 
     Error,
 }
@@ -893,6 +1049,7 @@ impl ChatEvents {
 
             ChatEvents::Route => "chat-route",
             ChatEvents::Sources => "chat-sources",
+            ChatEvents::Codex => "chat-codex",
         }
     }
 }

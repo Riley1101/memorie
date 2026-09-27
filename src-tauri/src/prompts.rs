@@ -119,6 +119,23 @@ Output ONLY JSON: {"intent": "search_notes" | "current_document" | "general", "q
 No explanation, no markdown, no extra text.
 "#;
 
+/// System prompt for drafting a codex sheet from the passages that mention an entry.
+/// The user turn is built by `codex::draft_message`.
+pub const CODEX_DRAFT_PROMPT: &str = r#"
+You help a novelist keep reference sheets for the characters, places, groups and things in their story.
+You get one entry's current sheet, the fields left to fill, and passages from the story that mention it.
+
+Rules:
+1. Use only what the passages state or clearly show. Never invent details.
+2. If the passages don't say, leave that field as "".
+3. Keep each value short: a phrase or one or two sentences, in plain prose.
+4. Don't repeat what the sheet already says.
+
+Output ONLY JSON: {"summary": "string", "fields": {"<field>": "string", ...}}
+Include every field you were asked for, using "" where the passages are silent.
+No explanation, no markdown, no extra text.
+"#;
+
 /// User turn for a note search. `{context}` is filled with `<excerpt note="...">` blocks
 /// (or a no-match notice) and `{question}` with the user's message.
 pub const RAG_CHAT_PROMPT: &str = r#"

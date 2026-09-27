@@ -5,6 +5,8 @@
   import TextSearchIcon from '@lucide/svelte/icons/text-search';
   import FileOutputIcon from '@lucide/svelte/icons/file-output';
   import FileInputIcon from '@lucide/svelte/icons/file-input';
+  import BookUserIcon from '@lucide/svelte/icons/book-user';
+  import { openCodex } from '$lib/runes/codex.svelte.js';
   import * as Command from '$lib/components/ui/command/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
@@ -59,6 +61,12 @@
     } catch (e) {
       toast.error(`Could not create "${title}"`, e);
     }
+  }
+
+  function handleOpenCodex() {
+    const binder = appState.ui.activeBinder;
+    close();
+    openCodex({ binder });
   }
 
   function handleOpenSettings() {
@@ -160,6 +168,10 @@
       <Command.Item value="import word docx scrivener markdown obsidian rtf" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openImport({ dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <FileInputIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Import from Word, Scrivener, Markdown…</span>
+      </Command.Item>
+      <Command.Item value="codex characters locations factions items lore" onSelect={handleOpenCodex} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+        <BookUserIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+        <span>Open codex{appState.ui.activeBinder ? ` for ${appState.ui.activeBinder}` : ''}</span>
       </Command.Item>
       <Command.Item value="settings preferences" onSelect={handleOpenSettings} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <SettingsIcon strokeWidth={1.5} class="size-3.5 mr-2" />

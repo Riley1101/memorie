@@ -13,9 +13,11 @@ import {
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
 } from '@milkdown/kit/preset/commonmark';
-import { toggleStrikethroughCommand, insertTableCommand } from '@milkdown/kit/preset/gfm';
+import { toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm';
 import { mount, unmount } from 'svelte';
 import SlashMenu from './SlashMenu.svelte';
+import { editLink } from './link-popover.svelte.js';
+import { MOD_KEY } from '$lib/keyboard.svelte.js';
 import { fuzzyScore } from './fuzzy.js';
 
 /**
@@ -107,11 +109,11 @@ const items = [
     run: (ctx) => ctx.get(commandsCtx).call(createCodeBlockCommand.key),
   },
   {
-    id: 'table',
-    label: 'Table',
-    description: 'Insert a 3x3 table',
-    keywords: ['table', 'grid'],
-    run: (ctx) => ctx.get(commandsCtx).call(insertTableCommand.key),
+    id: 'link',
+    label: 'Link',
+    description: `Insert a link (${MOD_KEY}K links a selection)`,
+    keywords: ['link', 'url', 'href', 'web'],
+    run: (ctx) => editLink(ctx.get(editorViewCtx)),
   },
   {
     id: 'divider',

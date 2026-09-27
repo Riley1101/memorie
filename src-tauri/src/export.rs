@@ -6,8 +6,9 @@
 //! headings and documents. This module reads the documents and renders them.
 
 use docx_rs::{
-    AlignmentType, BreakType, Docx, LineSpacing, PageMargin, Paragraph, Run, RunFonts,
-    SpecialIndentType, Style, StyleType,
+    AlignmentType, BreakType, Docx, FieldCharType, Header, InstrPAGE, InstrText, LineSpacing,
+    PageMargin, Paragraph, Run, RunFonts, SpecialIndentType, Style, StyleType, TableOfContents,
+    TableOfContentsItem,
 };
 use epub_builder::{EpubBuilder, EpubContent, ZipLibrary};
 use pulldown_cmark::{html, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
@@ -74,9 +75,129 @@ pub struct ExportRequest {
     /// quote style in PDFs and the EPUB's language.
     #[serde(default)]
     pub lang: Option<String>,
+    /// Replaces each chapter's heading, e.g. "Chapter {n}: {title}". Tokens:
+    /// `{n}` (3), `{word}` (Three), `{roman}` (III), `{title}` (the folder or
+    /// writing name). Empty keeps headings as they are. See [`chapter_heading`].
+    #[serde(default)]
+    pub chapter_heading: String,
+    /// Writings whose scene status matches one of these (ignoring case) are
+    /// left out, e.g. "To Do". Folders left empty are dropped too.
+    #[serde(default)]
+    pub exclude_statuses: Vec<String>,
+    /// A contents page after the title page listing parts and chapters
+    /// (DOCX, PDF, EPUB).
+    #[serde(default)]
+    pub table_of_contents: bool,
+    /// "Surname / TITLE / page" at the top of every page but the title page,
+    /// as agents and editors expect in submissions (DOCX, PDF).
+    #[serde(default)]
+    pub running_head: bool,
+    /// Pages between the title page and the contents (copyright, dedication…).
+    #[serde(default)]
+    pub front_matter: Vec<MatterItem>,
+    /// Pages after the last chapter (acknowledgments, about the author…).
+    #[serde(default)]
+    pub back_matter: Vec<MatterItem>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MatterKind {
+    Copyright,
+    Dedication,
+    Epigraph,
+    Foreword,
+    Afterword,
+    Acknowledgments,
+    AboutTheAuthor,
+}
+
+/// How a page of front or back matter is laid out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MatterStyle {
+    /// Small print, e.g. the copyright page.
+    Small,
+    /// Centered and set lower on the page, e.g. a dedication.
+    Centered,
+    /// A heading over ordinary text.
+    Headed(&'static str),
+}
+
+impl MatterKind {
+    fn style(self) -> MatterStyle {
+        match self {
+            MatterKind::Copyright => MatterStyle::Small,
+            MatterKind::Dedication | MatterKind::Epigraph => MatterStyle::Centered,
+            MatterKind::Foreword => MatterStyle::Headed("Foreword"),
+            MatterKind::Afterword => MatterStyle::Headed("Afterword"),
+            MatterKind::Acknowledgments => MatterStyle::Headed("Acknowledgments"),
+            MatterKind::AboutTheAuthor => MatterStyle::Headed("About the Author"),
+        }
+    }
+
+    fn id(self) -> &'static str {
+        match self {
+            MatterKind::Copyright => "copyright",
+            MatterKind::Dedication => "dedication",
+            MatterKind::Epigraph => "epigraph",
+            MatterKind::Foreword => "foreword",
+            MatterKind::Afterword => "afterword",
+            MatterKind::Acknowledgments => "acknowledgments",
+            MatterKind::AboutTheAuthor => "about-the-author",
+        }
+    }
+
+    fn epub_reftype(self) -> epub_builder::ReferenceType {
+        use epub_builder::ReferenceType as R;
+        match self {
+            MatterKind::Copyright => R::Copyright,
+            MatterKind::Dedication => R::Dedication,
+            MatterKind::Epigraph => R::Epigraph,
+            MatterKind::Foreword => R::Foreword,
+            MatterKind::Afterword => R::Text,
+            MatterKind::Acknowledgments => R::Acknowledgements,
+            MatterKind::AboutTheAuthor => R::Colophon,
+        }
+    }
+}
+
+/// One page of front or back matter: Markdown typed in the export dialog, or
+/// a writing (`name`, content-relative) whose text is used instead.
+#[derive(Debug, Clone, Deserialize)]
+pub struct MatterItem {
+    pub kind: MatterKind,
+    #[serde(default)]
+    pub text: String,
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// A matter page ready to render; its Markdown has tokens filled in.
+#[derive(Debug, Clone)]
+struct Matter {
+    kind: MatterKind,
+    markdown: String,
+}
+
+impl Matter {
+    /// Its own headings sit below the page heading (or at level 2 without one).
+    fn body(&self) -> String {
+        demote_headings(self.markdown.trim(), 1)
+    }
 }
 
 impl ExportRequest {
+    /// The running head before the page number, e.g. "Writer / MY NOVEL",
+    /// or `None` when it is turned off.
+    fn running_head_text(&self) -> Option<String> {
+        if !self.running_head {
+            return None;
+        }
+        let surname = self.author.split_whitespace().last().unwrap_or("");
+        let title = self.title.trim().to_uppercase();
+        Some([surname, title.as_str()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" / "))
+    }
+
     /// The language code if it looks valid, else English.
     fn language(&self) -> &str {
         self.lang
@@ -97,7 +218,7 @@ enum Part {
     Heading { level: u8, text: String },
     /// `label` is the file name without extension, for tables of contents
     /// when the writing's title isn't printed.
-    Document { title: Option<String>, label: String, markdown: String },
+    Document { title: Option<String>, label: String, markdown: String, status: Option<String> },
 }
 
 /// Rejects names that could escape the content directory.
@@ -159,15 +280,222 @@ fn load_parts(content_dir: &Path, items: &[ExportItem]) -> Result<Vec<Part>, Str
                 let path = safe_join(content_dir, name)?;
                 let markdown = std::fs::read_to_string(&path)
                     .map_err(|e| format!("Could not read \"{name}\": {e}"))?;
+                let status = front_matter_value(&markdown, "status");
                 let markdown = strip_front_matter(&markdown).to_string();
                 let label = Path::new(name)
                     .file_stem()
                     .map(|s| s.to_string_lossy().into_owned())
                     .unwrap_or_default();
-                Ok(Part::Document { title: title.clone(), label, markdown })
+                Ok(Part::Document { title: title.clone(), label, markdown, status })
             }
         })
         .collect()
+}
+
+/// Front or back matter with `{year}`, `{author}` and `{title}` filled in.
+/// Pages that come out empty are skipped.
+fn load_matter(request: &ExportRequest, content_dir: &Path, items: &[MatterItem]) -> Result<Vec<Matter>, String> {
+    let year = chrono::Local::now().format("%Y").to_string();
+    let mut out = Vec::new();
+    for item in items {
+        let text = match item.name.as_deref().filter(|n| !n.is_empty()) {
+            Some(name) => {
+                let path = safe_join(content_dir, name)?;
+                let markdown = std::fs::read_to_string(&path)
+                    .map_err(|e| format!("Could not read \"{name}\": {e}"))?;
+                strip_front_matter(&markdown).to_string()
+            }
+            None => item.text.clone(),
+        };
+        let markdown = text
+            .replace("{year}", &year)
+            .replace("{author}", request.author.trim())
+            .replace("{title}", request.title.trim());
+        if !markdown.trim().is_empty() {
+            out.push(Matter { kind: item.kind, markdown });
+        }
+    }
+    Ok(out)
+}
+
+/// Everything a render needs, loaded.
+struct Book {
+    parts: Vec<Part>,
+    front: Vec<Matter>,
+    back: Vec<Matter>,
+}
+
+fn load_book(request: &ExportRequest, content_dir: &Path) -> Result<Book, String> {
+    Ok(Book {
+        parts: load_manuscript(request, content_dir)?,
+        front: load_matter(request, content_dir, &request.front_matter)?,
+        back: load_matter(request, content_dir, &request.back_matter)?,
+    })
+}
+
+/// The parts to render: loaded, filtered by status, with chapter headings applied.
+fn load_manuscript(request: &ExportRequest, content_dir: &Path) -> Result<Vec<Part>, String> {
+    let mut parts = load_parts(content_dir, &request.items)?;
+    let excluded: Vec<String> = request
+        .exclude_statuses
+        .iter()
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if !excluded.is_empty() {
+        parts.retain(|part| match part {
+            Part::Document { status: Some(status), .. } => !excluded.contains(&status.trim().to_lowercase()),
+            _ => true,
+        });
+        parts = drop_empty_headings(parts);
+        if !parts.iter().any(|p| matches!(p, Part::Document { .. })) {
+            return Err("Every writing was left out by the status filter.".into());
+        }
+    }
+    apply_chapter_headings(&request.chapter_heading, &mut parts);
+    Ok(parts)
+}
+
+/// The value of `key` in a writing's metadata block, unquoted, if set.
+fn front_matter_value(markdown: &str, key: &str) -> Option<String> {
+    let rest = strip_front_matter(markdown);
+    if rest.len() == markdown.len() {
+        return None;
+    }
+    let block = &markdown[..markdown.len() - rest.len()];
+    let raw = block.lines().find_map(|line| {
+        let (k, v) = line.split_once(':')?;
+        (k == key).then_some(v.trim())
+    })?;
+    let value = if raw.starts_with('"') {
+        serde_json::from_str::<String>(raw).unwrap_or_else(|_| raw.trim_matches('"').to_string())
+    } else if raw.len() >= 2 && raw.starts_with('\'') && raw.ends_with('\'') {
+        raw[1..raw.len() - 1].replace("''", "'")
+    } else {
+        raw.to_string()
+    };
+    Some(value).filter(|v| !v.trim().is_empty())
+}
+
+/// Index just past the section a heading at `i` opens: up to the next heading
+/// at the same level or above.
+fn section_end(parts: &[Part], i: usize, level: u8) -> usize {
+    parts[i + 1..]
+        .iter()
+        .position(|p| matches!(p, Part::Heading { level: l, .. } if *l <= level))
+        .map_or(parts.len(), |offset| i + 1 + offset)
+}
+
+/// Removes headings whose section has no writings left in it.
+fn drop_empty_headings(parts: Vec<Part>) -> Vec<Part> {
+    let keep: Vec<bool> = (0..parts.len())
+        .map(|i| match &parts[i] {
+            Part::Heading { level, .. } => parts[i + 1..section_end(&parts, i, *level)]
+                .iter()
+                .any(|p| matches!(p, Part::Document { .. })),
+            Part::Document { .. } => true,
+        })
+        .collect();
+    parts.into_iter().zip(keep).filter_map(|(p, k)| k.then_some(p)).collect()
+}
+
+/// Rewrites chapter headings from `template`. Chapters are the innermost
+/// folders (those with no folders inside), numbered through the whole book,
+/// so parts stay as they are. With no folders at all, every writing is a chapter.
+fn apply_chapter_headings(template: &str, parts: &mut [Part]) {
+    if template.trim().is_empty() {
+        return;
+    }
+    let has_headings = parts.iter().any(|p| matches!(p, Part::Heading { .. }));
+    let mut n = 0;
+    for i in 0..parts.len() {
+        let is_chapter = match &parts[i] {
+            Part::Heading { level, .. } => !parts[i + 1..section_end(parts, i, *level)]
+                .iter()
+                .any(|p| matches!(p, Part::Heading { .. })),
+            Part::Document { .. } => !has_headings,
+        };
+        if !is_chapter {
+            continue;
+        }
+        n += 1;
+        match &mut parts[i] {
+            Part::Heading { text, .. } => *text = chapter_heading(template, n, text),
+            Part::Document { title, label, .. } => {
+                let name = title.as_deref().filter(|t| !t.trim().is_empty()).unwrap_or(label);
+                *title = Some(chapter_heading(template, n, name));
+            }
+        }
+    }
+}
+
+/// Entries for a table of contents as (level, text): the folder headings, or
+/// every writing's title when there are no folders. Levels are the heading
+/// levels the entries get in the compiled body (with no book title above).
+fn toc_entries(parts: &[Part]) -> Vec<(usize, String)> {
+    let headings: Vec<(usize, String)> = parts
+        .iter()
+        .filter_map(|p| match p {
+            Part::Heading { level, text } => Some((*level as usize, text.clone())),
+            Part::Document { .. } => None,
+        })
+        .collect();
+    if !headings.is_empty() {
+        return headings;
+    }
+    parts
+        .iter()
+        .filter_map(|p| match p {
+            Part::Document { title: Some(title), .. } if !title.trim().is_empty() => Some((1, title.trim().to_string())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Fills in a chapter heading template. Falls back to `name` if the result is blank.
+fn chapter_heading(template: &str, n: usize, name: &str) -> String {
+    let heading = template
+        .replace("{n}", &n.to_string())
+        .replace("{word}", &number_word(n))
+        .replace("{roman}", &roman(n))
+        .replace("{title}", name.trim());
+    let heading = heading.trim();
+    if heading.is_empty() { name.to_string() } else { heading.to_string() }
+}
+
+/// "One" to "Ninety-Nine", then digits.
+fn number_word(n: usize) -> String {
+    const ONES: [&str; 20] = [
+        "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven",
+        "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+    ];
+    const TENS: [&str; 10] =
+        ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    match n {
+        0..=19 => ONES[n].to_string(),
+        20..=99 if n % 10 == 0 => TENS[n / 10].to_string(),
+        20..=99 => format!("{}-{}", TENS[n / 10], ONES[n % 10]),
+        _ => n.to_string(),
+    }
+}
+
+/// Roman numerals up to 3999, then digits.
+fn roman(mut n: usize) -> String {
+    if n == 0 || n > 3999 {
+        return n.to_string();
+    }
+    const NUMERALS: [(usize, &str); 13] = [
+        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"),
+        (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+    ];
+    let mut out = String::new();
+    for (value, numeral) in NUMERALS {
+        while n >= value {
+            out.push_str(numeral);
+            n -= value;
+        }
+    }
+    out
 }
 
 /// Markdown for a whole compile: headings become Markdown headings, writings
@@ -211,6 +539,31 @@ fn compile_markdown(request: &ExportRequest, parts: &[Part]) -> String {
         }
     }
     out
+}
+
+/// The whole book as one Markdown file, matter included.
+fn compile_book_markdown(request: &ExportRequest, book: &Book) -> String {
+    let full = compile_markdown(request, &book.parts);
+    // compile_markdown starts with the title block; matter goes right after it.
+    let title_block = compile_markdown(request, &[]);
+    let body = full.strip_prefix(title_block.as_str()).unwrap_or(&full);
+    let level = if request.title.trim().is_empty() { 1 } else { 2 };
+    let matter = |pages: &[Matter]| -> String {
+        pages
+            .iter()
+            .map(|m| {
+                let body = demote_headings(m.markdown.trim(), level);
+                match m.kind.style() {
+                    MatterStyle::Headed(heading) => format!("{} {heading}\n\n{}\n\n", "#".repeat(level), body.trim()),
+                    _ => format!("{}\n\n", body.trim()),
+                }
+            })
+            .collect()
+    };
+    format!("{title_block}{}{body}{}", matter(&book.front), matter(&book.back))
+        .trim_end()
+        .to_string()
+        + "\n"
 }
 
 /// Folder names and titles are plain text; keep Markdown from reading them as syntax.
@@ -330,6 +683,10 @@ blockquote { margin: 1em 2em; font-style: italic; }
 pre, code { font-family: Menlo, Consolas, monospace; font-size: 0.85em; }
 table { border-collapse: collapse; }
 td, th { border: 1px solid #999; padding: 0.25em 0.5em; }
+section.matter { margin: 3em 0; }
+.matter-small { font-size: 0.85em; }
+.matter-centered { text-align: center; font-style: italic; margin-top: 25vh; }
+h2.matter-heading { text-align: center; }
 "#;
 
 const PRINT_CSS: &str = r#"
@@ -342,10 +699,9 @@ const PRINT_CSS: &str = r#"
 "#;
 
 /// One standalone HTML page for the whole manuscript. Also what gets printed to PDF.
-pub fn render_html(request: &ExportRequest, content_dir: &Path) -> Result<String, String> {
-    let parts = load_parts(content_dir, &request.items)?;
+fn render_html(request: &ExportRequest, book: &Book) -> String {
     let body_request = ExportRequest { title: String::new(), author: String::new(), ..request.clone() };
-    let mut body = markdown_to_html(&compile_markdown(&body_request, &parts));
+    let mut body = markdown_to_html(&compile_markdown(&body_request, &book.parts));
 
     if request.chapter_page_breaks {
         body = body.replace("<h1>", "<h1 class=\"page-break\">");
@@ -363,10 +719,30 @@ pub fn render_html(request: &ExportRequest, content_dir: &Path) -> Result<String
         }
         front.push_str("<div class=\"page-break\"></div>\n");
     }
+    for m in &book.front {
+        front.push_str(&matter_html(m));
+    }
+    for m in &book.back {
+        body.push_str(&matter_html(m));
+    }
 
-    Ok(format!(
+    format!(
         "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>{title}</title>\n<style>{BOOK_CSS}{PRINT_CSS}</style>\n</head>\n<body>\n{front}{body}</body>\n</html>\n"
-    ))
+    )
+}
+
+/// A matter page as its own section, starting a new page in print.
+fn matter_html(m: &Matter) -> String {
+    let (class, heading) = match m.kind.style() {
+        MatterStyle::Small => (" matter-small", String::new()),
+        MatterStyle::Centered => (" matter-centered", String::new()),
+        MatterStyle::Headed(h) => ("", format!("<h2 class=\"matter-heading\">{}</h2>\n", html_escape(h))),
+    };
+    format!(
+        "<section class=\"matter matter-{}{class} page-break\">\n{heading}{}</section>\n",
+        m.kind.id(),
+        markdown_to_html(&m.body())
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -430,7 +806,7 @@ fn xhtml_page(title: &str, body: &str) -> String {
     )
 }
 
-fn render_epub(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, String> {
+fn render_epub(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> {
     let err = |e: epub_builder::Error| format!("EPUB error: {e}");
     let mut builder = EpubBuilder::new(ZipLibrary::new().map_err(err)?).map_err(err)?;
     builder.epub_version(epub_builder::EpubVersion::V30);
@@ -442,6 +818,7 @@ fn render_epub(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, Strin
     builder.set_generator("Memorie");
     builder.set_languages(vec![request.language().to_string()]);
     builder.stylesheet(BOOK_CSS.as_bytes()).map_err(err)?;
+    builder.set_toc_name("Contents");
 
     let mut title_page = format!("<h1 class=\"book-title\">{}</h1>\n", html_escape(title));
     if !request.author.trim().is_empty() {
@@ -454,8 +831,31 @@ fn render_epub(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, Strin
                 .reftype(epub_builder::ReferenceType::TitlePage),
         )
         .map_err(err)?;
+    let add_matter = |builder: &mut EpubBuilder<ZipLibrary>, place: &str, pages: &[Matter]| {
+        for (i, m) in pages.iter().enumerate() {
+            // Only headed pages get a title, and so an entry in the contents.
+            let title = match m.kind.style() {
+                MatterStyle::Headed(h) => h,
+                _ => "",
+            };
+            let page = xhtml_page(if title.is_empty() { m.kind.id() } else { title }, &matter_html(m));
+            builder
+                .add_content(
+                    EpubContent::new(format!("{place}_{:02}_{}.xhtml", i + 1, m.kind.id()), page.as_bytes())
+                        .title(title)
+                        .reftype(m.kind.epub_reftype()),
+                )
+                .map_err(err)?;
+        }
+        Ok::<_, String>(())
+    };
+    add_matter(&mut builder, "front", &book.front)?;
+    // Goes where it's called: after the title page and front matter.
+    if request.table_of_contents {
+        builder.inline_toc();
+    }
 
-    for (i, chapter) in epub_chapters(request, parts).iter().enumerate() {
+    for (i, chapter) in epub_chapters(request, &book.parts).iter().enumerate() {
         let body = markdown_to_html(&chapter.markdown);
         let page = xhtml_page(&chapter.title, &body);
         builder
@@ -466,6 +866,7 @@ fn render_epub(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, Strin
             )
             .map_err(err)?;
     }
+    add_matter(&mut builder, "back", &book.back)?;
 
     let mut out = Vec::new();
     builder.generate(&mut out).map_err(err)?;
@@ -499,6 +900,8 @@ struct DocxWriter {
     code_block: String,
     /// The first top-level heading doesn't need a page break before it.
     seen_top_heading: bool,
+    /// Set while writing a page of front or back matter.
+    matter: Option<MatterStyle>,
 }
 
 /// Twentieths of a point, the unit DOCX uses for spacing and indents.
@@ -547,12 +950,18 @@ impl DocxWriter {
             in_code_block: false,
             code_block: String::new(),
             seen_top_heading: false,
+            matter: None,
         }
     }
 
     fn body_paragraph(&self) -> Paragraph {
         let mut p = Paragraph::new();
-        if self.manuscript {
+        if matches!(self.matter, Some(MatterStyle::Small | MatterStyle::Centered)) {
+            p = p.line_spacing(LineSpacing::new().after(160));
+            if self.matter == Some(MatterStyle::Centered) {
+                p = p.align(AlignmentType::Center);
+            }
+        } else if self.manuscript {
             // Double spaced, half-inch first line indent, no gap between paragraphs.
             p = p
                 .line_spacing(LineSpacing::new().line(480).after(0))
@@ -576,6 +985,11 @@ impl DocxWriter {
         }
         if self.marks.code {
             run = run.fonts(RunFonts::new().ascii("Courier New").hi_ansi("Courier New"));
+        }
+        match self.matter {
+            Some(MatterStyle::Small) => run = run.size(20),
+            Some(MatterStyle::Centered) => run = run.italic(),
+            _ => {}
         }
         run
     }
@@ -625,6 +1039,30 @@ impl DocxWriter {
         self.flush_paragraph();
         let p = Paragraph::new().add_run(Run::new().add_break(BreakType::Page));
         self.docx = std::mem::take(&mut self.docx).add_paragraph(p);
+    }
+
+    /// One page of front or back matter. The caller breaks the page.
+    fn write_matter(&mut self, m: &Matter) {
+        let style = m.kind.style();
+        match style {
+            MatterStyle::Headed(heading) => {
+                let p = Paragraph::new()
+                    .align(AlignmentType::Center)
+                    .keep_next(true)
+                    .line_spacing(LineSpacing::new().before(TWIPS_PER_INCH as u32).after(480))
+                    .add_run(Run::new().add_text(heading).size(40));
+                self.docx = std::mem::take(&mut self.docx).add_paragraph(p);
+            }
+            MatterStyle::Centered => {
+                // Set a third of the way down the page.
+                let p = Paragraph::new().line_spacing(LineSpacing::new().before(TWIPS_PER_INCH as u32 * 2));
+                self.docx = std::mem::take(&mut self.docx).add_paragraph(p);
+            }
+            MatterStyle::Small => {}
+        }
+        self.matter = Some(style);
+        self.write_markdown(&m.body());
+        self.matter = None;
     }
 
     fn write_markdown(&mut self, markdown: &str) {
@@ -759,7 +1197,8 @@ fn heading_number(level: HeadingLevel) -> usize {
     }
 }
 
-fn render_docx(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, String> {
+fn render_docx(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> {
+    let parts = &book.parts;
     let mut writer = DocxWriter::new(request.manuscript_format, request.chapter_page_breaks);
 
     let title = request.title.trim();
@@ -781,8 +1220,58 @@ fn render_docx(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, Strin
         writer.page_break();
     }
 
+    for m in &book.front {
+        writer.write_matter(m);
+        writer.page_break();
+    }
+
+    let entries = toc_entries(parts);
+    if request.table_of_contents && !entries.is_empty() {
+        let depth = entries.iter().map(|(level, _)| *level).max().unwrap_or(1);
+        // Word fills in page numbers when it opens the file (the field is
+        // marked dirty); other apps show the titles as they are.
+        let mut toc = TableOfContents::new()
+            .heading_styles_range(1, depth)
+            .alias("Table of contents")
+            .dirty()
+            .add_before_paragraph(
+                Paragraph::new()
+                    .align(AlignmentType::Center)
+                    .line_spacing(LineSpacing::new().after(480))
+                    .add_run(Run::new().add_text("Contents").size(32)),
+            );
+        for (level, text) in &entries {
+            toc = toc.add_item(TableOfContentsItem::new().text(text).level(*level).page_ref(""));
+        }
+        writer.docx = std::mem::take(&mut writer.docx).add_table_of_contents(toc);
+        writer.page_break();
+    }
+
+    if let Some(head) = request.running_head_text() {
+        let mut run = Run::new();
+        if !head.is_empty() {
+            run = run.add_text(format!("{head} / "));
+        }
+        let run = run
+            .add_field_char(FieldCharType::Begin, false)
+            .add_instr_text(InstrText::PAGE(InstrPAGE::new()))
+            .add_field_char(FieldCharType::Separate, false)
+            .add_text("1")
+            .add_field_char(FieldCharType::End, false);
+        let header = Header::new().add_paragraph(Paragraph::new().align(AlignmentType::Right).add_run(run));
+        writer.docx = std::mem::take(&mut writer.docx).header(header);
+        if !title.is_empty() {
+            // Nothing on the title page.
+            writer.docx = std::mem::take(&mut writer.docx).first_header(Header::new());
+        }
+    }
+
     let body_request = ExportRequest { title: String::new(), author: String::new(), ..request.clone() };
     writer.write_markdown(&compile_markdown(&body_request, parts));
+    for m in &book.back {
+        writer.page_break();
+        writer.write_matter(m);
+    }
 
     let mut out = std::io::Cursor::new(Vec::new());
     writer
@@ -797,10 +1286,15 @@ fn render_docx(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, Strin
 // PDF
 // ---------------------------------------------------------------------------
 
-fn render_pdf(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, String> {
+fn render_pdf(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> {
+    let parts = &book.parts;
     let body_request = ExportRequest { title: String::new(), author: String::new(), ..request.clone() };
     let markdown = compile_markdown(&body_request, parts);
-    let body = crate::pdf::events_to_typst(clean_events(&markdown));
+    let mut body = crate::pdf::events_to_typst(clean_events(&markdown));
+    for m in &book.back {
+        body.push_str(&matter_typst(m));
+    }
+    let front: String = book.front.iter().map(matter_typst).collect();
     let layout = crate::pdf::PdfLayout {
         title: request.title.trim(),
         author: request.author.trim(),
@@ -808,8 +1302,32 @@ fn render_pdf(request: &ExportRequest, parts: &[Part]) -> Result<Vec<u8>, String
         manuscript: request.manuscript_format,
         chapter_page_breaks: request.chapter_page_breaks,
         lang: request.language(),
+        toc_depth: request
+            .table_of_contents
+            .then(|| toc_entries(parts).iter().map(|(level, _)| *level).max())
+            .flatten(),
+        running_head: request.running_head_text(),
+        front: &front,
     };
     crate::pdf::typeset(&layout, &body)
+}
+
+/// A matter page in Typst. Small and centered pages go without running head
+/// or page number, as in print.
+fn matter_typst(m: &Matter) -> String {
+    let body = crate::pdf::events_to_typst(clean_events(&m.body()));
+    match m.kind.style() {
+        MatterStyle::Small => format!(
+            "#page(header: none, footer: none)[#v(1fr)\n#set text(size: 0.85em)\n#set par(first-line-indent: 0em, justify: false)\n{body}]\n\n"
+        ),
+        MatterStyle::Centered => format!(
+            "#page(header: none, footer: none)[#v(25%)\n#set align(center)\n#set text(style: \"italic\")\n#set par(first-line-indent: 0em, justify: false)\n{body}]\n\n"
+        ),
+        MatterStyle::Headed(heading) => format!(
+            "#pagebreak(weak: true)\n#align(center, text(size: 1.6em)[{}])\n#v(1.5em)\n{body}\n#pagebreak(weak: true)\n\n",
+            crate::pdf::escape_text(heading)
+        ),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -839,17 +1357,49 @@ fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
         .expect("unbounded range always finds a free name")
 }
 
+/// Per-binder compile settings live in `<binder>/.compile.json`, so they move
+/// and sync with the binder. Hidden files stay out of the binder tree and index.
+const COMPILE_SETTINGS_FILE: &str = ".compile.json";
+
+fn compile_settings_path(content_dir: &Path, binder: &str) -> Result<PathBuf, String> {
+    if binder.is_empty() || binder.contains(['/', '\\']) {
+        return Err(format!("Invalid binder: {binder}"));
+    }
+    Ok(safe_join(content_dir, binder)?.join(COMPILE_SETTINGS_FILE))
+}
+
+/// The binder's saved settings as JSON, or `None` if it has none yet.
+pub fn read_compile_settings(content_dir: &Path, binder: &str) -> Result<Option<String>, String> {
+    let path = compile_settings_path(content_dir, binder)?;
+    match std::fs::read_to_string(&path) {
+        Ok(json) => Ok(Some(json)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("Could not read {}: {e}", path.display())),
+    }
+}
+
+/// Saves the binder's settings. `settings` must be a JSON object.
+pub fn write_compile_settings(content_dir: &Path, binder: &str, settings: &serde_json::Value) -> Result<(), String> {
+    if !settings.is_object() {
+        return Err("Compile settings must be an object".into());
+    }
+    let path = compile_settings_path(content_dir, binder)?;
+    if !path.parent().is_some_and(Path::is_dir) {
+        return Err(format!("No binder named \"{binder}\""));
+    }
+    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json + "\n").map_err(|e| format!("Could not write {}: {e}", path.display()))
+}
+
 /// Renders the manuscript and writes it to `out_dir`. Returns the file written.
 pub fn export(request: &ExportRequest, content_dir: &Path, out_dir: &Path) -> Result<PathBuf, String> {
+    let book = load_book(request, content_dir)?;
     let bytes = match request.format {
-        ExportFormat::Html => render_html(request, content_dir)?.into_bytes(),
-        ExportFormat::Markdown => {
-            let parts = load_parts(content_dir, &request.items)?;
-            compile_markdown(request, &parts).into_bytes()
-        }
-        ExportFormat::Docx => render_docx(request, &load_parts(content_dir, &request.items)?)?,
-        ExportFormat::Epub => render_epub(request, &load_parts(content_dir, &request.items)?)?,
-        ExportFormat::Pdf => render_pdf(request, &load_parts(content_dir, &request.items)?)?,
+        ExportFormat::Html => render_html(request, &book).into_bytes(),
+        ExportFormat::Markdown => compile_book_markdown(request, &book).into_bytes(),
+        ExportFormat::Docx => render_docx(request, &book)?,
+        ExportFormat::Epub => render_epub(request, &book)?,
+        ExportFormat::Pdf => render_pdf(request, &book)?,
     };
 
     std::fs::create_dir_all(out_dir).map_err(|e| format!("Could not create {}: {e}", out_dir.display()))?;
@@ -874,6 +1424,12 @@ mod tests {
             chapter_page_breaks: true,
             page_size: Default::default(),
             lang: None,
+            chapter_heading: String::new(),
+            exclude_statuses: Vec::new(),
+            table_of_contents: false,
+            running_head: false,
+            front_matter: Vec::new(),
+            back_matter: Vec::new(),
         }
     }
 
@@ -910,7 +1466,7 @@ mod tests {
     fn html_drops_internal_links_and_escapes_raw_html() {
         let dir = tempdir().unwrap();
         let req = request(ExportFormat::Html, sample(dir.path()));
-        let html = render_html(&req, dir.path()).unwrap();
+        let html = render_html(&req, &load_book(&req, dir.path()).unwrap());
         assert!(!html.contains("#writing/"));
         assert!(html.contains("Scene 2"));
         assert!(html.contains("&lt;b&gt;raw"));
@@ -979,6 +1535,196 @@ mod tests {
         let md = compile_markdown(&req, &parts);
         assert!(md.starts_with("# Part \\*One\\* \\<draft\\>"), "{md}");
         assert!(md.contains("## Scene heading"), "{md}");
+    }
+
+    fn headings(parts: &[Part]) -> Vec<String> {
+        parts
+            .iter()
+            .filter_map(|p| match p {
+                Part::Heading { text, .. } => Some(text.clone()),
+                Part::Document { title, .. } => title.clone(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn chapter_headings_number_innermost_folders() {
+        let dir = tempdir().unwrap();
+        for f in ["a.md", "b.md", "c.md"] {
+            std::fs::write(dir.path().join(f), "Text").unwrap();
+        }
+        let doc = |n: &str| ExportItem::Document { name: n.into(), title: None };
+        let items = vec![
+            ExportItem::Heading { level: 1, text: "Part One".into() },
+            ExportItem::Heading { level: 2, text: "Arrival".into() },
+            doc("a.md"),
+            ExportItem::Heading { level: 2, text: "Storm".into() },
+            doc("b.md"),
+            ExportItem::Heading { level: 1, text: "Part Two".into() },
+            ExportItem::Heading { level: 2, text: "After".into() },
+            doc("c.md"),
+        ];
+        let req = ExportRequest {
+            chapter_heading: "Chapter {word} ({roman}): {title}".into(),
+            ..request(ExportFormat::Markdown, items)
+        };
+        let parts = load_manuscript(&req, dir.path()).unwrap();
+        assert_eq!(
+            headings(&parts),
+            ["Part One", "Chapter One (I): Arrival", "Chapter Two (II): Storm", "Part Two", "Chapter Three (III): After"]
+        );
+    }
+
+    #[test]
+    fn chapter_headings_without_folders_use_writings() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("Opening.md"), "Text").unwrap();
+        std::fs::write(dir.path().join("b.md"), "Text").unwrap();
+        let items = vec![
+            ExportItem::Document { name: "Opening.md".into(), title: None },
+            ExportItem::Document { name: "b.md".into(), title: Some("The Road".into()) },
+        ];
+        let req = ExportRequest { chapter_heading: "{n}. {title}".into(), ..request(ExportFormat::Markdown, items) };
+        let parts = load_manuscript(&req, dir.path()).unwrap();
+        assert_eq!(headings(&parts), ["1. Opening", "2. The Road"]);
+    }
+
+    #[test]
+    fn status_filter_drops_writings_and_empty_folders() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("a.md"), "---\nstatus: \"Done\"\n---\nKeep").unwrap();
+        std::fs::write(dir.path().join("b.md"), "---\nsynopsis: x\nstatus: to do\n---\nSkip").unwrap();
+        std::fs::write(dir.path().join("c.md"), "No metadata").unwrap();
+        let items = vec![
+            ExportItem::Heading { level: 1, text: "One".into() },
+            ExportItem::Document { name: "a.md".into(), title: None },
+            ExportItem::Heading { level: 1, text: "Two".into() },
+            ExportItem::Heading { level: 2, text: "Inner".into() },
+            ExportItem::Document { name: "b.md".into(), title: None },
+            ExportItem::Heading { level: 1, text: "Three".into() },
+            ExportItem::Document { name: "c.md".into(), title: None },
+        ];
+        let req = ExportRequest {
+            exclude_statuses: vec!["To Do".into()],
+            chapter_heading: "Chapter {n}".into(),
+            ..request(ExportFormat::Markdown, items)
+        };
+        let parts = load_manuscript(&req, dir.path()).unwrap();
+        assert_eq!(headings(&parts), ["Chapter 1", "Chapter 2"]);
+        let md = compile_markdown(&req, &parts);
+        assert!(md.contains("Keep") && md.contains("No metadata") && !md.contains("Skip"), "{md}");
+
+        let all_out = ExportRequest { exclude_statuses: vec!["done".into(), "to do".into()], ..req.clone() };
+        let only_meta = ExportRequest {
+            items: all_out.items[..5].to_vec(),
+            ..all_out
+        };
+        assert!(load_manuscript(&only_meta, dir.path()).is_err());
+    }
+
+    #[test]
+    fn number_formats() {
+        assert_eq!(number_word(21), "Twenty-One");
+        assert_eq!(number_word(40), "Forty");
+        assert_eq!(number_word(120), "120");
+        assert_eq!(roman(1994), "MCMXCIV");
+        assert_eq!(front_matter_value("---\nstatus: 'It''s done'\n---\nx", "status").as_deref(), Some("It's done"));
+        assert_eq!(front_matter_value("No block", "status"), None);
+    }
+
+    fn unzip(bytes: &[u8], name: &str) -> String {
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let mut file = archive.by_name(name).unwrap();
+        let mut out = String::new();
+        std::io::Read::read_to_string(&mut file, &mut out).unwrap();
+        out
+    }
+
+    #[test]
+    fn contents_and_running_heads() {
+        let dir = tempdir().unwrap();
+        let items = sample(dir.path());
+        let req = ExportRequest {
+            table_of_contents: true,
+            running_head: true,
+            author: "Ann Writer".into(),
+            ..request(ExportFormat::Docx, items)
+        };
+        assert_eq!(req.running_head_text().as_deref(), Some("Writer / MY NOVEL"));
+        let book = load_book(&req, dir.path()).unwrap();
+
+        let docx = render_docx(&req, &book).unwrap();
+        let document = unzip(&docx, "word/document.xml");
+        assert!(document.contains("TOC \\o &quot;1-1&quot;") || document.contains("TOC \\o \"1-1\""), "{document}");
+        assert!(document.contains("titlePg"), "title page should have no header");
+        let headers: String = (1..=2).map(|i| unzip(&docx, &format!("word/header{i}.xml"))).collect();
+        assert!(headers.contains("Writer / MY NOVEL / ") && headers.contains("PAGE"), "{headers}");
+
+        let epub = render_epub(&ExportRequest { format: ExportFormat::Epub, ..req.clone() }, &book).unwrap();
+        assert!(unzip(&epub, "OEBPS/toc.xhtml").contains("Chapter 1"));
+
+        let pdf = render_pdf(&ExportRequest { format: ExportFormat::Pdf, ..req }, &book).unwrap();
+        assert_eq!(&pdf[..4], b"%PDF");
+    }
+
+    #[test]
+    fn front_and_back_matter() {
+        let dir = tempdir().unwrap();
+        let items = sample(dir.path());
+        std::fs::write(dir.path().join("Thanks.md"), "---\nstatus: Done\n---\nThank you, {author}.").unwrap();
+        let text = |kind, text: &str| MatterItem { kind, text: text.into(), name: None };
+        let req = ExportRequest {
+            table_of_contents: true,
+            front_matter: vec![
+                text(MatterKind::Copyright, "Copyright © {year} {author}"),
+                text(MatterKind::Dedication, "For *Sam*"),
+                text(MatterKind::Epigraph, "   "),
+            ],
+            back_matter: vec![MatterItem { kind: MatterKind::Acknowledgments, text: String::new(), name: Some("Thanks.md".into()) }],
+            ..request(ExportFormat::Markdown, items)
+        };
+        let book = load_book(&req, dir.path()).unwrap();
+        assert_eq!(book.front.len(), 2, "empty pages are skipped");
+        let year = chrono::Local::now().format("%Y").to_string();
+
+        let md = compile_book_markdown(&req, &book);
+        let copyright = md.find(&format!("Copyright © {year} A. Writer")).unwrap();
+        let dedication = md.find("For *Sam*").unwrap();
+        let chapter = md.find("## Chapter 1").unwrap();
+        let thanks = md.find("## Acknowledgments\n\nThank you, A. Writer.").unwrap();
+        assert!(md.starts_with("# My Novel") && copyright < dedication && dedication < chapter && chapter < thanks, "{md}");
+        assert!(!md.contains("status:"));
+
+        let html = render_html(&req, &book);
+        assert!(html.contains("matter-dedication matter-centered page-break"), "{html}");
+        assert!(html.contains("<h2 class=\"matter-heading\">Acknowledgments</h2>"));
+
+        let docx = render_docx(&req, &book).unwrap();
+        let document = unzip(&docx, "word/document.xml");
+        let (c, t, a) = (document.find("Copyright ©").unwrap(), document.find("TOC").unwrap(), document.find("Acknowledgments").unwrap());
+        assert!(c < t && t < a, "front matter before contents, back matter at the end");
+
+        let epub = render_epub(&req, &book).unwrap();
+        let nav = unzip(&epub, "OEBPS/toc.xhtml");
+        assert!(nav.contains("Acknowledgments") && !nav.contains("copyright"), "{nav}");
+        assert!(unzip(&epub, "OEBPS/front_02_dedication.xhtml").contains("Sam"));
+
+        let pdf = render_pdf(&req, &book).unwrap();
+        assert_eq!(&pdf[..4], b"%PDF");
+    }
+
+    #[test]
+    fn compile_settings_round_trip() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("Novel")).unwrap();
+        assert_eq!(read_compile_settings(dir.path(), "Novel").unwrap(), None);
+        let settings = serde_json::json!({ "version": 1, "excluded": ["Notes"] });
+        write_compile_settings(dir.path(), "Novel", &settings).unwrap();
+        let back: serde_json::Value = serde_json::from_str(&read_compile_settings(dir.path(), "Novel").unwrap().unwrap()).unwrap();
+        assert_eq!(back, settings);
+        assert!(write_compile_settings(dir.path(), "Missing", &settings).is_err());
+        assert!(write_compile_settings(dir.path(), "../x", &settings).is_err());
+        assert!(write_compile_settings(dir.path(), "Novel", &serde_json::json!([1])).is_err());
     }
 
     #[test]

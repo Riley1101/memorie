@@ -252,7 +252,13 @@ pub async fn chat_completion_json<T: for<'de> Deserialize<'de>>(
     message: &str,
 ) -> Result<T, ProviderError> {
     let raw = chat_completion(api_key, model, system_prompt, message).await?;
-    let candidate = strip_code_fence(&raw);
+    parse_json_reply(&raw)
+}
+
+/// Reads a JSON object out of a model's reply, tolerating a code fence or a
+/// sentence before it.
+pub fn parse_json_reply<T: for<'de> Deserialize<'de>>(raw: &str) -> Result<T, ProviderError> {
+    let candidate = strip_code_fence(raw);
 
     if let Ok(v) = serde_json::from_str(candidate) {
         return Ok(v);

@@ -21,6 +21,10 @@
   import { configManager } from "@/runes/config.svelte.js";
   import { toast } from "$lib/toast.js";
   import SearchThoughts from "$lib/components/search-thoughts.svelte";
+  import BookUserIcon from "@lucide/svelte/icons/book-user";
+  import PinIcon from "@lucide/svelte/icons/pin";
+  import XIcon from "@lucide/svelte/icons/x";
+  import { codexChat, openCodexEntry, isCodexPath } from "$lib/runes/codex.svelte.js";
 
   let messages = $derived(llmManager.messages);
   let isBusy = $derived(llmManager.isLoading);
@@ -79,6 +83,8 @@
   }
 
   function openNote(title) {
+    // Codex entries turn up in note searches too; they open as sheets.
+    if (isCodexPath(title)) return openCodexEntry(title);
     goto(resolve(`/${encodeURIComponent(title)}`));
   }
 
@@ -192,6 +198,54 @@
             <div class="flex items-center gap-1.5 text-xs text-muted-foreground/70 font-sans">
               <FileText strokeWidth={1.5} class="size-3" />
               <span class="truncate">Read “{noteLabel(message.route.documentTitle)}”</span>
+            </div>
+          {/if}
+
+          {#if message.role === "assistant" && message.codex?.length}
+            <div class="flex flex-wrap items-center gap-1.5 font-sans" aria-label="Codex entries used">
+              <span class="flex items-center gap-1 text-xs text-muted-foreground/70 mr-0.5">
+                <BookUserIcon strokeWidth={1.5} class="size-3" />
+                Using
+              </span>
+              {#each message.codex as ref (ref.path)}
+                {@const excluded = codexChat.exclude.includes(ref.name)}
+                {@const pinned = codexChat.pin.includes(ref.name)}
+                <span
+                  class="group/codex flex items-center rounded-full border text-xs transition-colors
+                    {excluded
+                    ? 'border-border/40 text-muted-foreground/50 line-through'
+                    : pinned
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : ref.full
+                        ? 'border-border/60 bg-secondary/30 text-muted-foreground'
+                        : 'border-dashed border-border/60 text-muted-foreground'}"
+                  title={ref.full ? "Full sheet given to the assistant" : "Summary given to the assistant"}
+                >
+                  <button type="button" class="pl-2.5 pr-1 py-0.5 hover:text-foreground" onclick={() => openCodexEntry(ref.path)}>
+                    {ref.name}
+                  </button>
+                  <button
+                    type="button"
+                    class="p-0.5 rounded-full hover:text-foreground {pinned ? '' : 'opacity-50 group-hover/codex:opacity-100'}"
+                    aria-label={pinned ? `Stop pinning ${ref.name}` : `Keep ${ref.name} in every reply`}
+                    title={pinned ? "Pinned for this chat" : "Keep in every reply"}
+                    aria-pressed={pinned}
+                    onclick={() => codexChat.togglePin(ref.name)}
+                  >
+                    <PinIcon strokeWidth={1.5} class="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-0.5 pr-1.5 rounded-full hover:text-foreground {excluded ? '' : 'opacity-50 group-hover/codex:opacity-100'}"
+                    aria-label={excluded ? `Include ${ref.name} again` : `Leave ${ref.name} out of later replies`}
+                    title={excluded ? "Left out of this chat. Click to include" : "Leave out of later replies"}
+                    aria-pressed={excluded}
+                    onclick={() => codexChat.toggleExclude(ref.name)}
+                  >
+                    <XIcon strokeWidth={1.5} class="size-3" />
+                  </button>
+                </span>
+              {/each}
             </div>
           {/if}
 

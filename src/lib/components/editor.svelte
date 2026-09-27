@@ -8,15 +8,17 @@
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { slashMenu } from '$lib/components/plugins/slash-menu.svelte.js';
   import { docRefMenu, DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
+  import { linkPopover, openHref } from '$lib/components/plugins/link-popover.svelte.js';
+  import { smartPunctuation, autoPair } from '$lib/components/plugins/typing.js';
+  import { codexMentionsPlugin, setCodexMentions } from '$lib/components/plugins/codex-mentions.js';
+  import { findPlugin, findAll, buildFindRegex } from '$lib/components/plugins/find.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
   import { clipboard } from '@milkdown/kit/plugin/clipboard';
   import { appState } from '@/runes/app.svelte.js';
-  import { configManager } from '@/runes/config.svelte.js';
-  import { openUrl } from '@tauri-apps/plugin-opener';
-  import { beforeNavigate, goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { beforeNavigate } from '$app/navigation';
+  import { isMod } from '$lib/keyboard.svelte.js';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { TextSelection } from '@milkdown/kit/prose/state';
 
@@ -35,29 +37,14 @@
     const { query, options, occurrence } = pending;
     let regex;
     try {
-      let source = options.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      if (options.wholeWord) source = `\\b(?:${source})\\b`;
-      regex = new RegExp(source, options.caseSensitive ? 'gu' : 'giu');
+      regex = buildFindRegex(query, options);
     } catch {
       return; // Rust-only regex syntax; opening the writing is still useful.
     }
 
     const { doc } = view.state;
-    /** @type {{ from: number, to: number } | null} */
-    let found = null;
-    let seen = 0;
-    doc.descendants((node, pos) => {
-      if (found && seen > occurrence) return false;
-      if (!node.isTextblock) return true;
-      // One placeholder character per inline leaf keeps offsets equal to positions.
-      const text = doc.textBetween(pos + 1, pos + node.nodeSize - 1, undefined, '\ufffc');
-      for (const m of text.matchAll(regex)) {
-        if (!m[0]) continue;
-        found = { from: pos + 1 + m.index, to: pos + 1 + m.index + m[0].length };
-        if (seen++ === occurrence) return false;
-      }
-      return false;
-    });
+    const matches = findAll(doc, regex, occurrence + 1);
+    const found = matches[matches.length - 1];
     if (!found) return;
 
     const tr = view.state.tr.setSelection(TextSelection.create(doc, found.from, found.to));
@@ -91,9 +78,11 @@
    *   defaultValue?: string,
    *   onSave?: (markdown: string) => Promise<void> | void,
    *   autofocus?: boolean,
+   *   codexEntities?: import('$lib/runes/codex.svelte.js').Entity[],
    * }}
+   * `codexEntities` are underlined where the text names them; empty for none.
    */
-  let { defaultValue = '', onSave, autofocus = false } = $props();
+  let { defaultValue = '', onSave, autofocus = false, codexEntities = [] } = $props();
 
   /** @type {ReturnType<typeof setTimeout> | null} */
   let saveTimer = $state(null);
@@ -226,19 +215,21 @@
         })
         .use(listener);
 
-      if (configManager.config?.ai_enabled) {
-        editorBuilder = editorBuilder.use(grammarPlugin);
-      }
-
       editorBuilder
+        .use(grammarPlugin)
         .use(exitCodeBlockPlugin)
         .use(placeholderPlugin)
         .use(focusPlugin)
+        .use(autoPair)
         .use(commonmark)
         .use(gfm)
         .use(clipboard)
         .use(slashMenu)
         .use(docRefMenu)
+        .use(linkPopover)
+        .use(smartPunctuation)
+        .use(codexMentionsPlugin)
+        .use(findPlugin)
         .create()
         .then((editor) => {
           if (editor) {
@@ -284,6 +275,12 @@
     editorInstance.action((ctx) => centerCaret(ctx.get(editorViewCtx), 'instant'));
   });
 
+  $effect(() => {
+    const entities = $state.snapshot(codexEntities);
+    if (!editorInstance || !isReady) return;
+    editorInstance.action((ctx) => setCodexMentions(ctx.get(editorViewCtx), entities));
+  });
+
   // ProseMirror mounts its own contenteditable div inside ours; set spellcheck
   // on it directly instead of relying on attribute inheritance, which some
   // webviews (e.g. Tauri's) don't apply consistently to contenteditable nodes.
@@ -313,13 +310,9 @@
       if (!link) return;
       e.preventDefault();
       const href = link.getAttribute('href');
-      if (!href) return;
-      if (href.startsWith(DOC_REF_PREFIX)) {
-        const name = decodeURIComponent(href.slice(DOC_REF_PREFIX.length));
-        goto(resolve(`/${encodeURIComponent(name)}`));
-        return;
-      }
-      openUrl(href);
+      // Doc references open on click; web links need ⌘-click so a plain
+      // click can put the caret in them and bring up the link toolbar.
+      if (href && (href.startsWith(DOC_REF_PREFIX) || isMod(e))) openHref(href);
     }}
   ></div>
 </main>
@@ -343,8 +336,28 @@
   }
 
   main :global(.slash-menu-portal[data-show='false']),
-  main :global(.doc-ref-portal[data-show='false']) {
+  main :global(.doc-ref-portal[data-show='false']),
+  main :global(.link-popover-portal[data-show='false']) {
     display: none;
+  }
+
+  main :global(.codex-mention) {
+    text-decoration: underline dotted;
+    text-decoration-color: color-mix(in oklab, var(--primary) 55%, transparent);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.2em;
+    cursor: help;
+  }
+
+  main :global(.find-match) {
+    background-color: color-mix(in oklab, var(--warning) 35%, transparent);
+    border-radius: 2px;
+  }
+
+  main :global(.find-match--current) {
+    background-color: color-mix(in oklab, var(--warning) 80%, transparent);
+    color: var(--warning-foreground);
+    box-shadow: 0 0 0 1px var(--warning);
   }
 
   main :global(.ProseMirror p.is-empty:first-child::before) {

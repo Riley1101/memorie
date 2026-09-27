@@ -69,13 +69,15 @@ export const docRefMenu = prose((ctx) => {
     const { state, dispatch } = view;
     const { from } = state.selection;
     const start = from - (menuState.query.length + 2); // "[[" + query
+    // Auto-pairing leaves "]]" after the caret; take it with the trigger.
+    const end = state.doc.textBetween(from, Math.min(from + 2, state.selection.$from.end())) === ']]' ? from + 2 : from;
 
     const linkMark = state.schema.marks.link.create({
       href: `${DOC_REF_PREFIX}${encodeURIComponent(item.name)}`,
     });
     const node = state.schema.text(item.title || item.name, [linkMark]);
 
-    dispatch(state.tr.delete(start, from).insert(start, node));
+    dispatch(state.tr.delete(start, end).insert(start, node));
     view.focus();
     provider.hide();
   }

@@ -220,6 +220,23 @@ class AppState {
     };
   }
 
+  /**
+   * Search and replace to start with the next time project search opens.
+   * @type {{ query: string, replacement: string, binder: string | null, options?: { caseSensitive: boolean, wholeWord: boolean, regex: boolean } } | null}
+   */
+  projectSearchPrefill = null;
+
+  /**
+   * Opens project search on a whole-word, exact-case replace, e.g. after a
+   * codex entry is renamed. With `options`, searches that way instead, and
+   * shows the replace field only when there is a replacement.
+   * @param {{ query: string, replacement: string, binder: string | null, options?: { caseSensitive: boolean, wholeWord: boolean, regex: boolean } }} prefill
+   */
+  openProjectSearch(prefill) {
+    this.projectSearchPrefill = prefill;
+    this.toggleProjectSearch(true);
+  }
+
   /** @param {boolean} state */
   toggleProjectSearch(state) {
     this.ui = {
