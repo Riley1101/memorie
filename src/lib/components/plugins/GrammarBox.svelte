@@ -240,7 +240,7 @@
               variant="ghost"
               size="sm"
               disabled={props.disabled ?? false}
-              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-muted/50 rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
+              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
             >
               <AiSparkleIcon strokeWidth={1.5} class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
               AI Suggestions

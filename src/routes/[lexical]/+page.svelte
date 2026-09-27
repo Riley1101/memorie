@@ -11,6 +11,7 @@
   import EditorBacklinks from '$lib/components/editor-backlinks.svelte';
   import EditorSceneInfo from '$lib/components/editor-scene-info.svelte';
   import EditorCodex from '$lib/components/editor-codex.svelte';
+  import EditorFind from '$lib/components/editor-find.svelte';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
@@ -237,7 +238,8 @@
       </button>
     </header>
 
-    <main class="h-full flex-1 overflow-hidden">
+    <main class="relative h-full flex-1 overflow-hidden">
+      <EditorFind />
       <ScrollFade class="h-full" fadeSize="h-12">
         <ScrollArea class="h-full" type="scroll">
           <div class="writing-surface pb-24">
