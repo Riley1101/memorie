@@ -1,4 +1,5 @@
 mod chunker;
+mod codex;
 mod commands;
 mod config;
 mod dropbox;
@@ -267,6 +268,12 @@ pub async fn run() {
             commands::dropbox_push,
             commands::dropbox_pull,
             commands::set_sync_provider,
+            commands::codex_list,
+            commands::codex_save,
+            commands::codex_delete,
+            commands::codex_detect,
+            commands::codex_matrix,
+            commands::codex_draft,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

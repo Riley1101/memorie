@@ -10,6 +10,7 @@
   import EditorOutline from '$lib/components/editor-outline.svelte';
   import EditorBacklinks from '$lib/components/editor-backlinks.svelte';
   import EditorSceneInfo from '$lib/components/editor-scene-info.svelte';
+  import EditorCodex from '$lib/components/editor-codex.svelte';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
@@ -263,6 +264,8 @@
             {#key fileName}
               <EditorSceneInfo {fileName} {isDraft} />
             {/key}
+            <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">In this scene</h2>
+            <EditorCodex {fileName} content={body} />
             <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">Contents</h2>
             <EditorOutline />
             {#if !isDraft}

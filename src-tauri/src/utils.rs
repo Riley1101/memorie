@@ -31,6 +31,12 @@ pub struct ChatContext {
     pub history: Vec<ChatTurn>,
     pub document_title: Option<String>,
     pub document_content: Option<String>,
+    /// Codex entries the user took out of the conversation, by name.
+    #[serde(default)]
+    pub codex_exclude: Vec<String>,
+    /// Codex entries the user wants in every reply, by name.
+    #[serde(default)]
+    pub codex_pin: Vec<String>,
 }
 
 /// Modes for chat interactions.

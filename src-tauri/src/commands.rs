@@ -37,6 +37,7 @@ pub async fn create_file(
     content: String,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
+    crate::codex::ensure_not_reserved(&name, true)?;
     let config = state.config.lock().await;
     let path = config.content_directory.join(&name);
     let relative_dir = relative_dir_segments(&name);
@@ -106,6 +107,7 @@ pub async fn rename_file(
     new_name: String,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
+    crate::codex::ensure_not_reserved(&new_name, true)?;
     let config = state.config.lock().await;
 
     let result =
@@ -188,6 +190,7 @@ pub async fn list_binders(state: State<'_, AppState>) -> Result<Vec<String>, Str
 
 #[tauri::command]
 pub async fn create_binder(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    crate::codex::ensure_not_reserved(&name, false)?;
     let config = state.config.lock().await;
     fs::create_binder(&config.content_directory, &name).map_err(|e| e.to_string())
 }
@@ -198,6 +201,7 @@ pub async fn rename_binder(
     new_name: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    crate::codex::ensure_not_reserved(&new_name, false)?;
     let config = state.config.lock().await;
     fs::rename_binder(&config.content_directory, &old_name, &new_name).map_err(|e| e.to_string())?;
 
@@ -226,6 +230,7 @@ pub async fn move_file(
     new_name: String,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
+    crate::codex::ensure_not_reserved(&new_name, true)?;
     let config = state.config.lock().await;
     let result =
         fs::move_file(&config.content_directory, &old_name, &new_name).map_err(|e| e.to_string())?;
@@ -252,6 +257,7 @@ pub async fn delete_binder(name: String, state: State<'_, AppState>) -> Result<(
 /// `relative_path`, relative to the content directory.
 #[tauri::command]
 pub async fn create_folder(relative_path: String, state: State<'_, AppState>) -> Result<(), String> {
+    crate::codex::ensure_not_reserved(&relative_path, false)?;
     let config = state.config.lock().await;
     fs::create_folder(&config.content_directory, &relative_path).map_err(|e| e.to_string())
 }
@@ -1041,4 +1047,173 @@ pub async fn import_sources(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/**
+ *  Codex Commands
+ */
+
+/// Codex entries a binder can see (its own, then shared ones); with no binder,
+/// only the shared codex.
+#[tauri::command]
+pub async fn codex_list(
+    binder: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::codex::Entity>, String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    tokio::task::spawn_blocking(move || crate::codex::list_entities(&content_dir, binder.as_deref()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Creates an entry, or updates the one read from `original_path` (moving its
+/// file if its name, kind or scope changed).
+#[tauri::command]
+pub async fn codex_save(
+    entity: crate::codex::EntityInput,
+    original_path: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<crate::codex::Entity, String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    crate::codex::save_entity(&content_dir, &entity, original_path.as_deref())
+}
+
+#[tauri::command]
+pub async fn codex_delete(path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    crate::codex::delete_entity(&content_dir, &path)?;
+    drop(content_dir);
+    if let Err(e) = state.memory.delete_document(&path).await {
+        eprintln!("Failed to remove '{path}' from the note index: {e}");
+    }
+    Ok(())
+}
+
+/// Which of a binder's codex entries `text` mentions, most mentioned first.
+#[tauri::command]
+pub async fn codex_detect(
+    binder: Option<String>,
+    text: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::codex::Mention>, String> {
+    let content_dir = state.config.lock().await.content_directory.clone();
+    tokio::task::spawn_blocking(move || {
+        let entities = crate::codex::list_entities(&content_dir, binder.as_deref())?;
+        Ok(crate::codex::detect(&entities, &text))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// How often each codex entry is mentioned in each of a binder's writings.
+#[tauri::command]
+pub async fn codex_matrix(
+    binder: String,
+    state: State<'_, AppState>,
+) -> Result<crate::codex::Matrix, String> {
+    crate::codex::ensure_relative(&binder)?;
+    let content_dir = state.config.lock().await.content_directory.clone();
+    let entities = {
+        let (dir, binder) = (content_dir.clone(), binder.clone());
+        tokio::task::spawn_blocking(move || crate::codex::list_entities(&dir, Some(&binder)))
+            .await
+            .map_err(|e| e.to_string())??
+    };
+
+    let binder_dir = content_dir.join(&binder);
+    let files: Vec<File> = fs::discover_files(&binder_dir)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|mut file| {
+            file.name = format!("{binder}/{}", file.name);
+            file
+        })
+        .filter(|file| !crate::codex::is_codex_name(&file.name))
+        .collect();
+    let writings = fs::read_contents_batch(files)
+        .await
+        .into_iter()
+        .filter_map(|(file, result)| result.ok().map(|content| (file.name, content)))
+        .collect();
+
+    tokio::task::spawn_blocking(move || crate::codex::matrix(entities, writings))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Room for story passages when drafting a sheet: small local models get less.
+const CODEX_DRAFT_PASSAGES_LOCAL: usize = 5_000;
+const CODEX_DRAFT_PASSAGES_REMOTE: usize = 20_000;
+
+/// Suggestions for an entry's empty fields (`keys`) and, if it has none, its
+/// summary, drawn from the binder's writings that mention it. Nothing is saved.
+#[tauri::command]
+pub async fn codex_draft(
+    path: String,
+    keys: Vec<String>,
+    handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<crate::codex::SheetDraft, String> {
+    let (content_dir, ai_enabled, provider) = {
+        let config = state.config.lock().await;
+        (config.content_directory.clone(), config.ai_enabled, config.provider.clone())
+    };
+    if !ai_enabled {
+        return Err("AI is disabled. Enable it in Settings first.".to_string());
+    }
+    crate::codex::ensure_relative(&path)?;
+
+    let binder = if path.starts_with(&format!("{}/", crate::codex::CODEX_DIR)) {
+        None
+    } else {
+        path.split_once('/').map(|(b, _)| b.to_string())
+    };
+    let entity = {
+        let (dir, binder, path) = (content_dir.clone(), binder.clone(), path.clone());
+        tokio::task::spawn_blocking(move || {
+            crate::codex::list_entities(&dir, binder.as_deref())
+                .map(|entities| entities.into_iter().find(|e| e.path == path))
+        })
+        .await
+        .map_err(|e| e.to_string())??
+        .ok_or_else(|| "That codex entry no longer exists".to_string())?
+    };
+
+    // A shared entry draws on every writing; a binder's on its own.
+    let scan_dir = match &binder {
+        Some(b) => content_dir.join(b),
+        None => content_dir.clone(),
+    };
+    let prefix = binder.as_ref().map(|b| format!("{b}/")).unwrap_or_default();
+    let files: Vec<File> = fs::discover_files(&scan_dir)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|mut file| {
+            file.name = format!("{prefix}{}", file.name);
+            file
+        })
+        .filter(|file| !crate::codex::is_codex_name(&file.name))
+        .collect();
+    let mut writings: Vec<(String, String)> = fs::read_contents_batch(files)
+        .await
+        .into_iter()
+        .filter_map(|(file, result)| result.ok().map(|content| (file.name, content)))
+        .collect();
+    writings.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let budget = match provider {
+        ProviderKind::Local => CODEX_DRAFT_PASSAGES_LOCAL,
+        ProviderKind::OpenRouter => CODEX_DRAFT_PASSAGES_REMOTE,
+    };
+    let passages = crate::codex::gather_passages(&entity, &writings, budget);
+    if passages.is_empty() {
+        return Err(format!("No writing mentions “{}” yet, so there's nothing to draw on.", entity.name));
+    }
+
+    let want_summary = entity.summary.is_empty();
+    let message = crate::codex::draft_message(&entity, &keys, &passages);
+    let reply = crate::workers::complete_once(&handle, crate::prompts::CODEX_DRAFT_PROMPT, &message).await?;
+    let draft: crate::codex::SheetDraft = providers::parse_json_reply(&reply)
+        .map_err(|_| "The model's answer couldn't be read. Try again, or use a larger model.".to_string())?;
+    Ok(draft.keep_only(&keys, want_summary))
 }

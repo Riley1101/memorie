@@ -12,6 +12,7 @@
   import { toast } from '$lib/toast.js';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import ReplaceIcon from '@lucide/svelte/icons/replace';
+  import { isCodexPath, openCodexEntry } from '$lib/runes/codex.svelte.js';
 
   /**
    * @typedef {{ line: number, preview: string, start: number, end: number, meta: boolean }} Match
@@ -39,13 +40,15 @@
   let confirmAll = $state(false);
   /** Whether results are narrowed to the active binder. */
   let scope = $state(/** @type {'binder' | 'all'} */ ('all'));
+  /** The binder "binder" scope means: the active one, unless a prefill named another. */
+  let scopeBinder = $state(/** @type {string | null} */ (null));
 
   let inputEl = $state(/** @type {HTMLInputElement | null} */ (null));
 
   /** Results narrowed to the active binder when scoped, else every result. */
   let scopedFiles = $derived(
-    scope === 'binder' && appState.ui.activeBinder
-      ? (results?.files ?? []).filter((f) => dirOf(f.name) === appState.ui.activeBinder)
+    scope === 'binder' && scopeBinder
+      ? (results?.files ?? []).filter((f) => f.name.startsWith(`${scopeBinder}/`))
       : (results?.files ?? [])
   );
   let scopedTotal = $derived(scopedFiles.reduce((sum, f) => sum + f.matches.length, 0));
@@ -91,7 +94,18 @@
 
   $effect(() => {
     if (appState.ui.isProjectSearchOpen) {
-      scope = appState.ui.activeBinder ? 'binder' : 'all';
+      const prefill = appState.projectSearchPrefill;
+      appState.projectSearchPrefill = null;
+      scopeBinder = prefill ? prefill.binder : appState.ui.activeBinder;
+      scope = scopeBinder ? 'binder' : 'all';
+      if (prefill) {
+        query = prefill.query;
+        replacement = prefill.replacement;
+        showReplace = true;
+        caseSensitive = true;
+        wholeWord = true;
+        useRegex = false;
+      }
       // The dialog focuses its first element; select any previous query instead.
       queueMicrotask(() => inputEl?.select());
     }
@@ -120,6 +134,11 @@
     const name = file.name;
     keepFocusOnClose = true;
     appState.toggleProjectSearch(false);
+    if (isCodexPath(name)) {
+      editorState.pendingReveal = null;
+      openCodexEntry(name);
+      return;
+    }
     const url = resolve(`/${encodeURIComponent(name)}`);
     if (page.params.lexical === name) {
       editorState.revealPending?.();
@@ -262,7 +281,7 @@
         {@render toggle('.*', 'Regular expression', useRegex, () => (useRegex = !useRegex))}
       </div>
 
-      {#if appState.ui.activeBinder}
+      {#if scopeBinder}
         <div class="flex items-center gap-2 pl-8">
           <span class="text-xs text-muted-foreground">Search</span>
           <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
@@ -276,7 +295,7 @@
                 confirmAll = false;
               }}
             >
-              {formatFileName(appState.ui.activeBinder)}
+              {formatFileName(scopeBinder)}
             </Button>
             <Button
               variant={scope === 'all' ? 'secondary' : 'ghost'}

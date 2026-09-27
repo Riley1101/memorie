@@ -6111,6 +6111,7 @@ dependencies = [
 name = "memoire"
 version = "0.2.0"
 dependencies = [
+ "aho-corasick",
  "candle-core",
  "candle-nn",
  "candle-transformers",

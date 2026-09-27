@@ -16,6 +16,11 @@
   import { appState } from '$lib/runes/app.svelte.js';
   import { configManager } from '$lib/runes/config.svelte.js';
   import { toggleMark } from '@milkdown/kit/prose/commands';
+  import BookUserIcon from '@lucide/svelte/icons/book-user';
+  import { page } from '$app/state';
+  import { editorState } from '$lib/runes/editor.svelte.js';
+  import { openCodex } from '$lib/runes/codex.svelte.js';
+  import { toast } from '$lib/toast.js';
 
   /**
    * @typedef {Object} GrammarBoxProps
@@ -65,6 +70,28 @@
     if (!markType) return;
     toggleMark(markType)(view.state, view.dispatch);
     view.focus();
+  }
+
+  /** Longest selection offered as a codex entry's name. */
+  const CODEX_NAME_MAX = 60;
+
+  /** The selection, if it's short enough to be a name. Read at click time, like `applyMark`. */
+  function selectedName() {
+    if (!view) return '';
+    const { from, to } = view.state.selection;
+    const text = view.state.doc.textBetween(from, to, ' ', ' ').replace(/\s+/g, ' ').trim();
+    return text && text.length <= CODEX_NAME_MAX ? text.replace(/['’]s$/, '') : '';
+  }
+
+  async function addToCodex() {
+    const name = selectedName();
+    if (!name) {
+      toast.info('Select just a name to add it to the codex');
+      return;
+    }
+    const current = page.params.lexical ?? '';
+    await editorState.flushSave?.();
+    openCodex({ binder: current.includes('/') ? current.split('/')[0] : '', new: 'character', name });
   }
 
   function handleAccept() {
@@ -191,6 +218,17 @@
           <Icon strokeWidth={1.5} class="size-3.5" />
         </Button>
       {/each}
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Add to codex"
+        aria-label="Add selection to codex"
+        onmousedown={(e) => e.preventDefault()}
+        onclick={addToCodex}
+        class="size-6 rounded-full text-muted-foreground/80 hover:text-foreground hover:bg-muted/50"
+      >
+        <BookUserIcon strokeWidth={1.5} class="size-3.5" />
+      </Button>
     </div>
 
     {#if aiEnabled}
