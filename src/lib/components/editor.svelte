@@ -11,6 +11,7 @@
   import { linkPopover, openHref } from '$lib/components/plugins/link-popover.svelte.js';
   import { smartPunctuation, autoPair } from '$lib/components/plugins/typing.js';
   import { codexMentionsPlugin, setCodexMentions } from '$lib/components/plugins/codex-mentions.js';
+  import { findPlugin, findAll, buildFindRegex } from '$lib/components/plugins/find.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
@@ -36,29 +37,14 @@
     const { query, options, occurrence } = pending;
     let regex;
     try {
-      let source = options.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      if (options.wholeWord) source = `\\b(?:${source})\\b`;
-      regex = new RegExp(source, options.caseSensitive ? 'gu' : 'giu');
+      regex = buildFindRegex(query, options);
     } catch {
       return; // Rust-only regex syntax; opening the writing is still useful.
     }
 
     const { doc } = view.state;
-    /** @type {{ from: number, to: number } | null} */
-    let found = null;
-    let seen = 0;
-    doc.descendants((node, pos) => {
-      if (found && seen > occurrence) return false;
-      if (!node.isTextblock) return true;
-      // One placeholder character per inline leaf keeps offsets equal to positions.
-      const text = doc.textBetween(pos + 1, pos + node.nodeSize - 1, undefined, '\ufffc');
-      for (const m of text.matchAll(regex)) {
-        if (!m[0]) continue;
-        found = { from: pos + 1 + m.index, to: pos + 1 + m.index + m[0].length };
-        if (seen++ === occurrence) return false;
-      }
-      return false;
-    });
+    const matches = findAll(doc, regex, occurrence + 1);
+    const found = matches[matches.length - 1];
     if (!found) return;
 
     const tr = view.state.tr.setSelection(TextSelection.create(doc, found.from, found.to));
@@ -243,6 +229,7 @@
         .use(linkPopover)
         .use(smartPunctuation)
         .use(codexMentionsPlugin)
+        .use(findPlugin)
         .create()
         .then((editor) => {
           if (editor) {
@@ -360,6 +347,17 @@
     text-decoration-thickness: 1.5px;
     text-underline-offset: 0.2em;
     cursor: help;
+  }
+
+  main :global(.find-match) {
+    background-color: color-mix(in oklab, var(--warning) 35%, transparent);
+    border-radius: 2px;
+  }
+
+  main :global(.find-match--current) {
+    background-color: color-mix(in oklab, var(--warning) 80%, transparent);
+    color: var(--warning-foreground);
+    box-shadow: 0 0 0 1px var(--warning);
   }
 
   main :global(.ProseMirror p.is-empty:first-child::before) {

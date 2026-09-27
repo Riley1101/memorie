@@ -101,10 +101,10 @@
       if (prefill) {
         query = prefill.query;
         replacement = prefill.replacement;
-        showReplace = true;
-        caseSensitive = true;
-        wholeWord = true;
-        useRegex = false;
+        showReplace = prefill.options ? !!prefill.replacement : true;
+        caseSensitive = prefill.options?.caseSensitive ?? true;
+        wholeWord = prefill.options?.wholeWord ?? true;
+        useRegex = prefill.options?.regex ?? false;
       }
       // The dialog focuses its first element; select any previous query instead.
       queueMicrotask(() => inputEl?.select());
