@@ -6,10 +6,10 @@
 //! the document is never left half-edited. The inverse transaction is what
 //! history stores — undo is "apply the inverse", not "reparse an old string".
 //!
-//! There are deliberately only two operations. Every edit — typing, deleting,
-//! toggling a mark, splitting a paragraph, changing a heading level — is one
-//! of them, and each is its own exact inverse, so no operation needs a
-//! hand-written undo rule that could drift.
+//! There are deliberately only three operations. Every edit — typing,
+//! deleting, toggling a mark, splitting a paragraph, changing a heading level,
+//! adding a table row — is one of them, and each is its own exact inverse, so
+//! no operation needs a hand-written undo rule that could drift.
 
 use crate::document::Document;
 use crate::error::{EditorError, Result};
@@ -32,15 +32,20 @@ pub enum Operation {
         content: InlineContent,
     },
     /// Replaces a run of top-level blocks. Covers splitting, merging,
-    /// inserting, removing, and changing a block's kind.
-    ///
-    /// Nested blocks (inside a quote, list item or table cell) can be edited
-    /// inline by id, but not yet restructured; see `EditorError::Unsupported`.
+    /// inserting and removing.
     ReplaceBlocks {
         start: usize,
         end: usize,
         blocks: Vec<Block>,
     },
+    /// Replaces one block, wherever it sits — top level, or nested in a quote,
+    /// list item or table cell.
+    ///
+    /// This is how a container is restructured: to add a table row or flip a
+    /// list from bullets to numbers, the whole container block is replaced. The
+    /// blocks inside it keep their ids, so a caret in a table cell survives a
+    /// row being inserted above it.
+    ReplaceBlock { block: BlockId, with: Box<Block> },
 }
 
 impl Operation {
@@ -81,6 +86,16 @@ impl Operation {
                     start,
                     end: start + new_len,
                     blocks: removed,
+                })
+            }
+            Operation::ReplaceBlock { block, with } => {
+                let id = with.id;
+                let removed = document
+                    .replace_block(block, *with)
+                    .ok_or(EditorError::NoSuchBlock(block))?;
+                Ok(Operation::ReplaceBlock {
+                    block: id,
+                    with: Box::new(removed),
                 })
             }
         }

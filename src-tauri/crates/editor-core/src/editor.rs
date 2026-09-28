@@ -11,14 +11,22 @@ use crate::error::{EditorError, Result};
 use crate::history::History;
 use crate::ids::BlockId;
 use crate::inline::{Inline, InlineContent, Link, MarkSet};
-use crate::node::{Block, BlockKind};
+use crate::node::{Block, BlockKind, ColumnAlignment, ListItem, TableCell, TableNode, TableRow};
 use crate::selection::{Position, SelectionRange};
 use crate::transaction::{Operation, Transaction};
+
+/// How close together two edits have to be to become one undo step.
+const DEFAULT_COALESCE_WINDOW_MS: i64 = 700;
 
 pub struct Editor {
     document: Document,
     selection: SelectionRange,
     history: History,
+    /// Marks the next typed text will carry, when they differ from the marks
+    /// already at the caret. This is caret state, not document state: ⌘B with
+    /// nothing selected changes it, and nothing else.
+    pending_marks: Option<MarkSet>,
+    coalesce_window_ms: i64,
 }
 
 impl Editor {
@@ -29,7 +37,16 @@ impl Editor {
             document,
             selection,
             history: History::new(),
+            pending_marks: None,
+            coalesce_window_ms: DEFAULT_COALESCE_WINDOW_MS,
         }
+    }
+
+    /// How long a pause breaks a run of typing into a second undo step.
+    /// Coalescing only happens when the host stamps its commands with a time
+    /// (see [`Editor::apply_at`]).
+    pub fn set_coalesce_window_ms(&mut self, window: i64) {
+        self.coalesce_window_ms = window;
     }
 
     pub fn document(&self) -> &Document {
@@ -48,6 +65,39 @@ impl Editor {
         self.document.revision()
     }
 
+    /// Marks set for text not yet typed, if any.
+    pub fn pending_marks(&self) -> Option<MarkSet> {
+        self.pending_marks
+    }
+
+    /// What a formatting toolbar should show as active: the marks the selection
+    /// carries throughout, or the ones waiting to be typed.
+    pub fn active_marks(&self) -> MarkSet {
+        if let Some(pending) = self.pending_marks {
+            return pending;
+        }
+        match self.selection.single_block_range() {
+            Some((block, start, end)) => {
+                let Some(content) = self.document.block(block).and_then(Block::content) else {
+                    return MarkSet::NONE;
+                };
+                if start == end {
+                    return content.marks_at(start);
+                }
+                [
+                    MarkSet::BOLD,
+                    MarkSet::ITALIC,
+                    MarkSet::CODE,
+                    MarkSet::STRIKE,
+                ]
+                .into_iter()
+                .filter(|mark| content.has_mark_throughout(start, end, *mark))
+                .fold(MarkSet::NONE, MarkSet::with)
+            }
+            None => MarkSet::NONE,
+        }
+    }
+
     /// Applies a command. See [`Editor::apply_at`] to stamp the history entry.
     pub fn apply(&mut self, command: EditorCommand) -> Result<()> {
         self.apply_at(command, None)
@@ -62,6 +112,19 @@ impl Editor {
             // neither bumps the revision nor fills the history with noise.
             EditorCommand::SetSelection(range) => {
                 self.selection = range.clamp(&self.document, start_of_document(&self.document));
+                // Marks waiting to be typed belong to where the caret was.
+                self.pending_marks = None;
+                Ok(())
+            }
+            // With nothing selected there is no text to format yet, so ⌘B sets
+            // what the next keystroke will carry instead of editing anything.
+            EditorCommand::ToggleMark(mark) if self.selection.is_collapsed() => {
+                let now = self.active_marks();
+                self.pending_marks = Some(if now.contains(mark) {
+                    now.without(mark)
+                } else {
+                    now.with(mark)
+                });
                 Ok(())
             }
             EditorCommand::Undo => self.step_history(true),
@@ -94,6 +157,11 @@ impl Editor {
             EditorCommand::SetParagraph => self.set_heading_level(0),
             EditorCommand::SetCodeBlock { language } => self.set_code_block(language),
             EditorCommand::WrapInQuote => self.wrap_in_quote(),
+            EditorCommand::ToggleList { ordered } => self.toggle_list(ordered),
+            EditorCommand::ToggleTask => self.toggle_task(),
+            EditorCommand::InsertTable { rows, columns } => self.insert_table(rows, columns),
+            EditorCommand::InsertTableRow { before } => self.insert_table_row(before),
+            EditorCommand::InsertTableColumn { before } => self.insert_table_column(before),
             EditorCommand::SetLink { url } => self.set_link(url),
             EditorCommand::InsertParagraph => {
                 self.insert_block_after_caret(BlockKind::paragraph(""), true)
@@ -117,6 +185,22 @@ impl Editor {
         self.selection = transaction
             .selection_after
             .clamp(&self.document, start_of_document(&self.document));
+        self.pending_marks = None;
+
+        // A burst of typing is one undo step. Nothing else coalesces: undoing
+        // half a table insertion would be worse than an extra press.
+        let coalescing = label == EditorCommand::InsertText(String::new()).label();
+        if coalescing
+            && self.history.coalesce(
+                inverse.clone(),
+                transaction.clone(),
+                Some(label),
+                created_at,
+                self.coalesce_window_ms,
+            )
+        {
+            return Ok(());
+        }
         self.history
             .record(inverse, transaction, Some(label.to_string()), created_at);
         Ok(())
@@ -130,6 +214,7 @@ impl Editor {
         };
         let transaction = transaction.ok_or(EditorError::NothingToDo)?;
         transaction.apply(&mut self.document)?;
+        self.pending_marks = None;
         self.selection = transaction
             .selection_after
             .clamp(&self.document, start_of_document(&self.document));
@@ -160,53 +245,114 @@ impl Editor {
         Ok((block, start, end, content.clone()))
     }
 
+    /// A block's inline content, or an error naming why it has none.
+    fn content_of(&self, block: BlockId) -> Result<&InlineContent> {
+        self.document
+            .block(block)
+            .ok_or(EditorError::NoSuchBlock(block))?
+            .content()
+            .ok_or(EditorError::NotTextual(block))
+    }
+
+    /// The operations that put `content` where the selection is, and where the
+    /// caret ends up.
+    ///
+    /// A selection spanning blocks is served by joining its two ends: what
+    /// follows the selection in the last block moves onto the first block, and
+    /// every block between them (the last included) is removed. Both ends have
+    /// to be top-level blocks — a selection ending inside a quote or a list is
+    /// refused rather than half-handled.
+    fn replace_selection_ops(&self, content: InlineContent) -> Result<(Vec<Operation>, Position)> {
+        if let Some((block, start, end)) = self.selection.single_block_range() {
+            self.content_of(block)?;
+            let caret = Position::new(block, start + content.len());
+            return Ok((
+                vec![Operation::ReplaceInline {
+                    block,
+                    start,
+                    end,
+                    content,
+                }],
+                caret,
+            ));
+        }
+
+        let (from, to) = self.selection.ordered(&self.document);
+        let first = self.top_index(from.block)?;
+        let last = self.top_index(to.block)?;
+        if last <= first {
+            return Err(EditorError::Unsupported(
+                "a selection whose ends are not in document order",
+            ));
+        }
+        self.content_of(from.block)?;
+
+        // What survives in the last block joins the first one, right after the
+        // inserted content.
+        let tail = self
+            .document
+            .block(to.block)
+            .and_then(Block::content)
+            .map(|content| content.slice(to.offset, content.len()))
+            .unwrap_or_default();
+        let caret = Position::new(from.block, from.offset + content.len());
+        let mut joined: Vec<Inline> = content.pieces().to_vec();
+        joined.extend(tail.pieces().iter().cloned());
+
+        Ok((
+            vec![
+                Operation::ReplaceInline {
+                    block: from.block,
+                    start: from.offset,
+                    end: self.document.block_len(from.block),
+                    content: InlineContent::new(joined),
+                },
+                Operation::ReplaceBlocks {
+                    start: first + 1,
+                    end: last + 1,
+                    blocks: Vec::new(),
+                },
+            ],
+            caret,
+        ))
+    }
+
     /// Replaces the selection with `content`, or with `text` carrying the marks
     /// and link in force at the insertion point when `content` is empty.
     fn insert_content(&self, content: InlineContent, text: String) -> Result<Transaction> {
-        let (block, start, end, existing) = self.inline_target()?;
         let content = if content.is_empty() {
             if text.is_empty() {
                 return Err(EditorError::Unsupported("inserting nothing"));
             }
+            let (start, _) = self.selection.ordered(&self.document);
+            let existing = self.content_of(start.block)?;
             InlineContent::new(vec![Inline::Text {
                 text,
-                marks: existing.marks_at(start),
-                link: existing.link_spanning(start).cloned(),
+                marks: self
+                    .pending_marks
+                    .unwrap_or_else(|| existing.marks_at(start.offset)),
+                link: existing.link_spanning(start.offset).cloned(),
             }])
         } else {
             content
         };
 
-        let caret = Position::new(block, start + content.len());
-        Ok(
-            Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
-                Operation::ReplaceInline {
-                    block,
-                    start,
-                    end,
-                    content,
-                },
-            ),
-        )
+        let (operations, caret) = self.replace_selection_ops(content)?;
+        let mut transaction = Transaction::new(self.selection, SelectionRange::collapsed(caret));
+        transaction.operations = operations;
+        Ok(transaction)
     }
 
     fn delete(&self, direction: Direction) -> Result<Transaction> {
-        let (block, start, end, content) = self.inline_target()?;
-
-        if start != end {
-            let caret = Position::new(block, start);
-            return Ok(
-                Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
-                    Operation::ReplaceInline {
-                        block,
-                        start,
-                        end,
-                        content: InlineContent::empty(),
-                    },
-                ),
-            );
+        if !self.selection.is_collapsed() {
+            let (operations, caret) = self.replace_selection_ops(InlineContent::empty())?;
+            let mut transaction =
+                Transaction::new(self.selection, SelectionRange::collapsed(caret));
+            transaction.operations = operations;
+            return Ok(transaction);
         }
 
+        let (block, start, _, content) = self.inline_target()?;
         match direction {
             Direction::Backward if start > 0 => {
                 let caret = Position::new(block, start - 1);
@@ -462,6 +608,212 @@ impl Editor {
                 blocks: vec![inserted],
             }),
         )
+    }
+
+    fn toggle_list(&mut self, ordered: bool) -> Result<Transaction> {
+        let block = self.selection.head.block;
+
+        if let Some((list_id, _)) = self.document.list_position(block) {
+            let BlockKind::List {
+                ordered: was,
+                start,
+                tight,
+                items,
+            } = self
+                .document
+                .block(list_id)
+                .expect("found above")
+                .kind
+                .clone()
+            else {
+                unreachable!("list_position only points at lists");
+            };
+
+            // The same kind again means "stop being a list": the items' blocks
+            // take the list's place, keeping their ids and the caret with them.
+            if was == ordered {
+                let index = self.top_index(list_id)?;
+                let blocks: Vec<Block> = items.into_iter().flat_map(|item| item.blocks).collect();
+                return Ok(Transaction::new(self.selection, self.selection).with(
+                    Operation::ReplaceBlocks {
+                        start: index,
+                        end: index + 1,
+                        blocks,
+                    },
+                ));
+            }
+
+            // Bullets to numbers or back. A nested list is replaced in place,
+            // which is what ReplaceBlock is for.
+            let flipped = Block::new(
+                list_id,
+                BlockKind::List {
+                    ordered,
+                    start: start.filter(|_| ordered),
+                    tight,
+                    items,
+                },
+            );
+            return Ok(Transaction::new(self.selection, self.selection).with(
+                Operation::ReplaceBlock {
+                    block: list_id,
+                    with: Box::new(flipped),
+                },
+            ));
+        }
+
+        let index = self.top_index(block)?;
+        let inner = self.document.block(block).expect("checked above").clone();
+        let list = self.document.new_block(BlockKind::List {
+            ordered,
+            start: None,
+            tight: true,
+            items: vec![ListItem::new(vec![inner])],
+        });
+        Ok(
+            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlocks {
+                start: index,
+                end: index + 1,
+                blocks: vec![list],
+            }),
+        )
+    }
+
+    fn toggle_task(&self) -> Result<Transaction> {
+        let (list_id, item) = self
+            .document
+            .list_position(self.selection.head.block)
+            .ok_or(EditorError::Unsupported("the caret is not in a list"))?;
+        let mut list = self.document.block(list_id).expect("found above").clone();
+        let BlockKind::List { items, .. } = &mut list.kind else {
+            unreachable!("list_position only points at lists");
+        };
+        // A plain item becomes an unticked task; a task is ticked and unticked.
+        items[item].checked = match items[item].checked {
+            None => Some(false),
+            Some(checked) => Some(!checked),
+        };
+
+        Ok(
+            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlock {
+                block: list_id,
+                with: Box::new(list),
+            }),
+        )
+    }
+
+    fn insert_table(&mut self, rows: usize, columns: usize) -> Result<Transaction> {
+        let block = self.selection.head.block;
+        let index = self.top_index(block)?;
+        let columns = columns.max(1);
+
+        // A GFM table is a header row plus body rows; `rows` counts the body.
+        let mut table_rows = Vec::with_capacity(rows + 1);
+        for _ in 0..rows + 1 {
+            table_rows.push(TableRow {
+                cells: (0..columns).map(|_| self.empty_cell()).collect(),
+            });
+        }
+        let caret = table_rows[0].cells[0].blocks[0].id;
+        let table = self.document.new_block(BlockKind::Table {
+            table: TableNode {
+                alignments: vec![ColumnAlignment::None; columns],
+                rows: table_rows,
+            },
+        });
+
+        Ok(Transaction::new(
+            self.selection,
+            SelectionRange::collapsed(Position::new(caret, 0)),
+        )
+        .with(Operation::ReplaceBlocks {
+            start: index + 1,
+            end: index + 1,
+            blocks: vec![table],
+        }))
+    }
+
+    fn insert_table_row(&mut self, before: bool) -> Result<Transaction> {
+        let (table_id, row, _) = self.table_position()?;
+        let mut block = self.document.block(table_id).expect("found above").clone();
+        let BlockKind::Table { table } = &mut block.kind else {
+            unreachable!("table_position only points at tables");
+        };
+
+        let columns = table
+            .rows
+            .iter()
+            .map(|row| row.cells.len())
+            .max()
+            .unwrap_or(1);
+        let cells: Vec<TableCell> = (0..columns).map(|_| self.empty_cell()).collect();
+        let caret = cells[0].blocks[0].id;
+        // The header row stays the header: a row inserted "before" the header
+        // goes under it.
+        let at = (row + usize::from(!before)).max(1);
+        table
+            .rows
+            .insert(at.min(table.rows.len()), TableRow { cells });
+
+        Ok(Transaction::new(
+            self.selection,
+            SelectionRange::collapsed(Position::new(caret, 0)),
+        )
+        .with(Operation::ReplaceBlock {
+            block: table_id,
+            with: Box::new(block),
+        }))
+    }
+
+    fn insert_table_column(&mut self, before: bool) -> Result<Transaction> {
+        let (table_id, row, column) = self.table_position()?;
+        let at = column + usize::from(!before);
+        let mut block = self.document.block(table_id).expect("found above").clone();
+
+        let rows = match &block.kind {
+            BlockKind::Table { table } => table.rows.len(),
+            _ => unreachable!("table_position only points at tables"),
+        };
+        let cells: Vec<TableCell> = (0..rows).map(|_| self.empty_cell()).collect();
+        let caret = cells.get(row).map(|cell| cell.blocks[0].id);
+
+        let BlockKind::Table { table } = &mut block.kind else {
+            unreachable!("checked above");
+        };
+        for (index, cell) in cells.into_iter().enumerate() {
+            let row = &mut table.rows[index];
+            let at = at.min(row.cells.len());
+            row.cells.insert(at, cell);
+        }
+        if table.alignments.len() < table.rows[0].cells.len() {
+            table
+                .alignments
+                .insert(at.min(table.alignments.len()), ColumnAlignment::None);
+        }
+
+        let after = caret
+            .map(|caret| SelectionRange::collapsed(Position::new(caret, 0)))
+            .unwrap_or(self.selection);
+        Ok(
+            Transaction::new(self.selection, after).with(Operation::ReplaceBlock {
+                block: table_id,
+                with: Box::new(block),
+            }),
+        )
+    }
+
+    /// The table the caret is in, with its row and column.
+    fn table_position(&self) -> Result<(BlockId, usize, usize)> {
+        self.document
+            .table_position(self.selection.head.block)
+            .ok_or(EditorError::Unsupported("the caret is not in a table"))
+    }
+
+    /// A table cell holding one empty paragraph, which is where a caret can go.
+    fn empty_cell(&mut self) -> TableCell {
+        TableCell {
+            blocks: vec![self.document.new_block(BlockKind::paragraph(""))],
+        }
     }
 
     /// Where `block` sits in the top-level list. Structural operations are

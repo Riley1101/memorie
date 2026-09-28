@@ -134,10 +134,13 @@ rebuilds nesting on the way out.
 converts at the boundary, where the frontend's units are known. This is a real
 piece of work in Phase 5 and the most likely source of off-by-one bugs.
 
-**Two operations, not twelve.** `ReplaceInline` and `ReplaceBlocks` express
-every edit, and each is its own inverse, so no operation has a hand-written
-undo rule that can drift from its do-rule. Commands are the rich vocabulary;
-operations stay minimal.
+**Three operations, not twelve.** `ReplaceInline`, `ReplaceBlocks` (a run of
+top-level blocks) and `ReplaceBlock` (one block, at any depth) express every
+edit, and each is its own inverse, so no operation has a hand-written undo rule
+that can drift from its do-rule. Commands are the rich vocabulary; operations
+stay minimal. `ReplaceBlock` is how a container is restructured: adding a table
+row or flipping a list replaces the container wholesale, and because the blocks
+inside keep their ids, a caret in a cell survives a row appearing above it.
 
 **Transactions are atomic.** A failure halfway rolls back what already applied;
 one transaction bumps the revision once, however many operations it holds.
@@ -147,20 +150,32 @@ one transaction bumps the revision once, however many operations it holds.
 the two can meet in Phase 6, but a node holds the undo/redo transactions and
 the selection, not a copy of the document.
 
-### Deliberate gaps in Phase 2
+**Marks for text not yet typed are caret state.** ⌘B with nothing selected
+sets `Editor::pending_marks`; it changes no document state, bumps no revision
+and records no history. Moving the caret drops it, and typing spends it.
+`Editor::active_marks()` is what a toolbar should light up.
+
+**A burst of typing is one undo step.** Consecutive `InsertText` commands fold
+into the current history node when they carry on from where it left off, within
+a 700ms window, and nothing has branched off it. Only typing coalesces —
+undoing half a table insertion would be worse than an extra keypress — and
+without timestamps from the host nothing coalesces at all, because guessing is
+worse than an extra undo.
+
+### Deliberate gaps after Phase 4
 
 These are refusals with a clear error, not silent wrong behaviour:
 
-- Structural edits (split, merge, quote, heading change) are **top-level
-  only**; `EditorError::NestedBlock` otherwise. Inline editing works at any
-  depth, because blocks are found by id.
-- Selections **spanning blocks** are refused (`MultiBlockSelection`). Phase 4.
-- Toggling a mark with a **collapsed caret** is refused: "bold for text not yet
-  typed" is caret state, not document state, and belongs with the caret in
-  Phase 4.
-- **No coalescing**: every `InsertText` is its own history node. Fine for
-  tests, wrong for typing; Phase 6 groups by time and adjacency.
-- Lists and tables are modelled and preserved but have no editing commands yet.
+- **Splitting, merging, quoting and heading changes are top-level only**
+  (`EditorError::NestedBlock`). Inline editing works at any depth, and lists
+  and tables restructure at any depth via `ReplaceBlock`; splitting a paragraph
+  *inside* a list item does not yet.
+- A **selection with an end inside a nested block** is refused
+  (`NestedBlock`). Both ends at the top level is the case that works.
+- **Indent/outdent** of list items, and removing a row or column, are not
+  implemented; the commands that exist cover creating and toggling.
+- **Coalescing needs a host clock.** `apply` without a timestamp records every
+  keystroke separately; `apply_at` is what the Tauri layer should call.
 
 ## 6. Risks
 
@@ -194,8 +209,8 @@ These are refusals with a clear error, not silent wrong behaviour:
 | 1 | Understand the existing flow; change nothing | done (this document) |
 | 2 | `editor-core`: document, inline, selection, commands, transactions, history, tests | done |
 | 3 | Markdown ↔ Document, with round-trip fixtures and front matter | done |
-| 4 | Multi-block selections, caret marks, list/table commands, coalescing | next |
-| 5 | Tauri API (`editor_open`, `editor_apply`, `editor_state`, …) and the view decision | |
+| 4 | Multi-block selections, caret marks, list/table commands, coalescing | done |
+| 5 | Tauri API (`editor_open`, `editor_apply`, `editor_state`, …) and the view decision | next |
 | 6 | Fold undo/redo into transactions; decide how `undotree` and engine history meet | |
 | 7 | Saving/loading through the engine | |
 | 8 | `chunker`, `indexer`, `search`, `export` read the document, not re-parsed text | |
@@ -239,5 +254,22 @@ Two serializer details worth knowing, because they are easy to get wrong:
 - Emphasis markers can't sit against whitespace (`**a **` is not strong), so
   whitespace at the edge of a group is moved outside the markers.
 
-Phase 4 is next: cross-block selections, caret marks, list and table commands,
-and typing coalescing — the gaps listed in section 5.
+## 9. Selections, lists, tables and undo granularity (Phase 4)
+
+A selection spanning blocks is served by joining its two ends: what follows the
+selection in the last block moves onto the first, and every block between them
+is removed — one transaction, two operations, invertible like any other. Ends
+inside a quote or a list item are refused rather than half-handled.
+
+Lists and tables are now editable through `ReplaceBlock`, which replaces a
+container in place. `ToggleList` wraps a paragraph, flips bullets to numbers
+(at any depth), or unwraps a top-level list; `ToggleTask` makes an item a task
+and then ticks and unticks it; tables gain rows and columns around the caret.
+The caret survives all of it because the blocks inside a container keep their
+ids.
+
+Undo granularity now matches typing: a burst folds into one history node, a
+pause or a caret move starts another, and nothing but typing coalesces.
+
+Phase 5 is next: the Tauri command surface, and the decision about what happens
+to Milkdown — the risk at the top of section 6.

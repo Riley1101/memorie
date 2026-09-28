@@ -91,6 +91,53 @@ impl History {
         index
     }
 
+    /// Folds another edit into the current node instead of recording a new
+    /// one, so a burst of typing is one undo step rather than one per
+    /// character. Returns false when the edit doesn't belong with it, and the
+    /// caller records it normally.
+    ///
+    /// An edit belongs with the current node when it has the same label, its
+    /// selection carries on from where that node left off, that node has no
+    /// branches hanging off it, and it happened within `window_ms`. Without
+    /// timestamps on both, nothing is folded: guessing is worse than an extra
+    /// undo step.
+    pub fn coalesce(
+        &mut self,
+        undo: Transaction,
+        redo: Transaction,
+        label: Option<&str>,
+        created_at: Option<i64>,
+        window_ms: i64,
+    ) -> bool {
+        let Some(current) = self.current else {
+            return false;
+        };
+        let entry = &mut self.nodes[current.0];
+        let (Some(then), Some(now)) = (entry.created_at, created_at) else {
+            return false;
+        };
+        let belongs = entry.label.as_deref() == label
+            && entry.children.is_empty()
+            && self.redo_stack.is_empty()
+            && now >= then
+            && now - then <= window_ms
+            && entry.redo.selection_after == redo.selection_before;
+        if !belongs {
+            return false;
+        }
+
+        // Redoing runs the old operations then the new ones; undoing runs the
+        // new inverses first, then the old ones.
+        entry.redo.operations.extend(redo.operations);
+        entry.redo.selection_after = redo.selection_after;
+        let mut inverse = undo.operations;
+        inverse.append(&mut entry.undo.operations);
+        entry.undo.operations = inverse;
+        entry.undo.selection_before = undo.selection_before;
+        entry.created_at = Some(now);
+        true
+    }
+
     /// The transaction that undoes the current edit, and the node to move to.
     /// Returns `None` at the root.
     pub fn undo(&mut self) -> Option<Transaction> {

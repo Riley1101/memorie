@@ -250,15 +250,66 @@ fn marks_are_independent_of_each_other() {
 }
 
 #[test]
-fn toggling_a_mark_with_no_selection_is_refused_for_now() {
+fn toggling_a_mark_with_no_selection_arms_it_for_the_next_keystroke() {
+    let mut editor = editor(vec![BlockKind::paragraph("word ")]);
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 5, 5);
+
+    // Nothing is selected, so nothing is edited — and no history is recorded.
+    let revision = editor.revision();
+    editor.apply(EditorCommand::toggle_bold()).unwrap();
+    assert_eq!(editor.revision(), revision);
+    assert!(editor.history().is_empty());
+    assert_eq!(editor.pending_marks(), Some(MarkSet::BOLD));
+    assert!(editor.active_marks().contains(MarkSet::BOLD));
+
+    editor.apply(EditorCommand::insert_text("bold")).unwrap();
+    let content = editor.document().blocks()[0].content().unwrap();
+    assert_eq!(content.plain_text(), "word bold");
+    assert!(content.has_mark_throughout(5, 9, MarkSet::BOLD));
+    assert!(!content.has_mark_throughout(0, 5, MarkSet::BOLD));
+    assert_eq!(
+        editor.pending_marks(),
+        None,
+        "typing spends the armed marks"
+    );
+}
+
+#[test]
+fn armed_marks_are_dropped_when_the_caret_moves() {
     let mut editor = editor(vec![BlockKind::paragraph("word")]);
     let paragraph = block(&editor, 0);
-    select(&mut editor, paragraph, 2, 2);
+    select(&mut editor, paragraph, 4, 4);
 
-    assert!(matches!(
-        editor.apply(EditorCommand::toggle_bold()),
-        Err(EditorError::Unsupported(_))
-    ));
+    editor.apply(EditorCommand::toggle_bold()).unwrap();
+    select(&mut editor, paragraph, 0, 0);
+    assert_eq!(editor.pending_marks(), None);
+
+    editor.apply(EditorCommand::insert_text("a")).unwrap();
+    assert!(!editor.document().blocks()[0]
+        .content()
+        .unwrap()
+        .has_mark_throughout(0, 1, MarkSet::BOLD));
+}
+
+#[test]
+fn arming_a_mark_that_is_already_on_turns_it_off() {
+    let mut editor = editor(vec![BlockKind::Paragraph {
+        content: InlineContent::new(vec![Inline::marked("bold", MarkSet::BOLD)]),
+    }]);
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 4, 4);
+
+    assert!(
+        editor.active_marks().contains(MarkSet::BOLD),
+        "the caret sits in bold text"
+    );
+    editor.apply(EditorCommand::toggle_bold()).unwrap();
+    editor.apply(EditorCommand::insert_text(" plain")).unwrap();
+
+    let content = editor.document().blocks()[0].content().unwrap();
+    assert!(content.has_mark_throughout(0, 4, MarkSet::BOLD));
+    assert!(!content.has_mark_throughout(4, 10, MarkSet::BOLD));
 }
 
 #[test]
@@ -504,27 +555,36 @@ fn moving_the_caret_is_not_an_edit() {
 // --- commands that can't be honoured ---------------------------------------
 
 #[test]
-fn a_selection_across_blocks_is_refused_rather_than_guessed_at() {
+fn a_selection_ending_inside_a_nested_block_is_refused_rather_than_half_handled() {
     let mut editor = editor(vec![
         BlockKind::paragraph("first"),
-        BlockKind::paragraph("second"),
+        BlockKind::paragraph("quoted"),
     ]);
     let first = block(&editor, 0);
-    let second = block(&editor, 1);
+    let quoted = block(&editor, 1);
+    editor
+        .apply(EditorCommand::SetSelection(SelectionRange::in_block(
+            quoted, 0, 0,
+        )))
+        .unwrap();
+    editor.apply(EditorCommand::WrapInQuote).unwrap();
+
     editor
         .apply(EditorCommand::SetSelection(SelectionRange::new(
             Position::new(first, 1),
-            Position::new(second, 2),
+            Position::new(quoted, 2),
         )))
         .unwrap();
-
     assert!(matches!(
         editor.apply(EditorCommand::insert_text("x")),
-        Err(EditorError::MultiBlockSelection)
+        Err(EditorError::NestedBlock(_))
     ));
     // And the document is untouched.
     assert_eq!(text(&editor, 0), "first");
-    assert_eq!(text(&editor, 1), "second");
+    assert_eq!(
+        editor.document().block(quoted).unwrap().own_text(),
+        "quoted"
+    );
 }
 
 #[test]

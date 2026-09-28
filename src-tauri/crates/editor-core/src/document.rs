@@ -158,6 +158,73 @@ impl Document {
     }
 
     /// Position of `id` in the top-level list, if it is a top-level block.
+    /// Swaps one block for another, wherever it sits, and returns the old one.
+    pub(crate) fn replace_block(&mut self, id: BlockId, with: Block) -> Option<Block> {
+        let slot = self.block_mut(id)?;
+        Some(std::mem::replace(slot, with))
+    }
+
+    /// The block `id` sits directly inside, if it isn't top level.
+    pub fn parent_of(&self, id: BlockId) -> Option<BlockId> {
+        self.all_blocks()
+            .into_iter()
+            .find(|block| block.children().iter().any(|child| child.id == id))
+            .map(|block| block.id)
+    }
+
+    /// The blocks `id` sits inside, innermost first.
+    pub fn ancestors(&self, id: BlockId) -> Vec<BlockId> {
+        let mut out = Vec::new();
+        let mut at = id;
+        while let Some(parent) = self.parent_of(at) {
+            out.push(parent);
+            at = parent;
+        }
+        out
+    }
+
+    /// The innermost list around `id`, with the index of the item holding it.
+    pub fn list_position(&self, id: BlockId) -> Option<(BlockId, usize)> {
+        let candidates = std::iter::once(id).chain(self.ancestors(id));
+        for candidate in candidates {
+            let Some(parent) = self.parent_of(candidate).and_then(|p| self.block(p)) else {
+                continue;
+            };
+            if let BlockKind::List { items, .. } = &parent.kind {
+                let item = items.iter().position(|item| {
+                    item.blocks
+                        .iter()
+                        .flat_map(Block::descendants)
+                        .any(|block| block.id == candidate)
+                })?;
+                return Some((parent.id, item));
+            }
+        }
+        None
+    }
+
+    /// The innermost table around `id`, with the row and column holding it.
+    pub fn table_position(&self, id: BlockId) -> Option<(BlockId, usize, usize)> {
+        for block in self.all_blocks() {
+            let BlockKind::Table { table } = &block.kind else {
+                continue;
+            };
+            for (row_index, row) in table.rows.iter().enumerate() {
+                for (column, cell) in row.cells.iter().enumerate() {
+                    let holds = cell
+                        .blocks
+                        .iter()
+                        .flat_map(Block::descendants)
+                        .any(|inner| inner.id == id);
+                    if holds {
+                        return Some((block.id, row_index, column));
+                    }
+                }
+            }
+        }
+        None
+    }
+
     pub fn top_index(&self, id: BlockId) -> Option<usize> {
         self.blocks.iter().position(|block| block.id == id)
     }

@@ -37,7 +37,9 @@ pub enum EditorCommand {
     MergeBlocks,
 
     /// Toggles a mark over the selection: on unless the whole selection
-    /// already carries it.
+    /// already carries it. With a collapsed caret it toggles the mark for the
+    /// text about to be typed (see `Editor::pending_marks`), which changes no
+    /// document state and so records no history.
     ToggleMark(MarkSet),
 
     /// `0` turns a heading back into a paragraph; `1..=6` set the level.
@@ -51,6 +53,33 @@ pub enum EditorCommand {
     SetParagraph,
     /// Wraps the block at the caret in a block quote.
     WrapInQuote,
+
+    /// Turns the block at the caret into a one-item list, flips an existing
+    /// list between bullets and numbers, or unwraps a list of that kind.
+    ToggleList {
+        #[serde(default)]
+        ordered: bool,
+    },
+    /// Makes the list item at the caret a task, then ticks and unticks it.
+    /// Never takes taskness away again.
+    ToggleTask,
+
+    /// Inserts a table after the block at the caret, with a header row and
+    /// `rows` body rows.
+    InsertTable {
+        rows: usize,
+        columns: usize,
+    },
+    /// Inserts an empty row after (or before) the row holding the caret.
+    InsertTableRow {
+        #[serde(default)]
+        before: bool,
+    },
+    /// Inserts an empty column after (or before) the column holding the caret.
+    InsertTableColumn {
+        #[serde(default)]
+        before: bool,
+    },
 
     /// Links the selection. `None` removes the link.
     SetLink {
@@ -98,6 +127,11 @@ impl EditorCommand {
             EditorCommand::SetCodeBlock { .. } => "Code block",
             EditorCommand::SetParagraph => "Paragraph",
             EditorCommand::WrapInQuote => "Quote",
+            EditorCommand::ToggleList { .. } => "List",
+            EditorCommand::ToggleTask => "Task",
+            EditorCommand::InsertTable { .. } => "Table",
+            EditorCommand::InsertTableRow { .. } => "Table row",
+            EditorCommand::InsertTableColumn { .. } => "Table column",
             EditorCommand::SetLink { .. } => "Link",
             EditorCommand::InsertImage(_) => "Image",
             EditorCommand::InsertParagraph => "Paragraph",
