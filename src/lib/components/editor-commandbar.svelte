@@ -266,6 +266,9 @@
     return [];
   });
 
+	/** @type {HTMLButtonElement[]} */
+	let suggestionsEls = [];
+
   $effect(() => {
     suggestions;
     selectedIndex = 0;
@@ -532,9 +535,19 @@
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       selectedIndex = (selectedIndex + 1) % suggestions.length;
+			suggestionsEls[selectedIndex]?.scrollIntoView({
+				behavior: 'auto',
+				block: 'nearest',
+				inline: 'nearest'
+			});
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
+			suggestionsEls[selectedIndex]?.scrollIntoView({
+				behavior: 'auto',
+				block: 'nearest',
+				inline: 'nearest'
+			});
     } else if (e.key === 'Tab') {
       e.preventDefault();
       if (suggestions[selectedIndex]) {
@@ -562,6 +575,8 @@
       blurTimeout = null;
     }
   }
+
+
 </script>
 
 <div class="relative bg-titlebar-background z-40 command-bar">
@@ -579,6 +594,7 @@
           <button
             onclick={() => executeCommand(suggestion.cmd)}
             onfocus={handleFocus}
+						bind:this={suggestionsEls[index]}
             class={cn(
               'w-full px-3 py-2 text-left text-sm font-mono flex items-center justify-between rounded-sm transition-colors',
               index === selectedIndex
