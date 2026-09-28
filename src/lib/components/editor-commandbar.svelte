@@ -730,12 +730,12 @@
         </Tooltip.Root>
 
         {#if aiEnabled}
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <button
-                  {...props}
-                  onclick={() => {
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <button
+                {...props}
+                onclick={() => {
                   if (llmManager.isLoadModelsInProgress || llmManager.downloadingModelId) return;
                   if (aiProvider === 'openrouter') {
                     if (!aiReady) {
@@ -757,37 +757,36 @@
                     appState.toggleAiChat(!appState.ui.isChatOpen);
                   }
                 }}
-                  class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
-                >
-                  <AiSparkleIcon
-                    strokeWidth={1.5}
-                    class={cn(
+                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
+                <AiSparkleIcon strokeWidth={1.5}
+                  class={cn(
                     'size-3.5 transition-colors',
                     isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
                     !aiReady ? 'text-warning' : ''
                   )}
-                  />
-                </button>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content side="top" portalProps={{}}>
-              {#if aiProvider === 'openrouter'}
-                {#if !aiReady}
-                  Click to add your OpenRouter API key
-                {:else}
-                  AI chat (OpenRouter) · {MOD_KEY}L
-                {/if}
-              {:else if llmManager.isLoadModelsInProgress}
-                Loading AI model… {llmManager.loadingProgress}%
-              {:else if llmManager.downloadingModelId}
-                Downloading model… {llmManager.loadingProgress}%
-              {:else if !llmManager.modelsLoaded}
-                Click to set up local AI
+ />
+              </button>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="top" portalProps={{}}>
+            {#if aiProvider === 'openrouter'}
+              {#if !aiReady}
+                Click to add your OpenRouter API key
               {:else}
-                AI chat · {MOD_KEY}L
+                AI chat (OpenRouter) · {MOD_KEY}L
               {/if}
-            </Tooltip.Content>
-          </Tooltip.Root>
+            {:else if llmManager.isLoadModelsInProgress}
+              Loading AI model… {llmManager.loadingProgress}%
+            {:else if llmManager.downloadingModelId}
+              Downloading model… {llmManager.loadingProgress}%
+            {:else if !llmManager.modelsLoaded}
+              Click to set up local AI
+            {:else}
+              AI chat · {MOD_KEY}L
+            {/if}
+          </Tooltip.Content>
+        </Tooltip.Root>
         {/if}
       </div>
 
