@@ -210,8 +210,8 @@ These are refusals with a clear error, not silent wrong behaviour:
 | 2 | `editor-core`: document, inline, selection, commands, transactions, history, tests | done |
 | 3 | Markdown ↔ Document, with round-trip fixtures and front matter | done |
 | 4 | Multi-block selections, caret marks, list/table commands, coalescing | done |
-| 5 | Tauri API (`editor_open`, `editor_apply`, `editor_state`, …) and the view decision | next |
-| 6 | Fold undo/redo into transactions; decide how `undotree` and engine history meet | |
+| 5 | Tauri API (`editor_open`, `editor_apply`, `editor_state`, …) | done |
+| 6 | Put the editing surface on the engine (the view decision); fold undo/redo into transactions | next |
 | 7 | Saving/loading through the engine | |
 | 8 | `chunker`, `indexer`, `search`, `export` read the document, not re-parsed text | |
 | 9 | Remove the JS-side duplicates (`front-matter.js`, whole-document scans) | |
@@ -271,5 +271,66 @@ ids.
 Undo granularity now matches typing: a burst folds into one history node, a
 pause or a caret move starts another, and nothing but typing coalesces.
 
-Phase 5 is next: the Tauri command surface, and the decision about what happens
-to Milkdown — the risk at the top of section 6.
+## 10. The Tauri surface (Phase 5)
+
+Six commands, not sixty:
+
+```text
+editor_open      parse a writing, or pick up the session already open
+editor_apply     apply commands, get the new state
+editor_state     the current state, without changing anything
+editor_markdown  what a save would write
+editor_save      write it, through the same path the old save takes
+editor_close     forget the session
+```
+
+One open document is one `Editor` session in `AppState.editors`, keyed by the
+writing's path. `editor_open` on a document that is already open returns the
+live session rather than re-parsing, so it can never quietly drop unsaved
+edits; `reload: true` is the explicit way to start over.
+
+`editor_save` and the existing `update_file` now both go through
+`commands::save_writing`, so a save means the same thing whichever editor made
+it: one file write, one version in the undo tree, one file-watcher event for the
+indexer. That is the alternative to a second save path, and it is why the
+engine can start saving without touching `undotree`, the indexer or Git.
+
+### The wire format
+
+`src-tauri/src/editor/wire.rs` is a format of its own, not serde on the
+engine's types, because the frontend depends on its shape while the document
+model should stay free to change. Two differences from the engine are
+deliberate:
+
+- **Offsets are UTF-16 code units.** That is what a JavaScript string index
+  means, so `text.slice(offset)` lines up on the frontend; the engine counts
+  `char`s. The conversion happens here, the one place both units are known. An
+  image or a raw HTML span is one unit on both sides, since the view draws it
+  as one thing. An offset landing inside a surrogate pair — which a correct
+  frontend never sends — rounds down.
+- **Marks are names** (`["bold", "italic"]`), which survive JSON and a version
+  skew; a bitfield does not.
+
+`src/lib/rust-editor.js` is the only place the frontend talks to the engine.
+
+### What is *not* wired up yet, and why
+
+Milkdown is still the editor the writer types into. This phase landed the
+surface without moving the editing onto it, on purpose: switching the typing
+surface is the one change in this migration that can't be made invisible, and
+doing it in the same commit as the API would make both hard to review and hard
+to revert.
+
+The recommendation for Phase 6, to argue with before it is built: **keep
+Milkdown as the view and make the engine the source of truth**, with a strictly
+one-way flow — a keystroke goes to Rust, and the view is reconciled from the
+state that comes back (revision-checked, so a stale reply is dropped). Replacing
+the view with a plain `contenteditable` gives up more than it looks like:
+Milkdown's IME and composition handling, clipboard, mobile behaviour and
+accessibility are years of work that has nothing to do with document modelling.
+
+The thing to measure first, before writing that reconciliation: the round-trip
+cost of one keystroke on a 100k-character document. If `editor_apply` plus
+reconciliation is not comfortably inside a frame, the answer is local echo in
+the view with reconciliation behind it, and that changes the design enough that
+it should be known up front.

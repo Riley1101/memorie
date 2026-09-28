@@ -3,6 +3,7 @@ mod codex;
 mod commands;
 mod config;
 mod dropbox;
+mod editor;
 mod error;
 mod export;
 
@@ -35,6 +36,8 @@ use crate::memory::Memory;
 
 pub struct AppState {
     config: Mutex<AppConfig>,
+    /// Documents open in the Rust editor engine, one per writing.
+    editors: editor::Sessions,
     undotree: Mutex<UndoTree>,
     model: Mutex<Model>,
     memory: Memory,
@@ -83,6 +86,7 @@ pub async fn run() {
         let app_handle = app.handle().clone();
         let app_state = AppState {
             config: Mutex::new(app_config),
+            editors: editor::Sessions::default(),
             undotree: Mutex::new(undo_tree),
             model: Mutex::new(model),
             memory: memory_instance,
@@ -274,6 +278,12 @@ pub async fn run() {
             commands::codex_detect,
             commands::codex_matrix,
             commands::codex_draft,
+            editor::editor_open,
+            editor::editor_apply,
+            editor::editor_state,
+            editor::editor_markdown,
+            editor::editor_save,
+            editor::editor_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -6128,6 +6128,7 @@ dependencies = [
  "dashmap 6.2.1",
  "dirs 6.0.0",
  "docx-rs",
+ "editor-core",
  "epub-builder",
  "fix-path-env",
  "futures",

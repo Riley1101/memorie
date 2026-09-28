@@ -58,14 +58,27 @@ pub async fn update_file(
     content: &str,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
+    save_writing(&state, &name, content).await
+}
+
+/// Writes a writing and records the new version. Both `update_file` (the
+/// Milkdown editor's save) and `editor_save` (the Rust engine's) go through
+/// here, so a save means the same thing whichever editor made it: one file
+/// write, one version in the undo tree, one file-watcher event for the indexer.
+pub(crate) async fn save_writing(
+    state: &AppState,
+    name: &str,
+    content: &str,
+) -> Result<File, String> {
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = config.content_directory.join(name);
+    drop(config);
 
     let last_modified = std::fs::metadata(&path).and_then(|m: std::fs::Metadata| m.modified()).ok()
         .and_then(|t: std::time::SystemTime| t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok())
         .map(|d: std::time::Duration| d.as_secs()).unwrap_or(0);
     let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
-    let file_to_update = File { path, name, last_modified, folder };
+    let file_to_update = File { path, name: name.to_string(), last_modified, folder };
 
     let result = fs::update_file(&file_to_update, content).map_err(|e| e.to_string());
 
