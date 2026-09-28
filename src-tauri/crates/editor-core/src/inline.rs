@@ -109,6 +109,9 @@ pub enum Inline {
         link: Option<Link>,
     },
     Image(ImageNode),
+    /// Raw inline HTML (`<br>`, `<span …>`), kept verbatim. Treated as one
+    /// indivisible unit so an edit can never cut a tag in half.
+    Html(String),
     /// A line break inside a block (`\` or two trailing spaces in Markdown).
     HardBreak,
 }
@@ -142,7 +145,7 @@ impl Inline {
     pub fn len(&self) -> usize {
         match self {
             Inline::Text { text, .. } => text.chars().count(),
-            Inline::Image(_) | Inline::HardBreak => 1,
+            Inline::Image(_) | Inline::Html(_) | Inline::HardBreak => 1,
         }
     }
 
@@ -164,6 +167,8 @@ impl Inline {
         match self {
             Inline::Text { text, .. } => out.push_str(text),
             Inline::Image(image) => out.push_str(&image.alt),
+            // Raw HTML is markup, not prose: it stays out of plain text.
+            Inline::Html(_) => {}
             Inline::HardBreak => out.push('\n'),
         }
     }

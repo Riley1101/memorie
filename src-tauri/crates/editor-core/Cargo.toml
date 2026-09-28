@@ -6,6 +6,7 @@ description = "A reusable document model and editing engine for Markdown-backed 
 license = "MIT"
 
 [dependencies]
+pulldown-cmark = { version = "0.12", default-features = false }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]

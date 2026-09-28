@@ -84,6 +84,7 @@ src-tauri/
   crates/editor-core/        no tauri, no tokio, no filesystem; serde only
     src/ids.rs               BlockId, DocumentId, id generator
     src/inline.rs            MarkSet, Inline, InlineContent (flat runs)
+    src/markdown.rs          parse / to_markdown, front matter, DocumentSource
     src/node.rs              Block, BlockKind, ListItem, TableNode
     src/document.rs          Document, metadata, plain_text, outline
     src/selection.rs         Position, SelectionRange, mapping
@@ -93,6 +94,8 @@ src-tauri/
     src/editor.rs            Editor: command → transaction → document + history
     src/error.rs             EditorError
     tests/editing.rs         editing, selection and history behaviour
+    tests/markdown.rs        parsing, printing, round-trip properties
+    tests/fixtures/*.md      real documents, in the engine's own spelling
 ```
 
 A separate crate rather than a module in `memoire`, because "reusable" has to
@@ -190,14 +193,51 @@ These are refusals with a clear error, not silent wrong behaviour:
 | --- | --- | --- |
 | 1 | Understand the existing flow; change nothing | done (this document) |
 | 2 | `editor-core`: document, inline, selection, commands, transactions, history, tests | done |
-| 3 | Markdown ↔ Document, with round-trip fixtures and front matter | next |
-| 4 | Multi-block selections, caret marks, list/table commands, coalescing | |
+| 3 | Markdown ↔ Document, with round-trip fixtures and front matter | done |
+| 4 | Multi-block selections, caret marks, list/table commands, coalescing | next |
 | 5 | Tauri API (`editor_open`, `editor_apply`, `editor_state`, …) and the view decision | |
 | 6 | Fold undo/redo into transactions; decide how `undotree` and engine history meet | |
 | 7 | Saving/loading through the engine | |
 | 8 | `chunker`, `indexer`, `search`, `export` read the document, not re-parsed text | |
 | 9 | Remove the JS-side duplicates (`front-matter.js`, whole-document scans) | |
 
-Phase 3 is next because everything after it needs Markdown in and out, and
-because the round-trip fixtures are what prove the model holds real documents
-before any of the app depends on it.
+## 8. Markdown (Phase 3)
+
+`pulldown-cmark` does the parsing; the serializer is ours. `comrak` was the
+alternative and can print its own AST back to Markdown, but `Document` *is* the
+AST here, so its tree would be a second model to convert through while the
+serializer below still had to exist. `pulldown-cmark` is also already in the
+tree (the chunker, exporter and PDF writer walk it) and its events carry byte
+offsets, which is the hook an incremental reparse would want.
+
+Front matter is split off before the parser sees the body, using the same
+"looks like YAML" rule the JavaScript used, and is written back **verbatim**
+from `raw` — so an untouched metadata block is never reformatted, and a
+document opening with `---` as a thematic break is still a thematic break.
+
+Three properties, tested in this order:
+
+1. **Semantics survive.** `parse` keeps what the document says.
+2. **Printing is idempotent.** One pass reaches a fixed point, so a save can
+   never keep churning a file. Tested over setext headings, `+`/`1)` lists,
+   reference links, autolinks, entities, indented code, tables, and more.
+3. **Canonical text is untouched.** A file already in the engine's spelling
+   comes back byte for byte, which is what keeps an unedited save out of a Git
+   diff. The two fixtures assert this, and that an inline edit changes only the
+   line it is on.
+
+What is deliberately *not* preserved: the choice between equivalent spellings
+(`*a*` becomes `_a_`, `__a__` becomes `**a**`, setext headings become ATX,
+entities become the characters they name). Soft line breaks **are** kept, so
+hand-wrapped paragraphs are not reflowed.
+
+Two serializer details worth knowing, because they are easy to get wrong:
+
+- Marks are grouped across runs, so `bold` + `bold italic` prints as
+  `**bold _and italic_**` rather than `**bold** **_and italic_**` — the space
+  between them is bold in the model, and only a shared wrapper says so.
+- Emphasis markers can't sit against whitespace (`**a **` is not strong), so
+  whitespace at the edge of a group is moved outside the markers.
+
+Phase 4 is next: cross-block selections, caret marks, list and table commands,
+and typing coalescing — the gaps listed in section 5.

@@ -87,6 +87,25 @@ impl Document {
         document
     }
 
+    /// Builds a document from blocks that already carry ids — what the
+    /// Markdown parser produces, since it needs ids for nested blocks too.
+    /// Ids handed out afterwards can't collide with them.
+    pub fn from_blocks(id: impl Into<DocumentId>, blocks: Vec<Block>) -> Self {
+        let mut document = Self {
+            id: id.into(),
+            metadata: DocumentMetadata::default(),
+            blocks,
+            ids: IdGenerator::default(),
+            revision: 0,
+        };
+        document.reseal_ids();
+        if document.blocks.is_empty() {
+            let paragraph = document.new_block(BlockKind::paragraph(""));
+            document.blocks.push(paragraph);
+        }
+        document
+    }
+
     /// Wraps a kind in a block with a fresh id.
     pub fn new_block(&mut self, kind: BlockKind) -> Block {
         document_block(&mut self.ids, kind)
