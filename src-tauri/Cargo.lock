@@ -2646,6 +2646,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "editor-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ego-tree"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
