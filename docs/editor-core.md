@@ -1,8 +1,5 @@
 # The Rust editor core
 
-Written for: Memorie's maintainers, reviewing the migration of the document
-engine from the Svelte side into Rust.
-
 This document records where the document engine lives today (Phase 1), the
 model the Rust engine uses and why (Phase 2), and what each later phase has to
 do. It is the place to argue with the design before more code depends on it.
