@@ -284,8 +284,8 @@
     return [];
   });
 
-	/** @type {HTMLButtonElement[]} */
-	let suggestionsEls = [];
+  /** @type {HTMLButtonElement[]} */
+  let suggestionsEls = [];
 
   $effect(() => {
     suggestions;
@@ -561,19 +561,19 @@
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       selectedIndex = (selectedIndex + 1) % suggestions.length;
-			suggestionsEls[selectedIndex]?.scrollIntoView({
-				behavior: 'auto',
-				block: 'nearest',
-				inline: 'nearest'
-			});
+      suggestionsEls[selectedIndex]?.scrollIntoView({
+        behavior: 'auto',
+        block: 'nearest',
+        inline: 'nearest'
+      });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
-			suggestionsEls[selectedIndex]?.scrollIntoView({
-				behavior: 'auto',
-				block: 'nearest',
-				inline: 'nearest'
-			});
+      suggestionsEls[selectedIndex]?.scrollIntoView({
+        behavior: 'auto',
+        block: 'nearest',
+        inline: 'nearest'
+      });
     } else if (e.key === 'Tab') {
       e.preventDefault();
       if (suggestions[selectedIndex]) {
@@ -618,7 +618,7 @@
           <button
             onclick={() => executeCommand(suggestion.cmd)}
             onfocus={handleFocus}
-						bind:this={suggestionsEls[index]}
+            bind:this={suggestionsEls[index]}
             class={cn(
               'w-full px-3 py-2 text-left text-sm font-mono flex items-center justify-between rounded-sm transition-colors',
               index === selectedIndex
@@ -658,7 +658,7 @@
         placeholder="Type command..."
         class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full px-2"
         aria-label="Command input"
- />
+      />
     </div>
   {:else}
     <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] font-mono">
@@ -730,12 +730,12 @@
         </Tooltip.Root>
 
         {#if aiEnabled}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                onclick={() => {
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
+                  onclick={() => {
                   if (llmManager.isLoadModelsInProgress || llmManager.downloadingModelId) return;
                   if (aiProvider === 'openrouter') {
                     if (!aiReady) {
@@ -757,36 +757,37 @@
                     appState.toggleAiChat(!appState.ui.isChatOpen);
                   }
                 }}
-                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <AiSparkleIcon strokeWidth={1.5}
-                  class={cn(
+                  class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <AiSparkleIcon
+                    strokeWidth={1.5}
+                    class={cn(
                     'size-3.5 transition-colors',
                     isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
                     !aiReady ? 'text-warning' : ''
                   )}
- />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>
-            {#if aiProvider === 'openrouter'}
-              {#if !aiReady}
-                Click to add your OpenRouter API key
+                  />
+                </button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content side="top" portalProps={{}}>
+              {#if aiProvider === 'openrouter'}
+                {#if !aiReady}
+                  Click to add your OpenRouter API key
+                {:else}
+                  AI chat (OpenRouter) · {MOD_KEY}L
+                {/if}
+              {:else if llmManager.isLoadModelsInProgress}
+                Loading AI model… {llmManager.loadingProgress}%
+              {:else if llmManager.downloadingModelId}
+                Downloading model… {llmManager.loadingProgress}%
+              {:else if !llmManager.modelsLoaded}
+                Click to set up local AI
               {:else}
-                AI chat (OpenRouter) · {MOD_KEY}L
+                AI chat · {MOD_KEY}L
               {/if}
-            {:else if llmManager.isLoadModelsInProgress}
-              Loading AI model… {llmManager.loadingProgress}%
-            {:else if llmManager.downloadingModelId}
-              Downloading model… {llmManager.loadingProgress}%
-            {:else if !llmManager.modelsLoaded}
-              Click to set up local AI
-            {:else}
-              AI chat · {MOD_KEY}L
-            {/if}
-          </Tooltip.Content>
-        </Tooltip.Root>
+            </Tooltip.Content>
+          </Tooltip.Root>
         {/if}
       </div>
 
