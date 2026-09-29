@@ -633,7 +633,11 @@ it, paste into it, and try an IME.
     flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    /* The app's macOS overlay title bar is a fixed strip across the top of the
+       window; without this the header sits under it and can't be seen or
+       clicked. Padding, not a z-index, because that strip is the window's drag
+       region. */
+    padding: calc(0.75rem + var(--titlebar-height, 0px)) 1rem 0.75rem;
     border-bottom: 1px solid color-mix(in oklab, currentColor 15%, transparent);
     font-size: 0.8125rem;
   }
