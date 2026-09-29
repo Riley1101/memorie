@@ -27,7 +27,11 @@
     blockText,
     positionOf,
   } from '$lib/editor/dom.js';
-  import { commandsForCharacter, mightBeRule } from '$lib/editor/input-rules.js';
+  import {
+    commandsForCharacter,
+    mightBeRule,
+    backspaceThroughPair,
+  } from '$lib/editor/input-rules.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { openHref } from '$lib/components/plugins/link-popover.svelte.js';
   import { DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
@@ -82,6 +86,16 @@
 
   /** Input intents the engine has no command for yet, for the caller to see. */
   let unsupported = $state(/** @type {string[]} */ ([]));
+
+  /**
+   * Commands in flight. Typing faster than the round trip leaves several
+   * outstanding: the engine applies them in order, but their replies can arrive
+   * out of order, and an older reply must not undraw a newer one or drag the
+   * caret back to where it used to be.
+   */
+  let inFlight = 0;
+  /** The highest revision drawn so far. */
+  let drawn = -1;
 
   /** The block the caret is in, for focus mode's dimming. */
   let currentBlock = $derived(doc?.selection.head.block ?? -1);
@@ -162,13 +176,14 @@
   }
 
   $effect(() => {
-    void name;
+    // The name is captured, not read in the cleanup: by the time the cleanup
+    // runs the prop may already hold the *next* document, and closing that one
+    // would drop a session just opened while leaving this one behind.
+    const opened = name;
     void text;
     reload();
     return () => {
-      // The session belongs to this surface; leaving drops it so nothing else
-      // picks up edits that were never saved.
-      closeDocument(name).catch(() => {});
+      closeDocument(opened).catch(() => {});
     };
   });
 
@@ -179,16 +194,23 @@
   async function send(commands) {
     if (commands.length === 0 || !doc) return;
     const started = performance.now();
+    inFlight += 1;
     try {
       const update = await applyCommands(name, commands);
+      if (update.revision < drawn) return; // a newer reply already landed
+      drawn = update.revision;
       patchState(doc, update);
       await tick();
-      // The engine decides where the caret is; the DOM is told.
-      if (root && !composing) writeSelection(root, update.selection);
+      // The engine decides where the caret is, but only once nothing else is
+      // still on its way: moving it under a keystroke that hasn't been answered
+      // yet would put it behind the writer.
+      if (root && !composing && inFlight === 1) writeSelection(root, update.selection);
       onupdate?.(update, performance.now() - started);
       if (update.blocks.length > 0) onedit?.();
     } catch (e) {
       onerror?.(String(e));
+    } finally {
+      inFlight -= 1;
     }
   }
 
@@ -232,9 +254,16 @@
     } else if (type === 'insertParagraph') {
       commands.push({ command: 'splitBlock' });
     } else if (type === 'insertLineBreak') {
-      // A soft break: the engine keeps the newline, and the serializer keeps
-      // the author's wrapping.
-      commands.push({ command: 'insertText', text: '\n' });
+      // A soft break: the engine keeps the newline, and the serializer keeps the
+      // author's wrapping. A heading is one line by definition — a newline in
+      // one would come back as a heading plus a paragraph — so ⇧↵ splits the
+      // block there, like ↵.
+      const block = findBlock(doc?.blocks ?? [], selection.head.block);
+      commands.push(
+        block?.kind === 'heading'
+          ? { command: 'splitBlock' }
+          : { command: 'insertText', text: '\n' }
+      );
     } else if (type === 'insertFromPaste' || type === 'insertFromDrop') {
       const pasted = event.dataTransfer?.getData('text/plain') ?? '';
       if (!pasted) {
@@ -245,6 +274,11 @@
         return;
       }
       commands.push({ command: 'insertText', text: pasted });
+    } else if (type === 'deleteContentBackward' && pairDelete()) {
+      const pair = pairDelete();
+      event.preventDefault();
+      if (pair) send(pair);
+      return;
     } else if (type.startsWith('delete')) {
       // The browser has already worked out what a word-wise or line-wise delete
       // covers; use its range rather than reimplementing what a word is.
@@ -278,24 +312,40 @@
    * @returns {EditorCommand[] | null}
    */
   function ruleFor(character) {
+    const context = typingContext();
+    return context ? commandsForCharacter(character, context) : null;
+  }
+
+  /** Backspace between the two halves of a pair the editor added removes both. */
+  function pairDelete() {
+    const context = typingContext();
+    return context ? backspaceThroughPair(context) : null;
+  }
+
+  /**
+   * Where the caret is and what surrounds it, for the typing rules. Null when
+   * the rules shouldn't apply: no caret, a selection across blocks, or a code
+   * block, which takes every character literally.
+   * @returns {import('$lib/editor/input-rules.js').TypingContext | null}
+   */
+  function typingContext() {
     if (!root) return null;
     const selection = readSelection(root);
     if (!selection || selection.anchor.block !== selection.head.block) return null;
     const element = elementOf(selection.anchor.block);
     if (!element) return null;
-    // A code block takes characters literally: no shortcuts inside code.
     const block = findBlock(doc?.blocks ?? [], selection.anchor.block);
     if (!block || block.kind === 'codeBlock') return null;
 
     const [start, end] = [selection.anchor.offset, selection.head.offset].sort((a, b) => a - b);
-    return commandsForCharacter(character, {
+    return {
       block: selection.anchor.block,
       start,
       end,
       text: blockText(element),
       smartPunctuation: writingState.smartPunctuation,
       autoPair: writingState.autoPair,
-    });
+    };
   }
 
   /**

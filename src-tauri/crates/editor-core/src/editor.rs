@@ -18,6 +18,9 @@ use crate::transaction::{Change, Operation, Transaction};
 /// How close together two edits have to be to become one undo step.
 const DEFAULT_COALESCE_WINDOW_MS: i64 = 700;
 
+/// The label the commands that type text carry; the only ones that coalesce.
+const TYPING: &str = "Typing";
+
 pub struct Editor {
     document: Document,
     selection: SelectionRange,
@@ -192,7 +195,7 @@ impl Editor {
 
         // A burst of typing is one undo step. Nothing else coalesces: undoing
         // half a table insertion would be worse than an extra press.
-        let coalescing = label == EditorCommand::InsertText(String::new()).label();
+        let coalescing = label == TYPING;
         if coalescing
             && self.history.coalesce(
                 inverse.clone(),
@@ -596,6 +599,18 @@ impl Editor {
             .document
             .text_block_before(block)
             .ok_or(EditorError::NothingToDo)?;
+        // Code can't absorb prose or be absorbed by it without losing its
+        // fence, so a backspace at that seam does nothing rather than failing
+        // halfway through a transaction.
+        let joins_code = [block, previous].iter().any(|id| {
+            self.document
+                .block(*id)
+                .map(|block| block.kind.code().is_some())
+                .unwrap_or(false)
+        });
+        if joins_code {
+            return Err(EditorError::NothingToDo);
+        }
         let index = self.top_index(block)?;
         let previous_index = self.top_index(previous)?;
         if previous_index + 1 != index {

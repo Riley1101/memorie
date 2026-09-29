@@ -410,7 +410,7 @@ pub fn state_view(name: &str, editor: &Editor) -> WireState {
             })
             .collect(),
         active_marks: mark_names(editor.active_marks()),
-        word_count: document.plain_text().split_whitespace().count(),
+        word_count: document.word_count(),
         can_undo: editor.history().current().is_some(),
         can_redo: !editor
             .history()
@@ -479,7 +479,7 @@ pub fn update_view(editor: &Editor, change: &Change, engine_micros: u64) -> Wire
             head: position_view(document, editor.selection().head),
         },
         active_marks: mark_names(editor.active_marks()),
-        word_count: document.plain_text().split_whitespace().count(),
+        word_count: document.word_count(),
         can_undo: editor.history().current().is_some(),
         can_redo: !editor
             .history()

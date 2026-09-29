@@ -84,6 +84,16 @@
 
   /** Opens the bar, starting from the selected text when there is some. */
   function show() {
+    // Highlighting is a Milkdown plugin, so there is nothing to search with
+    // when the Rust surface is the one mounted. A bar that silently finds
+    // nothing is worse than saying so; project search (⇧⌘F) still works.
+    if (!editorState.editor) {
+      toast.info(
+        'Find in document isn’t available in the Rust editor yet',
+        'Use project search, or turn the Rust editor off in Settings.'
+      );
+      return;
+    }
     editorState.editor?.action((ctx) => {
       const { state } = ctx.get(editorViewCtx);
       const { from, to } = state.selection;

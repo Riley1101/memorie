@@ -290,6 +290,22 @@ impl Document {
         out
     }
 
+    /// Words in the document, counted without building its text first — this
+    /// runs on every keystroke in a host that shows a live count.
+    pub fn word_count(&self) -> usize {
+        fn count(block: &Block, total: &mut usize) {
+            *total += block.own_text().split_whitespace().count();
+            for child in block.children() {
+                count(child, total);
+            }
+        }
+        let mut total = 0;
+        for block in &self.blocks {
+            count(block, &mut total);
+        }
+        total
+    }
+
     /// Headings in document order, for the outline.
     pub fn outline(&self) -> Vec<Heading> {
         self.all_blocks()

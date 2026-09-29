@@ -119,6 +119,15 @@
   }
 
   /**
+   * Writes any pending edits before something renames the file. The engine's
+   * session is keyed by path: after a rename the surface reopens under the new
+   * name and reads it from disk, so whatever hadn't been saved would be lost.
+   */
+  async function flushBeforeRename() {
+    if (useRust && rustTimer) await flushRustSave();
+  }
+
+  /**
    * Moves the URL to `newName` without remounting the editor. Skipped if the
    * writer already navigated elsewhere (e.g. a flush on the way out), which
    * `docKey` detects even when the next page has the same URL (draft → draft).
@@ -195,6 +204,7 @@
 
     isRenaming = true;
     try {
+      await flushBeforeRename();
       const renamed = await fileManager.renameFile(currentName, base);
       if (renamed) await followUrl(renamed, startKey);
     } finally {
@@ -236,6 +246,7 @@
     isRenaming = true;
     const startKey = docKey;
     try {
+      await flushBeforeRename();
       const renamed = await fileManager.renameFile(currentName, cleaned);
       if (renamed) {
         await followUrl(renamed, startKey);

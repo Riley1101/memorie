@@ -20,15 +20,24 @@
  * @property {boolean} autoPair
  */
 
-/** Opening bracket or quote to its closing partner. */
+/**
+ * Openers that auto-close, and what closes them. Brackets only: a quote is
+ * smart punctuation's business (it has to know whether it opens or closes), and
+ * pairing a backtick would stop ``` from ever becoming a code fence.
+ */
 const PAIRS = /** @type {Record<string, string>} */ ({
   '(': ')',
   '[': ']',
   '{': '}',
-  '"': '"',
-  "'": "'",
-  '`': '`',
 });
+
+const CLOSERS = new Set(Object.values(PAIRS));
+
+/**
+ * An opener only closes itself when what follows is nothing, a space or
+ * punctuation, so `(` typed in front of a word stays single.
+ */
+const CLOSE_BEFORE = /^$|^[\s)\]}.,;:!?'"’”]/;
 
 /** @param {number} block @param {number} start @param {number} end */
 function select(block, start, end) {
@@ -52,8 +61,8 @@ function select(block, start, end) {
 export function commandsForCharacter(character, context) {
   return (
     markdownShortcut(character, context) ??
-    bracketPair(character, context) ??
-    smartPunctuation(character, context)
+    smartPunctuation(character, context) ??
+    bracketPair(character, context)
   );
 }
 
@@ -86,9 +95,6 @@ function markdownShortcut(character, { block, start, end, text }) {
     change = { command: 'toggleList', ordered: true };
   } else if (before === '>') {
     change = { command: 'wrapInQuote' };
-  } else if (/^[-*+] \[[ xX]?$/.test(before)) {
-    // `- [ ` on a list item: make it a task.
-    change = { command: 'toggleTask' };
   }
   if (!change) return null;
 
@@ -107,9 +113,8 @@ function bracketPair(character, { block, start, end, text, autoPair }) {
   if (!autoPair) return null;
   const closing = PAIRS[character];
 
+  // An opener with text selected wraps the selection.
   if (start !== end) {
-    // Wrapping a selection: quotes and brackets both read as "put this around
-    // what I picked".
     if (!closing) return null;
     return [
       select(block, start, end),
@@ -118,18 +123,13 @@ function bracketPair(character, { block, start, end, text, autoPair }) {
     ];
   }
 
-  // Typing the closing half of a pair the editor just added: step over it.
-  if (Object.values(PAIRS).includes(character) && text.slice(start, start + 1) === character) {
+  // Typing the closing half of a pair the editor just added steps over it.
+  if (CLOSERS.has(character) && text.slice(start, start + 1) === character) {
     return [select(block, start + 1, start + 1)];
   }
-  if (!closing) return null;
-  // A quote between word characters is an apostrophe, not an opening quote.
-  if (
-    (character === '"' || character === "'" || character === '`') &&
-    /\w$/.test(text.slice(0, start))
-  ) {
-    return null;
-  }
+  // An opener in front of a word stays single; only a space, punctuation or the
+  // end of the line earns it a partner.
+  if (!closing || !CLOSE_BEFORE.test(text.slice(start))) return null;
   return [
     select(block, start, start),
     { command: 'insertText', text: `${character}${closing}` },
@@ -147,7 +147,9 @@ function smartPunctuation(character, { block, start, end, text, smartPunctuation
   if (!on || start !== end) return null;
   const before = text.slice(0, start);
 
-  if (character === '-' && before.endsWith('-') && !before.endsWith('--')) {
+  // `--` becomes an em dash only after other text, so `---` on its own line is
+  // still a divider rather than half a dash.
+  if (character === '-' && /[^\s-]-$/.test(before)) {
     return [select(block, start - 1, start), { command: 'insertText', text: '—' }];
   }
   if (character === '.' && before.endsWith('..') && !before.endsWith('...')) {
@@ -169,4 +171,17 @@ function smartPunctuation(character, { block, start, end, text, smartPunctuation
  */
 export function mightBeRule(character) {
   return character.length === 1 && ' `([{"\'-.)]}'.includes(character);
+}
+
+/**
+ * Backspace between the two halves of a pair the editor added removes both, the
+ * way Milkdown's does. Null when the caret isn't sitting in an empty pair.
+ * @param {TypingContext} context
+ * @returns {EditorCommand[] | null}
+ */
+export function backspaceThroughPair({ block, start, end, text, autoPair }) {
+  if (!autoPair || start !== end || start === 0) return null;
+  const opener = text.slice(start - 1, start);
+  if (PAIRS[opener] !== text.slice(start, start + 1)) return null;
+  return [select(block, start - 1, start + 1), { command: 'delete', forward: true }];
 }

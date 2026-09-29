@@ -684,3 +684,31 @@ fn offsets_in_code_count_characters() {
         "```\ncafé にほんご\n```\n"
     );
 }
+
+#[test]
+fn a_backspace_at_a_code_blocks_seam_does_nothing_rather_than_failing() {
+    // Joining prose and code would lose the fence, so the delete is refused —
+    // and refused cleanly, before any operation has been applied.
+    let source = "prose\n\n```\ncode\n```\n\nmore\n";
+    let mut editor = open(source);
+    let after = editor.document().text_block_ids()[2];
+    select(&mut editor, after, 0, 0);
+
+    assert!(matches!(
+        editor.apply(EditorCommand::Delete(Direction::Backward)),
+        Err(EditorError::NothingToDo)
+    ));
+    assert_eq!(markdown::to_markdown(editor.document()), source);
+}
+
+#[test]
+fn words_are_counted_without_building_the_document() {
+    let editor = open("# Title\n\n> quoted words here\n\n- one two\n\n```\ncode here\n```\n");
+    // Title, the quote, the list item and the code: nested blocks included.
+    assert_eq!(editor.document().word_count(), 8);
+    assert_eq!(
+        editor.document().word_count(),
+        editor.document().plain_text().split_whitespace().count(),
+        "the cheap count agrees with the one that builds the text"
+    );
+}
