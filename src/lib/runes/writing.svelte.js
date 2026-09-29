@@ -82,6 +82,16 @@ class WritingState {
   /** Underline codex names and aliases in the editor. */
   codexHighlight = $state(false);
 
+  /**
+   * Type into the Rust document engine instead of Milkdown (experimental).
+   *
+   * Both editors read and write the same files and the same version history, so
+   * this can be turned on and off between documents. The Rust surface doesn't
+   * have the slash menu, codex highlighting, grammar marks or find yet; it does
+   * have the engine's own undo history, structural editing and Markdown.
+   */
+  rustEditor = $state(false);
+
   /** Words per day; 0 means no goal. */
   dailyGoal = $state(0);
 
@@ -137,6 +147,7 @@ class WritingState {
       if (typeof saved.smartPunctuation === 'boolean') this.smartPunctuation = saved.smartPunctuation;
       if (typeof saved.autoPair === 'boolean') this.autoPair = saved.autoPair;
       if (typeof saved.codexHighlight === 'boolean') this.codexHighlight = saved.codexHighlight;
+      if (typeof saved.rustEditor === 'boolean') this.rustEditor = saved.rustEditor;
       if (Number.isFinite(saved.dailyGoal)) this.dailyGoal = saved.dailyGoal;
       if (saved.projectGoals && typeof saved.projectGoals === 'object') {
         this.projectGoals = saved.projectGoals;
@@ -157,6 +168,7 @@ class WritingState {
           smartPunctuation: this.smartPunctuation,
           autoPair: this.autoPair,
           codexHighlight: this.codexHighlight,
+          rustEditor: this.rustEditor,
           dailyGoal: this.dailyGoal,
           projectGoals: this.projectGoals,
           log: this.log,
@@ -186,6 +198,12 @@ class WritingState {
   /** @param {boolean} enabled */
   setSpellcheck(enabled) {
     this.spellcheck = enabled;
+    this.#persist();
+  }
+
+  /** @param {boolean} enabled */
+  setRustEditor(enabled) {
+    this.rustEditor = enabled;
     this.#persist();
   }
 

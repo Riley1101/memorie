@@ -1,44 +1,33 @@
 <script>
   /**
-   * @file Throwaway editing surface for the Rust document engine.
+   * @file Harness for the Rust engine's editing surface.
    *
-   * A bare `contenteditable` with **no Milkdown and no ProseMirror**: every
-   * keystroke goes to Rust, the view is redrawn from the state that comes back,
-   * and the caret is put back where the engine says it is. Nothing here is
-   * meant to ship; it exists to answer the three questions that decide whether
-   * Memorie can drop Milkdown (see `docs/editor-core.md`):
+   * The surface itself is `rust-editor.svelte`, the component the app uses;
+   * this page is the instrumentation around it — a document picker, a synthetic
+   * document of a size the real ones may not reach, an auto-typer, and the
+   * timings that say where a keystroke's cost goes.
+   *
+   * The questions it exists to answer (see `docs/editor-core.md`):
    *
    *   1. Does IME composition survive — Japanese, pinyin, macOS accents?
    *   2. Does the caret move sanely: up and down through wrapped lines, click
    *      to position, word-wise delete?
    *   3. Does a paste from a web page or a word processor arrive intact?
+   *   4. What does a keystroke cost, and which part of it?
    *
-   * The panel on the right reports the round-trip cost of a keystroke, which is
-   * the fourth question.
+   * Nothing here saves. Leaving the page drops the engine's session, so a real
+   * writing can be typed into to measure against without risk.
    */
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { fileManager } from '$lib/runes/fs.svelte.js';
-  import { spikeTarget } from '$lib/spike/target.svelte.js';
-  import {
-    openDocument,
-    openText,
-    apply as applyCommands,
-    getMarkdown,
-    patchState,
-    close as closeDocument,
-  } from '$lib/rust-editor.js';
-  import {
-    readSelection,
-    writeSelection,
-    blockElementOf,
-    blockText as domBlockText,
-    positionOf,
-  } from '$lib/spike/dom-selection.js';
+  import { spikeTarget } from '$lib/editor/spike-target.svelte.js';
+  import { getMarkdown } from '$lib/rust-editor.js';
+  import RustEditor from '$lib/components/rust-editor.svelte';
 
   /** @typedef {import('$lib/rust-editor.js').EditorStateView} EditorStateView */
+  /** @typedef {import('$lib/rust-editor.js').EditorUpdate} EditorUpdate */
   /** @typedef {import('$lib/rust-editor.js').EditorBlock} EditorBlock */
-  /** @typedef {import('$lib/rust-editor.js').EditorCommand} EditorCommand */
 
   const SCRATCH = 'spike-editor.md';
   const SAMPLE = `# The spike
@@ -62,37 +51,28 @@ it, paste into it, and try an IME.
 | Ada | Writer |
 `;
 
-  /**
-   * `?doc=<path>` opens a real writing from disk, to measure the engine against
-   * documents that actually exist. **Nothing here is ever written back** — the
-   * spike has no save — so a real writing can be typed into without risk.
-   */
+  /** The writing to open, handed over by the editor page or picked here. */
   let requested = $state(spikeTarget.name ?? page.url.searchParams.get('doc'));
-  /** The name the engine has the document open under. */
-  let openName = $state(SCRATCH);
+  /** Text to open instead of a file: the sample, or a synthetic document. */
+  let scratchText = $state(SAMPLE);
 
+  let openName = $derived(requested ?? SCRATCH);
+  let openText = $derived(requested ? undefined : scratchText);
+
+  /** @type {RustEditor | null} */
+  let surface = $state(null);
   /** @type {EditorStateView | null} */
   let doc = $state(null);
-  /** @type {HTMLElement | null} */
-  let root = $state(null);
   let error = $state('');
   let markdown = $state('');
   let showMarkdown = $state(false);
 
-  /** True while an IME holds the DOM; the view must not redraw. */
-  let composing = $state(false);
-  /** The block an IME is composing in. */
-  let composingBlock = /** @type {number | null} */ (null);
-
-  /** Engine round-trip times in ms (the invoke alone), newest last. */
-  let samples = $state(/** @type {number[]} */ ([]));
-  /** The same keystrokes measured to the end: invoke, redraw and caret. */
-  let totals = $state(/** @type {number[]} */ ([]));
-  let lastInputType = $state('');
-  /** @type {string[]} */
-  let unsupported = $state([]);
-  let benchmarking = $state(false);
-  let benchmark = $state('');
+  /** Engine time in ms, as Rust measured itself. Newest last. */
+  let engineTimes = $state(/** @type {number[]} */ ([]));
+  /** The same keystrokes measured to the end: bridge, redraw and caret. */
+  let wholeTimes = $state(/** @type {number[]} */ ([]));
+  let typing = $state(false);
+  let report = $state('');
 
   function percentile(values, fraction) {
     if (values.length === 0) return 0;
@@ -100,13 +80,10 @@ it, paste into it, and try an IME.
     return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))];
   }
 
-  let median = $derived(percentile(samples, 0.5));
-  let p95 = $derived(percentile(samples, 0.95));
-  let totalMedian = $derived(percentile(totals, 0.5));
-  let totalP95 = $derived(percentile(totals, 0.95));
-  let charCount = $derived(
-    (doc?.blocks ?? []).reduce((total, block) => total + blockChars(block), 0)
-  );
+  let engineMedian = $derived(percentile(engineTimes, 0.5));
+  let engineP95 = $derived(percentile(engineTimes, 0.95));
+  let wholeMedian = $derived(percentile(wholeTimes, 0.5));
+  let wholeP95 = $derived(percentile(wholeTimes, 0.95));
 
   /** @param {EditorBlock} block */
   function blockChars(block) {
@@ -121,258 +98,20 @@ it, paste into it, and try an IME.
     return own + nested.reduce((sum, child) => sum + blockChars(child), 0);
   }
 
-  /**
-   * Sends commands, redraws, and puts the caret back.
-   * @param {EditorCommand[]} commands
-   */
-  async function send(commands) {
-    if (commands.length === 0) return;
-    const started = performance.now();
-    try {
-      const update = await applyCommands(openName, commands);
-      const engine = performance.now() - started;
-      // Only the blocks that changed are replaced, so Svelte redraws one
-      // paragraph rather than the document.
-      if (doc) patchState(doc, update);
-      error = '';
-      await tick();
-      // The engine decides where the caret is; the DOM is told.
-      if (root && !composing) writeSelection(root, update.selection);
-      // Two numbers matter separately: what Rust cost, and what the whole
-      // keystroke cost once the view had caught up.
-      samples = [...samples.slice(-199), engine];
-      totals = [...totals.slice(-199), performance.now() - started];
-    } catch (e) {
-      error = String(e);
-    }
-  }
-
-  /** The selection the browser has, as a command, so every edit carries it. */
-  function selectionCommand() {
-    if (!root) return null;
-    const selection = readSelection(root);
-    return selection
-      ? /** @type {EditorCommand} */ ({
-          command: 'setSelection',
-          anchor: selection.anchor,
-          head: selection.head,
-        })
-      : null;
-  }
+  let charCount = $derived((doc?.blocks ?? []).reduce((total, b) => total + blockChars(b), 0));
 
   /**
-   * Turns a browser input intent into engine commands. Everything is
-   * `preventDefault`ed except composition: the engine owns the document, so the
-   * browser never edits it directly.
-   * @param {InputEvent} event
-   */
-  function onBeforeInput(event) {
-    if (composing || event.isComposing) return; // the IME has the DOM
-    lastInputType = event.inputType;
-
-    const selection = selectionCommand();
-    if (!selection) return;
-    /** @type {EditorCommand[]} */
-    const commands = [selection];
-
-    const type = event.inputType;
-    if (type === 'insertText' && event.data !== null) {
-      commands.push({ command: 'insertText', text: event.data });
-    } else if (type === 'insertParagraph') {
-      commands.push({ command: 'splitBlock' });
-    } else if (type === 'insertLineBreak') {
-      // A soft break: the engine keeps the newline, and the serializer keeps
-      // the author's wrapping.
-      commands.push({ command: 'insertText', text: '\n' });
-    } else if (type === 'insertFromPaste' || type === 'insertFromDrop') {
-      const text = event.dataTransfer?.getData('text/plain') ?? '';
-      if (!text) {
-        // HTML-only payloads need an HTML → Document parser, which is Phase 6
-        // work on the Rust side, not something to fake here.
-        unsupported = [...new Set([...unsupported, `${type} (no text/plain)`])];
-        event.preventDefault();
-        return;
-      }
-      commands.push({ command: 'insertText', text });
-    } else if (type.startsWith('delete')) {
-      // The browser has already worked out what a word-wise or line-wise
-      // delete covers; use its range rather than reimplementing it.
-      const [range] = event.getTargetRanges?.() ?? [];
-      if (range && root) {
-        const from = positionOf(range.startContainer, range.startOffset, root);
-        const to = positionOf(range.endContainer, range.endOffset, root);
-        if (from && to) {
-          commands[0] = { command: 'setSelection', anchor: from, head: to };
-        }
-      }
-      commands.push({ command: 'delete', forward: type.includes('Forward') });
-    } else if (type === 'historyUndo') {
-      commands.length = 0;
-      commands.push({ command: 'undo' });
-    } else if (type === 'historyRedo') {
-      commands.length = 0;
-      commands.push({ command: 'redo' });
-    } else {
-      unsupported = [...new Set([...unsupported, type])];
-      event.preventDefault();
-      return;
-    }
-
-    event.preventDefault();
-    send(commands);
-  }
-
-  function onCompositionStart() {
-    composing = true;
-    // Only the block matters: what changed inside it is worked out in Rust,
-    // against the text the engine already holds.
-    const block = root ? blockElementOf(document.getSelection()?.anchorNode ?? null, root) : null;
-    composingBlock = block ? Number(block.dataset.blockId) : null;
-  }
-
-  /**
-   * The IME has finished and the DOM already holds the result. Rather than
-   * pretending to have seen the keystrokes, the engine is told what changed.
-   */
-  async function onCompositionEnd() {
-    composing = false;
-    const blockId = composingBlock;
-    composingBlock = null;
-    if (!root || blockId === null) return;
-    const element = root.querySelector(`[data-block-id="${blockId}"]`);
-    if (!(element instanceof HTMLElement)) return;
-
-    // The DOM already holds the composed text — preventing that would break
-    // every IME — so the engine is told what the block now says and works out
-    // the smallest edit that explains it, keeping formatting around it.
-    const caret = readSelection(root);
-    /** @type {EditorCommand[]} */
-    const commands = [{ command: 'reconcileBlock', block: blockId, text: domBlockText(element) }];
-    if (caret) commands.push({ command: 'setSelection', anchor: caret.anchor, head: caret.head });
-    await send(commands);
-  }
-
-  /** @param {KeyboardEvent} event */
-  function onKeydown(event) {
-    const mod = event.metaKey || event.ctrlKey;
-    if (!mod || composing) return;
-    const selection = selectionCommand();
-
-    /** @type {EditorCommand} */
-    let command;
-    switch (event.key.toLowerCase()) {
-      case 'b':
-        command = { command: 'toggleMark', mark: 'bold' };
-        break;
-      case 'i':
-        command = { command: 'toggleMark', mark: 'italic' };
-        break;
-      case 'z':
-        command = { command: event.shiftKey ? 'redo' : 'undo' };
-        break;
-      case 'enter':
-        command = { command: 'insertThematicBreak' };
-        break;
-      default:
-        return;
-    }
-    event.preventDefault();
-    const needsSelection =
-      command.command === 'toggleMark' || command.command === 'insertThematicBreak';
-    send(needsSelection && selection ? [selection, command] : [command]);
-  }
-
-  /** Opens the requested writing, or the built-in sample. */
-  async function load() {
-    samples = [];
-    totals = [];
-    try {
-      if (requested) {
-        openName = requested;
-        doc = await openDocument(requested, { reload: true });
-      } else {
-        openName = SCRATCH;
-        doc = await openText(SCRATCH, SAMPLE);
-      }
-      error = '';
-    } catch (e) {
-      error = String(e);
-    }
-  }
-
-  /**
-   * Switches documents in place. The URL is left alone — `?doc=` is how the
-   * editor page hands a writing over, not something to keep in step.
-   * @param {string} name
-   */
-  function openWriting(name) {
-    requested = name || null;
-    spikeTarget.name = requested;
-  }
-
-  async function showTheMarkdown() {
-    markdown = await getMarkdown(openName);
-    showMarkdown = true;
-  }
-
-  /**
-   * Types `count` characters through the whole path — engine, redraw, caret —
-   * into the document that is open, and reports what it cost. This is the
-   * measurement that decides whether the view needs local echo.
-   * @param {number} count
-   */
-  async function stress(count) {
-    if (!doc) return;
-    benchmarking = true;
-    benchmark = '';
-    samples = [];
-    totals = [];
-    try {
-      // Somewhere in the middle, so the work isn't all at one end.
-      const textBlocks = collectTextBlocks(doc.blocks);
-      const target = textBlocks[Math.floor(textBlocks.length / 2)];
-      if (!target) throw new Error('nothing to type into');
-      await send([
-        {
-          command: 'setSelection',
-          anchor: { block: target, offset: 0 },
-          head: { block: target, offset: 0 },
-        },
-      ]);
-      samples = [];
-      totals = [];
-
-      for (let i = 0; i < count; i += 1) {
-        await send([{ command: 'insertText', text: i % 12 === 11 ? ' ' : 'x' }]);
-      }
-
-      benchmark =
-        `${count} keystrokes into ${charCount.toLocaleString()} chars / ` +
-        `${doc.blocks.length} blocks — engine ${percentile(samples, 0.5).toFixed(1)}ms ` +
-        `(p95 ${percentile(samples, 0.95).toFixed(1)}ms), ` +
-        `whole keystroke ${percentile(totals, 0.5).toFixed(1)}ms ` +
-        `(p95 ${percentile(totals, 0.95).toFixed(1)}ms)`;
-    } catch (e) {
-      benchmark = `failed: ${e}`;
-    } finally {
-      benchmarking = false;
-    }
-  }
-
-  /**
-   * The ids of every block a caret can be put in, in document order.
+   * The ids of every block a caret can go in, in document order.
    * @param {EditorBlock[]} blocks
    * @returns {number[]}
    */
-  function collectTextBlocks(blocks) {
+  function textBlocks(blocks) {
     /** @type {number[]} */
     const out = [];
     for (const block of blocks) {
-      if (block.runs !== undefined || block.kind === 'paragraph' || block.kind === 'heading') {
-        out.push(block.id);
-      }
+      if (block.kind === 'paragraph' || block.kind === 'heading') out.push(block.id);
       out.push(
-        ...collectTextBlocks([
+        ...textBlocks([
           ...(block.children ?? []),
           ...(block.items ?? []).flatMap((item) => item.blocks),
           ...(block.rows ?? []).flatMap((row) => row.cells.flat()),
@@ -382,137 +121,95 @@ it, paste into it, and try an IME.
     return out;
   }
 
-  /** A synthetic document, for a size the real ones may not reach yet. */
-  async function loadSynthetic(sections) {
-    benchmark = '';
+  /** @param {EditorStateView} next */
+  function onState(next) {
+    doc = next;
+    engineTimes = [];
+    wholeTimes = [];
+    report = '';
+    error = '';
+  }
+
+  /**
+   * @param {EditorUpdate} update
+   * @param {number} elapsed - Round trip, redraw and caret, in ms.
+   */
+  function onUpdate(update, elapsed) {
+    engineTimes = [...engineTimes.slice(-199), update.engineMicros / 1000];
+    wholeTimes = [...wholeTimes.slice(-199), elapsed];
+  }
+
+  /** @param {string} name */
+  function openWriting(name) {
+    requested = name || null;
+    spikeTarget.name = requested;
+    if (!name) scratchText = SAMPLE;
+  }
+
+  /** A synthetic document, for a size the real writings may not reach. */
+  /** @param {number} sections */
+  function loadSynthetic(sections) {
     const paragraph =
       'She turned the letter over twice before opening it, and the hallway light ' +
       'caught the seal in a way that made the wax look almost wet again. ';
-    const source = Array.from(
+    requested = null;
+    spikeTarget.name = null;
+    scratchText = Array.from(
       { length: sections },
       (_, index) => `## Section ${index}\n\n${paragraph.repeat(2)}`
     ).join('\n\n');
+  }
+
+  /**
+   * Types `count` characters through the whole path, so the numbers don't
+   * depend on how fast anybody types.
+   * @param {number} count
+   */
+  async function stress(count) {
+    if (!surface || !doc) return;
+    typing = true;
+    report = '';
     try {
-      openName = SCRATCH;
-      doc = await openText(SCRATCH, source);
-      samples = [];
-      totals = [];
-      error = '';
+      const candidates = textBlocks(doc.blocks);
+      const target = candidates[Math.floor(candidates.length / 2)];
+      if (target === undefined) throw new Error('nothing to type into');
+
+      await surface.run([
+        {
+          command: 'setSelection',
+          anchor: { block: target, offset: 0 },
+          head: { block: target, offset: 0 },
+        },
+      ]);
+      engineTimes = [];
+      wholeTimes = [];
+
+      for (let i = 0; i < count; i += 1) {
+        await surface.run([{ command: 'insertText', text: i % 12 === 11 ? ' ' : 'x' }]);
+      }
+
+      report =
+        `${count} keystrokes into ${charCount.toLocaleString()} chars / ` +
+        `${doc.blocks.length} blocks — engine ${percentile(engineTimes, 0.5).toFixed(2)}ms ` +
+        `(p95 ${percentile(engineTimes, 0.95).toFixed(2)}ms), ` +
+        `whole keystroke ${percentile(wholeTimes, 0.5).toFixed(1)}ms ` +
+        `(p95 ${percentile(wholeTimes, 0.95).toFixed(1)}ms)`;
     } catch (e) {
-      error = String(e);
+      report = `failed: ${e}`;
+    } finally {
+      typing = false;
     }
+  }
+
+  async function showTheMarkdown() {
+    markdown = await getMarkdown(openName);
+    showMarkdown = true;
   }
 
   onMount(() => {
     if (!fileManager.hasLoadedFiles) fileManager.getRecents();
-    // Leaving the spike drops its session, so a real writing never keeps
-    // unsaved spike edits in the backend for something else to pick up.
-    return () => {
-      closeDocument(openName).catch(() => {});
-    };
   });
-
-  // Re-opens whenever `?doc=` changes, including on first render.
-  $effect(() => {
-    void requested;
-    load();
-  });
-
-  /** @param {import('$lib/rust-editor.js').EditorRun} run */
-  function runClass(run) {
-    return (run.marks ?? []).map((mark) => `mark-${mark}`).join(' ');
-  }
 </script>
-
-{#snippet runs(list)}
-  {#each list as run, index (index)}
-    {#if run.type === 'text'}
-      {#if run.href}
-        <!-- A link in the document is content, not navigation: clicking it must
-             put the caret in it, so it isn't an <a>. -->
-        <span class="{runClass(run)} mark-link" data-run data-href={run.href}>{run.text}</span>
-      {:else}
-        <span class={runClass(run)} data-run>{run.text}</span>
-      {/if}
-    {:else if run.type === 'image'}
-      <img data-atom src={run.source} alt={run.alt ?? ''} />
-    {:else if run.type === 'break'}
-      <br data-atom />
-    {:else if run.type === 'html'}
-      <span data-atom class="raw-html">{run.html}</span>
-    {/if}
-  {/each}
-{/snippet}
-
-{#snippet blockView(block)}
-  {#if block.kind === 'paragraph'}
-    <p data-block-id={block.id}>{@render runs(block.runs ?? [])}</p>
-  {:else if block.kind === 'heading'}
-    {#if block.level === 1}
-      <h1 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h1>
-    {:else if block.level === 2}
-      <h2 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h2>
-    {:else}
-      <h3 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h3>
-    {/if}
-  {:else if block.kind === 'quote'}
-    <blockquote data-block-id={block.id}>
-      {#each block.children ?? [] as child (child.id)}{@render blockView(child)}{/each}
-    </blockquote>
-  {:else if block.kind === 'list'}
-    {#if block.ordered}
-      <ol data-block-id={block.id}>
-        {#each block.items ?? [] as item, index (index)}
-          <li>
-            {#if item.checked !== undefined}<input
-                type="checkbox"
-                checked={item.checked}
-                disabled
-              />{/if}
-            {#each item.blocks as child (child.id)}{@render blockView(child)}{/each}
-          </li>
-        {/each}
-      </ol>
-    {:else}
-      <ul data-block-id={block.id}>
-        {#each block.items ?? [] as item, index (index)}
-          <li>
-            {#if item.checked !== undefined}<input
-                type="checkbox"
-                checked={item.checked}
-                disabled
-              />{/if}
-            {#each item.blocks as child (child.id)}{@render blockView(child)}{/each}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  {:else if block.kind === 'table'}
-    <table data-block-id={block.id}>
-      <tbody>
-        {#each block.rows ?? [] as row, rowIndex (rowIndex)}
-          <tr>
-            {#each row.cells as cell, cellIndex (cellIndex)}
-              <td
-                >{#each cell as child (child.id)}{@render blockView(child)}{/each}</td
-              >
-            {/each}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  {:else if block.kind === 'codeBlock'}
-    <!-- The engine holds a code block's text as text, not inline content, so
-         there is nothing here for a caret to address yet. -->
-    <pre data-block-id={block.id} contenteditable="false">{block.text}</pre>
-  {:else if block.kind === 'thematicBreak'}
-    <hr data-block-id={block.id} />
-  {:else if block.kind === 'html'}
-    <div data-block-id={block.id} contenteditable="false" class="raw-html">{block.text}</div>
-  {:else}
-    <p data-block-id={block.id}>[{block.kind}]</p>
-  {/if}
-{/snippet}
 
 <div class="spike">
   <header>
@@ -532,29 +229,26 @@ it, paste into it, and try an IME.
     <span class="hint">
       {requested ? 'edits here are never saved' : 'no Milkdown, no ProseMirror'}
     </span>
-    <button onclick={load}>reload</button>
+    <button onclick={() => surface?.reload()}>reload</button>
     <button onclick={showTheMarkdown}>markdown</button>
-    <button onclick={() => loadSynthetic(400)} disabled={benchmarking}>synthetic 100k</button>
-    <button onclick={() => stress(100)} disabled={benchmarking}>
-      {benchmarking ? 'typing…' : 'type 100'}
+    <button onclick={() => loadSynthetic(400)} disabled={typing}>synthetic 100k</button>
+    <button onclick={() => stress(100)} disabled={typing}>
+      {typing ? 'typing…' : 'type 100'}
     </button>
   </header>
 
   <div class="columns">
-    <div
-      bind:this={root}
-      class="surface"
-      contenteditable="true"
-      role="textbox"
-      tabindex="0"
-      aria-multiline="true"
-      spellcheck="true"
-      onbeforeinput={onBeforeInput}
-      oncompositionstart={onCompositionStart}
-      oncompositionend={onCompositionEnd}
-      onkeydown={onKeydown}
-    >
-      {#each doc?.blocks ?? [] as block (block.id)}{@render blockView(block)}{/each}
+    <div class="surface-wrap">
+      <RustEditor
+        bind:this={surface}
+        name={openName}
+        text={openText}
+        autofocus
+        class="surface"
+        onstate={onState}
+        onupdate={onUpdate}
+        onerror={(message) => (error = message)}
+      />
     </div>
 
     <aside class="panel">
@@ -584,27 +278,17 @@ it, paste into it, and try an IME.
       <h2>Per keystroke</h2>
       <dl>
         <dt>engine</dt>
-        <dd>{median.toFixed(1)} / {p95.toFixed(1)}ms</dd>
+        <dd>{engineMedian.toFixed(2)} / {engineP95.toFixed(2)}ms</dd>
         <dt>whole</dt>
-        <dd>{totalMedian.toFixed(1)} / {totalP95.toFixed(1)}ms</dd>
+        <dd>{wholeMedian.toFixed(1)} / {wholeP95.toFixed(1)}ms</dd>
         <dt>samples</dt>
-        <dd>{samples.length}</dd>
-        <dt>last input</dt>
-        <dd>{lastInputType || '—'}</dd>
-        <dt>composing</dt>
-        <dd>{composing ? 'yes' : 'no'}</dd>
+        <dd>{engineTimes.length}</dd>
       </dl>
       <p class="note">
-        median / p95. “Engine” is the Rust round trip; “whole” adds the redraw and the caret.
+        median / p95. “Engine” is Rust measuring itself; “whole” adds the bridge, the redraw and the
+        caret — so the gap between them is the part the engine can't fix.
       </p>
-      {#if benchmark}<p class="note">{benchmark}</p>{/if}
-
-      {#if unsupported.length}
-        <h2>Not handled yet</h2>
-        <ul class="note">
-          {#each unsupported as type (type)}<li>{type}</li>{/each}
-        </ul>
-      {/if}
+      {#if report}<p class="note">{report}</p>{/if}
 
       {#if error}<p class="error">{error}</p>{/if}
     </aside>
@@ -638,8 +322,7 @@ it, paste into it, and try an IME.
     gap: 0.75rem;
     /* The app's macOS overlay title bar is a fixed strip across the top of the
        window; without this the header sits under it and can't be seen or
-       clicked. Padding, not a z-index, because that strip is the window's drag
-       region. */
+       clicked. Padding, not a z-index, because that strip is the drag region. */
     padding: calc(0.75rem + var(--titlebar-height, 0px)) 1rem 0.75rem;
     border-bottom: 1px solid color-mix(in oklab, currentColor 15%, transparent);
     font-size: 0.8125rem;
@@ -679,63 +362,43 @@ it, paste into it, and try an IME.
     min-height: 0;
   }
 
-  .surface {
-    padding: 2rem clamp(1rem, 6vw, 4rem);
+  .surface-wrap {
     overflow-y: auto;
-    outline: none;
-    font-size: 1.0625rem;
-    line-height: 1.7;
-    /* A narrow column, so wrapped lines are easy to test vertical caret
-       movement against. */
-    max-width: 34em;
+    padding: 2rem clamp(1rem, 6vw, 4rem);
   }
 
-  .surface :global(h1) {
+  /* A narrow column, so wrapped lines are easy to test vertical caret movement
+     against. */
+  .surface-wrap :global(.surface) {
+    max-width: 34em;
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+
+  .surface-wrap :global(h1) {
     font-size: 1.6em;
   }
-  .surface :global(h2) {
+  .surface-wrap :global(h2) {
     font-size: 1.25em;
   }
-  .surface :global(blockquote) {
+  .surface-wrap :global(blockquote) {
     border-left: 2px solid color-mix(in oklab, currentColor 25%, transparent);
     padding-left: 1rem;
     margin-left: 0;
     opacity: 0.85;
   }
-  .surface :global(pre) {
+  .surface-wrap :global(pre) {
     background: color-mix(in oklab, currentColor 7%, transparent);
     padding: 0.75rem;
     border-radius: 0.375rem;
     overflow-x: auto;
   }
-  .surface :global(table) {
+  .surface-wrap :global(table) {
     border-collapse: collapse;
   }
-  .surface :global(td) {
+  .surface-wrap :global(td) {
     border: 1px solid color-mix(in oklab, currentColor 20%, transparent);
     padding: 0.25rem 0.5rem;
-  }
-  .surface :global(.mark-bold) {
-    font-weight: 700;
-  }
-  .surface :global(.mark-italic) {
-    font-style: italic;
-  }
-  .surface :global(.mark-strike) {
-    text-decoration: line-through;
-  }
-  .surface :global(.mark-link) {
-    color: var(--primary, #2563eb);
-    text-decoration: underline;
-    text-underline-offset: 0.15em;
-  }
-
-  .surface :global(.mark-code) {
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: 0.9em;
-    background: color-mix(in oklab, currentColor 8%, transparent);
-    padding: 0 0.2em;
-    border-radius: 0.2em;
   }
 
   .panel {
@@ -794,11 +457,5 @@ it, paste into it, and try an IME.
     padding: 1rem;
     font-size: 0.75rem;
     white-space: pre-wrap;
-  }
-
-  .raw-html {
-    opacity: 0.7;
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: 0.85em;
   }
 </style>

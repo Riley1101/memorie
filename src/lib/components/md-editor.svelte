@@ -5,7 +5,9 @@
   import { toast } from '$lib/toast.js';
   import { deriveTitle, sanitizeTitle, isUntitled, UNTITLED } from '$lib/new-writing.js';
   import Editor from './editor.svelte';
-  import { invalidateAll, goto } from '$app/navigation';
+  import RustEditor from './rust-editor.svelte';
+  import { save as rustSave } from '$lib/rust-editor.js';
+  import { invalidateAll, goto, beforeNavigate } from '$app/navigation';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { editorViewCtx } from '@milkdown/kit/core';
@@ -41,7 +43,12 @@
 
   /** @param {string} markdown - Body from the editor. */
   function fileContent(markdown) {
-    return serializeWriting(editorState.meta, editorState.metaExtra, markdown, editorState.metaOriginal);
+    return serializeWriting(
+      editorState.meta,
+      editorState.metaExtra,
+      markdown,
+      editorState.metaOriginal
+    );
   }
 
   // Reload metadata when the document changes or is restored to another version.
@@ -100,7 +107,9 @@
     if (writingState.codexHighlight) codexManager.load(binder || null);
   });
 
-  let codexEntities = $derived(writingState.codexHighlight ? codexManager.entities(binder || null) : []);
+  let codexEntities = $derived(
+    writingState.codexHighlight ? codexManager.entities(binder || null) : []
+  );
 
   function focusEditor() {
     editorState.editor?.action((ctx) => {
@@ -257,6 +266,98 @@
   }
 
   /**
+   * The Rust engine as the editing surface, instead of Milkdown. A draft has no
+   * file yet and the engine has nothing to open, so drafts stay on Milkdown
+   * until their first save has given them a name.
+   */
+  let useRust = $derived(writingState.rustEditor && !draft);
+
+  /** @type {RustEditor | null} */
+  let rustSurface = $state(null);
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let rustTimer = null;
+
+  /**
+   * The document as text, for the word count and the progress log.
+   * @param {import('$lib/rust-editor.js').EditorBlock[]} blocks
+   * @returns {string}
+   */
+  function plainTextOf(blocks) {
+    return blocks
+      .map((block) => {
+        const own = (block.runs ?? []).map((run) => run.text ?? '').join('') || (block.text ?? '');
+        const nested = plainTextOf([
+          ...(block.children ?? []),
+          ...(block.items ?? []).flatMap((item) => item.blocks),
+          ...(block.rows ?? []).flatMap((row) => row.cells.flat()),
+        ]);
+        return [own, nested].filter(Boolean).join('\n\n');
+      })
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
+  /** @param {import('$lib/rust-editor.js').EditorStateView} state */
+  function onRustState(state) {
+    // The engine already knows the headings; the outline panel can list them.
+    editorState.setHeadings(
+      state.outline.map((heading) => ({ level: heading.level, text: heading.text, pos: 0 }))
+    );
+    writingState.resetBaseline();
+    writingState.updateDocument(plainTextOf(state.blocks));
+  }
+
+  /** @param {import('$lib/rust-editor.js').EditorUpdate} update */
+  function onRustUpdate(update) {
+    if (update.outline) {
+      editorState.setHeadings(
+        update.outline.map((heading) => ({ level: heading.level, text: heading.text, pos: 0 }))
+      );
+    }
+  }
+
+  /** Writes through `editor_save`, which takes the same path `update_file` does. */
+  async function flushRustSave() {
+    if (rustTimer) {
+      clearTimeout(rustTimer);
+      rustTimer = null;
+    }
+    editorState.setSaveStatus({ status: 'saving' });
+    try {
+      await rustSave(currentName);
+      await fileManager.getRecents();
+      editorState.setSaveStatus({ lastSaved: new Date(), status: 'saved' });
+      const state = rustSurface?.snapshot();
+      if (state) writingState.updateDocument(plainTextOf(state.blocks));
+    } catch (e) {
+      editorState.setSaveStatus({ status: 'error' });
+      toast.error('Save failed', e);
+    }
+  }
+
+  /** Autosave, on the same debounce the Milkdown editor uses. */
+  function scheduleRustSave() {
+    editorState.setSaveStatus({ status: 'unsaved' });
+    if (rustTimer) clearTimeout(rustTimer);
+    rustTimer = setTimeout(flushRustSave, 2000);
+  }
+
+  // ⌘S and the command bar save through whichever surface is mounted.
+  $effect(() => {
+    if (!useRust) return;
+    editorState.flushSave = flushRustSave;
+    return () => {
+      if (editorState.flushSave === flushRustSave) editorState.flushSave = null;
+    };
+  });
+
+  // Leaving the page with a pending autosave would lose the last words typed.
+  // This runs before anything unmounts, so the engine's session is still open.
+  beforeNavigate(() => {
+    if (useRust && rustTimer) flushRustSave();
+  });
+
+  /**
    * Save callback for the editor. Drafts are created on their first non-empty
    * save; existing files are written in place and, if still auto-titled,
    * renamed to match their first line.
@@ -299,7 +400,21 @@
   <div class="writing-area__ornament" aria-hidden="true">❧</div>
   <div class="writing-area__body">
     {#key `${docKey}:${appState.ui.editorVersion}`}
-      <Editor defaultValue={parsed.body} {onSave} autofocus={draft} {codexEntities} />
+      {#if useRust}
+        <!-- The engine owns the document here: no Milkdown, no second model. -->
+        <RustEditor
+          bind:this={rustSurface}
+          name={currentName}
+          spellcheck={writingState.spellcheck}
+          class="markdown w-full"
+          onstate={onRustState}
+          onupdate={onRustUpdate}
+          onedit={scheduleRustSave}
+          onerror={(message) => toast.error('Editor error', message)}
+        />
+      {:else}
+        <Editor defaultValue={parsed.body} {onSave} autofocus={draft} {codexEntities} />
+      {/if}
     {/key}
   </div>
 </div>

@@ -187,15 +187,17 @@
 
   <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-6 md:gap-10">
     <!-- Side nav -->
-    <nav class="flex md:flex-col gap-1 shrink-0 md:w-44 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+    <nav
+      class="flex md:flex-col gap-1 shrink-0 md:w-44 overflow-x-auto md:overflow-visible pb-2 md:pb-0"
+    >
       {#each SECTIONS as section (section.id)}
         <button
           type="button"
           onclick={() => (activeSection = section.id)}
           class="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors shrink-0
             {activeSection === section.id
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'}"
+            ? 'bg-primary/10 text-primary font-medium'
+            : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'}"
         >
           <section.icon strokeWidth={1.5} class="size-4 shrink-0" />
           <span>{section.label}</span>
@@ -216,8 +218,8 @@
                 <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
                   <p class="text-lg font-normal">Style</p>
                   <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
-                    How the page itself looks — typeface, spacing, and the paper effect. Separate from
-                    the accent color below.
+                    How the page itself looks — typeface, spacing, and the paper effect. Separate
+                    from the accent color below.
                   </p>
                   <div class="grid gap-2 sm:grid-cols-2">
                     {#each STYLE_FLAVOURS as flavour (flavour.id)}
@@ -227,24 +229,30 @@
                         aria-pressed={appState.ui.styleFlavour === flavour.id}
                         class="text-left p-4 rounded-lg border transition-colors
                           {appState.ui.styleFlavour === flavour.id
-                            ? 'border-primary bg-primary/5 shadow-[0_0_0_3px_var(--color-primary)/12%]'
-                            : 'border-border/60 hover:border-border hover:bg-muted/30'}"
+                          ? 'border-primary bg-primary/5 shadow-[0_0_0_3px_var(--color-primary)/12%]'
+                          : 'border-border/60 hover:border-border hover:bg-muted/30'}"
                       >
                         <span class="text-sm font-medium">{flavour.label}</span>
-                        <p class="text-xs text-muted-foreground mt-1 leading-snug">{flavour.description}</p>
+                        <p class="text-xs text-muted-foreground mt-1 leading-snug">
+                          {flavour.description}
+                        </p>
                       </button>
                     {/each}
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
                     <p class="text-lg font-normal">Theme</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Light, dark, or follow your system setting.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
                     <Button
                       variant={appState.ui.themePreference === 'system' ? 'default' : 'ghost'}
                       size="sm"
@@ -278,14 +286,18 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
                     <p class="text-lg font-normal">Density</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Overall text size and spacing across the app.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
                     <Button
                       variant={appState.ui.density === 'default' ? 'default' : 'ghost'}
                       size="sm"
@@ -321,8 +333,8 @@
                         onclick={() => appState.setThemePalette(palette)}
                         class="flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium transition-colors
                           {appState.ui.themePalette === palette
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background hover:bg-accent border-border'}"
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background hover:bg-accent border-border'}"
                       >
                         <span
                           class="size-3.5 rounded-full shrink-0
@@ -352,10 +364,14 @@
               </div>
 
               <div class="grid grid-cols-1 gap-8">
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div
+                  class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50"
+                >
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Content Directory</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                      >Content Directory</span
+                    >
                   </div>
                   <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.content_directory || 'Loading...'}
@@ -365,10 +381,14 @@
                   </p>
                 </div>
 
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div
+                  class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50"
+                >
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">History Directory</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                      >History Directory</span
+                    >
                   </div>
                   <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.undotree_dir || 'Loading...'}
@@ -385,7 +405,9 @@
                 <h3 class="font-writer text-2xl font-normal">Writing</h3>
               </div>
               <div class="grid grid-cols-1 gap-8">
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
                     <p class="text-lg font-normal">Paragraph style</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -393,7 +415,9 @@
                       the style export uses for "Standard manuscript format".
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
                     <Button
                       variant={writingState.paragraphStyle === 'spaced' ? 'default' : 'ghost'}
                       size="sm"
@@ -415,14 +439,18 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
                     <p class="text-lg font-normal">Spellcheck</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Underline misspelled words while you write.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
                     <Button
                       variant={writingState.spellcheck ? 'default' : 'ghost'}
                       size="sm"
@@ -444,14 +472,19 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
                     <p class="text-lg font-normal">Highlight codex names</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Dotted underline under characters, places and things from the binder's codex. Hover one for its summary.
+                      Dotted underline under characters, places and things from the binder's codex.
+                      Hover one for its summary.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
                     <Button
                       variant={writingState.codexHighlight ? 'default' : 'ghost'}
                       size="sm"
@@ -473,14 +506,63 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <!-- Experimental: the Rust document engine as the editing
+                     surface. Both editors read and write the same files and the
+                     same version history (see docs/editor-core.md). -->
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p class="text-lg font-normal">
+                      Rust editor <span
+                        class="text-xs font-mono uppercase tracking-wider text-muted-foreground align-middle ml-1"
+                        >experimental</span
+                      >
+                    </p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Type into the Rust document engine instead of the current editor. Same files,
+                      same version history. No slash menu, codex underlines, grammar marks or
+                      in-document find yet, and a new writing starts in the old editor until its
+                      first save.
+                    </p>
+                  </div>
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
+                    <Button
+                      variant={writingState.rustEditor ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setRustEditor(true)}
+                      disabled={false}
+                    >
+                      On
+                    </Button>
+                    <Button
+                      variant={!writingState.rustEditor ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setRustEditor(false)}
+                      disabled={false}
+                    >
+                      Off
+                    </Button>
+                  </div>
+                </div>
+
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
                     <p class="text-lg font-normal">Smart punctuation</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Curly quotes, em dashes from <code>--</code> and ellipses from <code>...</code> as you type. Backspace right after undoes one.
+                      Curly quotes, em dashes from <code>--</code> and ellipses from
+                      <code>...</code> as you type. Backspace right after undoes one.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
                     <Button
                       variant={writingState.smartPunctuation ? 'default' : 'ghost'}
                       size="sm"
@@ -502,14 +584,19 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
                     <p class="text-lg font-normal">Auto-close brackets</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Typing an opening bracket adds its closing pair; with text selected, it wraps the selection.
+                      Typing an opening bracket adds its closing pair; with text selected, it wraps
+                      the selection.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div
+                    class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full"
+                  >
                     <Button
                       variant={writingState.autoPair ? 'default' : 'ghost'}
                       size="sm"
@@ -531,12 +618,16 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div>
-                    <label for="settings-daily-goal" class="text-lg font-normal">Daily word goal</label>
+                    <label for="settings-daily-goal" class="text-lg font-normal"
+                      >Daily word goal</label
+                    >
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Shown next to the word count in the editor. Leave empty for no goal.
-                      Binder goals are set from the word count while writing.
+                      Shown next to the word count in the editor. Leave empty for no goal. Binder
+                      goals are set from the word count while writing.
                     </p>
                   </div>
                   <input
@@ -561,12 +652,14 @@
 
               <div class="grid grid-cols-1 gap-8">
                 <!-- Enable AI -->
-                <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div
+                  class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50"
+                >
                   <div>
                     <p class="text-lg font-normal">Enable AI</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Turns on AI chat, autocomplete, and model downloads. Off by default so
-                      Memoire starts as a plain writing app.
+                      Turns on AI chat, autocomplete, and model downloads. Off by default so Memoire
+                      starts as a plain writing app.
                     </p>
                   </div>
                   <button
@@ -585,246 +678,336 @@
                 </div>
 
                 {#if configManager.config?.ai_enabled}
-                <!-- Provider selector -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">AI Provider</span>
-                  </div>
-                  <p class="text-sm text-muted-foreground">
-                    Choose whether chat, autocomplete, and grammar checks run locally on your
-                    machine or through OpenRouter. Note search always stays local.
-                  </p>
-                  <div class="flex flex-wrap gap-2 mt-2">
-                    <Button
-                      variant={(configManager.config?.provider ?? 'local') === 'local' ? 'default' : 'outline'}
-                      size="sm"
-                      onclick={() => handleSelectProvider('local')}
-                    >
-                      Local (Kalosm)
-                    </Button>
-                    <Button
-                      variant={configManager.config?.provider === 'openrouter' ? 'default' : 'outline'}
-                      size="sm"
-                      onclick={() => handleSelectProvider('openrouter')}
-                    >
-                      OpenRouter
-                    </Button>
-                  </div>
-                </div>
-
-                {#if configManager.config?.provider === 'openrouter'}
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">OpenRouter</span>
-                  </div>
-
-                  {#if configManager.hasOpenRouterApiKey}
-                    <div class="flex items-center justify-between gap-3">
-                      <p class="text-sm text-muted-foreground">API key saved.</p>
-                      <Button variant="ghost" size="sm" class="text-xs h-8" onclick={() => configManager.clearOpenRouterApiKey()}>
-                        Remove key
-                      </Button>
-                    </div>
-
-                    <p class="text-sm text-muted-foreground mt-2">
-                      Model: <strong class="wrap-anywhere">{configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}</strong>
-                    </p>
-
-                    {#if configManager.isLoadingOpenRouterModels}
-                      <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
-                        <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.625rem] text-muted-foreground uppercase tracking-widest">Loading models…</span>
-                      </div>
-                    {:else if configManager.openRouterModels.length > 0}
-                      <select
-                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        value={configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}
-                        onchange={(e) => configManager.setOpenRouterModel(e.currentTarget.value)}
+                  <!-- Provider selector -->
+                  <div
+                    class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                  >
+                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                      <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                      <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                        >AI Provider</span
                       >
-                        {#each configManager.openRouterModels as m (m.id)}
-                          <option value={m.id}>{m.name}</option>
-                        {/each}
-                      </select>
-                    {:else}
-                      <Button variant="outline" size="sm" class="text-xs h-8 w-fit" onclick={() => configManager.fetchOpenRouterModels()}>
-                        Load model list
-                      </Button>
-                    {/if}
-                  {:else}
+                    </div>
                     <p class="text-sm text-muted-foreground">
-                      Enter an OpenRouter API key to use remote models for chat, autocomplete, and grammar checks.
+                      Choose whether chat, autocomplete, and grammar checks run locally on your
+                      machine or through OpenRouter. Note search always stays local.
                     </p>
-                    <div class="flex gap-2 mt-2">
-                      <input
-                        type="password"
-                        class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        placeholder="sk-or-..."
-                        bind:value={openRouterKeyInput}
-                      />
-                      <Button size="sm" onclick={handleSaveOpenRouterKey} disabled={!openRouterKeyInput.trim()}>
-                        Save
+                    <div class="flex flex-wrap gap-2 mt-2">
+                      <Button
+                        variant={(configManager.config?.provider ?? 'local') === 'local'
+                          ? 'default'
+                          : 'outline'}
+                        size="sm"
+                        onclick={() => handleSelectProvider('local')}
+                      >
+                        Local (Kalosm)
+                      </Button>
+                      <Button
+                        variant={configManager.config?.provider === 'openrouter'
+                          ? 'default'
+                          : 'outline'}
+                        size="sm"
+                        onclick={() => handleSelectProvider('openrouter')}
+                      >
+                        OpenRouter
                       </Button>
                     </div>
-                  {/if}
-                </div>
-                {/if}
-
-                {#if (configManager.config?.provider ?? 'local') === 'local'}
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Supported models (Kalosm)</span>
                   </div>
 
-                  {#if llmManager.error}
-                    <div class="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                      {llmManager.error}
+                  {#if configManager.config?.provider === 'openrouter'}
+                    <div
+                      class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                        <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                        <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                          >OpenRouter</span
+                        >
+                      </div>
+
+                      {#if configManager.hasOpenRouterApiKey}
+                        <div class="flex items-center justify-between gap-3">
+                          <p class="text-sm text-muted-foreground">API key saved.</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            class="text-xs h-8"
+                            onclick={() => configManager.clearOpenRouterApiKey()}
+                          >
+                            Remove key
+                          </Button>
+                        </div>
+
+                        <p class="text-sm text-muted-foreground mt-2">
+                          Model: <strong class="wrap-anywhere"
+                            >{configManager.config?.openrouter_model ??
+                              'meta-llama/llama-3.1-8b-instruct:free'}</strong
+                          >
+                        </p>
+
+                        {#if configManager.isLoadingOpenRouterModels}
+                          <div
+                            class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2"
+                          >
+                            <div
+                              class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"
+                            ></div>
+                            <span
+                              class="text-[0.625rem] text-muted-foreground uppercase tracking-widest"
+                              >Loading models…</span
+                            >
+                          </div>
+                        {:else if configManager.openRouterModels.length > 0}
+                          <select
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            value={configManager.config?.openrouter_model ??
+                              'meta-llama/llama-3.1-8b-instruct:free'}
+                            onchange={(e) =>
+                              configManager.setOpenRouterModel(e.currentTarget.value)}
+                          >
+                            {#each configManager.openRouterModels as m (m.id)}
+                              <option value={m.id}>{m.name}</option>
+                            {/each}
+                          </select>
+                        {:else}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            class="text-xs h-8 w-fit"
+                            onclick={() => configManager.fetchOpenRouterModels()}
+                          >
+                            Load model list
+                          </Button>
+                        {/if}
+                      {:else}
+                        <p class="text-sm text-muted-foreground">
+                          Enter an OpenRouter API key to use remote models for chat, autocomplete,
+                          and grammar checks.
+                        </p>
+                        <div class="flex gap-2 mt-2">
+                          <input
+                            type="password"
+                            class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            placeholder="sk-or-..."
+                            bind:value={openRouterKeyInput}
+                          />
+                          <Button
+                            size="sm"
+                            onclick={handleSaveOpenRouterKey}
+                            disabled={!openRouterKeyInput.trim()}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      {/if}
                     </div>
                   {/if}
 
-                  <p class="text-sm text-muted-foreground mt-2">
-                    Default model: <strong>{llmManager.supportedModels.find(m => m.id === (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct'))?.name ?? (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct')}</strong>
-                  </p>
+                  {#if (configManager.config?.provider ?? 'local') === 'local'}
+                    <div
+                      class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                        <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                        <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                          >Supported models (Kalosm)</span
+                        >
+                      </div>
 
-                  <div class="space-y-3 mt-2">
-                    {#if llmManager.supportedModels.length > 0}
-                      {#each llmManager.supportedModels as model (model.id)}
-                        <div class="flex items-center justify-between gap-3 p-3 rounded-md bg-background/50 border border-border/50">
-                          <div class="flex flex-col min-w-0 flex-1">
-                            <span class="text-sm font-medium truncate">{model.name}</span>
-                            <div class="flex items-center gap-2 mt-1">
-                              <span
-                                class="inline-flex px-2 py-0.5 rounded text-[0.625rem] font-medium uppercase tracking-wider {model.model_type === 'chat'
-                                  ? 'bg-success/10 text-success border border-success/20'
-                                  : model.model_type === 'reasoning'
-                                    ? 'bg-primary/10 text-primary border border-primary/20'
-                                    : 'bg-warning/10 text-warning border border-warning/20'}"
-                              >
-                                {model.model_type}
-                              </span>
-                            </div>
-                          </div>
-                          <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                            {#if model.downloaded}
-                              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20">
-                                <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
-                                <span class="text-[0.625rem] uppercase tracking-wider font-bold text-info">Downloaded</span>
-                              </div>
-                              {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
-                              {#if !isDefault}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  class="text-xs h-8"
-                                  onclick={() => configManager.setDefaultLlmModel(model.id)}
-                                >
-                                  Set as default
-                                </Button>
-                              {:else}
-                                <span class="text-[0.625rem] uppercase tracking-wider font-medium text-muted-foreground">Default</span>
-                              {/if}
-                            {:else}
-                              {@const isDownloading = llmManager.downloadingModelId === model.id}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                class="text-xs h-8"
-                                onclick={() => llmManager.downloadModel(model.id)}
-                                disabled={isDownloading || !!llmManager.downloadingModelId}
-                              >
-                                {#if isDownloading}
-                                  <span class="flex items-center gap-1.5">
-                                    <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                                    Downloading {llmManager.loadingProgress}%
-                                  </span>
-                                {:else}
-                                  Download
-                                {/if}
-                              </Button>
-                            {/if}
-                          </div>
+                      {#if llmManager.error}
+                        <div
+                          class="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                        >
+                          {llmManager.error}
                         </div>
-                      {/each}
-                    {:else}
-                      <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
-                        <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.625rem] text-muted-foreground uppercase tracking-widest">Loading supported models…</span>
+                      {/if}
+
+                      <p class="text-sm text-muted-foreground mt-2">
+                        Default model: <strong
+                          >{llmManager.supportedModels.find(
+                            (m) =>
+                              m.id ===
+                              (configManager.config?.default_llm_model_id ??
+                                'qwen_2_5_1_5b_instruct')
+                          )?.name ??
+                            configManager.config?.default_llm_model_id ??
+                            'qwen_2_5_1_5b_instruct'}</strong
+                        >
+                      </p>
+
+                      <div class="space-y-3 mt-2">
+                        {#if llmManager.supportedModels.length > 0}
+                          {#each llmManager.supportedModels as model (model.id)}
+                            <div
+                              class="flex items-center justify-between gap-3 p-3 rounded-md bg-background/50 border border-border/50"
+                            >
+                              <div class="flex flex-col min-w-0 flex-1">
+                                <span class="text-sm font-medium truncate">{model.name}</span>
+                                <div class="flex items-center gap-2 mt-1">
+                                  <span
+                                    class="inline-flex px-2 py-0.5 rounded text-[0.625rem] font-medium uppercase tracking-wider {model.model_type ===
+                                    'chat'
+                                      ? 'bg-success/10 text-success border border-success/20'
+                                      : model.model_type === 'reasoning'
+                                        ? 'bg-primary/10 text-primary border border-primary/20'
+                                        : 'bg-warning/10 text-warning border border-warning/20'}"
+                                  >
+                                    {model.model_type}
+                                  </span>
+                                </div>
+                              </div>
+                              <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                                {#if model.downloaded}
+                                  <div
+                                    class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20"
+                                  >
+                                    <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
+                                    <span
+                                      class="text-[0.625rem] uppercase tracking-wider font-bold text-info"
+                                      >Downloaded</span
+                                    >
+                                  </div>
+                                  {@const isDefault =
+                                    (configManager.config?.default_llm_model_id ??
+                                      'qwen_2_5_1_5b_instruct') === model.id}
+                                  {#if !isDefault}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      class="text-xs h-8"
+                                      onclick={() => configManager.setDefaultLlmModel(model.id)}
+                                    >
+                                      Set as default
+                                    </Button>
+                                  {:else}
+                                    <span
+                                      class="text-[0.625rem] uppercase tracking-wider font-medium text-muted-foreground"
+                                      >Default</span
+                                    >
+                                  {/if}
+                                {:else}
+                                  {@const isDownloading =
+                                    llmManager.downloadingModelId === model.id}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    class="text-xs h-8"
+                                    onclick={() => llmManager.downloadModel(model.id)}
+                                    disabled={isDownloading || !!llmManager.downloadingModelId}
+                                  >
+                                    {#if isDownloading}
+                                      <span class="flex items-center gap-1.5">
+                                        <span
+                                          class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                                        ></span>
+                                        Downloading {llmManager.loadingProgress}%
+                                      </span>
+                                    {:else}
+                                      Download
+                                    {/if}
+                                  </Button>
+                                {/if}
+                              </div>
+                            </div>
+                          {/each}
+                        {:else}
+                          <div
+                            class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2"
+                          >
+                            <div
+                              class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"
+                            ></div>
+                            <span
+                              class="text-[0.625rem] text-muted-foreground uppercase tracking-widest"
+                              >Loading supported models…</span
+                            >
+                          </div>
+                        {/if}
+                      </div>
+
+                      <p class="text-sm text-muted-foreground mt-6 tracking-tight">
+                        Models are stored locally in your app directory. Only downloaded models can
+                        be set as default.
+                      </p>
+                    </div>
+                  {/if}
+
+                  <div
+                    class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                  >
+                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                      <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                      <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                        >Note Search</span
+                      >
+                    </div>
+                    <p class="text-sm text-muted-foreground">
+                      Your notes are indexed on this device so the assistant can search them. Saved
+                      changes are picked up automatically; reindex after importing notes from
+                      elsewhere.
+                    </p>
+
+                    <div class="flex items-center justify-between gap-3 mt-2">
+                      <p class="text-sm">
+                        {#if memoryManager.indexProgress}
+                          {memoryManager.indexProgress.total
+                            ? `Indexing ${memoryManager.indexProgress.done} of ${memoryManager.indexProgress.total} notes…`
+                            : 'Preparing to index…'}
+                        {:else if memoryManager.indexStatus}
+                          {memoryManager.indexStatus.documents} notes · {memoryManager.indexStatus
+                            .passages} passages indexed
+                        {:else}
+                          Checking index…
+                        {/if}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-xs h-8 shrink-0"
+                        disabled={!!memoryManager.indexProgress}
+                        onclick={() => memoryManager.reindexNotes(true)}
+                      >
+                        Reindex notes
+                      </Button>
+                    </div>
+
+                    {#if memoryManager.indexProgress?.total}
+                      <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          class="h-full bg-primary transition-[width] duration-300"
+                          style="width: {Math.round(
+                            (memoryManager.indexProgress.done / memoryManager.indexProgress.total) *
+                              100
+                          )}%"
+                        ></div>
                       </div>
                     {/if}
                   </div>
 
-                  <p class="text-sm text-muted-foreground mt-6 tracking-tight">
-                    Models are stored locally in your app directory. Only downloaded models can be set as default.
-                  </p>
-                </div>
-                {/if}
-
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Note Search</span>
-                  </div>
-                  <p class="text-sm text-muted-foreground">
-                    Your notes are indexed on this device so the assistant can search them. Saved
-                    changes are picked up automatically; reindex after importing notes from elsewhere.
-                  </p>
-
-                  <div class="flex items-center justify-between gap-3 mt-2">
-                    <p class="text-sm">
-                      {#if memoryManager.indexProgress}
-                        {memoryManager.indexProgress.total
-                          ? `Indexing ${memoryManager.indexProgress.done} of ${memoryManager.indexProgress.total} notes…`
-                          : 'Preparing to index…'}
-                      {:else if memoryManager.indexStatus}
-                        {memoryManager.indexStatus.documents} notes · {memoryManager.indexStatus.passages} passages indexed
-                      {:else}
-                        Checking index…
-                      {/if}
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="text-xs h-8 shrink-0"
-                      disabled={!!memoryManager.indexProgress}
-                      onclick={() => memoryManager.reindexNotes(true)}
-                    >
-                      Reindex notes
-                    </Button>
-                  </div>
-
-                  {#if memoryManager.indexProgress?.total}
-                    <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        class="h-full bg-primary transition-[width] duration-300"
-                        style="width: {Math.round((memoryManager.indexProgress.done / memoryManager.indexProgress.total) * 100)}%"
-                      ></div>
+                  <div
+                    class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                  >
+                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                      <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                      <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                        >System Prompt</span
+                      >
                     </div>
-                  {/if}
-                </div>
+                    <p class="text-sm text-muted-foreground">
+                      Set the instructions that guide the behavior of the AI in the sidebar chat.
+                    </p>
 
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">System Prompt</span>
+                    <div class="flex flex-col gap-2 mt-2">
+                      <textarea
+                        class="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="e.g. You are a helpful AI assistant..."
+                        value={configManager.config?.system_prompt ?? ''}
+                        onchange={(e) => {
+                          const val = e.currentTarget.value;
+                          configManager.setSystemPrompt(val);
+                        }}></textarea>
+                    </div>
                   </div>
-                  <p class="text-sm text-muted-foreground">
-                    Set the instructions that guide the behavior of the AI in the sidebar chat.
-                  </p>
-
-                  <div class="flex flex-col gap-2 mt-2">
-                    <textarea
-                      class="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="e.g. You are a helpful AI assistant..."
-                      value={configManager.config?.system_prompt ?? ''}
-                      onchange={(e) => {
-                        const val = e.currentTarget.value;
-                        configManager.setSystemPrompt(val);
-                      }}
-                    ></textarea>
-                  </div>
-                </div>
                 {/if}
               </div>
             </section>
@@ -840,7 +1023,9 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Preferred storage</span>
+                    <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                      >Preferred storage</span
+                    >
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Where your writing is synced. One backend is active at a time; the other keeps
@@ -876,403 +1061,559 @@
                 </div>
 
                 {#if syncProvider === 'github'}
-                <!-- Account -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Account</span>
-                  </div>
-
-                  {#if gitManager.error}
-                    <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                      {typeof gitManager.error === 'string' ? gitManager.error : 'Something went wrong.'}
-                    </div>
-                  {/if}
-
-                  {#if gitManager.isCheckingSession}
-                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                      Checking session…
-                    </div>
-                  {:else if gitManager.user}
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="flex items-center gap-3 min-w-0">
-                        {#if gitManager.user.avatar_url}
-                          <img src={gitManager.user.avatar_url} alt="" class="size-9 rounded-full" />
-                        {/if}
-                        <div class="flex flex-col min-w-0">
-                          <span class="text-sm font-medium truncate">{gitManager.user.name || gitManager.user.login}</span>
-                          <span class="text-xs text-muted-foreground truncate">@{gitManager.user.login}</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" class="text-xs h-8" onclick={() => gitManager.logout()}>
-                        Disconnect
-                      </Button>
-                    </div>
-                  {:else if gitManager.deviceCode}
-                    <div class="flex flex-col items-start gap-2">
-                      <p class="text-sm text-muted-foreground">
-                        Enter this code at
-                        <span class="font-mono text-primary">{gitManager.deviceCode.verification_uri}</span>
-                        (opened in your browser):
-                      </p>
-                      <span class="text-2xl font-mono tracking-widest font-medium">{gitManager.deviceCode.user_code}</span>
-                      <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Waiting for approval…
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7 mt-1" onclick={() => gitManager.cancelLogin()}>
-                        Cancel
-                      </Button>
-                    </div>
-                  {:else}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="gap-2 text-xs h-8 w-fit"
-                      onclick={() => gitManager.startLogin()}
-                      disabled={gitManager.isConnecting}
-                    >
-                      <GithubIcon strokeWidth={1.5} class="size-3.5" />
-                      Login with GitHub
-                    </Button>
-                  {/if}
-                </div>
-
-                {#if gitManager.user}
-                  <!-- Auto push on exit -->
-                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
-                    <div>
-                      <p class="text-lg font-normal">Auto-push on exit</p>
-                      <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                        Commit & push any pending changes to GitHub when you close Memoire.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={configManager.config?.auto_push_on_exit ?? false}
-                      onclick={() =>
-                        configManager.setAutoPushOnExit(!(configManager.config?.auto_push_on_exit ?? false))}
-                      class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
-                        {configManager.config?.auto_push_on_exit ? 'bg-primary' : 'bg-muted-foreground/30'}"
-                    >
-                      <span
-                        class="inline-block size-4 transform rounded-full bg-background transition-transform
-                          {configManager.config?.auto_push_on_exit ? 'translate-x-6' : 'translate-x-1'}"
-                      ></span>
-                    </button>
-                  </div>
-
-                  <!-- Repository -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <!-- Account -->
+                  <div
+                    class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                  >
                     <div class="flex items-center gap-2 text-muted-foreground mb-1">
                       <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                      <span class="text-xs font-mono uppercase tracking-widest text-metadata">Repository</span>
+                      <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                        >Account</span
+                      >
                     </div>
-                    <p class="text-sm text-muted-foreground">
-                      Writing in your content directory is committed &amp; pushed to this GitHub repository.
-                      Already have writing on GitHub? Import pulls it into this content directory.
-                    </p>
-                    <div class="flex flex-wrap items-center gap-2 mt-1">
-                      <input
-                        type="text"
-                        bind:value={repoInput}
-                        placeholder="owner/repo"
-                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
- />
-                      <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveRepo}>
-                        Save
-                      </Button>
+
+                    {#if gitManager.error}
+                      <div
+                        class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                      >
+                        {typeof gitManager.error === 'string'
+                          ? gitManager.error
+                          : 'Something went wrong.'}
+                      </div>
+                    {/if}
+
+                    {#if gitManager.isCheckingSession}
+                      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span
+                          class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                        ></span>
+                        Checking session…
+                      </div>
+                    {:else if gitManager.user}
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                          {#if gitManager.user.avatar_url}
+                            <img
+                              src={gitManager.user.avatar_url}
+                              alt=""
+                              class="size-9 rounded-full"
+                            />
+                          {/if}
+                          <div class="flex flex-col min-w-0">
+                            <span class="text-sm font-medium truncate"
+                              >{gitManager.user.name || gitManager.user.login}</span
+                            >
+                            <span class="text-xs text-muted-foreground truncate"
+                              >@{gitManager.user.login}</span
+                            >
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="text-xs h-8"
+                          onclick={() => gitManager.logout()}
+                        >
+                          Disconnect
+                        </Button>
+                      </div>
+                    {:else if gitManager.deviceCode}
+                      <div class="flex flex-col items-start gap-2">
+                        <p class="text-sm text-muted-foreground">
+                          Enter this code at
+                          <span class="font-mono text-primary"
+                            >{gitManager.deviceCode.verification_uri}</span
+                          >
+                          (opened in your browser):
+                        </p>
+                        <span class="text-2xl font-mono tracking-widest font-medium"
+                          >{gitManager.deviceCode.user_code}</span
+                        >
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span
+                            class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                          ></span>
+                          Waiting for approval…
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          class="text-xs h-7 mt-1"
+                          onclick={() => gitManager.cancelLogin()}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    {:else}
                       <Button
                         variant="outline"
                         size="sm"
-                        class="gap-1.5 text-xs h-9"
-                        onclick={handleImport}
-                        disabled={gitManager.isImporting || !repoInput.trim()}
+                        class="gap-2 text-xs h-8 w-fit"
+                        onclick={() => gitManager.startLogin()}
+                        disabled={gitManager.isConnecting}
                       >
-                        {#if gitManager.isImporting}
-                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                          Importing…
+                        <GithubIcon strokeWidth={1.5} class="size-3.5" />
+                        Login with GitHub
+                      </Button>
+                    {/if}
+                  </div>
+
+                  {#if gitManager.user}
+                    <!-- Auto push on exit -->
+                    <div
+                      class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div>
+                        <p class="text-lg font-normal">Auto-push on exit</p>
+                        <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                          Commit & push any pending changes to GitHub when you close Memoire.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={configManager.config?.auto_push_on_exit ?? false}
+                        onclick={() =>
+                          configManager.setAutoPushOnExit(
+                            !(configManager.config?.auto_push_on_exit ?? false)
+                          )}
+                        class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
+                        {configManager.config?.auto_push_on_exit
+                          ? 'bg-primary'
+                          : 'bg-muted-foreground/30'}"
+                      >
+                        <span
+                          class="inline-block size-4 transform rounded-full bg-background transition-transform
+                          {configManager.config?.auto_push_on_exit
+                            ? 'translate-x-6'
+                            : 'translate-x-1'}"
+                        ></span>
+                      </button>
+                    </div>
+
+                    <!-- Repository -->
+                    <div
+                      class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                        <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                        <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                          >Repository</span
+                        >
+                      </div>
+                      <p class="text-sm text-muted-foreground">
+                        Writing in your content directory is committed &amp; pushed to this GitHub
+                        repository. Already have writing on GitHub? Import pulls it into this
+                        content directory.
+                      </p>
+                      <div class="flex flex-wrap items-center gap-2 mt-1">
+                        <input
+                          type="text"
+                          bind:value={repoInput}
+                          placeholder="owner/repo"
+                          class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          class="text-xs h-9"
+                          onclick={handleSaveRepo}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="gap-1.5 text-xs h-9"
+                          onclick={handleImport}
+                          disabled={gitManager.isImporting || !repoInput.trim()}
+                        >
+                          {#if gitManager.isImporting}
+                            <span
+                              class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                            ></span>
+                            Importing…
+                          {:else}
+                            <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
+                            Import
+                          {/if}
+                        </Button>
+                      </div>
+                      {#if gitManager.importResult === 'success'}
+                        <div
+                          class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                        >
+                          Imported from GitHub.
+                        </div>
+                      {:else if gitManager.importResult === 'error'}
+                        <div
+                          class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                        >
+                          Import failed: {typeof gitManager.error === 'string'
+                            ? gitManager.error
+                            : 'unknown error'}
+                        </div>
+                      {/if}
+                    </div>
+
+                    <!-- Status & push -->
+                    <div
+                      class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2 text-muted-foreground">
+                          <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                          <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                            >Changes</span
+                          >
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          class="text-xs h-7"
+                          onclick={() => gitManager.refreshStatus()}
+                        >
+                          Refresh
+                        </Button>
+                      </div>
+
+                      {#if gitManager.isLoadingStatus}
+                        <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span
+                            class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                          ></span>
+                          Loading status…
+                        </div>
+                      {:else if gitManager.status.length === 0}
+                        <p class="text-sm text-muted-foreground italic">No changes to commit.</p>
+                      {:else}
+                        <div class="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                          {#each gitManager.status as file (file.path)}
+                            <div
+                              class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50"
+                            >
+                              <span class="font-mono truncate">{file.path}</span>
+                              <span
+                                class="text-[0.625rem] uppercase tracking-wider text-muted-foreground shrink-0"
+                                >{file.status}</span
+                              >
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
+
+                      <textarea
+                        class="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                        placeholder="Commit message"
+                        bind:value={commitMessage}></textarea>
+
+                      {#if gitManager.pushResult === 'success'}
+                        <div
+                          class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                        >
+                          Pushed to GitHub.
+                        </div>
+                      {/if}
+
+                      <Button
+                        class="gap-2 w-fit"
+                        onclick={handleCommitPush}
+                        disabled={gitManager.isPushing || !commitMessage.trim()}
+                      >
+                        {#if gitManager.isPushing}
+                          <span
+                            class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                          ></span>
+                          Pushing…
                         {:else}
-                          <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                          Import
+                          <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
+                          Commit & Push
                         {/if}
                       </Button>
-                    </div>
-                    {#if gitManager.importResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Imported from GitHub.
-                      </div>
-                    {:else if gitManager.importResult === 'error'}
-                      <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Import failed: {typeof gitManager.error === 'string' ? gitManager.error : 'unknown error'}
-                      </div>
-                    {/if}
-                  </div>
-
-                  <!-- Status & push -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                    <div class="flex items-center justify-between mb-1">
-                      <div class="flex items-center gap-2 text-muted-foreground">
-                        <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                        <span class="text-xs font-mono uppercase tracking-widest text-metadata">Changes</span>
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => gitManager.refreshStatus()}>
-                        Refresh
-                      </Button>
-                    </div>
-
-                    {#if gitManager.isLoadingStatus}
-                      <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Loading status…
-                      </div>
-                    {:else if gitManager.status.length === 0}
-                      <p class="text-sm text-muted-foreground italic">No changes to commit.</p>
-                    {:else}
-                      <div class="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                        {#each gitManager.status as file (file.path)}
-                          <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
-                            <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.625rem] uppercase tracking-wider text-muted-foreground shrink-0">{file.status}</span>
-                          </div>
-                        {/each}
-                      </div>
-                    {/if}
-
-                    <textarea
-                      class="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
-                      placeholder="Commit message"
-                      bind:value={commitMessage}
-                    ></textarea>
-
-                    {#if gitManager.pushResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Pushed to GitHub.
-                      </div>
-                    {/if}
-
-                    <Button
-                      class="gap-2 w-fit"
-                      onclick={handleCommitPush}
-                      disabled={gitManager.isPushing || !commitMessage.trim()}
-                    >
-                      {#if gitManager.isPushing}
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Pushing…
-                      {:else}
-                        <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                        Commit & Push
-                      {/if}
-                    </Button>
-                  </div>
-                {/if}
-                {:else if syncProvider === 'dropbox'}
-                <!-- Dropbox account -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <DropboxIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Account</span>
-                  </div>
-
-                  {#if dropboxManager.error}
-                    <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                      {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'Something went wrong.'}
                     </div>
                   {/if}
-
-                  {#if dropboxManager.isCheckingSession}
-                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                      Checking session…
+                {:else if syncProvider === 'dropbox'}
+                  <!-- Dropbox account -->
+                  <div
+                    class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                  >
+                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                      <DropboxIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                      <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                        >Account</span
+                      >
                     </div>
-                  {:else if dropboxManager.account}
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="flex items-center gap-3 min-w-0">
-                        {#if dropboxManager.account.photo_url}
-                          <img src={dropboxManager.account.photo_url} alt="" class="size-9 rounded-full" />
-                        {/if}
-                        <div class="flex flex-col min-w-0">
-                          <span class="text-sm font-medium truncate">{dropboxManager.account.name}</span>
-                          {#if dropboxManager.account.email}
-                            <span class="text-xs text-muted-foreground truncate">{dropboxManager.account.email}</span>
+
+                    {#if dropboxManager.error}
+                      <div
+                        class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                      >
+                        {typeof dropboxManager.error === 'string'
+                          ? dropboxManager.error
+                          : 'Something went wrong.'}
+                      </div>
+                    {/if}
+
+                    {#if dropboxManager.isCheckingSession}
+                      <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span
+                          class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                        ></span>
+                        Checking session…
+                      </div>
+                    {:else if dropboxManager.account}
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                          {#if dropboxManager.account.photo_url}
+                            <img
+                              src={dropboxManager.account.photo_url}
+                              alt=""
+                              class="size-9 rounded-full"
+                            />
+                          {/if}
+                          <div class="flex flex-col min-w-0">
+                            <span class="text-sm font-medium truncate"
+                              >{dropboxManager.account.name}</span
+                            >
+                            {#if dropboxManager.account.email}
+                              <span class="text-xs text-muted-foreground truncate"
+                                >{dropboxManager.account.email}</span
+                              >
+                            {/if}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="text-xs h-8"
+                          onclick={() => dropboxManager.logout()}
+                        >
+                          Disconnect
+                        </Button>
+                      </div>
+                    {:else if dropboxManager.isConnecting}
+                      <div class="flex flex-col items-start gap-2">
+                        <p class="text-sm text-muted-foreground">
+                          Approve Memoire in the Dropbox page that opened in your browser.
+                        </p>
+                        <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span
+                            class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                          ></span>
+                          Waiting for approval…
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          class="text-xs h-7 mt-1"
+                          onclick={() => dropboxManager.cancelLogin()}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    {:else}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="gap-2 text-xs h-8 w-fit"
+                        onclick={() => dropboxManager.startLogin()}
+                      >
+                        <DropboxIcon strokeWidth={1.5} class="size-3.5" />
+                        Connect Dropbox
+                      </Button>
+                    {/if}
+                  </div>
+
+                  {#if dropboxManager.account}
+                    <!-- Auto push on exit -->
+                    <div
+                      class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div>
+                        <p class="text-lg font-normal">Auto-push on exit</p>
+                        <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                          Upload any changed writing to Dropbox when you close Memoire.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-label="Auto-push to Dropbox on exit"
+                        aria-checked={configManager.config?.dropbox_auto_push_on_exit ?? false}
+                        onclick={() =>
+                          configManager.setDropboxAutoPushOnExit(
+                            !(configManager.config?.dropbox_auto_push_on_exit ?? false)
+                          )}
+                        class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
+                        {configManager.config?.dropbox_auto_push_on_exit
+                          ? 'bg-primary'
+                          : 'bg-muted-foreground/30'}"
+                      >
+                        <span
+                          class="inline-block size-4 transform rounded-full bg-background transition-transform
+                          {configManager.config?.dropbox_auto_push_on_exit
+                            ? 'translate-x-6'
+                            : 'translate-x-1'}"
+                        ></span>
+                      </button>
+                    </div>
+
+                    <!-- Folder -->
+                    <div
+                      class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div class="flex items-center gap-2 text-muted-foreground mb-1">
+                        <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                        <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                          >Folder</span
+                        >
+                      </div>
+                      <p class="text-sm text-muted-foreground">
+                        Writing in your content directory is uploaded to this Dropbox folder, which
+                        is created if it doesn't exist yet. Pull brings writing from Dropbox down
+                        into this content directory.
+                      </p>
+                      <div class="flex flex-wrap items-center gap-2 mt-1">
+                        <input
+                          type="text"
+                          bind:value={dropboxFolderInput}
+                          placeholder="/Memoire"
+                          class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          class="text-xs h-9"
+                          onclick={handleSaveDropboxFolder}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="gap-1.5 text-xs h-9"
+                          onclick={handleDropboxPull}
+                          disabled={dropboxManager.isPulling || !dropboxFolderInput.trim()}
+                        >
+                          {#if dropboxManager.isPulling}
+                            <span
+                              class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                            ></span>
+                            Pulling…
+                          {:else}
+                            <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
+                            Pull
+                          {/if}
+                        </Button>
+                      </div>
+                      {#if dropboxManager.pullResult === 'success'}
+                        <div
+                          class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                        >
+                          Pulled {dropboxManager.lastSync?.downloaded ?? 0} file(s) from Dropbox.
+                          {#if dropboxManager.lastSync?.conflicts}
+                            {dropboxManager.lastSync.conflicts} file(s) changed on both sides — Dropbox's
+                            version was saved beside yours as "(Dropbox conflict)".
                           {/if}
                         </div>
-                      </div>
-                      <Button variant="outline" size="sm" class="text-xs h-8" onclick={() => dropboxManager.logout()}>
-                        Disconnect
-                      </Button>
-                    </div>
-                  {:else if dropboxManager.isConnecting}
-                    <div class="flex flex-col items-start gap-2">
-                      <p class="text-sm text-muted-foreground">
-                        Approve Memoire in the Dropbox page that opened in your browser.
-                      </p>
-                      <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Waiting for approval…
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7 mt-1" onclick={() => dropboxManager.cancelLogin()}>
-                        Cancel
-                      </Button>
-                    </div>
-                  {:else}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="gap-2 text-xs h-8 w-fit"
-                      onclick={() => dropboxManager.startLogin()}
-                    >
-                      <DropboxIcon strokeWidth={1.5} class="size-3.5" />
-                      Connect Dropbox
-                    </Button>
-                  {/if}
-                </div>
-
-                {#if dropboxManager.account}
-                  <!-- Auto push on exit -->
-                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
-                    <div>
-                      <p class="text-lg font-normal">Auto-push on exit</p>
-                      <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                        Upload any changed writing to Dropbox when you close Memoire.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-label="Auto-push to Dropbox on exit"
-                      aria-checked={configManager.config?.dropbox_auto_push_on_exit ?? false}
-                      onclick={() =>
-                        configManager.setDropboxAutoPushOnExit(
-                          !(configManager.config?.dropbox_auto_push_on_exit ?? false)
-                        )}
-                      class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
-                        {configManager.config?.dropbox_auto_push_on_exit ? 'bg-primary' : 'bg-muted-foreground/30'}"
-                    >
-                      <span
-                        class="inline-block size-4 transform rounded-full bg-background transition-transform
-                          {configManager.config?.dropbox_auto_push_on_exit ? 'translate-x-6' : 'translate-x-1'}"
-                      ></span>
-                    </button>
-                  </div>
-
-                  <!-- Folder -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                      <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                      <span class="text-xs font-mono uppercase tracking-widest text-metadata">Folder</span>
-                    </div>
-                    <p class="text-sm text-muted-foreground">
-                      Writing in your content directory is uploaded to this Dropbox folder, which is
-                      created if it doesn't exist yet. Pull brings writing from Dropbox down into
-                      this content directory.
-                    </p>
-                    <div class="flex flex-wrap items-center gap-2 mt-1">
-                      <input
-                        type="text"
-                        bind:value={dropboxFolderInput}
-                        placeholder="/Memoire"
-                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
- />
-                      <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveDropboxFolder}>
-                        Save
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        class="gap-1.5 text-xs h-9"
-                        onclick={handleDropboxPull}
-                        disabled={dropboxManager.isPulling || !dropboxFolderInput.trim()}
-                      >
-                        {#if dropboxManager.isPulling}
-                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                          Pulling…
-                        {:else}
-                          <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                          Pull
-                        {/if}
-                      </Button>
-                    </div>
-                    {#if dropboxManager.pullResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Pulled {dropboxManager.lastSync?.downloaded ?? 0} file(s) from Dropbox.
-                        {#if dropboxManager.lastSync?.conflicts}
-                          {dropboxManager.lastSync.conflicts} file(s) changed on both sides — Dropbox's version
-                          was saved beside yours as "(Dropbox conflict)".
-                        {/if}
-                      </div>
-                    {:else if dropboxManager.pullResult === 'error'}
-                      <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Pull failed: {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'unknown error'}
-                      </div>
-                    {/if}
-                  </div>
-
-                  <!-- Status & push -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
-                    <div class="flex items-center justify-between mb-1">
-                      <div class="flex items-center gap-2 text-muted-foreground">
-                        <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                        <span class="text-xs font-mono uppercase tracking-widest text-metadata">Changes</span>
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => dropboxManager.refreshStatus()}>
-                        Refresh
-                      </Button>
-                    </div>
-
-                    {#if dropboxManager.isLoadingStatus}
-                      <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Loading status…
-                      </div>
-                    {:else if dropboxManager.status.length === 0}
-                      <p class="text-sm text-muted-foreground italic">Everything is in sync.</p>
-                    {:else}
-                      <div class="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                        {#each dropboxManager.status as file (file.path)}
-                          <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
-                            <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.625rem] uppercase tracking-wider shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
-                          </div>
-                        {/each}
-                      </div>
-                    {/if}
-
-                    {#if dropboxManager.pushResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Pushed {dropboxManager.lastSync?.uploaded ?? 0} file(s) to Dropbox.
-                        {#if dropboxManager.lastSync?.conflicts}
-                          Skipped {dropboxManager.lastSync.conflicts} file(s) changed on both sides — pull to
-                          keep both versions.
-                        {/if}
-                      </div>
-                    {/if}
-
-                    <Button
-                      class="gap-2 w-fit mt-2"
-                      onclick={() => dropboxManager.push()}
-                      disabled={dropboxManager.isPushing || !configManager.config?.dropbox_folder}
-                    >
-                      {#if dropboxManager.isPushing}
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Pushing…
-                      {:else}
-                        <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                        Push to Dropbox
+                      {:else if dropboxManager.pullResult === 'error'}
+                        <div
+                          class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                        >
+                          Pull failed: {typeof dropboxManager.error === 'string'
+                            ? dropboxManager.error
+                            : 'unknown error'}
+                        </div>
                       {/if}
-                    </Button>
-                  </div>
-                {/if}
+                    </div>
+
+                    <!-- Status & push -->
+                    <div
+                      class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50"
+                    >
+                      <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2 text-muted-foreground">
+                          <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
+                          <span class="text-xs font-mono uppercase tracking-widest text-metadata"
+                            >Changes</span
+                          >
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          class="text-xs h-7"
+                          onclick={() => dropboxManager.refreshStatus()}
+                        >
+                          Refresh
+                        </Button>
+                      </div>
+
+                      {#if dropboxManager.isLoadingStatus}
+                        <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span
+                            class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                          ></span>
+                          Loading status…
+                        </div>
+                      {:else if dropboxManager.status.length === 0}
+                        <p class="text-sm text-muted-foreground italic">Everything is in sync.</p>
+                      {:else}
+                        <div class="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                          {#each dropboxManager.status as file (file.path)}
+                            <div
+                              class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50"
+                            >
+                              <span class="font-mono truncate">{file.path}</span>
+                              <span
+                                class="text-[0.625rem] uppercase tracking-wider shrink-0 {file.status ===
+                                'conflict'
+                                  ? 'text-destructive'
+                                  : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span
+                              >
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
+
+                      {#if dropboxManager.pushResult === 'success'}
+                        <div
+                          class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain"
+                        >
+                          Pushed {dropboxManager.lastSync?.uploaded ?? 0} file(s) to Dropbox.
+                          {#if dropboxManager.lastSync?.conflicts}
+                            Skipped {dropboxManager.lastSync.conflicts} file(s) changed on both sides
+                            — pull to keep both versions.
+                          {/if}
+                        </div>
+                      {/if}
+
+                      <Button
+                        class="gap-2 w-fit mt-2"
+                        onclick={() => dropboxManager.push()}
+                        disabled={dropboxManager.isPushing || !configManager.config?.dropbox_folder}
+                      >
+                        {#if dropboxManager.isPushing}
+                          <span
+                            class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+                          ></span>
+                          Pushing…
+                        {:else}
+                          <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
+                          Push to Dropbox
+                        {/if}
+                      </Button>
+                    </div>
+                  {/if}
                 {:else}
-                <div class="flex flex-col gap-2 p-6 rounded-lg bg-muted/20 border border-border/50">
-                  <p class="text-lg font-normal">This machine only</p>
-                  <p class="text-sm text-muted-foreground tracking-tight">
-                    Nothing leaves your machine. Pick GitHub or Dropbox above to sync your writing —
-                    whichever you've already set up stays configured.
-                  </p>
-                </div>
+                  <div
+                    class="flex flex-col gap-2 p-6 rounded-lg bg-muted/20 border border-border/50"
+                  >
+                    <p class="text-lg font-normal">This machine only</p>
+                    <p class="text-sm text-muted-foreground tracking-tight">
+                      Nothing leaves your machine. Pick GitHub or Dropbox above to sync your writing
+                      — whichever you've already set up stays configured.
+                    </p>
+                  </div>
                 {/if}
               </div>
             </section>

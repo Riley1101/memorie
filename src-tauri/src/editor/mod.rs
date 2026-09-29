@@ -115,6 +115,7 @@ pub async fn editor_apply(
         .get_mut(&name)
         .ok_or_else(|| format!("'{name}' is not open"))?;
 
+    let started = std::time::Instant::now();
     let at = now_millis();
     let mut change = Change::default();
     for command in commands {
@@ -125,7 +126,10 @@ pub async fn editor_apply(
         }
     }
     // The whole batch is one update: what it touched, not what the document is.
-    Ok(wire::update_view(editor, &change))
+    // The timing covers the engine and the update it builds — not the bridge,
+    // which is what the frontend measures around this call.
+    let micros = started.elapsed().as_micros() as u64;
+    Ok(wire::update_view(editor, &change, micros))
 }
 
 #[tauri::command]

@@ -126,6 +126,8 @@ export function openText(name, text) {
  * @property {boolean} structural - True when `blocks` is the whole document
  *   again, because its structure moved; false when it is only what changed.
  * @property {EditorBlock[]} blocks
+ * @property {number} engineMicros - How long Rust took, by its own clock.
+ *   Everything else a keystroke costs is the bridge and the view.
  * @property {{ id: number, level: number, text: string }[]} [outline] - Only
  *   sent with a structural change.
  */

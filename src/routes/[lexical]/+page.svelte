@@ -14,7 +14,7 @@
   import EditorFind from '$lib/components/editor-find.svelte';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import FlaskConicalIcon from '@lucide/svelte/icons/flask-conical';
-  import { spikeTarget } from '$lib/spike/target.svelte.js';
+  import { spikeTarget } from '$lib/editor/spike-target.svelte.js';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount } from 'svelte';

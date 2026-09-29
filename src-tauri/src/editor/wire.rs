@@ -445,6 +445,11 @@ pub struct WireUpdate {
     /// moved. False when `blocks` is only the ones that changed.
     pub structural: bool,
     pub blocks: Vec<WireBlock>,
+    /// How long the engine itself took, in microseconds, measured inside the
+    /// command. Everything else a keystroke costs is the bridge and the view,
+    /// and telling them apart is the difference between optimising the right
+    /// thing and the wrong one.
+    pub engine_micros: u64,
     /// Sent with a structural change: the outline is only worth recomputing
     /// when headings could have moved.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -452,7 +457,7 @@ pub struct WireUpdate {
 }
 
 /// The state after an edit, cut down to what the view has to redraw.
-pub fn update_view(editor: &Editor, change: &Change) -> WireUpdate {
+pub fn update_view(editor: &Editor, change: &Change, engine_micros: u64) -> WireUpdate {
     let document = editor.document();
     let structural = change.structural;
     let blocks = if structural {
@@ -482,6 +487,7 @@ pub fn update_view(editor: &Editor, change: &Change) -> WireUpdate {
             .is_empty(),
         structural,
         blocks,
+        engine_micros,
         outline: structural.then(|| {
             document
                 .outline()
@@ -821,7 +827,7 @@ mod tests {
 
         // Typing touches one block, so that is all that travels.
         let change = editor.apply(EditorCommand::insert_text("!")).unwrap();
-        let update = update_view(&editor, &change);
+        let update = update_view(&editor, &change, 0);
         assert!(!update.structural);
         assert_eq!(update.blocks.len(), 1);
         assert_eq!(update.blocks[0].id, block.0);
@@ -830,7 +836,7 @@ mod tests {
 
         // Splitting changes the block list, so the view needs all of it again.
         let change = editor.apply(EditorCommand::SplitBlock).unwrap();
-        let update = update_view(&editor, &change);
+        let update = update_view(&editor, &change, 0);
         assert!(update.structural);
         assert_eq!(update.blocks.len(), editor.document().blocks().len());
         assert!(update.outline.is_some());
@@ -850,7 +856,7 @@ mod tests {
             .unwrap();
 
         let change = editor.apply(EditorCommand::insert_text("!")).unwrap();
-        let update = update_view(&editor, &change);
+        let update = update_view(&editor, &change, 0);
 
         assert!(!update.structural, "a cell's text is not the table's shape");
         assert_eq!(update.blocks.len(), 1);
@@ -871,7 +877,7 @@ mod tests {
         let change = editor
             .apply(EditorCommand::InsertTableRow { before: false })
             .unwrap();
-        let update = update_view(&editor, &change);
+        let update = update_view(&editor, &change, 0);
 
         // The table block itself changed, so the whole table travels — but not
         // the rest of the document.
