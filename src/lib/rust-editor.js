@@ -116,12 +116,31 @@ export function openText(name, text) {
 }
 
 /**
- * Applies commands in order and returns the state afterwards. A batch means the
- * same thing as the same commands sent one at a time, so a keystroke and its
- * selection change can travel together.
+ * @typedef {Object} EditorUpdate
+ * @property {number} revision
+ * @property {{ anchor: EditorPosition, head: EditorPosition }} selection
+ * @property {string[]} activeMarks
+ * @property {number} wordCount
+ * @property {boolean} canUndo
+ * @property {boolean} canRedo
+ * @property {boolean} structural - True when `blocks` is the whole document
+ *   again, because its structure moved; false when it is only what changed.
+ * @property {EditorBlock[]} blocks
+ * @property {{ id: number, level: number, text: string }[]} [outline] - Only
+ *   sent with a structural change.
+ */
+
+/**
+ * Applies commands in order and returns **what changed**, not the whole
+ * document: typing touches one block, and sending 800 of them per keystroke is
+ * what makes a round trip expensive. A batch means the same thing as the same
+ * commands sent one at a time, so a keystroke and its selection change can
+ * travel together.
+ *
+ * Use {@link patchState} to fold the update into the state from `openDocument`.
  * @param {string} name
  * @param {EditorCommand | EditorCommand[]} commands
- * @returns {Promise<EditorStateView>}
+ * @returns {Promise<EditorUpdate>}
  */
 export function apply(name, commands) {
   return invoke('editor_apply', {
@@ -182,6 +201,56 @@ export const commands = {
   /** @param {string | null} url @returns {EditorCommand} */
   link: (url) => ({ command: 'setLink', url }),
 };
+
+/**
+ * Folds an update into a document state, in place. Only the blocks the update
+ * carries are replaced, so a view watching this state redraws one paragraph
+ * rather than the document.
+ * @param {EditorStateView} state - Mutated.
+ * @param {EditorUpdate} update
+ * @returns {EditorStateView} The same state, for convenience.
+ */
+export function patchState(state, update) {
+  state.revision = update.revision;
+  state.selection = update.selection;
+  state.activeMarks = update.activeMarks;
+  state.wordCount = update.wordCount;
+  state.canUndo = update.canUndo;
+  state.canRedo = update.canRedo;
+  if (update.outline) state.outline = update.outline;
+
+  if (update.structural) {
+    state.blocks = update.blocks;
+    return state;
+  }
+  for (const block of update.blocks) replaceBlock(state.blocks, block);
+  return state;
+}
+
+/**
+ * Puts `next` where the block with its id sits, at any depth.
+ * @param {EditorBlock[]} blocks
+ * @param {EditorBlock} next
+ * @returns {boolean} Whether it was found.
+ */
+function replaceBlock(blocks, next) {
+  for (let index = 0; index < blocks.length; index += 1) {
+    const block = blocks[index];
+    if (block.id === next.id) {
+      blocks[index] = next;
+      return true;
+    }
+    const nested = [
+      block.children ?? [],
+      ...(block.items ?? []).map((item) => item.blocks),
+      ...(block.rows ?? []).flatMap((row) => row.cells),
+    ];
+    for (const list of nested) {
+      if (replaceBlock(list, next)) return true;
+    }
+  }
+  return false;
+}
 
 /**
  * The plain text of a block, for measuring or for a preview. Runs that carry no

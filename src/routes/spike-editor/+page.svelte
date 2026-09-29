@@ -25,6 +25,7 @@
     openText,
     apply as applyCommands,
     getMarkdown,
+    patchState,
     close as closeDocument,
   } from '$lib/rust-editor.js';
   import {
@@ -128,13 +129,15 @@ it, paste into it, and try an IME.
     if (commands.length === 0) return;
     const started = performance.now();
     try {
-      const next = await applyCommands(openName, commands);
+      const update = await applyCommands(openName, commands);
       const engine = performance.now() - started;
-      doc = next;
+      // Only the blocks that changed are replaced, so Svelte redraws one
+      // paragraph rather than the document.
+      if (doc) patchState(doc, update);
       error = '';
       await tick();
       // The engine decides where the caret is; the DOM is told.
-      if (root && !composing) writeSelection(root, next.selection);
+      if (root && !composing) writeSelection(root, update.selection);
       // Two numbers matter separately: what Rust cost, and what the whole
       // keystroke cost once the view had caught up.
       samples = [...samples.slice(-199), engine];

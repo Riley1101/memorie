@@ -10,7 +10,7 @@
 //! ```text
 //! editor_open      parse a writing (or pick up the session already open)
 //! editor_open_text open a document from text, for content with no file yet
-//! editor_apply     apply commands, get the new state
+//! editor_apply     apply commands, get back only what changed
 //! editor_state     the current state, without changing anything
 //! editor_markdown  what would be written to disk
 //! editor_save      write it, through the same path the old save used
@@ -26,11 +26,12 @@ pub mod wire;
 
 use crate::fs::File;
 use crate::AppState;
+use editor_core::Change;
 use editor_core::{markdown, Editor};
 use std::collections::HashMap;
 use tauri::State;
 use tokio::sync::Mutex;
-use wire::{WireCommand, WireState};
+use wire::{WireCommand, WireState, WireUpdate};
 
 /// The documents open right now, by writing path.
 #[derive(Default)]
@@ -108,21 +109,23 @@ pub async fn editor_apply(
     name: String,
     commands: Vec<WireCommand>,
     state: State<'_, AppState>,
-) -> Result<WireState, String> {
+) -> Result<WireUpdate, String> {
     let mut sessions = state.editors.0.lock().await;
     let editor = sessions
         .get_mut(&name)
         .ok_or_else(|| format!("'{name}' is not open"))?;
 
     let at = now_millis();
+    let mut change = Change::default();
     for command in commands {
         // Offsets are converted against the document as it is now, so a batch
         // of commands means the same thing as the same commands sent one by one.
         for command in command.into_commands(editor.document())? {
-            editor.apply_at(command, at).map_err(|e| e.to_string())?;
+            change.merge(editor.apply_at(command, at).map_err(|e| e.to_string())?);
         }
     }
-    Ok(wire::state_view(&name, editor))
+    // The whole batch is one update: what it touched, not what the document is.
+    Ok(wire::update_view(editor, &change))
 }
 
 #[tauri::command]

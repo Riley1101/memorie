@@ -14,7 +14,7 @@
 //! round trip and a version skew; a `u8` does not.
 
 use editor_core::{
-    Block, BlockId, BlockKind, ColumnAlignment, Direction, Document, Editor, EditorCommand,
+    Block, BlockId, BlockKind, Change, ColumnAlignment, Direction, Document, Editor, EditorCommand,
     ImageNode, Inline, InlineContent, MarkSet, Position, SelectionRange,
 };
 use serde::{Deserialize, Serialize};
@@ -424,6 +424,78 @@ pub fn state_view(name: &str, editor: &Editor) -> WireState {
     }
 }
 
+/// What changed, rather than what the document now is.
+///
+/// Sending the whole document for every keystroke is what makes a round trip
+/// expensive: the engine takes a fraction of a millisecond to insert a
+/// character, but serializing 800 blocks, pushing them across the IPC bridge
+/// and parsing them again does not. Typing touches one block, so that is all
+/// this carries; the block *order* goes with it only when the block list itself
+/// changed.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WireUpdate {
+    pub revision: u64,
+    pub selection: WireSelection,
+    pub active_marks: Vec<&'static str>,
+    pub word_count: usize,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    /// True when `blocks` is the whole document again, because its structure
+    /// moved. False when `blocks` is only the ones that changed.
+    pub structural: bool,
+    pub blocks: Vec<WireBlock>,
+    /// Sent with a structural change: the outline is only worth recomputing
+    /// when headings could have moved.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outline: Option<Vec<WireHeading>>,
+}
+
+/// The state after an edit, cut down to what the view has to redraw.
+pub fn update_view(editor: &Editor, change: &Change) -> WireUpdate {
+    let document = editor.document();
+    let structural = change.structural;
+    let blocks = if structural {
+        document.blocks().iter().map(block_view).collect()
+    } else {
+        // Only the blocks that changed, wherever they sit in the tree.
+        change
+            .blocks
+            .iter()
+            .filter_map(|id| document.block(*id))
+            .map(block_view)
+            .collect()
+    };
+
+    WireUpdate {
+        revision: editor.revision(),
+        selection: WireSelection {
+            anchor: position_view(document, editor.selection().anchor),
+            head: position_view(document, editor.selection().head),
+        },
+        active_marks: mark_names(editor.active_marks()),
+        word_count: document.plain_text().split_whitespace().count(),
+        can_undo: editor.history().current().is_some(),
+        can_redo: !editor
+            .history()
+            .children_newest_first(editor.history().current())
+            .is_empty(),
+        structural,
+        blocks,
+        outline: structural.then(|| {
+            document
+                .outline()
+                .into_iter()
+                .map(|heading| WireHeading {
+                    id: heading.id.0,
+                    level: heading.level,
+                    text: heading.text,
+                })
+                .collect()
+        }),
+    }
+}
+
 // --- commands from the frontend ---------------------------------------------
 
 #[derive(Debug, Clone, Deserialize)]
@@ -732,6 +804,81 @@ mod tests {
             markdown::to_markdown(editor.document()),
             "I typed **nihongo** here\n"
         );
+    }
+
+    #[test]
+    fn an_update_carries_one_block_for_a_keystroke_and_the_lot_for_a_split() {
+        let mut editor = Editor::new(markdown::parse(
+            "t.md",
+            "# Title\n\nfirst\n\nsecond\n\nthird\n",
+        ));
+        let block = editor.document().text_block_ids()[1];
+        editor
+            .apply(EditorCommand::SetSelection(SelectionRange::in_block(
+                block, 5, 5,
+            )))
+            .unwrap();
+
+        // Typing touches one block, so that is all that travels.
+        let change = editor.apply(EditorCommand::insert_text("!")).unwrap();
+        let update = update_view(&editor, &change);
+        assert!(!update.structural);
+        assert_eq!(update.blocks.len(), 1);
+        assert_eq!(update.blocks[0].id, block.0);
+        assert_eq!(update.blocks[0].runs[0].text, "first!");
+        assert!(update.outline.is_none(), "headings can't have moved");
+
+        // Splitting changes the block list, so the view needs all of it again.
+        let change = editor.apply(EditorCommand::SplitBlock).unwrap();
+        let update = update_view(&editor, &change);
+        assert!(update.structural);
+        assert_eq!(update.blocks.len(), editor.document().blocks().len());
+        assert!(update.outline.is_some());
+    }
+
+    #[test]
+    fn an_update_reaches_a_block_nested_in_a_table() {
+        let mut editor = Editor::new(markdown::parse(
+            "t.md",
+            "| a | b |\n| --- | --- |\n| c | d |\n",
+        ));
+        let cell = editor.document().text_block_ids()[3];
+        editor
+            .apply(EditorCommand::SetSelection(SelectionRange::in_block(
+                cell, 1, 1,
+            )))
+            .unwrap();
+
+        let change = editor.apply(EditorCommand::insert_text("!")).unwrap();
+        let update = update_view(&editor, &change);
+
+        assert!(!update.structural, "a cell's text is not the table's shape");
+        assert_eq!(update.blocks.len(), 1);
+        assert_eq!(update.blocks[0].id, cell.0);
+        assert_eq!(update.blocks[0].runs[0].text, "d!");
+    }
+
+    #[test]
+    fn a_table_row_insertion_sends_the_table_back() {
+        let mut editor = Editor::new(markdown::parse("t.md", "| a |\n| --- |\n| b |\n"));
+        let cell = editor.document().text_block_ids()[1];
+        editor
+            .apply(EditorCommand::SetSelection(SelectionRange::in_block(
+                cell, 0, 0,
+            )))
+            .unwrap();
+
+        let change = editor
+            .apply(EditorCommand::InsertTableRow { before: false })
+            .unwrap();
+        let update = update_view(&editor, &change);
+
+        // The table block itself changed, so the whole table travels — but not
+        // the rest of the document.
+        assert!(!update.structural);
+        assert_eq!(update.blocks.len(), 1);
+        assert_eq!(update.blocks[0].kind, "table");
+        assert_eq!(update.blocks[0].rows.len(), 3);
     }
 
     #[test]

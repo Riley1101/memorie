@@ -150,7 +150,7 @@ impl Document {
     }
 
     pub fn block(&self, id: BlockId) -> Option<&Block> {
-        self.all_blocks().into_iter().find(|block| block.id == id)
+        self.blocks.iter().find_map(|block| block.find(id))
     }
 
     pub fn block_mut(&mut self, id: BlockId) -> Option<&mut Block> {

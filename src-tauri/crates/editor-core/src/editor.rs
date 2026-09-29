@@ -13,7 +13,7 @@ use crate::ids::BlockId;
 use crate::inline::{Inline, InlineContent, Link, MarkSet};
 use crate::node::{Block, BlockKind, ColumnAlignment, ListItem, TableCell, TableNode, TableRow};
 use crate::selection::{Position, SelectionRange};
-use crate::transaction::{Operation, Transaction};
+use crate::transaction::{Change, Operation, Transaction};
 
 /// How close together two edits have to be to become one undo step.
 const DEFAULT_COALESCE_WINDOW_MS: i64 = 700;
@@ -98,15 +98,16 @@ impl Editor {
         }
     }
 
-    /// Applies a command. See [`Editor::apply_at`] to stamp the history entry.
-    pub fn apply(&mut self, command: EditorCommand) -> Result<()> {
+    /// Applies a command, returning what it changed. See [`Editor::apply_at`]
+    /// to stamp the history entry.
+    pub fn apply(&mut self, command: EditorCommand) -> Result<Change> {
         self.apply_at(command, None)
     }
 
     /// Applies a command, stamping its history entry with `created_at`
     /// (milliseconds since the epoch). The host supplies the clock so the
     /// engine stays deterministic under test.
-    pub fn apply_at(&mut self, command: EditorCommand, created_at: Option<i64>) -> Result<()> {
+    pub fn apply_at(&mut self, command: EditorCommand, created_at: Option<i64>) -> Result<Change> {
         match command {
             // Moving the caret is not an edit: it changes no content, so it
             // neither bumps the revision nor fills the history with noise.
@@ -114,7 +115,7 @@ impl Editor {
                 self.selection = range.clamp(&self.document, start_of_document(&self.document));
                 // Marks waiting to be typed belong to where the caret was.
                 self.pending_marks = None;
-                Ok(())
+                Ok(Change::default())
             }
             // With nothing selected there is no text to format yet, so ⌘B sets
             // what the next keystroke will carry instead of editing anything.
@@ -125,7 +126,7 @@ impl Editor {
                 } else {
                     now.with(mark)
                 });
-                Ok(())
+                Ok(Change::default())
             }
             EditorCommand::Undo => self.step_history(true),
             EditorCommand::Redo => self.step_history(false),
@@ -181,8 +182,9 @@ impl Editor {
         transaction: Transaction,
         label: &str,
         created_at: Option<i64>,
-    ) -> Result<()> {
+    ) -> Result<Change> {
         let inverse = transaction.apply(&mut self.document)?;
+        let change = transaction.change();
         self.selection = transaction
             .selection_after
             .clamp(&self.document, start_of_document(&self.document));
@@ -200,14 +202,14 @@ impl Editor {
                 self.coalesce_window_ms,
             )
         {
-            return Ok(());
+            return Ok(change);
         }
         self.history
             .record(inverse, transaction, Some(label.to_string()), created_at);
-        Ok(())
+        Ok(change)
     }
 
-    fn step_history(&mut self, undo: bool) -> Result<()> {
+    fn step_history(&mut self, undo: bool) -> Result<Change> {
         let transaction = if undo {
             self.history.undo()
         } else {
@@ -219,7 +221,7 @@ impl Editor {
         self.selection = transaction
             .selection_after
             .clamp(&self.document, start_of_document(&self.document));
-        Ok(())
+        Ok(transaction.change())
     }
 
     // --- command builders ---------------------------------------------------

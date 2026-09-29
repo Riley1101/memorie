@@ -78,6 +78,18 @@ impl Block {
     }
 
     /// The block with id `id`, looked up anywhere inside this subtree.
+    ///
+    /// A walk rather than a search over a collected list: lookups happen on
+    /// every keystroke, several times, and collecting the document into a `Vec`
+    /// to find one block is an allocation per lookup.
+    pub fn find(&self, id: BlockId) -> Option<&Block> {
+        if self.id == id {
+            return Some(self);
+        }
+        self.children().into_iter().find_map(|child| child.find(id))
+    }
+
+    /// The block with id `id`, looked up anywhere inside this subtree.
     pub fn find_mut(&mut self, id: BlockId) -> Option<&mut Block> {
         if self.id == id {
             return Some(self);

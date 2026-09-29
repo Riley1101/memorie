@@ -408,3 +408,48 @@ shape as the engine's own vocabulary.
   mode and typewriter scrolling are view-level and straightforward; smart
   punctuation and auto-pairing should become engine commands rather than view
   tricks.
+
+## 12. What the measurement showed, and what it changed
+
+Typing into a 116k-character, 800-block document in the spike cost **20ms in
+the engine round trip and 39ms per keystroke all told** — about 25 frames a
+second, which is felt.
+
+Almost none of it was the engine. `tests/perf.rs` (`cargo test --release --test
+perf -- --nocapture`) times the pieces:
+
+```text
+insert one character        0.067ms     (release; 0.98ms in a debug build)
+document.block(id)          0.002ms
+serde_json of the document  0.146ms     (5.9ms in a debug build)
+parse markdown              0.360ms
+serialize markdown          0.432ms
+```
+
+So a keystroke was spending its time **serializing 800 blocks, pushing ~300KB
+across the IPC bridge, and parsing it again** — and then redrawing every
+paragraph in the view, because the whole document arrived new.
+
+Two changes came out of that:
+
+**The engine reports what it changed.** `Transaction::change()` gives a
+`Change { blocks, structural }`, which `Editor::apply` now returns. A keystroke
+touches one block; only a change to the top-level block list is `structural`.
+
+**The wire sends an update, not a document.** `editor_apply` returns
+`WireUpdate`: the revision, the selection, the toolbar state, and *only the
+blocks that changed* — the whole list again just when the structure moved, with
+the outline attached only then, since headings can't move otherwise. Editing a
+table cell sends that cell; adding a row sends that table; neither sends the
+document. On the frontend, `patchState` folds an update into the state in place,
+so the view redraws one paragraph.
+
+Also: `Document::block(id)` used to collect every block into a `Vec` to find
+one, on every lookup, several times per keystroke. It is a walk now — 12× faster
+on its own, and it took a third off the cost of an insert.
+
+Measure again in the app after this: the engine round trip should be a
+millisecond or two in a debug build, and the remaining cost is the view. If the
+whole keystroke is still over a frame, the next thing to look at is the redraw,
+not Rust — and `bun run dev:release` is worth trying, since a debug build is
+where most of the remaining Rust time is.

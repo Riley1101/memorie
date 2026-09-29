@@ -111,6 +111,37 @@ pub struct Transaction {
     pub selection_after: SelectionRange,
 }
 
+/// What a transaction touched, so a host can redraw that much and no more.
+///
+/// A keystroke changes one block's content; pressing return changes the block
+/// list. The first is most of what an editor does, and it is the case worth
+/// keeping cheap — sending a whole document over IPC for every character is
+/// the difference between typing that feels native and typing that doesn't.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Change {
+    /// Blocks whose content changed, including a container whose subtree did.
+    pub blocks: Vec<BlockId>,
+    /// Set when the top-level block list itself changed — blocks added, removed
+    /// or reordered — so their order has to be sent again.
+    pub structural: bool,
+}
+
+impl Change {
+    fn touch(&mut self, block: BlockId) {
+        if !self.blocks.contains(&block) {
+            self.blocks.push(block);
+        }
+    }
+
+    /// Folds another change into this one, for a batch applied as a unit.
+    pub fn merge(&mut self, other: Change) {
+        self.structural |= other.structural;
+        for block in other.blocks {
+            self.touch(block);
+        }
+    }
+}
+
 impl Transaction {
     pub fn new(selection_before: SelectionRange, selection_after: SelectionRange) -> Self {
         Self {
@@ -127,6 +158,22 @@ impl Transaction {
 
     pub fn is_empty(&self) -> bool {
         self.operations.is_empty()
+    }
+
+    /// What this transaction touches.
+    pub fn change(&self) -> Change {
+        let mut change = Change::default();
+        for operation in &self.operations {
+            match operation {
+                Operation::ReplaceInline { block, .. } => change.touch(*block),
+                Operation::ReplaceBlock { block, with } => {
+                    change.touch(*block);
+                    change.touch(with.id);
+                }
+                Operation::ReplaceBlocks { .. } => change.structural = true,
+            }
+        }
+        change
     }
 
     /// Applies every operation in order. On failure the already-applied ones

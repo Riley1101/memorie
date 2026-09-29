@@ -72,4 +72,4 @@ pub use inline::{ImageNode, Inline, InlineContent, Link, MarkSet};
 pub use markdown::{parse, to_markdown, DocumentSource};
 pub use node::{Block, BlockKind, ColumnAlignment, ListItem, TableCell, TableNode, TableRow};
 pub use selection::{Position, SelectionRange};
-pub use transaction::{Operation, Transaction};
+pub use transaction::{Change, Operation, Transaction};
