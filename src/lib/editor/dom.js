@@ -85,23 +85,44 @@ export function positionOf(node, offset, root) {
   // block, or either side of an atom — is resolved to the node it precedes.
   let target = node;
   let targetOffset = offset;
+  /**
+   * Set when the point is past an element's last child. For the block itself
+   * that is the end of the block; for an inline container — a mark's span,
+   * which is where a browser puts the caret at a bold run's edge — it is the
+   * end of what *that span* holds, and the runs after it must not be counted.
+   */
+  let pastEndOf = /** @type {Element | null} */ (null);
   if (node.nodeType === Node.ELEMENT_NODE) {
-    const children = /** @type {Element} */ (node).childNodes;
-    if (offset >= children.length) {
-      // At the very end of the element: everything in the block counts.
-      return { block: id, offset: blockLength(block) };
+    const element = /** @type {Element} */ (node);
+    if (offset >= element.childNodes.length) {
+      if (element === block) return { block: id, offset: blockLength(block) };
+      pastEndOf = element;
+    } else {
+      target = element.childNodes[offset];
+      targetOffset = 0;
     }
-    target = children[offset];
-    targetOffset = 0;
   }
 
   let total = 0;
+  /** The offset at the end of `pastEndOf`, once it is known. */
+  let end = /** @type {number | null} */ (null);
   for (const current of lengthNodes(block)) {
-    if (current === target) return { block: id, offset: total + targetOffset };
+    if (!pastEndOf && current === target) return { block: id, offset: total + targetOffset };
+    // An empty container holds nothing to measure, so its end is the offset of
+    // the first thing that follows it.
+    if (
+      pastEndOf &&
+      end === null &&
+      !pastEndOf.contains(current) &&
+      pastEndOf.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING
+    ) {
+      end = total;
+    }
     total += isAtom(current) ? 1 : (current.textContent ?? '').length;
+    if (pastEndOf?.contains(current)) end = total;
   }
   // The point is in the block but after everything measurable (an empty block).
-  return { block: id, offset: total };
+  return { block: id, offset: pastEndOf ? (end ?? total) : total };
 }
 
 /** The length of a block's content, in UTF-16 units. */

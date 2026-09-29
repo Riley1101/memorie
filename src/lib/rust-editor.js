@@ -225,7 +225,21 @@ export function patchState(state, update) {
     state.blocks = update.blocks;
     return state;
   }
-  for (const block of update.blocks) replaceBlock(state.blocks, block);
+  patchBlocks(state, update.blocks);
+  return state;
+}
+
+/**
+ * Folds only blocks into a state, leaving the revision, the selection and the
+ * counts alone. For a reply that arrived after a newer one: its blocks are
+ * still the truth for the blocks it carries, but its caret and its counts are
+ * behind, and drawing those would drag the writer backwards.
+ * @param {EditorStateView} state - Mutated.
+ * @param {EditorBlock[]} blocks
+ * @returns {EditorStateView} The same state, for convenience.
+ */
+export function patchBlocks(state, blocks) {
+  for (const block of blocks) replaceBlock(state.blocks, block);
   return state;
 }
 

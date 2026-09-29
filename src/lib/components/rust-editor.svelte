@@ -18,6 +18,7 @@
     openText,
     apply as applyCommands,
     patchState,
+    patchBlocks,
     close as closeDocument,
   } from '$lib/rust-editor.js';
   import {
@@ -94,8 +95,28 @@
    * caret back to where it used to be.
    */
   let inFlight = 0;
-  /** The highest revision drawn so far. */
+  /** The highest revision drawn so far, for the caret and the counts. */
   let drawn = -1;
+  /**
+   * The revision each block was last drawn at. A late reply still holds the
+   * truth for the blocks it carries — the newer one only sent what *it*
+   * touched — so it is folded in per block rather than dropped whole; what it
+   * must not do is redraw a block someone newer has already drawn.
+   * @type {Record<number, number>}
+   */
+  let drawnBlocks = {};
+  /**
+   * The revision the whole document was last drawn at. A structural reply
+   * redraws every block, and block ids move with it, so nothing older than this
+   * may patch a block however untouched that block looks.
+   */
+  let drawnFloor = -1;
+  /**
+   * Which document the replies in flight belong to. `reload` moves it on, so a
+   * reply for the writing that was open a moment ago is dropped rather than
+   * drawn over the one that is open now.
+   */
+  let generation = 0;
 
   /** The block the caret is in, for focus mode's dimming. */
   let currentBlock = $derived(doc?.selection.head.block ?? -1);
@@ -162,16 +183,27 @@
 
   /** (Re)opens the document, discarding whatever the engine had for this name. */
   export async function reload() {
+    const mine = (generation += 1);
     try {
-      doc =
+      const opened =
         text === undefined
           ? await openDocument(name, { reload: true })
           : await openText(name, text);
+      // Two opens can be in flight at once when the prop changes twice quickly,
+      // and the first can answer last. The document that arrives late is not
+      // the one the props now describe, so it is thrown away.
+      if (mine !== generation) return;
+      // A revision counts from zero *per document*, so the high-water mark from
+      // the writing that was open before would reject every reply from this one.
+      drawn = opened.revision;
+      drawnFloor = opened.revision;
+      drawnBlocks = {};
+      doc = opened;
       onstate?.(doc);
       await tick();
       if (autofocus) root?.focus();
     } catch (e) {
-      onerror?.(String(e));
+      if (mine === generation) onerror?.(String(e));
     }
   }
 
@@ -194,12 +226,32 @@
   async function send(commands) {
     if (commands.length === 0 || !doc) return;
     const started = performance.now();
+    const mine = generation;
     inFlight += 1;
     try {
       const update = await applyCommands(name, commands);
-      if (update.revision < drawn) return; // a newer reply already landed
+      // The document was reopened while this was in flight: its block ids mean
+      // nothing against the document now on screen.
+      if (mine !== generation || !doc) return;
+
+      const stale = update.revision < drawn; // a newer reply already landed
+      if (stale && update.structural) return; // its whole-document shape is behind
+      // Keep the blocks this reply is still the newest word on.
+      const blocks = update.blocks.filter(
+        (block) => update.revision >= Math.max(drawnBlocks[block.id] ?? -1, drawnFloor)
+      );
+      for (const block of blocks) drawnBlocks[block.id] = update.revision;
+      if (stale) {
+        // Its blocks are drawn, but its caret and its counts are behind.
+        if (blocks.length > 0) patchBlocks(doc, blocks);
+        return;
+      }
       drawn = update.revision;
-      patchState(doc, update);
+      if (update.structural) {
+        drawnFloor = update.revision;
+        drawnBlocks = {};
+      }
+      patchState(doc, blocks.length === update.blocks.length ? update : { ...update, blocks });
       await tick();
       // The engine decides where the caret is, but only once nothing else is
       // still on its way: moving it under a keystroke that hasn't been answered
@@ -228,6 +280,23 @@
   }
 
   /**
+   * The range a `beforeinput` says it will act on, as a selection command. The
+   * browser has already worked out what a word-wise or line-wise intent covers,
+   * and what an autocorrect is replacing, so its range beats reimplementing
+   * what a word is. Null when it names no usable range.
+   * @param {InputEvent} event
+   * @returns {EditorCommand | null}
+   */
+  function targetSelection(event) {
+    if (!root) return null;
+    const [range] = event.getTargetRanges?.() ?? [];
+    if (!range) return null;
+    const from = positionOf(range.startContainer, range.startOffset, root);
+    const to = positionOf(range.endContainer, range.endOffset, root);
+    return from && to ? { command: 'setSelection', anchor: from, head: to } : null;
+  }
+
+  /**
    * Turns a browser input intent into engine commands. Everything is
    * `preventDefault`ed except composition: the engine owns the document, so the
    * browser never edits it directly.
@@ -242,6 +311,9 @@
     const commands = [selection];
 
     const type = event.inputType;
+    // Worked out once: it walks the block's DOM, and the branch below both
+    // tests it and uses it.
+    const pair = type === 'deleteContentBackward' ? pairDelete() : null;
     if (type === 'insertText' && event.data !== null) {
       const character = event.data;
       const rule = mightBeRule(character) ? ruleFor(character) : null;
@@ -264,6 +336,18 @@
           ? { command: 'splitBlock' }
           : { command: 'insertText', text: '\n' }
       );
+    } else if (type === 'insertReplacementText') {
+      // Autocorrect and the spellcheck menu: the browser names the range it is
+      // replacing, so this is a delete and an insert over that range.
+      const replacement = event.data ?? event.dataTransfer?.getData('text/plain') ?? '';
+      const over = targetSelection(event);
+      if (!replacement || !over) {
+        unsupported = [...new Set([...unsupported, `${type} (no range)`])];
+        event.preventDefault();
+        return;
+      }
+      commands[0] = over;
+      commands.push({ command: 'insertText', text: replacement });
     } else if (type === 'insertFromPaste' || type === 'insertFromDrop') {
       const pasted = event.dataTransfer?.getData('text/plain') ?? '';
       if (!pasted) {
@@ -274,20 +358,14 @@
         return;
       }
       commands.push({ command: 'insertText', text: pasted });
-    } else if (type === 'deleteContentBackward' && pairDelete()) {
-      const pair = pairDelete();
+    } else if (pair) {
       event.preventDefault();
-      if (pair) send(pair);
+      send(pair);
       return;
     } else if (type.startsWith('delete')) {
       // The browser has already worked out what a word-wise or line-wise delete
       // covers; use its range rather than reimplementing what a word is.
-      const [range] = event.getTargetRanges?.() ?? [];
-      if (range && root) {
-        const from = positionOf(range.startContainer, range.startOffset, root);
-        const to = positionOf(range.endContainer, range.endOffset, root);
-        if (from && to) commands[0] = { command: 'setSelection', anchor: from, head: to };
-      }
+      commands[0] = targetSelection(event) ?? commands[0];
       commands.push({ command: 'delete', forward: type.includes('Forward') });
     } else if (type === 'historyUndo') {
       commands.length = 0;
@@ -416,8 +494,7 @@
 
   /** @param {KeyboardEvent} event */
   function onKeydown(event) {
-    const mod = event.metaKey || event.ctrlKey;
-    if (!mod || composing) return;
+    if (!isMod(event) || composing) return;
 
     /** @type {EditorCommand} */
     let command;
@@ -441,6 +518,35 @@
     const selection = selectionCommand();
     const needsSelection = command.command === 'toggleMark';
     send(needsSelection && selection ? [selection, command] : [command]);
+  }
+
+  /**
+   * Whether the caret is in this block *or in one nested inside it*, so focus
+   * mode keeps a quote, a list or a table lit while its paragraph is written
+   * in. Only the top-level element is dimmed, and it is the one being asked.
+   * @param {EditorBlock} block
+   */
+  function isCurrentBlock(block) {
+    return findBlock([block], currentBlock) !== null;
+  }
+
+  /**
+   * A task checkbox is the engine's to tick: the browser would flip the input
+   * on its own and leave the document saying the opposite.
+   * @param {Event} event
+   * @param {number | undefined} blockId - The item's first block.
+   */
+  function onTaskToggle(event, blockId) {
+    event.preventDefault();
+    if (blockId === undefined) return;
+    send([
+      {
+        command: 'setSelection',
+        anchor: { block: blockId, offset: 0 },
+        head: { block: blockId, offset: 0 },
+      },
+      { command: 'toggleTask' },
+    ]);
   }
 
   /** @param {EditorRun} run */
@@ -471,45 +577,84 @@
 
 {#snippet blockView(block)}
   {#if block.kind === 'paragraph'}
-    <p data-block-id={block.id} class:is-current-block={block.id === currentBlock}>
+    <!-- The placeholder is drawn by this paragraph's own `::before`, so the
+         text has to be on the paragraph: `attr()` reads the element the
+         pseudo-element belongs to, not the editor around it. -->
+    <p
+      data-block-id={block.id}
+      data-placeholder={placeholder}
+      class:is-current-block={isCurrentBlock(block)}
+    >
       {@render runs(block.runs ?? [])}
     </p>
   {:else if block.kind === 'heading'}
-    {#if block.level === 1}
-      <h1 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h1>
-    {:else if block.level === 2}
-      <h2 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h2>
-    {:else if block.level === 3}
-      <h3 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h3>
-    {:else if block.level === 4}
-      <h4 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h4>
-    {:else if block.level === 5}
-      <h5 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h5>
+    <!-- A level outside 1–6 is not a heading the DOM has; clamping keeps a bad
+         one legible instead of quietly rendering every such heading as an h6. -->
+    {@const level = Math.min(Math.max(Math.trunc(block.level ?? 1), 1), 6)}
+    {@const current = isCurrentBlock(block)}
+    {#if level === 1}
+      <h1 data-block-id={block.id} class:is-current-block={current}>
+        {@render runs(block.runs ?? [])}
+      </h1>
+    {:else if level === 2}
+      <h2 data-block-id={block.id} class:is-current-block={current}>
+        {@render runs(block.runs ?? [])}
+      </h2>
+    {:else if level === 3}
+      <h3 data-block-id={block.id} class:is-current-block={current}>
+        {@render runs(block.runs ?? [])}
+      </h3>
+    {:else if level === 4}
+      <h4 data-block-id={block.id} class:is-current-block={current}>
+        {@render runs(block.runs ?? [])}
+      </h4>
+    {:else if level === 5}
+      <h5 data-block-id={block.id} class:is-current-block={current}>
+        {@render runs(block.runs ?? [])}
+      </h5>
     {:else}
-      <h6 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h6>
+      <h6 data-block-id={block.id} class:is-current-block={current}>
+        {@render runs(block.runs ?? [])}
+      </h6>
     {/if}
   {:else if block.kind === 'quote'}
-    <blockquote data-block-id={block.id}>
+    <blockquote data-block-id={block.id} class:is-current-block={isCurrentBlock(block)}>
       {#each block.children ?? [] as child (child.id)}{@render blockView(child)}{/each}
     </blockquote>
   {:else if block.kind === 'list'}
     {#if block.ordered}
-      <ol data-block-id={block.id} start={block.start ?? 1}>
+      <ol
+        data-block-id={block.id}
+        start={block.start ?? 1}
+        class:is-current-block={isCurrentBlock(block)}
+      >
         {#each block.items ?? [] as item, index (index)}
           <li class={item.checked === undefined ? '' : 'task'}>
             {#if item.checked !== undefined}
-              <input type="checkbox" checked={item.checked} tabindex="-1" contenteditable="false" />
+              <input
+                type="checkbox"
+                checked={item.checked}
+                tabindex="-1"
+                contenteditable="false"
+                onclick={(event) => onTaskToggle(event, item.blocks[0]?.id)}
+              />
             {/if}
             {#each item.blocks as child (child.id)}{@render blockView(child)}{/each}
           </li>
         {/each}
       </ol>
     {:else}
-      <ul data-block-id={block.id}>
+      <ul data-block-id={block.id} class:is-current-block={isCurrentBlock(block)}>
         {#each block.items ?? [] as item, index (index)}
           <li class={item.checked === undefined ? '' : 'task'}>
             {#if item.checked !== undefined}
-              <input type="checkbox" checked={item.checked} tabindex="-1" contenteditable="false" />
+              <input
+                type="checkbox"
+                checked={item.checked}
+                tabindex="-1"
+                contenteditable="false"
+                onclick={(event) => onTaskToggle(event, item.blocks[0]?.id)}
+              />
             {/if}
             {#each item.blocks as child (child.id)}{@render blockView(child)}{/each}
           </li>
@@ -517,7 +662,7 @@
       </ul>
     {/if}
   {:else if block.kind === 'table'}
-    <table data-block-id={block.id}>
+    <table data-block-id={block.id} class:is-current-block={isCurrentBlock(block)}>
       <tbody>
         {#each block.rows ?? [] as row, rowIndex (rowIndex)}
           <tr>
@@ -535,14 +680,21 @@
          own operation. Markdown shortcuts and smart punctuation stay out. -->
     <pre
       data-block-id={block.id}
-      class:is-current-block={block.id === currentBlock}
+      class:is-current-block={isCurrentBlock(block)}
       data-language={block.language ?? ''}>{block.text}</pre>
   {:else if block.kind === 'thematicBreak'}
-    <hr data-block-id={block.id} />
+    <hr data-block-id={block.id} class:is-current-block={isCurrentBlock(block)} />
   {:else if block.kind === 'html'}
-    <div data-block-id={block.id} contenteditable="false" class="raw-html">{block.text}</div>
+    <div
+      data-block-id={block.id}
+      contenteditable="false"
+      class="raw-html"
+      class:is-current-block={isCurrentBlock(block)}
+    >
+      {block.text}
+    </div>
   {:else}
-    <p data-block-id={block.id}>[{block.kind}]</p>
+    <p data-block-id={block.id} class:is-current-block={isCurrentBlock(block)}>[{block.kind}]</p>
   {/if}
 {/snippet}
 
@@ -570,8 +722,39 @@
     outline: none;
   }
 
+  /* The engine owns the text, so the DOM has to show it verbatim: a run of
+     spaces, a trailing space, and the newline of a soft break all collapse
+     under the default `white-space`, which reads as the editor ignoring the
+     key. `pre-wrap` keeps them and still wraps at the measure. */
+  .rust-editor :global(p),
+  .rust-editor :global(h1),
+  .rust-editor :global(h2),
+  .rust-editor :global(h3),
+  .rust-editor :global(h4),
+  .rust-editor :global(h5),
+  .rust-editor :global(h6) {
+    white-space: pre-wrap;
+  }
+
+  /* `li` and `td` are deliberately not in that list. They hold no text of their
+     own — an item's and a cell's content are paragraph blocks, covered above —
+     and Svelte leaves one collapsible space between an item's checkbox and its
+     paragraph, which `pre-wrap` would turn into a visible indent. */
+
+  /* An empty block has no line box, so a fresh paragraph from ↵ would be
+     invisible and uncaretable. The pseudo-element is not in the DOM, so it
+     costs the position mapping nothing. */
+  .rust-editor :global(p:empty)::after,
+  .rust-editor :global(h1:empty)::after,
+  .rust-editor :global(h2:empty)::after,
+  .rust-editor :global(h3:empty)::after,
+  .rust-editor :global(h4:empty)::after,
+  .rust-editor :global(h5:empty)::after,
+  .rust-editor :global(h6:empty)::after {
+    content: '\200b';
+  }
+
   /* The placeholder sits on the first block while the document is empty. */
-  .rust-editor:not(:focus-within) :global(> p:first-child:last-child:empty)::before,
   .rust-editor :global(> p:first-child:last-child:empty)::before {
     content: attr(data-placeholder);
     color: var(--placeholder, color-mix(in oklab, currentColor 40%, transparent));
