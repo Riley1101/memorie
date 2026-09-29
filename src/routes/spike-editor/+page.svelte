@@ -17,7 +17,16 @@
    * the fourth question.
    */
   import { onMount, tick } from 'svelte';
-  import { openDocument, openText, apply as applyCommands, getMarkdown } from '$lib/rust-editor.js';
+  import { page } from '$app/state';
+  import { fileManager } from '$lib/runes/fs.svelte.js';
+  import { spikeTarget } from '$lib/spike/target.svelte.js';
+  import {
+    openDocument,
+    openText,
+    apply as applyCommands,
+    getMarkdown,
+    close as closeDocument,
+  } from '$lib/rust-editor.js';
   import {
     readSelection,
     writeSelection,
@@ -30,7 +39,7 @@
   /** @typedef {import('$lib/rust-editor.js').EditorBlock} EditorBlock */
   /** @typedef {import('$lib/rust-editor.js').EditorCommand} EditorCommand */
 
-  const NAME = 'spike-editor.md';
+  const SCRATCH = 'spike-editor.md';
   const SAMPLE = `# The spike
 
 A paragraph with **bold**, _italic_, \`code\` and a [link](notes.md). Type into
@@ -52,6 +61,15 @@ it, paste into it, and try an IME.
 | Ada | Writer |
 `;
 
+  /**
+   * `?doc=<path>` opens a real writing from disk, to measure the engine against
+   * documents that actually exist. **Nothing here is ever written back** — the
+   * spike has no save — so a real writing can be typed into without risk.
+   */
+  let requested = $state(spikeTarget.name ?? page.url.searchParams.get('doc'));
+  /** The name the engine has the document open under. */
+  let openName = $state(SCRATCH);
+
   /** @type {EditorStateView | null} */
   let doc = $state(null);
   /** @type {HTMLElement | null} */
@@ -65,8 +83,10 @@ it, paste into it, and try an IME.
   /** The block an IME is composing in. */
   let composingBlock = /** @type {number | null} */ (null);
 
-  /** Round-trip times in ms, newest last. */
+  /** Engine round-trip times in ms (the invoke alone), newest last. */
   let samples = $state(/** @type {number[]} */ ([]));
+  /** The same keystrokes measured to the end: invoke, redraw and caret. */
+  let totals = $state(/** @type {number[]} */ ([]));
   let lastInputType = $state('');
   /** @type {string[]} */
   let unsupported = $state([]);
@@ -81,6 +101,24 @@ it, paste into it, and try an IME.
 
   let median = $derived(percentile(samples, 0.5));
   let p95 = $derived(percentile(samples, 0.95));
+  let totalMedian = $derived(percentile(totals, 0.5));
+  let totalP95 = $derived(percentile(totals, 0.95));
+  let charCount = $derived(
+    (doc?.blocks ?? []).reduce((total, block) => total + blockChars(block), 0)
+  );
+
+  /** @param {EditorBlock} block */
+  function blockChars(block) {
+    const own =
+      (block.runs ?? []).reduce((sum, run) => sum + (run.text?.length ?? 1), 0) +
+      (block.text?.length ?? 0);
+    const nested = [
+      ...(block.children ?? []),
+      ...(block.items ?? []).flatMap((item) => item.blocks),
+      ...(block.rows ?? []).flatMap((row) => row.cells.flat()),
+    ];
+    return own + nested.reduce((sum, child) => sum + blockChars(child), 0);
+  }
 
   /**
    * Sends commands, redraws, and puts the caret back.
@@ -90,13 +128,17 @@ it, paste into it, and try an IME.
     if (commands.length === 0) return;
     const started = performance.now();
     try {
-      const next = await applyCommands(NAME, commands);
-      samples = [...samples.slice(-49), performance.now() - started];
+      const next = await applyCommands(openName, commands);
+      const engine = performance.now() - started;
       doc = next;
       error = '';
       await tick();
       // The engine decides where the caret is; the DOM is told.
       if (root && !composing) writeSelection(root, next.selection);
+      // Two numbers matter separately: what Rust cost, and what the whole
+      // keystroke cost once the view had caught up.
+      samples = [...samples.slice(-199), engine];
+      totals = [...totals.slice(-199), performance.now() - started];
     } catch (e) {
       error = String(e);
     }
@@ -237,64 +279,76 @@ it, paste into it, and try an IME.
     send(needsSelection && selection ? [selection, command] : [command]);
   }
 
+  /** Opens the requested writing, or the built-in sample. */
   async function load() {
+    samples = [];
+    totals = [];
     try {
-      doc = await openText(NAME, SAMPLE);
+      if (requested) {
+        openName = requested;
+        doc = await openDocument(requested, { reload: true });
+      } else {
+        openName = SCRATCH;
+        doc = await openText(SCRATCH, SAMPLE);
+      }
       error = '';
     } catch (e) {
       error = String(e);
     }
   }
 
-  async function reopenFromDisk() {
-    try {
-      doc = await openDocument(NAME, { reload: true });
-    } catch (e) {
-      error = String(e);
-    }
+  /**
+   * Switches documents in place. The URL is left alone — `?doc=` is how the
+   * editor page hands a writing over, not something to keep in step.
+   * @param {string} name
+   */
+  function openWriting(name) {
+    requested = name || null;
+    spikeTarget.name = requested;
   }
 
   async function showTheMarkdown() {
-    markdown = await getMarkdown(NAME);
+    markdown = await getMarkdown(openName);
     showMarkdown = true;
   }
 
-  /** Round-trip cost on a document big enough to matter. */
-  async function runBenchmark() {
+  /**
+   * Types `count` characters through the whole path — engine, redraw, caret —
+   * into the document that is open, and reports what it cost. This is the
+   * measurement that decides whether the view needs local echo.
+   * @param {number} count
+   */
+  async function stress(count) {
+    if (!doc) return;
     benchmarking = true;
     benchmark = '';
+    samples = [];
+    totals = [];
     try {
-      const paragraph =
-        'She turned the letter over twice before opening it, and the hallway light ' +
-        'caught the seal in a way that made the wax look almost wet again. ';
-      const source = Array.from(
-        { length: 400 },
-        (_, index) => `## Section ${index}\n\n${paragraph.repeat(2)}`
-      ).join('\n\n');
+      // Somewhere in the middle, so the work isn't all at one end.
+      const textBlocks = collectTextBlocks(doc.blocks);
+      const target = textBlocks[Math.floor(textBlocks.length / 2)];
+      if (!target) throw new Error('nothing to type into');
+      await send([
+        {
+          command: 'setSelection',
+          anchor: { block: target, offset: 0 },
+          head: { block: target, offset: 0 },
+        },
+      ]);
+      samples = [];
+      totals = [];
 
-      const big = await openText(NAME, source);
-      const target = big.blocks[big.blocks.length - 2].id;
-      /** @type {number[]} */
-      const times = [];
-      for (let i = 0; i < 50; i += 1) {
-        const started = performance.now();
-        await applyCommands(NAME, [
-          {
-            command: 'setSelection',
-            anchor: { block: target, offset: 10 },
-            head: { block: target, offset: 10 },
-          },
-          { command: 'insertText', text: 'x' },
-        ]);
-        times.push(performance.now() - started);
+      for (let i = 0; i < count; i += 1) {
+        await send([{ command: 'insertText', text: i % 12 === 11 ? ' ' : 'x' }]);
       }
-      const chars = source.length;
+
       benchmark =
-        `${chars.toLocaleString()} chars, ${big.blocks.length} blocks — ` +
-        `median ${percentile(times, 0.5).toFixed(1)}ms, ` +
-        `p95 ${percentile(times, 0.95).toFixed(1)}ms ` +
-        `(engine only, no re-render)`;
-      doc = await openText(NAME, SAMPLE);
+        `${count} keystrokes into ${charCount.toLocaleString()} chars / ` +
+        `${doc.blocks.length} blocks — engine ${percentile(samples, 0.5).toFixed(1)}ms ` +
+        `(p95 ${percentile(samples, 0.95).toFixed(1)}ms), ` +
+        `whole keystroke ${percentile(totals, 0.5).toFixed(1)}ms ` +
+        `(p95 ${percentile(totals, 0.95).toFixed(1)}ms)`;
     } catch (e) {
       benchmark = `failed: ${e}`;
     } finally {
@@ -302,7 +356,64 @@ it, paste into it, and try an IME.
     }
   }
 
-  onMount(load);
+  /**
+   * The ids of every block a caret can be put in, in document order.
+   * @param {EditorBlock[]} blocks
+   * @returns {number[]}
+   */
+  function collectTextBlocks(blocks) {
+    /** @type {number[]} */
+    const out = [];
+    for (const block of blocks) {
+      if (block.runs !== undefined || block.kind === 'paragraph' || block.kind === 'heading') {
+        out.push(block.id);
+      }
+      out.push(
+        ...collectTextBlocks([
+          ...(block.children ?? []),
+          ...(block.items ?? []).flatMap((item) => item.blocks),
+          ...(block.rows ?? []).flatMap((row) => row.cells.flat()),
+        ])
+      );
+    }
+    return out;
+  }
+
+  /** A synthetic document, for a size the real ones may not reach yet. */
+  async function loadSynthetic(sections) {
+    benchmark = '';
+    const paragraph =
+      'She turned the letter over twice before opening it, and the hallway light ' +
+      'caught the seal in a way that made the wax look almost wet again. ';
+    const source = Array.from(
+      { length: sections },
+      (_, index) => `## Section ${index}\n\n${paragraph.repeat(2)}`
+    ).join('\n\n');
+    try {
+      openName = SCRATCH;
+      doc = await openText(SCRATCH, source);
+      samples = [];
+      totals = [];
+      error = '';
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  onMount(() => {
+    if (!fileManager.hasLoadedFiles) fileManager.getRecents();
+    // Leaving the spike drops its session, so a real writing never keeps
+    // unsaved spike edits in the backend for something else to pick up.
+    return () => {
+      closeDocument(openName).catch(() => {});
+    };
+  });
+
+  // Re-opens whenever `?doc=` changes, including on first render.
+  $effect(() => {
+    void requested;
+    load();
+  });
 
   /** @param {import('$lib/rust-editor.js').EditorRun} run */
   function runClass(run) {
@@ -403,12 +514,26 @@ it, paste into it, and try an IME.
 <div class="spike">
   <header>
     <strong>Rust engine spike</strong>
-    <span class="hint">no Milkdown, no ProseMirror — every keystroke round-trips through Rust</span>
-    <button onclick={load}>reset</button>
-    <button onclick={reopenFromDisk}>open from disk</button>
+    <!-- Any writing can be opened here to measure the engine against it.
+         Nothing is ever written back: the spike has no save. -->
+    <select
+      aria-label="Document to open"
+      value={requested ?? ''}
+      onchange={(event) => openWriting(event.currentTarget.value)}
+    >
+      <option value="">— sample document —</option>
+      {#each fileManager.files as file (file.name)}
+        <option value={file.name}>{file.name}</option>
+      {/each}
+    </select>
+    <span class="hint">
+      {requested ? 'edits here are never saved' : 'no Milkdown, no ProseMirror'}
+    </span>
+    <button onclick={load}>reload</button>
     <button onclick={showTheMarkdown}>markdown</button>
-    <button onclick={runBenchmark} disabled={benchmarking}>
-      {benchmarking ? 'benchmarking…' : 'benchmark 100k'}
+    <button onclick={() => loadSynthetic(400)} disabled={benchmarking}>synthetic 100k</button>
+    <button onclick={() => stress(100)} disabled={benchmarking}>
+      {benchmarking ? 'typing…' : 'type 100'}
     </button>
   </header>
 
@@ -436,6 +561,8 @@ it, paste into it, and try an IME.
         <dd>{doc?.revision ?? '—'}</dd>
         <dt>blocks</dt>
         <dd>{doc?.blocks.length ?? 0}</dd>
+        <dt>characters</dt>
+        <dd>{charCount.toLocaleString()}</dd>
         <dt>words</dt>
         <dd>{doc?.wordCount ?? 0}</dd>
         <dt>selection</dt>
@@ -451,12 +578,12 @@ it, paste into it, and try an IME.
         <dd>{doc?.canUndo ? 'yes' : 'no'} / {doc?.canRedo ? 'yes' : 'no'}</dd>
       </dl>
 
-      <h2>Round trip</h2>
+      <h2>Per keystroke</h2>
       <dl>
-        <dt>median</dt>
-        <dd>{median.toFixed(1)}ms</dd>
-        <dt>p95</dt>
-        <dd>{p95.toFixed(1)}ms</dd>
+        <dt>engine</dt>
+        <dd>{median.toFixed(1)} / {p95.toFixed(1)}ms</dd>
+        <dt>whole</dt>
+        <dd>{totalMedian.toFixed(1)} / {totalP95.toFixed(1)}ms</dd>
         <dt>samples</dt>
         <dd>{samples.length}</dd>
         <dt>last input</dt>
@@ -464,6 +591,9 @@ it, paste into it, and try an IME.
         <dt>composing</dt>
         <dd>{composing ? 'yes' : 'no'}</dd>
       </dl>
+      <p class="note">
+        median / p95. “Engine” is the Rust round trip; “whole” adds the redraw and the caret.
+      </p>
       {#if benchmark}<p class="note">{benchmark}</p>{/if}
 
       {#if unsupported.length}
@@ -500,6 +630,7 @@ it, paste into it, and try an IME.
 
   header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
@@ -510,6 +641,17 @@ it, paste into it, and try an IME.
   .hint {
     opacity: 0.6;
     flex: 1;
+  }
+
+  select {
+    font: inherit;
+    font-size: 0.75rem;
+    max-width: 16rem;
+    padding: 0.2rem 0.3rem;
+    border: 1px solid color-mix(in oklab, currentColor 25%, transparent);
+    border-radius: 0.375rem;
+    background: transparent;
+    color: inherit;
   }
 
   button {

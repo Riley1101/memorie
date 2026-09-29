@@ -351,6 +351,19 @@ and the caret is placed where the engine says it is. The panel reports the
 round-trip cost, and there is a button that builds a 100k-character document and
 times 50 keystrokes against it.
 
+Any writing can be opened in it — from the picker in its header, or with the
+flask button in the editor page's top bar, which hands the open writing over.
+**The spike never saves**: it has no save path, and leaving the page drops its
+session, so a real document can be typed into to measure the engine against it
+without risk.
+
+The panel reports two numbers per keystroke, median and p95: what the Rust
+round trip cost, and what the whole keystroke cost once the view had redrawn and
+the caret was back. The second one is the one that decides whether the real view
+needs local echo. `type 100` runs that measurement without hand-typing, and
+`synthetic 100k` builds a 400-block document for a size the real ones may not
+reach.
+
 What to try, in the order that decides the outcome:
 
 1. **An IME** — Japanese, pinyin, macOS long-press accents. The browser owns

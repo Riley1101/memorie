@@ -13,6 +13,8 @@
   import EditorCodex from '$lib/components/editor-codex.svelte';
   import EditorFind from '$lib/components/editor-find.svelte';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
+  import FlaskConicalIcon from '@lucide/svelte/icons/flask-conical';
+  import { spikeTarget } from '$lib/spike/target.svelte.js';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount } from 'svelte';
@@ -155,7 +157,9 @@
 <div class="flex h-screen w-full bg-background" class:focus-mode={focusMode}>
   <aside
     class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md
-    {appState.ui.isHistoryOpen && !focusMode ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
+    {appState.ui.isHistoryOpen && !focusMode
+      ? 'w-60 border-r border-border/40'
+      : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isHistoryOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
@@ -182,9 +186,13 @@
     <header
       data-tauri-drag-region
       class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-[0.6875rem] font-mono shrink-0
-        {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
+        {!appState.ui.isHistoryOpen
+        ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]'
+        : ''}"
     >
-      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
+      <div
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent"
+      ></div>
       <button
         onclick={() => goto(resolve('/'))}
         aria-label="Go home"
@@ -226,6 +234,20 @@
       <span class="{saveTone} tracking-wide shrink-0 transition-colors" aria-live="polite">
         {saveLabel}
       </span>
+      <!-- Temporary: opens this writing in the Rust engine's spike surface, to
+           measure it against a real document. The spike never saves. Goes away
+           with the spike (see docs/editor-core.md). -->
+      <button
+        onclick={() => {
+          spikeTarget.name = fileName;
+          goto(resolve('/spike-editor'));
+        }}
+        title="Open in the Rust engine spike (never saves)"
+        aria-label="Open in the Rust engine spike"
+        class="flex items-center justify-center size-7 ml-1.5 -mr-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+      >
+        <FlaskConicalIcon strokeWidth={1.5} class="size-3.5" />
+      </button>
       <button
         onclick={() => appState.toggleOutline()}
         aria-label={appState.ui.isOutlineOpen ? 'Hide table of contents' : 'Show table of contents'}
@@ -256,22 +278,36 @@
 
   <aside
     class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md shrink-0
-    {appState.ui.isOutlineOpen && !focusMode ? 'w-65 border-l border-border/40' : 'w-0'} overflow-hidden"
+    {appState.ui.isOutlineOpen && !focusMode
+      ? 'w-65 border-l border-border/40'
+      : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isOutlineOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <ScrollFade class="flex-1 h-full">
           <ScrollArea class="h-full" type="scroll">
-            <h2 class="px-4 py-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">Scene</h2>
+            <h2 class="px-4 py-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">
+              Scene
+            </h2>
             {#key fileName}
               <EditorSceneInfo {fileName} {isDraft} />
             {/key}
-            <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">In this scene</h2>
+            <h2
+              class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40"
+            >
+              In this scene
+            </h2>
             <EditorCodex {fileName} content={body} />
-            <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">Contents</h2>
+            <h2
+              class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40"
+            >
+              Contents
+            </h2>
             <EditorOutline />
             {#if !isDraft}
-              <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">
+              <h2
+                class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40"
+              >
                 Referenced by
               </h2>
               <EditorBacklinks {fileName} />
