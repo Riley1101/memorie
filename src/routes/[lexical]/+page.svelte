@@ -340,6 +340,13 @@
     --writer-editor-pt: 40vh;
   }
 
+  /* The Rust surface dims its own blocks (it knows which one the caret is in);
+     it needs the same room above and below to centre the line being written. */
+  .focus-mode :global(.rust-editor) {
+    padding-top: 40vh;
+    padding-bottom: 50vh;
+  }
+
   .focus-mode :global(.ProseMirror > *) {
     transition: opacity 200ms ease;
   }

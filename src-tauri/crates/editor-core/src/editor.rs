@@ -248,6 +248,25 @@ impl Editor {
         Ok((block, start, end, content.clone()))
     }
 
+    /// Whether the caret's block holds runs or code, so the commands that edit
+    /// text can serve both without pretending code has runs.
+    fn caret_holds_code(&self) -> bool {
+        self.document
+            .block(self.selection.head.block)
+            .map(|block| block.kind.code().is_some())
+            .unwrap_or(false)
+    }
+
+    /// The selected range inside a code block, as characters of its code.
+    fn code_target(&self) -> Result<(BlockId, usize, usize)> {
+        let (block, start, end) = self
+            .selection
+            .single_block_range()
+            .ok_or(EditorError::MultiBlockSelection)?;
+        let len = self.document.block_len(block);
+        Ok((block, start.min(len), end.min(len)))
+    }
+
     /// A block's inline content, or an error naming why it has none.
     fn content_of(&self, block: BlockId) -> Result<&InlineContent> {
         self.document
@@ -320,9 +339,28 @@ impl Editor {
         ))
     }
 
+    /// Types `text` into a code block, where there is no formatting to carry.
+    fn insert_code(&self, text: String) -> Result<Transaction> {
+        let (block, start, end) = self.code_target()?;
+        let caret = Position::new(block, start + text.chars().count());
+        Ok(
+            Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
+                Operation::ReplaceCode {
+                    block,
+                    start,
+                    end,
+                    text,
+                },
+            ),
+        )
+    }
+
     /// Replaces the selection with `content`, or with `text` carrying the marks
     /// and link in force at the insertion point when `content` is empty.
     fn insert_content(&self, content: InlineContent, text: String) -> Result<Transaction> {
+        if self.caret_holds_code() && content.is_empty() {
+            return self.insert_code(text);
+        }
         let content = if content.is_empty() {
             if text.is_empty() {
                 return Err(EditorError::Unsupported("inserting nothing"));
@@ -347,6 +385,31 @@ impl Editor {
     }
 
     fn delete(&self, direction: Direction) -> Result<Transaction> {
+        if self.caret_holds_code() {
+            let (block, start, end) = self.code_target()?;
+            let (start, end) = match (start == end, direction) {
+                (false, _) => (start, end),
+                (true, Direction::Backward) if start > 0 => (start - 1, start),
+                (true, Direction::Forward) if end < self.document.block_len(block) => {
+                    (start, end + 1)
+                }
+                // At either edge of a code block there is nothing to join to:
+                // merging code into prose would lose the fence.
+                (true, _) => return Err(EditorError::NothingToDo),
+            };
+            let caret = Position::new(block, start);
+            return Ok(
+                Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
+                    Operation::ReplaceCode {
+                        block,
+                        start,
+                        end,
+                        text: String::new(),
+                    },
+                ),
+            );
+        }
+
         if !self.selection.is_collapsed() {
             let (operations, caret) = self.replace_selection_ops(InlineContent::empty())?;
             let mut transaction =
@@ -400,9 +463,12 @@ impl Editor {
     /// bold word stays bold.
     fn set_block_text(&self, text: String) -> Result<Transaction> {
         let block = self.selection.head.block;
-        let content = self.content_of(block)?;
+        let before_text = self
+            .document
+            .offset_text(block)
+            .ok_or(EditorError::NotTextual(block))?;
 
-        let before: Vec<char> = content.offset_text().chars().collect();
+        let before: Vec<char> = before_text.chars().collect();
         let after: Vec<char> = text.chars().collect();
 
         let start = before
@@ -423,6 +489,22 @@ impl Editor {
         if start == end && inserted.is_empty() {
             return Err(EditorError::NothingToDo);
         }
+
+        // Code has no runs to carry formatting, so the edit is the text itself.
+        if self.caret_holds_code() {
+            let caret = Position::new(block, start + inserted.chars().count());
+            return Ok(
+                Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
+                    Operation::ReplaceCode {
+                        block,
+                        start,
+                        end,
+                        text: inserted,
+                    },
+                ),
+            );
+        }
+        let content = self.content_of(block)?;
 
         // Replacing text takes the formatting of the text it replaces, so an
         // IME composing over a bold word stays bold. Pure insertion takes the
@@ -459,6 +541,11 @@ impl Editor {
     }
 
     fn split_block(&mut self) -> Result<Transaction> {
+        // Return inside code is a new line of code, not a new block: splitting
+        // would leave two fences where the writer wanted one.
+        if self.caret_holds_code() {
+            return self.insert_code("\n".to_string());
+        }
         let (block, start, end, content) = self.inline_target_owned()?;
         let index = self.top_index(block)?;
         let heading_level = match &self.document.block(block).expect("checked above").kind {

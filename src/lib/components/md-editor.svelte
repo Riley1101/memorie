@@ -299,9 +299,14 @@
 
   /** @param {import('$lib/rust-editor.js').EditorStateView} state */
   function onRustState(state) {
-    // The engine already knows the headings; the outline panel can list them.
+    // The engine already knows the headings. `pos` carries the block id here,
+    // which is what the outline hands back when one is clicked.
     editorState.setHeadings(
-      state.outline.map((heading) => ({ level: heading.level, text: heading.text, pos: 0 }))
+      state.outline.map((heading) => ({
+        level: heading.level,
+        text: heading.text,
+        pos: heading.id,
+      }))
     );
     writingState.resetBaseline();
     writingState.updateDocument(plainTextOf(state.blocks));
@@ -311,7 +316,11 @@
   function onRustUpdate(update) {
     if (update.outline) {
       editorState.setHeadings(
-        update.outline.map((heading) => ({ level: heading.level, text: heading.text, pos: 0 }))
+        update.outline.map((heading) => ({
+          level: heading.level,
+          text: heading.text,
+          pos: heading.id,
+        }))
       );
     }
   }
@@ -342,12 +351,18 @@
     rustTimer = setTimeout(flushRustSave, 2000);
   }
 
-  // ⌘S and the command bar save through whichever surface is mounted.
+  // ⌘S, the command bar and the outline all go through whichever surface is
+  // mounted, so they don't have to know which one that is.
   $effect(() => {
     if (!useRust) return;
     editorState.flushSave = flushRustSave;
+    editorState.revealHeading = (heading) => rustSurface?.goToBlock(heading.pos);
+    editorState.headingAbove = (heading, threshold) =>
+      rustSurface?.blockAbove(heading.pos, threshold) ?? null;
     return () => {
       if (editorState.flushSave === flushRustSave) editorState.flushSave = null;
+      editorState.revealHeading = null;
+      editorState.headingAbove = null;
     };
   });
 

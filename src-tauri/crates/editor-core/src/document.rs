@@ -5,7 +5,6 @@
 //! knows the syntax.
 
 use crate::ids::{BlockId, DocumentId, IdGenerator};
-use crate::inline::InlineContent;
 use crate::node::{Block, BlockKind};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -229,12 +228,12 @@ impl Document {
         self.blocks.iter().position(|block| block.id == id)
     }
 
-    /// Ids of the blocks that hold editable inline content, in document order.
-    /// This is the sequence the caret moves along.
+    /// Ids of the blocks a caret can go in — inline content or a code block's
+    /// text — in document order. This is the sequence the caret moves along.
     pub fn text_block_ids(&self) -> Vec<BlockId> {
         self.all_blocks()
             .into_iter()
-            .filter(|block| block.kind.is_textual())
+            .filter(|block| block.kind.holds_text())
             .map(|block| block.id)
             .collect()
     }
@@ -253,12 +252,28 @@ impl Document {
         ids.get(at + 1).copied()
     }
 
-    /// Offset length of a block's inline content; 0 for blocks without any.
+    /// Offset length of a block's text — inline content, or a code block's
+    /// code. 0 for a block that holds neither.
     pub fn block_len(&self, id: BlockId) -> usize {
-        self.block(id)
-            .and_then(Block::content)
-            .map(InlineContent::len)
-            .unwrap_or(0)
+        let Some(block) = self.block(id) else {
+            return 0;
+        };
+        match (block.content(), block.kind.code()) {
+            (Some(content), _) => content.len(),
+            (None, Some(code)) => code.chars().count(),
+            _ => 0,
+        }
+    }
+
+    /// One character per offset unit in `id`, whether that is inline content or
+    /// code. This is what a view reports back after the browser changed it.
+    pub fn offset_text(&self, id: BlockId) -> Option<String> {
+        let block = self.block(id)?;
+        match (block.content(), block.kind.code()) {
+            (Some(content), _) => Some(content.offset_text()),
+            (None, Some(code)) => Some(code.to_string()),
+            _ => None,
+        }
     }
 
     /// The document as plain text — what search, word counts, embeddings and

@@ -15,9 +15,20 @@ use crate::document::Document;
 use crate::error::{EditorError, Result};
 use crate::ids::BlockId;
 use crate::inline::InlineContent;
-use crate::node::Block;
+use crate::node::{Block, BlockKind};
 use crate::selection::SelectionRange;
 use serde::{Deserialize, Serialize};
+
+/// Byte bounds for a character range, clamped to the string.
+fn char_bounds(text: &str, start: usize, end: usize) -> (usize, usize) {
+    let mut offsets = text.char_indices().map(|(at, _)| at).collect::<Vec<_>>();
+    offsets.push(text.len());
+    let last = offsets.len() - 1;
+    (
+        offsets[start.min(last)],
+        offsets[end.min(last).max(start.min(last))],
+    )
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "camelCase")]
@@ -37,6 +48,15 @@ pub enum Operation {
         start: usize,
         end: usize,
         blocks: Vec<Block>,
+    },
+    /// Replaces `start..end` of a code block's text, in characters. Code is
+    /// text, not inline content — nothing inside it is marked up — so it needs
+    /// its own operation rather than pretending to have runs.
+    ReplaceCode {
+        block: BlockId,
+        start: usize,
+        end: usize,
+        text: String,
     },
     /// Replaces one block, wherever it sits — top level, or nested in a quote,
     /// list item or table cell.
@@ -86,6 +106,29 @@ impl Operation {
                     start,
                     end: start + new_len,
                     blocks: removed,
+                })
+            }
+            Operation::ReplaceCode {
+                block,
+                start,
+                end,
+                text,
+            } => {
+                let target = document
+                    .block_mut(block)
+                    .ok_or(EditorError::NoSuchBlock(block))?;
+                let BlockKind::CodeBlock { code, .. } = &mut target.kind else {
+                    return Err(EditorError::NotTextual(block));
+                };
+                let (from, to) = char_bounds(code, start, end);
+                let removed = code[from..to].to_string();
+                let new_len = text.chars().count();
+                code.replace_range(from..to, &text);
+                Ok(Operation::ReplaceCode {
+                    block,
+                    start,
+                    end: start + new_len,
+                    text: removed,
                 })
             }
             Operation::ReplaceBlock { block, with } => {
@@ -166,6 +209,7 @@ impl Transaction {
         for operation in &self.operations {
             match operation {
                 Operation::ReplaceInline { block, .. } => change.touch(*block),
+                Operation::ReplaceCode { block, .. } => change.touch(*block),
                 Operation::ReplaceBlock { block, with } => {
                     change.touch(*block);
                     change.touch(with.id);

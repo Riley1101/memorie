@@ -27,6 +27,11 @@
     blockText,
     positionOf,
   } from '$lib/editor/dom.js';
+  import { commandsForCharacter, mightBeRule } from '$lib/editor/input-rules.js';
+  import { writingState } from '$lib/runes/writing.svelte.js';
+  import { openHref } from '$lib/components/plugins/link-popover.svelte.js';
+  import { DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
+  import { isMod } from '$lib/keyboard.svelte.js';
 
   /** @typedef {import('$lib/rust-editor.js').EditorStateView} EditorStateView */
   /** @typedef {import('$lib/rust-editor.js').EditorBlock} EditorBlock */
@@ -45,6 +50,7 @@
    *   onupdate?: (update: EditorUpdate, elapsed: number) => void,
    *   onerror?: (message: string) => void,
    *   onedit?: () => void,
+   *   placeholder?: string,
    * }}
    * `name` is the writing's path, which is also the engine's session key. With
    * `text`, the document is opened from that string instead of from disk —
@@ -61,6 +67,7 @@
     onupdate = undefined,
     onerror = undefined,
     onedit = undefined,
+    placeholder = 'Start writing…',
   } = $props();
 
   /** @type {EditorStateView | null} */
@@ -75,6 +82,49 @@
 
   /** Input intents the engine has no command for yet, for the caller to see. */
   let unsupported = $state(/** @type {string[]} */ ([]));
+
+  /** The block the caret is in, for focus mode's dimming. */
+  let currentBlock = $derived(doc?.selection.head.block ?? -1);
+
+  /** The element for a block id, for scrolling and measuring. */
+  function elementOf(blockId) {
+    const element = root?.querySelector(`[data-block-id="${blockId}"]`);
+    return element instanceof HTMLElement ? element : null;
+  }
+
+  /**
+   * Scrolls a block into the middle of the view. Focus mode's typewriter
+   * scrolling, and how the outline jumps to a heading.
+   * @param {number} blockId
+   * @param {ScrollBehavior} behavior
+   */
+  export function revealBlock(blockId, behavior = 'smooth') {
+    elementOf(blockId)?.scrollIntoView({ block: 'center', behavior });
+  }
+
+  /**
+   * Whether a block's element has scrolled above `threshold`, for the outline's
+   * "you are here". Null when the block isn't rendered.
+   * @param {number} blockId
+   * @param {number} threshold
+   */
+  export function blockAbove(blockId, threshold) {
+    const element = elementOf(blockId);
+    return element ? element.getBoundingClientRect().top <= threshold : null;
+  }
+
+  /** Puts the caret at the start of a block and scrolls to it. */
+  export async function goToBlock(blockId) {
+    await send([
+      {
+        command: 'setSelection',
+        anchor: { block: blockId, offset: 0 },
+        head: { block: blockId, offset: 0 },
+      },
+    ]);
+    revealBlock(blockId);
+    root?.focus();
+  }
 
   /** The document the engine has open, for a caller that wants to read it. */
   export function snapshot() {
@@ -171,7 +221,14 @@
 
     const type = event.inputType;
     if (type === 'insertText' && event.data !== null) {
-      commands.push({ command: 'insertText', text: event.data });
+      const character = event.data;
+      const rule = mightBeRule(character) ? ruleFor(character) : null;
+      if (rule) {
+        event.preventDefault();
+        send(rule);
+        return;
+      }
+      commands.push({ command: 'insertText', text: character });
     } else if (type === 'insertParagraph') {
       commands.push({ command: 'splitBlock' });
     } else if (type === 'insertLineBreak') {
@@ -212,6 +269,71 @@
 
     event.preventDefault();
     send(commands);
+  }
+
+  /**
+   * The commands a Markdown shortcut, a bracket or a piece of punctuation turns
+   * this character into — or null to type it as it is.
+   * @param {string} character
+   * @returns {EditorCommand[] | null}
+   */
+  function ruleFor(character) {
+    if (!root) return null;
+    const selection = readSelection(root);
+    if (!selection || selection.anchor.block !== selection.head.block) return null;
+    const element = elementOf(selection.anchor.block);
+    if (!element) return null;
+    // A code block takes characters literally: no shortcuts inside code.
+    const block = findBlock(doc?.blocks ?? [], selection.anchor.block);
+    if (!block || block.kind === 'codeBlock') return null;
+
+    const [start, end] = [selection.anchor.offset, selection.head.offset].sort((a, b) => a - b);
+    return commandsForCharacter(character, {
+      block: selection.anchor.block,
+      start,
+      end,
+      text: blockText(element),
+      smartPunctuation: writingState.smartPunctuation,
+      autoPair: writingState.autoPair,
+    });
+  }
+
+  /**
+   * @param {EditorBlock[]} blocks
+   * @param {number} id
+   * @returns {EditorBlock | null}
+   */
+  function findBlock(blocks, id) {
+    for (const block of blocks) {
+      if (block.id === id) return block;
+      const found = findBlock(
+        [
+          ...(block.children ?? []),
+          ...(block.items ?? []).flatMap((item) => item.blocks),
+          ...(block.rows ?? []).flatMap((row) => row.cells.flat()),
+        ],
+        id
+      );
+      if (found) return found;
+    }
+    return null;
+  }
+
+  /**
+   * A link in the document is content: a plain click puts the caret in it, and
+   * only a doc reference or a ⌘-click opens it — the same rule the Milkdown
+   * editor follows.
+   * @param {MouseEvent} event
+   */
+  function onClick(event) {
+    const target = event.target;
+    const link = target instanceof Element ? target.closest('[data-href]') : null;
+    const href = link?.getAttribute('data-href');
+    if (!href) return;
+    if (href.startsWith(DOC_REF_PREFIX) || isMod(event)) {
+      event.preventDefault();
+      openHref(href);
+    }
   }
 
   function onCompositionStart() {
@@ -299,7 +421,9 @@
 
 {#snippet blockView(block)}
   {#if block.kind === 'paragraph'}
-    <p data-block-id={block.id}>{@render runs(block.runs ?? [])}</p>
+    <p data-block-id={block.id} class:is-current-block={block.id === currentBlock}>
+      {@render runs(block.runs ?? [])}
+    </p>
   {:else if block.kind === 'heading'}
     {#if block.level === 1}
       <h1 data-block-id={block.id}>{@render runs(block.runs ?? [])}</h1>
@@ -357,9 +481,12 @@
       </tbody>
     </table>
   {:else if block.kind === 'codeBlock'}
-    <!-- The engine holds a code block's text as text, not inline content, so
-         there is nothing here for a caret to address yet. -->
-    <pre data-block-id={block.id} contenteditable="false">{block.text}</pre>
+    <!-- Code is text, not runs: one text node, and the engine edits it with its
+         own operation. Markdown shortcuts and smart punctuation stay out. -->
+    <pre
+      data-block-id={block.id}
+      class:is-current-block={block.id === currentBlock}
+      data-language={block.language ?? ''}>{block.text}</pre>
   {:else if block.kind === 'thematicBreak'}
     <hr data-block-id={block.id} />
   {:else if block.kind === 'html'}
@@ -372,6 +499,8 @@
 <div
   bind:this={root}
   class="rust-editor {className}"
+  class:focus-mode={writingState.focusMode}
+  data-placeholder={placeholder}
   contenteditable="true"
   role="textbox"
   tabindex="0"
@@ -381,6 +510,7 @@
   oncompositionstart={onCompositionStart}
   oncompositionend={onCompositionEnd}
   onkeydown={onKeydown}
+  onclick={onClick}
 >
   {#each doc?.blocks ?? [] as block (block.id)}{@render blockView(block)}{/each}
 </div>
@@ -388,6 +518,24 @@
 <style>
   .rust-editor {
     outline: none;
+  }
+
+  /* The placeholder sits on the first block while the document is empty. */
+  .rust-editor:not(:focus-within) :global(> p:first-child:last-child:empty)::before,
+  .rust-editor :global(> p:first-child:last-child:empty)::before {
+    content: attr(data-placeholder);
+    color: var(--placeholder, color-mix(in oklab, currentColor 40%, transparent));
+    pointer-events: none;
+    position: absolute;
+  }
+
+  /* Focus mode: everything but the line being written fades back. */
+  .rust-editor.focus-mode :global(> *) {
+    transition: opacity 200ms ease;
+  }
+
+  .rust-editor.focus-mode :global(> :not(.is-current-block)) {
+    opacity: 0.3;
   }
 
   .rust-editor :global(.mark-bold) {

@@ -103,6 +103,23 @@ class EditorState {
   }
 
   /**
+   * Registered by the mounted editor: puts the caret in the heading whose entry
+   * the writer clicked in the outline, and scrolls to it. `pos` means whatever
+   * that editor put in `headings` — a document position for Milkdown, a block id
+   * for the Rust engine — so the outline doesn't have to know which is mounted.
+   * @type {((heading: { pos: number }) => void) | null}
+   */
+  revealHeading = $state(null);
+
+  /**
+   * Registered by the mounted editor: whether a heading's element is above
+   * `threshold` pixels, for highlighting the one in view. Null when the mounted
+   * editor can't answer.
+   * @type {((heading: { pos: number }, threshold: number) => boolean | null) | null}
+   */
+  headingAbove = $state(null);
+
+  /**
    * A search match to select once the target writing's editor is ready.
    * `occurrence` is the match's index within that writing.
    * @type {{ query: string, options: { caseSensitive: boolean, wholeWord: boolean, regex: boolean }, occurrence: number } | null}

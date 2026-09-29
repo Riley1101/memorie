@@ -205,6 +205,21 @@ impl BlockKind {
             BlockKind::Paragraph { .. } | BlockKind::Heading { .. }
         )
     }
+
+    /// Whether a caret can go in it: inline content, or a code block's text.
+    /// Code is text rather than runs — nothing inside it is marked up — so it
+    /// is editable without being "textual" in the inline-content sense.
+    pub fn holds_text(&self) -> bool {
+        self.is_textual() || matches!(self, BlockKind::CodeBlock { .. })
+    }
+
+    /// A code block's text, for a caret to move through.
+    pub fn code(&self) -> Option<&str> {
+        match self {
+            BlockKind::CodeBlock { code, .. } => Some(code),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

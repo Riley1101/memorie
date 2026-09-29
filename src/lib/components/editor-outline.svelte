@@ -16,6 +16,12 @@
 
   /** @param {{ pos: number }} heading */
   function jumpTo(heading) {
+    // The mounted editor knows how to get there; only Milkdown needs the
+    // position arithmetic below.
+    if (editorState.revealHeading) {
+      editorState.revealHeading(heading);
+      return;
+    }
     editorState.editor?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       const node = view.state.doc.nodeAt(heading.pos);
@@ -36,9 +42,20 @@
       activeIndex = -1;
       return;
     }
+    const threshold = window.innerHeight * 0.25;
+    if (editorState.headingAbove) {
+      let next = 0;
+      for (let i = 0; i < headings.length; i++) {
+        const above = editorState.headingAbove(headings[i], threshold);
+        if (above === null) continue;
+        if (above) next = i;
+        else break;
+      }
+      activeIndex = next;
+      return;
+    }
     editorState.editor?.action((ctx) => {
       const view = ctx.get(editorViewCtx);
-      const threshold = window.innerHeight * 0.25;
       let next = 0;
       for (let i = 0; i < headings.length; i++) {
         const dom = /** @type {HTMLElement | null} */ (view.nodeDOM(headings[i].pos));

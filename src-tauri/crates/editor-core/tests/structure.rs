@@ -575,3 +575,112 @@ fn reporting_unchanged_text_does_nothing() {
     ));
     assert_eq!(editor.revision(), revision);
 }
+
+// --- code blocks ------------------------------------------------------------
+
+#[test]
+fn a_caret_can_type_in_a_code_block() {
+    let mut editor = open("```rust\nfn main() {}\n```\n");
+    let code = editor.document().text_block_ids()[0];
+    select(&mut editor, code, 12, 12);
+
+    editor.apply(EditorCommand::insert_text(" // hi")).unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "```rust\nfn main() {} // hi\n```\n"
+    );
+    assert_eq!(editor.selection(), SelectionRange::in_block(code, 18, 18));
+}
+
+#[test]
+fn return_inside_code_adds_a_line_rather_than_a_second_fence() {
+    let mut editor = open("```\none\n```\n");
+    let code = editor.document().text_block_ids()[0];
+    select(&mut editor, code, 3, 3);
+
+    editor.apply(EditorCommand::SplitBlock).unwrap();
+    editor.apply(EditorCommand::insert_text("two")).unwrap();
+
+    assert_eq!(editor.document().blocks().len(), 1, "still one code block");
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "```\none\ntwo\n```\n"
+    );
+}
+
+#[test]
+fn deleting_in_code_stops_at_its_edges() {
+    let mut editor = open("before\n\n```\nxy\n```\n");
+    let code = editor.document().text_block_ids()[1];
+
+    select(&mut editor, code, 1, 1);
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "before\n\n```\ny\n```\n"
+    );
+
+    // At the start there is nothing to join to: merging code into prose would
+    // lose the fence, so the delete is refused rather than guessed at.
+    select(&mut editor, code, 0, 0);
+    assert!(matches!(
+        editor.apply(EditorCommand::Delete(Direction::Backward)),
+        Err(EditorError::NothingToDo)
+    ));
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "before\n\n```\ny\n```\n"
+    );
+}
+
+#[test]
+fn code_edits_undo_and_keep_the_language() {
+    let source = "```python\nprint(1)\n```\n";
+    let mut editor = open(source);
+    let code = editor.document().text_block_ids()[0];
+    select(&mut editor, code, 6, 7);
+
+    editor.apply(EditorCommand::insert_text("42")).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "```python\nprint(42)\n```\n"
+    );
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(markdown::to_markdown(editor.document()), source);
+}
+
+#[test]
+fn code_reported_back_by_the_view_becomes_the_smallest_edit() {
+    let mut editor = open("```\nlet a = 1;\n```\n");
+    let code = editor.document().text_block_ids()[0];
+    select(&mut editor, code, 0, 0);
+
+    editor
+        .apply(EditorCommand::SetBlockText("let alpha = 1;".into()))
+        .unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "```\nlet alpha = 1;\n```\n"
+    );
+}
+
+#[test]
+fn offsets_in_code_count_characters() {
+    let mut editor = open("```\ncafé 日本語\n```\n");
+    let code = editor.document().text_block_ids()[0];
+    assert_eq!(editor.document().block_len(code), 8);
+
+    select(&mut editor, code, 5, 8);
+    editor
+        .apply(EditorCommand::insert_text("にほんご"))
+        .unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "```\ncafé にほんご\n```\n"
+    );
+}

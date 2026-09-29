@@ -589,14 +589,13 @@ fn a_selection_ending_inside_a_nested_block_is_refused_rather_than_half_handled(
 
 #[test]
 fn a_failed_command_leaves_the_document_alone() {
-    let mut editor = editor(vec![BlockKind::CodeBlock {
-        language: None,
-        code: "fn main() {}".into(),
-    }]);
-    let code = block(&editor, 0);
+    // A rule holds no text at all, so there is nowhere for a character to go.
+    // (A code block does hold text, and is editable.)
+    let mut editor = editor(vec![BlockKind::ThematicBreak]);
+    let rule = block(&editor, 0);
     editor
         .apply(EditorCommand::SetSelection(SelectionRange::in_block(
-            code, 0, 0,
+            rule, 0, 0,
         )))
         .unwrap();
     let revision = editor.revision();
@@ -606,7 +605,7 @@ fn a_failed_command_leaves_the_document_alone() {
         Err(EditorError::NotTextual(_))
     ));
     assert_eq!(editor.revision(), revision);
-    assert_eq!(text(&editor, 0), "fn main() {}");
+    assert_eq!(editor.document().blocks()[0].kind.name(), "thematicBreak");
 }
 
 // --- history ----------------------------------------------------------------
@@ -762,9 +761,9 @@ fn plain_text_reaches_into_nested_blocks() {
     );
     assert_eq!(editor.document().outline()[0].text, "Title");
 
-    // Nested text blocks are part of the caret's path through the document.
+    // Nested text blocks — and the code block — are part of the caret's path.
     let ids = editor.document().text_block_ids();
-    assert_eq!(ids.len(), 3);
+    assert_eq!(ids.len(), 4);
     editor
         .apply(EditorCommand::SetSelection(SelectionRange::in_block(
             ids[2], 7, 7,
