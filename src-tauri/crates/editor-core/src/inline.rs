@@ -234,6 +234,22 @@ impl InlineContent {
         out
     }
 
+    /// One character per offset unit: text as written, and U+FFFC (the Unicode
+    /// object-replacement character) for each atom. An index into this string
+    /// *is* an offset into this content, which makes it the right thing to diff
+    /// against text the view hands back — after an IME composition, a paste, or
+    /// a mobile autocorrect.
+    pub fn offset_text(&self) -> String {
+        let mut out = String::new();
+        for piece in &self.0 {
+            match piece {
+                Inline::Text { text, .. } => out.push_str(text),
+                _ => out.push('\u{FFFC}'),
+            }
+        }
+        out
+    }
+
     /// Drops empty runs and merges neighbours that carry the same formatting.
     fn normalize(&mut self) {
         let mut out: Vec<Inline> = Vec::with_capacity(self.0.len());

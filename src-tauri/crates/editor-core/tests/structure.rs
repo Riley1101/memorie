@@ -476,3 +476,102 @@ fn a_coalesced_burst_does_not_swallow_a_branch() {
     assert_eq!(editor.document().plain_text(), "c");
     assert_eq!(editor.history().nodes().len(), 2);
 }
+
+// --- text reported back by the view (composition, autocorrect, paste) -------
+
+#[test]
+fn reported_text_becomes_the_smallest_edit_that_explains_it() {
+    // What an IME leaves behind: the block now reads differently, and only the
+    // before/after pair says what happened.
+    let mut editor = open("I typed nihongo here\n");
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 20, 20);
+
+    editor
+        .apply(EditorCommand::SetBlockText("I typed 日本語 here".into()))
+        .unwrap();
+
+    assert_eq!(editor.document().plain_text(), "I typed 日本語 here");
+    // The caret sits after the composed text, not at the end of the block.
+    assert_eq!(
+        editor.selection(),
+        SelectionRange::in_block(paragraph, 11, 11)
+    );
+}
+
+#[test]
+fn reported_text_leaves_formatting_on_either_side_alone() {
+    let mut editor = open("**bold** plain _italic_\n");
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 0, 0);
+
+    // Only the middle word changed.
+    editor
+        .apply(EditorCommand::SetBlockText("bold PLAIN italic".into()))
+        .unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "**bold** PLAIN _italic_\n"
+    );
+}
+
+#[test]
+fn text_composed_inside_a_marked_run_keeps_its_marks() {
+    let mut editor = open("**bold**\n");
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 4, 4);
+
+    editor
+        .apply(EditorCommand::SetBlockText("bolder".into()))
+        .unwrap();
+
+    assert_eq!(markdown::to_markdown(editor.document()), "**bolder**\n");
+}
+
+#[test]
+fn reported_text_can_delete_and_can_be_undone_in_one_step() {
+    let source = "one two three\n";
+    let mut editor = open(source);
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 0, 0);
+
+    editor
+        .apply(EditorCommand::SetBlockText("one three".into()))
+        .unwrap();
+    assert_eq!(editor.document().plain_text(), "one three");
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(markdown::to_markdown(editor.document()), source);
+}
+
+#[test]
+fn reported_text_counts_an_atom_as_one_character() {
+    // The view writes U+FFFC where an image sits, so offsets line up.
+    let mut editor = open("see ![a map](map.png) here\n");
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 0, 0);
+
+    editor
+        .apply(EditorCommand::SetBlockText("see \u{FFFC} there".into()))
+        .unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "see ![a map](map.png) there\n"
+    );
+}
+
+#[test]
+fn reporting_unchanged_text_does_nothing() {
+    let mut editor = open("unchanged\n");
+    let paragraph = block(&editor, 0);
+    select(&mut editor, paragraph, 0, 0);
+    let revision = editor.revision();
+
+    assert!(matches!(
+        editor.apply(EditorCommand::SetBlockText("unchanged".into())),
+        Err(EditorError::NothingToDo)
+    ));
+    assert_eq!(editor.revision(), revision);
+}

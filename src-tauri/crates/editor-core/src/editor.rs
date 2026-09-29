@@ -150,6 +150,7 @@ impl Editor {
                 String::new(),
             ),
             EditorCommand::Delete(direction) => self.delete(direction),
+            EditorCommand::SetBlockText(text) => self.set_block_text(text),
             EditorCommand::SplitBlock => self.split_block(),
             EditorCommand::MergeBlocks => self.merge_blocks(),
             EditorCommand::ToggleMark(mark) => self.toggle_mark(mark),
@@ -387,6 +388,72 @@ impl Editor {
                 self.merge(next)
             }
         }
+    }
+
+    /// The smallest edit that turns the caret block's text into `text`.
+    ///
+    /// The common prefix and suffix are left untouched, so only what actually
+    /// changed is replaced and formatting on either side of it survives. New
+    /// text takes the marks in force where it starts, so composing inside a
+    /// bold word stays bold.
+    fn set_block_text(&self, text: String) -> Result<Transaction> {
+        let block = self.selection.head.block;
+        let content = self.content_of(block)?;
+
+        let before: Vec<char> = content.offset_text().chars().collect();
+        let after: Vec<char> = text.chars().collect();
+
+        let start = before
+            .iter()
+            .zip(&after)
+            .take_while(|(a, b)| a == b)
+            .count();
+        let tail = before
+            .iter()
+            .rev()
+            .zip(after.iter().rev())
+            .take(before.len().min(after.len()) - start)
+            .take_while(|(a, b)| a == b)
+            .count();
+        let end = before.len() - tail;
+        let inserted: String = after[start..after.len() - tail].iter().collect();
+
+        if start == end && inserted.is_empty() {
+            return Err(EditorError::NothingToDo);
+        }
+
+        // Replacing text takes the formatting of the text it replaces, so an
+        // IME composing over a bold word stays bold. Pure insertion takes the
+        // formatting in force at the caret instead — the trailing-edge rule,
+        // which `marks_at` implements.
+        let sample = if end > start {
+            (start + 1).min(end)
+        } else {
+            start
+        };
+        let replacement = if inserted.is_empty() {
+            InlineContent::empty()
+        } else {
+            InlineContent::new(vec![Inline::Text {
+                text: inserted,
+                marks: self
+                    .pending_marks
+                    .unwrap_or_else(|| content.marks_at(sample)),
+                link: content.link_spanning(sample).cloned(),
+            }])
+        };
+
+        let caret = Position::new(block, start + replacement.len());
+        Ok(
+            Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
+                Operation::ReplaceInline {
+                    block,
+                    start,
+                    end,
+                    content: replacement,
+                },
+            ),
+        )
     }
 
     fn split_block(&mut self) -> Result<Transaction> {

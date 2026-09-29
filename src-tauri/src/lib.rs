@@ -279,6 +279,7 @@ pub async fn run() {
             commands::codex_matrix,
             commands::codex_draft,
             editor::editor_open,
+            editor::editor_open_text,
             editor::editor_apply,
             editor::editor_state,
             editor::editor_markdown,

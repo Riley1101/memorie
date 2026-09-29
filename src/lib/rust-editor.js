@@ -69,6 +69,7 @@ import { invoke } from '@tauri-apps/api/core';
  * @typedef {
  *   | { command: 'setSelection', anchor: EditorPosition, head: EditorPosition }
  *   | { command: 'insertText', text: string }
+ *   | { command: 'reconcileBlock', block: number, text: string }
  *   | { command: 'delete', forward?: boolean }
  *   | { command: 'splitBlock' }
  *   | { command: 'mergeBlocks' }
@@ -100,6 +101,18 @@ import { invoke } from '@tauri-apps/api/core';
  */
 export function openDocument(name, options = {}) {
   return invoke('editor_open', { name, reload: options.reload ?? false });
+}
+
+/**
+ * Opens a document from text rather than from disk, replacing any session under
+ * that name. For content with no file yet — an import preview, a benchmark, a
+ * test. Nothing is written until `save`.
+ * @param {string} name
+ * @param {string} text
+ * @returns {Promise<EditorStateView>}
+ */
+export function openText(name, text) {
+  return invoke('editor_open_text', { name, text });
 }
 
 /**

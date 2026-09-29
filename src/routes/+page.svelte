@@ -3,10 +3,12 @@
   import BinderSidebar from '$lib/components/binder-sidebar.svelte';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+  import FlaskConicalIcon from '@lucide/svelte/icons/flask-conical';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { startNewWriting } from '$lib/new-writing.js';
+  import { resolve } from '$app/paths';
 
   let timelineDocuments = $state(null);
 
@@ -20,10 +22,36 @@
 
   <div class="page-container flex-1 min-w-0 h-full flex flex-col overflow-hidden">
     <div class="flex items-center justify-between gap-3 mb-4 md:mb-8">
-      <h2 class="font-writer text-3xl md:text-5xl font-normal text-heading-foreground leading-normal pb-1 truncate">{appState.ui.activeBinder ?? 'Writings'}</h2>
+      <h2
+        class="font-writer text-3xl md:text-5xl font-normal text-heading-foreground leading-normal pb-1 truncate"
+      >
+        {appState.ui.activeBinder ?? 'Writings'}
+      </h2>
       <div class="flex items-center gap-1 shrink-0">
+        <!-- Temporary: the Rust engine's throwaway editing surface. Goes away
+             with the spike (see docs/editor-core.md). -->
+        <Tooltip.Root>
+          <Tooltip.Trigger>
+            {#snippet child({ props })}
+              <a
+                {...props}
+                href={resolve('/spike-editor')}
+                class="flex items-center gap-1.5 h-8 px-2.5 mr-1 rounded-full text-[0.6875rem] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
+                <FlaskConicalIcon strokeWidth={1.75} class="size-3.5" />
+                <span class="hidden sm:inline">Spike</span>
+              </a>
+            {/snippet}
+          </Tooltip.Trigger>
+          <Tooltip.Content side="bottom" portalProps={{}}>
+            Rust engine editing surface — no Milkdown
+          </Tooltip.Content>
+        </Tooltip.Root>
+
         <!-- Primary action: one click, no naming, lands in the open binder. -->
-        <div class="flex items-center mr-1.5 rounded-full bg-primary hover:bg-primary-hover transition-colors">
+        <div
+          class="flex items-center mr-1.5 rounded-full bg-primary hover:bg-primary-hover transition-colors"
+        >
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
@@ -38,7 +66,8 @@
                 </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content side="bottom" portalProps={{}}>{newLabel} · {MOD_KEY}N</Tooltip.Content>
+            <Tooltip.Content side="bottom" portalProps={{}}>{newLabel} · {MOD_KEY}N</Tooltip.Content
+            >
           </Tooltip.Root>
           <div class="w-px h-4 bg-primary-foreground/20"></div>
           <Tooltip.Root>

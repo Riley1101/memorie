@@ -36,6 +36,17 @@ pub enum EditorCommand {
     /// Joins the block at the caret onto the text block before it.
     MergeBlocks,
 
+    /// Replaces the caret block's text with `text`, changing as little as
+    /// possible: the common prefix and suffix are left alone, so marks and
+    /// links outside the edit survive it.
+    ///
+    /// This is for text the *view* has already changed and is reporting back —
+    /// an IME composition, an autocorrect, a spellcheck replacement — where
+    /// what happened can only be worked out by comparing before with after.
+    /// `text` counts an atom (an image, a break) as one U+FFFC character, the
+    /// way [`crate::InlineContent::offset_text`] writes it.
+    SetBlockText(String),
+
     /// Toggles a mark over the selection: on unless the whole selection
     /// already carries it. With a collapsed caret it toggles the mark for the
     /// text about to be typed (see `Editor::pending_marks`), which changes no
@@ -122,6 +133,7 @@ impl EditorCommand {
             EditorCommand::Delete(_) => "Delete",
             EditorCommand::SplitBlock => "Split block",
             EditorCommand::MergeBlocks => "Merge blocks",
+            EditorCommand::SetBlockText(_) => "Typing",
             EditorCommand::ToggleMark(_) => "Formatting",
             EditorCommand::SetHeadingLevel(_) => "Heading",
             EditorCommand::SetCodeBlock { .. } => "Code block",

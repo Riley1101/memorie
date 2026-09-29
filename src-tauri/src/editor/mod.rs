@@ -9,6 +9,7 @@
 //!
 //! ```text
 //! editor_open      parse a writing (or pick up the session already open)
+//! editor_open_text open a document from text, for content with no file yet
 //! editor_apply     apply commands, get the new state
 //! editor_state     the current state, without changing anything
 //! editor_markdown  what would be written to disk
@@ -86,6 +87,22 @@ pub async fn editor_open(
     Ok(view)
 }
 
+/// Opens a document from text rather than from disk, replacing any session
+/// under that name. For content that has no file yet — an import preview, a
+/// benchmark, a test — and deliberately never writes anything: `editor_save`
+/// would write it to `name` like any other writing.
+#[tauri::command]
+pub async fn editor_open_text(
+    name: String,
+    text: String,
+    state: State<'_, AppState>,
+) -> Result<WireState, String> {
+    let editor = Editor::new(markdown::parse(name.as_str(), &text));
+    let view = wire::state_view(&name, &editor);
+    state.editors.0.lock().await.insert(name, editor);
+    Ok(view)
+}
+
 #[tauri::command]
 pub async fn editor_apply(
     name: String,
@@ -101,8 +118,9 @@ pub async fn editor_apply(
     for command in commands {
         // Offsets are converted against the document as it is now, so a batch
         // of commands means the same thing as the same commands sent one by one.
-        let command = command.into_command(editor.document())?;
-        editor.apply_at(command, at).map_err(|e| e.to_string())?;
+        for command in command.into_commands(editor.document())? {
+            editor.apply_at(command, at).map_err(|e| e.to_string())?;
+        }
     }
     Ok(wire::state_view(&name, editor))
 }

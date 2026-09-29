@@ -211,7 +211,7 @@ These are refusals with a clear error, not silent wrong behaviour:
 | 3 | Markdown ↔ Document, with round-trip fixtures and front matter | done |
 | 4 | Multi-block selections, caret marks, list/table commands, coalescing | done |
 | 5 | Tauri API (`editor_open`, `editor_apply`, `editor_state`, …) | done |
-| 6 | Put the editing surface on the engine (the view decision); fold undo/redo into transactions | next |
+| 6 | Put the editing surface on the engine (spike landed; see §11) | in progress |
 | 7 | Saving/loading through the engine | |
 | 8 | `chunker`, `indexer`, `search`, `export` read the document, not re-parsed text | |
 | 9 | Remove the JS-side duplicates (`front-matter.js`, whole-document scans) | |
@@ -334,3 +334,64 @@ cost of one keystroke on a 100k-character document. If `editor_apply` plus
 reconciliation is not comfortably inside a frame, the answer is local echo in
 the view with reconciliation behind it, and that changes the design enough that
 it should be known up front.
+
+## 11. Dropping Milkdown (Phase 6, in progress)
+
+The decision is taken: **replace the view, keep `contenteditable`.** Milkdown's
+remaining value was the browser-facing work — IME, caret movement through
+wrapped lines, clipboard, spellcheck, a11y — while its document model, history,
+input rules and Markdown handling now duplicate the engine. Keeping both models
+in step indefinitely is the thing the brief said not to do, so the engine
+becomes the only model and the view becomes a renderer.
+
+`/spike-editor` is the throwaway that proves it can work. A bare
+`contenteditable` with no Milkdown and no ProseMirror: every keystroke goes to
+Rust through `editor_apply`, the view is redrawn from the state that comes back,
+and the caret is placed where the engine says it is. The panel reports the
+round-trip cost, and there is a button that builds a 100k-character document and
+times 50 keystrokes against it.
+
+What to try, in the order that decides the outcome:
+
+1. **An IME** — Japanese, pinyin, macOS long-press accents. The browser owns
+   the DOM during a composition (`compositionstart` stops the view from
+   redrawing), and afterwards the block's text is reported back and the engine
+   works out the smallest edit that explains it.
+2. **Caret movement** — up and down through the deliberately long wrapped
+   paragraph, click-to-position, ⌥⌫ word delete. Word- and line-wise deletes use
+   the browser's own `getTargetRanges()` rather than reimplementing what a word
+   is.
+3. **Paste** from a web page or a word processor. Plain text works; an
+   HTML payload is listed under "not handled yet", because turning HTML into a
+   `Document` is Rust-side work that hasn't been written.
+
+### What the spike already changed in the engine
+
+`EditorCommand::SetBlockText` — the view says what a block now reads, and the
+engine computes the minimal `ReplaceInline` for it, leaving the common prefix
+and suffix alone so marks and links around the change survive. Replaced text
+keeps the formatting of the text it replaced (composing over a bold word stays
+bold); pure insertion takes the formatting at the caret.
+
+That diff belongs in Rust rather than in the view: it is testable there, it
+keeps formatting that a JavaScript text diff would flatten, and it is the same
+mechanism needed later for autocorrect, spellcheck replacements and mobile
+input. On the wire it is `reconcileBlock`, which expands into two engine
+commands — the first proof that a wire format earning its keep is not the same
+shape as the engine's own vocabulary.
+
+### What the real view still needs
+
+- **Local echo**, if the round trip turns out to be too slow to render from
+  Rust on every keystroke. The spike measures this before anyone builds it.
+- **Decorations**: grammar results, codex mentions, find highlights. These get
+  *easier* — they become ranges the engine already knows about, drawn over runs,
+  instead of ProseMirror plugins mapping positions through transactions.
+- **Code blocks**: the engine holds their text as text, not inline content, so
+  there is nothing for a caret to address yet. The spike renders them
+  read-only rather than pretending otherwise.
+- **HTML paste** → `Document`, in Rust.
+- The existing plugins to port: slash menu, link popover, placeholder, focus
+  mode and typewriter scrolling are view-level and straightforward; smart
+  punctuation and auto-pairing should become engine commands rather than view
+  tricks.

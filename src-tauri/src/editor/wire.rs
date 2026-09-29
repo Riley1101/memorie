@@ -446,6 +446,14 @@ pub enum WireCommand {
     InsertText {
         text: String,
     },
+    /// The text a block now holds, after the *view* changed it — an IME
+    /// composition, an autocorrect, a spellcheck replacement. The engine works
+    /// out the smallest edit that explains it, so formatting outside the change
+    /// survives. Atoms count as one U+FFFC character.
+    ReconcileBlock {
+        block: u64,
+        text: String,
+    },
     Delete {
         #[serde(default)]
         forward: bool,
@@ -497,10 +505,13 @@ pub enum WireCommand {
 }
 
 impl WireCommand {
-    /// Turns a wire command into an engine command, converting offsets against
-    /// the document as it is *now* — which is why commands are applied one at a
-    /// time and each conversion happens just before its own command runs.
-    pub fn into_command(self, document: &Document) -> Result<EditorCommand, String> {
+    /// Turns a wire command into the engine commands that carry it out,
+    /// converting offsets against the document as it is *now* — which is why
+    /// each conversion happens just before its own command runs.
+    ///
+    /// Most wire commands are one engine command; a couple expand, which is the
+    /// point of having a wire format at all.
+    pub fn into_commands(self, document: &Document) -> Result<Vec<EditorCommand>, String> {
         let position = |incoming: WireIncomingPosition| {
             let block = BlockId(incoming.block);
             let offset = content_of(document, block)
@@ -509,7 +520,18 @@ impl WireCommand {
             Position::new(block, offset)
         };
 
-        Ok(match self {
+        if let WireCommand::ReconcileBlock { block, text } = self {
+            // The engine reads the block from the caret, so the caret goes
+            // there first; what changed inside it is worked out from the text.
+            let at = Position::new(BlockId(block), 0);
+            return Ok(vec![
+                EditorCommand::SetSelection(SelectionRange::collapsed(at)),
+                EditorCommand::SetBlockText(text),
+            ]);
+        }
+
+        Ok(vec![match self {
+            WireCommand::ReconcileBlock { .. } => unreachable!("handled above"),
             WireCommand::SetSelection { anchor, head } => {
                 EditorCommand::SetSelection(SelectionRange::new(position(anchor), position(head)))
             }
@@ -545,7 +567,7 @@ impl WireCommand {
             WireCommand::InsertThematicBreak => EditorCommand::InsertThematicBreak,
             WireCommand::Undo => EditorCommand::Undo,
             WireCommand::Redo => EditorCommand::Redo,
-        })
+        }])
     }
 }
 
@@ -622,7 +644,7 @@ mod tests {
                 offset: 8,
             },
         };
-        let command = command.into_command(editor.document()).unwrap();
+        let command = command.into_commands(editor.document()).unwrap().remove(0);
         editor.apply(command).unwrap();
         assert_eq!(editor.selection().single_block_range(), Some((block, 2, 7)));
 
@@ -684,6 +706,35 @@ mod tests {
     }
 
     #[test]
+    fn a_composition_reported_by_the_view_becomes_one_minimal_edit() {
+        // What the browser leaves behind after an IME: the block reads
+        // differently, and the view can only report the result.
+        let mut editor = Editor::new(markdown::parse("t.md", "I typed **nihongo** here\n"));
+        let block = editor.document().blocks()[0].id;
+
+        let command = WireCommand::ReconcileBlock {
+            block: block.0,
+            text: "I typed 日本語 here".into(),
+        };
+        let commands = command.into_commands(editor.document()).unwrap();
+        assert_eq!(commands.len(), 2, "caret first, then the text");
+        for command in commands {
+            editor.apply(command).unwrap();
+        }
+
+        // The composed text took the bold it replaced, and one undo puts it back.
+        assert_eq!(
+            markdown::to_markdown(editor.document()),
+            "I typed **日本語** here\n"
+        );
+        editor.apply(EditorCommand::Undo).unwrap();
+        assert_eq!(
+            markdown::to_markdown(editor.document()),
+            "I typed **nihongo** here\n"
+        );
+    }
+
+    #[test]
     fn marks_are_named_both_ways() {
         assert_eq!(mark_named("bold"), Ok(MarkSet::BOLD));
         assert_eq!(mark_named("strikethrough"), Ok(MarkSet::STRIKE));
@@ -710,7 +761,7 @@ mod tests {
 
         let document = markdown::parse("t.md", "x\n");
         for command in commands {
-            command.into_command(&document).unwrap();
+            command.into_commands(&document).unwrap();
         }
     }
 
