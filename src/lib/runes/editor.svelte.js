@@ -3,6 +3,11 @@
  */
 
 /**
+ * How many matches a search found, and which one the writer is on.
+ * @typedef {{ total: number, current: number }} Counts
+ */
+
+/**
  * @typedef {Object} RecordPointer
  * @property {string} tb - The table name (e.g., 'chunk', 'documents').
  * @property {string} id - The record identifier wrapper.
@@ -134,6 +139,24 @@ class EditorState {
    * @type {(() => void) | null}
    */
   focusEditor = $state(null);
+
+  /**
+   * Registered by the mounted editor: find and replace in the open writing.
+   *
+   * The find bar is the input and nothing else; the highlighting and the
+   * replacing belong to whichever surface is mounted, because only it knows how
+   * to draw a highlight or make an edit. Every method answers with the match
+   * count and which one is current, so the bar's counter follows without having
+   * to subscribe to anything.
+   * @type {{
+   *   search: (regex: RegExp | null, useGroups: boolean) => Counts | Promise<Counts>,
+   *   step: (direction: 1 | -1) => Counts | Promise<Counts>,
+   *   replaceCurrent: (replacement: string) => Counts | Promise<Counts>,
+   *   replaceAll: (replacement: string) => number | Promise<number>,
+   *   selectedQuery: () => string,
+   * } | null}
+   */
+  find = $state(null);
 
   /**
    * A search match to select once the target writing's editor is ready.

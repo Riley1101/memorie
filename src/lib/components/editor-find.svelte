@@ -1,17 +1,9 @@
 <script>
-  import { editorViewCtx } from '@milkdown/kit/core';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { isMod, MOD_KEY } from '$lib/keyboard.svelte.js';
   import { toast } from '$lib/toast.js';
-  import {
-    buildFindRegex,
-    setFind,
-    findStep,
-    replaceCurrent,
-    replaceAll,
-    watchFind,
-  } from '$lib/components/plugins/find.js';
+  import { buildFindRegex } from '$lib/editor/find.js';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import ArrowUpIcon from '@lucide/svelte/icons/arrow-up';
   import ArrowDownIcon from '@lucide/svelte/icons/arrow-down';
@@ -19,8 +11,12 @@
   import XIcon from '@lucide/svelte/icons/x';
 
   /**
-   * @file Find and replace bar for the open writing (⌘F). Highlighting and
-   * replacing live in the `find` editor plugin; this is the input.
+   * @file Find and replace bar for the open writing (⌘F).
+   *
+   * This is only the input. The highlighting and the replacing belong to
+   * whichever editing surface is mounted — Milkdown through its plugin, the
+   * Rust engine through decorations — and both register the same small
+   * interface as `editorState.find`, so nothing here knows which it is driving.
    */
 
   const SEARCH_DEBOUNCE_MS = 120;
@@ -33,7 +29,7 @@
   let wholeWord = $state(false);
   let useRegex = $state(false);
   let error = $state('');
-  /** Mirrors the plugin's match count and current index for the counter. */
+  /** What the surface last reported, for the counter. */
   let total = $state(0);
   let current = $state(-1);
 
@@ -41,22 +37,21 @@
 
   let options = $derived({ caseSensitive, wholeWord, regex: useRegex });
 
-  $effect(() =>
-    watchFind((find) => {
-      total = find.matches.length;
-      current = find.current;
-    })
-  );
-
-  /** @param {(view: import('@milkdown/kit/prose/view').EditorView) => void} fn */
-  function withView(fn) {
-    editorState.editor?.action((ctx) => fn(ctx.get(editorViewCtx)));
+  /**
+   * Takes the counts a surface answered with. Both surfaces answer every call,
+   * so the counter follows without this having to subscribe to either of them.
+   * @param {{ total: number, current: number } | undefined} counts
+   */
+  function take(counts) {
+    if (!counts) return;
+    total = counts.total;
+    current = counts.current;
   }
 
   /** A search is waiting on the debounce. */
   let pending = false;
 
-  function runSearch() {
+  async function runSearch() {
     pending = false;
     let regex = null;
     error = '';
@@ -67,7 +62,7 @@
         error = e instanceof Error ? e.message : String(e);
       }
     }
-    withView((view) => setFind(view, regex, useRegex));
+    take(await editorState.find?.search(regex, useRegex));
   }
 
   // Re-search while typing or toggling options, and again when the editor
@@ -76,7 +71,8 @@
     void query;
     void options;
     void open;
-    void editorState.editor;
+    // Re-search when the surface remounts under an open bar, whichever it is.
+    void editorState.find;
     pending = true;
     const timer = setTimeout(runSearch, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -84,24 +80,10 @@
 
   /** Opens the bar, starting from the selected text when there is some. */
   function show() {
-    // Highlighting is a Milkdown plugin, so there is nothing to search with
-    // when the Rust surface is the one mounted. A bar that silently finds
-    // nothing is worse than saying so; project search (⇧⌘F) still works.
-    if (!editorState.editor) {
-      toast.info(
-        'Find in document isn’t available in the Rust editor yet',
-        'Use project search, or turn the Rust editor off in Settings.'
-      );
-      return;
+    const selected = editorState.find?.selectedQuery() ?? '';
+    if (selected) {
+      query = useRegex ? selected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : selected;
     }
-    editorState.editor?.action((ctx) => {
-      const { state } = ctx.get(editorViewCtx);
-      const { from, to } = state.selection;
-      const selected = state.doc.textBetween(from, to, '\n');
-      if (selected && !selected.includes('\n')) {
-        query = useRegex ? selected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : selected;
-      }
-    });
     open = true;
     queueMicrotask(() => inputEl?.select());
   }
@@ -109,30 +91,29 @@
   /** Closes the bar and puts the caret back in the text, on the last match. */
   function hide() {
     open = false;
-    withView((view) => {
-      setFind(view, null, false);
-      view.focus();
-    });
+    editorState.find?.search(null, false);
+    total = 0;
+    current = -1;
+    editorState.focusEditor?.();
   }
 
   /** @param {1 | -1} dir */
-  function step(dir) {
+  async function step(dir) {
     // Enter right after typing shouldn't wait for the debounce. The fresh
     // search already lands on the next match, so don't step past it.
     if (pending) {
-      runSearch();
+      await runSearch();
       if (dir === 1) return;
     }
-    withView((view) => findStep(view, dir));
+    take(await editorState.find?.step(dir));
   }
 
-  function replaceOne() {
-    withView((view) => replaceCurrent(view, replacement));
+  async function replaceOne() {
+    take(await editorState.find?.replaceCurrent(replacement));
   }
 
-  function replaceEvery() {
-    let count = 0;
-    withView((view) => (count = replaceAll(view, replacement)));
+  async function replaceEvery() {
+    const count = (await editorState.find?.replaceAll(replacement)) ?? 0;
     if (count)
       toast.success(
         `Replaced ${count} ${count === 1 ? 'match' : 'matches'}`,

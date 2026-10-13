@@ -501,3 +501,94 @@ fn pasting_nothing_but_a_space_still_puts_the_space_in() {
 
     assert_eq!(editor.document().blocks()[0].own_text(), "one ");
 }
+
+// --- several commands as one edit -------------------------------------------
+
+#[test]
+fn apply_all_undoes_in_one_step() {
+    let mut editor = open("one two three");
+    let id = block(&editor, 0);
+
+    // What replace-all sends: back to front, so earlier offsets stay valid.
+    editor
+        .apply_all(
+            vec![
+                EditorCommand::SetSelection(SelectionRange::in_block(id, 8, 13)),
+                EditorCommand::insert_text("THREE"),
+                EditorCommand::SetSelection(SelectionRange::in_block(id, 4, 7)),
+                EditorCommand::insert_text("TWO"),
+                EditorCommand::SetSelection(SelectionRange::in_block(id, 0, 3)),
+                EditorCommand::insert_text("ONE"),
+            ],
+            Some(1),
+        )
+        .unwrap();
+    assert_eq!(editor.document().plain_text(), "ONE TWO THREE");
+
+    // One press, not three: undoing a replace-all one match at a time is not
+    // what anyone means by undo.
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(editor.document().plain_text(), "one two three");
+}
+
+#[test]
+fn apply_all_redoes_in_one_step() {
+    let mut editor = open("a a a");
+    let id = block(&editor, 0);
+    editor
+        .apply_all(
+            vec![
+                EditorCommand::SetSelection(SelectionRange::in_block(id, 4, 5)),
+                EditorCommand::insert_text("b"),
+                EditorCommand::SetSelection(SelectionRange::in_block(id, 0, 1)),
+                EditorCommand::insert_text("b"),
+            ],
+            Some(1),
+        )
+        .unwrap();
+    editor.apply(EditorCommand::Undo).unwrap();
+    editor.apply(EditorCommand::Redo).unwrap();
+
+    assert_eq!(editor.document().plain_text(), "b a b");
+}
+
+#[test]
+fn apply_all_reports_everything_it_touched() {
+    let mut editor = open("First.\n\nSecond.");
+    let first = block(&editor, 0);
+    let second = block(&editor, 1);
+    let change = editor
+        .apply_all(
+            vec![
+                EditorCommand::SetSelection(SelectionRange::in_block(second, 0, 6)),
+                EditorCommand::insert_text("Changed"),
+                EditorCommand::SetSelection(SelectionRange::in_block(first, 0, 5)),
+                EditorCommand::insert_text("Altered"),
+            ],
+            Some(1),
+        )
+        .unwrap();
+
+    // Both blocks, so the view redraws both rather than the one that happened
+    // to be last.
+    assert!(change.blocks.contains(&first));
+    assert!(change.blocks.contains(&second));
+}
+
+#[test]
+fn apply_all_of_one_command_is_just_that_command() {
+    let mut editor = open("text");
+    let id = block(&editor, 0);
+    editor
+        .apply_all(
+            vec![
+                EditorCommand::SetSelection(SelectionRange::in_block(id, 4, 4)),
+                EditorCommand::insert_text("!"),
+            ],
+            Some(1),
+        )
+        .unwrap();
+    assert_eq!(editor.document().plain_text(), "text!");
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(editor.document().plain_text(), "text");
+}

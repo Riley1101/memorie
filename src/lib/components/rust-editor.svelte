@@ -188,6 +188,33 @@
   }
 
   /**
+   * Selects a range inside one block and scrolls it into view — how a find
+   * lands on its current match.
+   * @param {number} blockId
+   * @param {number} start
+   * @param {number} end
+   */
+  export async function selectRange(blockId, start, end) {
+    await send([
+      {
+        command: 'setSelection',
+        anchor: { block: blockId, offset: start },
+        head: { block: blockId, offset: end },
+      },
+    ]);
+    revealBlock(blockId, 'auto');
+  }
+
+  /**
+   * Sends commands as one edit, so a caller composing several out of one
+   * action — replacing every match of a search — gets one undo step.
+   * @param {EditorCommand[]} commands
+   */
+  export async function runAsOneEdit(commands) {
+    await send(commands, { asOneEdit: true });
+  }
+
+  /**
    * Where the selection is on screen and what it holds, for a caller drawing a
    * panel beside it. Null when nothing is selected or the blocks aren't
    * rendered yet.
@@ -392,14 +419,15 @@
   /**
    * Applies commands and patches the view with what changed.
    * @param {EditorCommand[]} commands
+   * @param {{ asOneEdit?: boolean }} [options]
    */
-  async function send(commands) {
+  async function send(commands, options = {}) {
     if (commands.length === 0 || !doc) return;
     const started = performance.now();
     const mine = generation;
     inFlight += 1;
     try {
-      const update = await applyCommands(name, commands);
+      const update = await applyCommands(name, commands, options);
       // The document was reopened while this was in flight: its block ids mean
       // nothing against the document now on screen.
       if (mine !== generation || !doc) return;

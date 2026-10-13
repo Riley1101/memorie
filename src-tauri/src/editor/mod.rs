@@ -105,10 +105,18 @@ pub async fn editor_open_text(
     Ok(view)
 }
 
+/// Applies commands and returns only what changed.
+///
+/// `as_one_edit` folds the whole batch into one history entry, for a command
+/// the host composes out of several and the writer thinks of as one — replacing
+/// every match of a search, where undoing a hundred replacements one at a time
+/// is not undo. Without it each command is its own undo step, which is what
+/// typing wants.
 #[tauri::command]
 pub async fn editor_apply(
     name: String,
     commands: Vec<WireCommand>,
+    #[allow(unused_variables)] as_one_edit: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<WireUpdate, String> {
     let mut sessions = state.editors.0.lock().await;
@@ -119,11 +127,21 @@ pub async fn editor_apply(
     let started = std::time::Instant::now();
     let at = now_millis();
     let mut change = Change::default();
-    for command in commands {
-        // Offsets are converted against the document as it is now, so a batch
-        // of commands means the same thing as the same commands sent one by one.
-        for command in command.into_commands(editor.document())? {
-            change.merge(editor.apply_at(command, at).map_err(|e| e.to_string())?);
+    if as_one_edit.unwrap_or(false) {
+        // Converted up front: the whole batch is one edit, and its offsets all
+        // mean the document as it was when the host worked them out.
+        let mut engine = Vec::new();
+        for command in commands {
+            engine.extend(command.into_commands(editor.document())?);
+        }
+        change.merge(editor.apply_all(engine, at).map_err(|e| e.to_string())?);
+    } else {
+        for command in commands {
+            // Offsets are converted against the document as it is now, so a batch
+            // of commands means the same thing as the same commands sent one by one.
+            for command in command.into_commands(editor.document())? {
+                change.merge(editor.apply_at(command, at).map_err(|e| e.to_string())?);
+            }
         }
     }
     // The whole batch is one update: what it touched, not what the document is.

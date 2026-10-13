@@ -1,6 +1,11 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+// Both surfaces search the same way. These two are pure and live with the
+// engine-side find, which must not load ProseMirror to match a word.
+import { buildFindRegex, expand } from '$lib/editor/find.js';
+
+export { buildFindRegex };
 
 /**
  * @file Find and replace in the open writing (⌘F). Highlights every match,
@@ -43,19 +48,6 @@ const rescanDelay = (doc) => (doc.content.size > 100_000 ? 600 : 200);
 
 /** Stands in for images and other inline leaves, so offsets equal positions. */
 const LEAF = '￼';
-
-/**
- * Builds the search pattern, or throws on a bad regular expression. Whole
- * word counts any letter or digit as part of a word, like the backend's
- * Unicode `\b`; JavaScript's `\b` only knows ASCII, so "café" would never match.
- * @param {string} query
- * @param {FindOptions} options
- */
-export function buildFindRegex(query, options) {
-  let source = options.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (options.wholeWord) source = `(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])`;
-  return new RegExp(source, options.caseSensitive ? 'gu' : 'giu');
-}
 
 /**
  * Every match in the document's textblocks, in order. Matches that take in
@@ -129,21 +121,6 @@ function firstFrom(matches, pos) {
   if (!matches.length) return -1;
   const i = matches.findIndex((m) => m.from >= pos);
   return i === -1 ? 0 : i;
-}
-
-/**
- * Expands `$1`, `$<name>`, `$&` and `$$` the way `String.replace` does.
- * @param {RegExpMatchArray} m
- * @param {string} replacement
- */
-function expand(m, replacement) {
-  return replacement.replace(/\$(\$|&|\d{1,2}|<[^>]+>)/g, (token, ref) => {
-    if (ref === '$') return '$';
-    if (ref === '&') return m[0];
-    if (ref.startsWith('<')) return m.groups?.[ref.slice(1, -1)] ?? '';
-    const index = Number(ref);
-    return index > 0 && index < m.length ? (m[index] ?? '') : token;
-  });
 }
 
 /** @returns {FindState} */

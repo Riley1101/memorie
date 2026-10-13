@@ -143,14 +143,21 @@ export function openText(name, text) {
  * travel together.
  *
  * Use {@link patchState} to fold the update into the state from `openDocument`.
+ *
+ * `asOneEdit` makes the whole batch one undo step, for something the writer
+ * thinks of as one action however many commands it takes — replacing every
+ * match of a search. Without it each command is its own step, which is what
+ * typing wants.
  * @param {string} name
  * @param {EditorCommand | EditorCommand[]} commands
+ * @param {{ asOneEdit?: boolean }} [options]
  * @returns {Promise<EditorUpdate>}
  */
-export function apply(name, commands) {
+export function apply(name, commands, options = {}) {
   return invoke('editor_apply', {
     name,
     commands: Array.isArray(commands) ? commands : [commands],
+    asOneEdit: options.asOneEdit ?? false,
   });
 }
 

@@ -7,6 +7,8 @@
   import Editor from './editor.svelte';
   import RustEditor from './rust-editor.svelte';
   import EditorAiBox from './editor-ai-box.svelte';
+  import { findAll, findDecorations, firstFrom, replaceCommands } from '$lib/editor/find.js';
+  import { flattenBlocks } from '$lib/editor/decorations.js';
   import { save as rustSave } from '$lib/rust-editor.js';
   import { invalidateAll, goto, beforeNavigate } from '$app/navigation';
   import { page } from '$app/state';
@@ -294,6 +296,52 @@
    * @type {import('$lib/editor/dom.js').SelectionInfo | null}
    */
   let rustSelection = $state(null);
+
+  /**
+   * Find state for the engine path. The matches are not mapped through edits —
+   * they are rescanned, which is what `$lib/editor/find.js` explains — so the
+   * only state worth keeping is the search itself and which match is current.
+   * @type {{ regex: RegExp, useGroups: boolean } | null}
+   */
+  let rustSearch = $state(null);
+  /** @type {import('$lib/editor/find.js').FindMatch[]} */
+  let rustMatches = $state([]);
+  let rustCurrent = $state(-1);
+  /** What the surface draws: the matches, with the current one marked. */
+  let rustDecorations = $derived(rustSearch ? findDecorations(rustMatches, rustCurrent) : []);
+
+  /**
+   * Rescans for the active search, keeping the writer on the match they were
+   * on — or the next one after it, when the one they were on has been edited
+   * out from under them.
+   * @param {{ block: number, offset: number }} [from]
+   */
+  function rustRescan(from) {
+    const blocks = rustSurface?.snapshot()?.blocks ?? [];
+    if (!rustSearch) {
+      rustMatches = [];
+      rustCurrent = -1;
+      return { total: 0, current: -1 };
+    }
+    const anchor =
+      from ??
+      (rustMatches[rustCurrent]
+        ? { block: rustMatches[rustCurrent].block, offset: rustMatches[rustCurrent].start }
+        : (rustSurface?.snapshot()?.selection.head ?? { block: -1, offset: 0 }));
+    rustMatches = findAll(blocks, rustSearch.regex);
+    rustCurrent = firstFrom(
+      rustMatches,
+      flattenBlocks(blocks).map((block) => block.id),
+      anchor
+    );
+    return { total: rustMatches.length, current: rustCurrent };
+  }
+
+  /** Puts the caret on the current match and scrolls to it. */
+  function revealRustMatch() {
+    const match = rustMatches[rustCurrent];
+    if (match) rustSurface?.selectRange(match.block, match.start, match.end);
+  }
   /** @type {ReturnType<typeof setTimeout> | null} */
   let rustTimer = null;
 
@@ -334,6 +382,9 @@
 
   /** @param {import('$lib/rust-editor.js').EditorUpdate} update */
   function onRustUpdate(update) {
+    // A rescan rather than mapping the matches through the edit: cheap enough
+    // over the blocks the view already holds, and it cannot drift.
+    if (rustSearch) rustRescan();
     if (update.outline) {
       editorState.setHeadings(
         update.outline.map((heading) => ({
@@ -388,12 +439,57 @@
       return plainTextOf(blocks);
     };
     editorState.focusEditor = () => rustSurface?.focus();
+    editorState.find = {
+      search: (regex, useGroups) => {
+        rustSearch = regex ? { regex, useGroups } : null;
+        const counts = rustRescan(rustSurface?.snapshot()?.selection.head);
+        if (regex) revealRustMatch();
+        return counts;
+      },
+      step: (direction) => {
+        if (rustMatches.length === 0) return { total: 0, current: -1 };
+        rustCurrent = (rustCurrent + direction + rustMatches.length) % rustMatches.length;
+        revealRustMatch();
+        return { total: rustMatches.length, current: rustCurrent };
+      },
+      replaceCurrent: async (replacement) => {
+        const match = rustMatches[rustCurrent];
+        if (!match) return { total: rustMatches.length, current: rustCurrent };
+        await rustSurface?.runAsOneEdit(
+          replaceCommands([match], replacement, rustSearch?.useGroups ?? false)
+        );
+        // Carry on from just past the replacement, not from its start, or the
+        // next step lands back on text that was just put in.
+        const counts = rustRescan({
+          block: match.block,
+          offset: match.start + replacement.length,
+        });
+        revealRustMatch();
+        return counts;
+      },
+      replaceAll: async (replacement) => {
+        const count = rustMatches.length;
+        if (!count) return 0;
+        // One edit, so one press of undo brings them all back.
+        await rustSurface?.runAsOneEdit(
+          replaceCommands(rustMatches, replacement, rustSearch?.useGroups ?? false)
+        );
+        rustRescan();
+        return count;
+      },
+      selectedQuery: () => {
+        const selected = rustSurface?.selectionInfo()?.text ?? '';
+        return selected.includes('\n') ? '' : selected;
+      },
+    };
     return () => {
       if (editorState.flushSave === flushRustSave) editorState.flushSave = null;
       editorState.revealHeading = null;
       editorState.headingAbove = null;
       editorState.selectedText = null;
       editorState.focusEditor = null;
+      editorState.find = null;
+      rustSearch = null;
     };
   });
 
@@ -456,6 +552,7 @@
           onstate={onRustState}
           onupdate={onRustUpdate}
           onedit={scheduleRustSave}
+          decorations={rustDecorations}
           onselection={(info) => (rustSelection = info)}
           onerror={(message) => toast.error('Editor error', message)}
         />

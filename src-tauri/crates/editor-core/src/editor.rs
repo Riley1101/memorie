@@ -220,6 +220,56 @@ impl Editor {
         }
     }
 
+    /// Applies several commands as **one** edit: one history entry, one press
+    /// of undo.
+    ///
+    /// For a command the host composes out of several and the writer thinks of
+    /// as one. Replace-all is the case that forces it: undoing a hundred
+    /// replacements one at a time is not undo. A failure part way through
+    /// leaves the commands that already ran applied — they are separate
+    /// transactions, each atomic in itself — and returns the error, so the
+    /// caller can decide whether to undo the entry.
+    pub fn apply_all(
+        &mut self,
+        commands: Vec<EditorCommand>,
+        created_at: Option<i64>,
+    ) -> Result<Change> {
+        let mut change = Change::default();
+        let mut first = true;
+        for command in commands {
+            // Only the first records; the rest fold into the entry it made, so
+            // the label the history shows is the one that started the edit.
+            let applied = if first {
+                self.apply_at(command, created_at)
+            } else {
+                self.apply_folded(command, created_at)
+            };
+            change.merge(applied?);
+            first = false;
+        }
+        Ok(change)
+    }
+
+    /// One command, folded into the history entry the last one made.
+    fn apply_folded(&mut self, command: EditorCommand, created_at: Option<i64>) -> Result<Change> {
+        let label = command.label();
+        // A command that records no history of its own has nothing to fold —
+        // moving the caret, arming a mark for text not yet typed — and one
+        // that manages its own commits does its own folding. Both are applied
+        // exactly as they would be on their own.
+        let records_nothing = matches!(command, EditorCommand::SetSelection(_))
+            || matches!(command, EditorCommand::ToggleMark(_) if self.selection.is_collapsed());
+        let commits_itself = matches!(
+            command,
+            EditorCommand::Undo | EditorCommand::Redo | EditorCommand::InsertMarkdown(_)
+        );
+        if records_nothing || commits_itself {
+            return self.apply_at(command, created_at);
+        }
+        let transaction = self.build(command)?;
+        self.commit_folded(transaction, label)
+    }
+
     /// Turns a command into the transaction that carries it out.
     ///
     /// Takes `&mut self` only to hand out block ids: ids are monotonic and
@@ -347,7 +397,7 @@ impl Editor {
 
         let transaction = self.splice_at_caret(blocks)?;
         change.merge(if deleted {
-            self.commit_folded(transaction)?
+            self.commit_folded(transaction, PASTE)?
         } else {
             self.commit(transaction, PASTE, created_at)?
         });
@@ -459,7 +509,7 @@ impl Editor {
     /// Applies a transaction and folds it into the history entry the previous
     /// one made, so a command that takes two transactions is one press of
     /// undo. Records normally when there is no entry to fold into.
-    fn commit_folded(&mut self, transaction: Transaction) -> Result<Change> {
+    fn commit_folded(&mut self, transaction: Transaction, label: &str) -> Result<Change> {
         let inverse = transaction.apply(&mut self.document)?;
         let change = transaction.change();
         self.selection = transaction
@@ -468,7 +518,7 @@ impl Editor {
         self.pending_marks = None;
         if !self.history.fold(inverse.clone(), transaction.clone()) {
             self.history
-                .record(inverse, transaction, Some(PASTE.to_string()), None);
+                .record(inverse, transaction, Some(label.to_string()), None);
         }
         Ok(change)
     }

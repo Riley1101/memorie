@@ -11,7 +11,16 @@
   import { linkPopover, openHref } from '$lib/components/plugins/link-popover.svelte.js';
   import { smartPunctuation, autoPair } from '$lib/components/plugins/typing.js';
   import { codexMentionsPlugin, setCodexMentions } from '$lib/components/plugins/codex-mentions.js';
-  import { findPlugin, findAll, buildFindRegex } from '$lib/components/plugins/find.js';
+  import {
+    findPlugin,
+    findAll,
+    buildFindRegex,
+    setFind,
+    findStep,
+    replaceCurrent,
+    replaceAll,
+    getFindState,
+  } from '$lib/components/plugins/find.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
@@ -106,6 +115,23 @@
   let scanTimer = null;
   /** @type {import('@milkdown/kit/prose/model').Node | null} */
   let pendingScanDoc = null;
+
+  /**
+   * Runs `fn` against the view and reports what the find plugin's state says
+   * afterwards, which is what the bar's counter shows.
+   * @param {(view: import('@milkdown/kit/prose/view').EditorView) => void} fn
+   * @returns {{ total: number, current: number }}
+   */
+  function withFind(fn) {
+    let counts = { total: 0, current: -1 };
+    editorInstance?.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      fn(view);
+      const find = getFindState(view.state);
+      counts = { total: find?.matches.length ?? 0, current: find?.current ?? -1 };
+    });
+    return counts;
+  }
 
   /** @param {import('@milkdown/kit/prose/model').Node} doc */
   function docText(doc) {
@@ -251,6 +277,29 @@
               return text;
             };
             editorState.focusEditor = () => editor.action((ctx) => ctx.get(editorViewCtx).focus());
+            // The find bar is the input; the plugin does the work. Wrapped in
+            // the same contract the engine path registers, so the bar does not
+            // have to know which surface it is driving.
+            editorState.find = {
+              search: (regex, useGroups) => withFind((view) => setFind(view, regex, useGroups)),
+              step: (direction) => withFind((view) => findStep(view, direction)),
+              replaceCurrent: (replacement) =>
+                withFind((view) => replaceCurrent(view, replacement)),
+              replaceAll: (replacement) => {
+                let count = 0;
+                editor.action((ctx) => (count = replaceAll(ctx.get(editorViewCtx), replacement)));
+                return count;
+              },
+              selectedQuery: () => {
+                let selected = '';
+                editor.action((ctx) => {
+                  const { state } = ctx.get(editorViewCtx);
+                  const { from, to } = state.selection;
+                  selected = state.doc.textBetween(from, to, '\n');
+                });
+                return selected.includes('\n') ? '' : selected;
+              },
+            };
             if (editorState.pendingReveal) editorState.revealPending();
             editor.action((ctx) => {
               const { doc } = ctx.get(editorViewCtx).state;
@@ -277,6 +326,7 @@
           editorState.revealPending = null;
           editorState.selectedText = null;
           editorState.focusEditor = null;
+          editorState.find = null;
         }
         editorState.setHeadings([]);
       };
