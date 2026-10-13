@@ -9,6 +9,7 @@
   import EditorAiBox from './editor-ai-box.svelte';
   import { findAll, findDecorations, firstFrom, replaceCommands } from '$lib/editor/find.js';
   import { flattenBlocks } from '$lib/editor/decorations.js';
+  import { mentionDecorations } from '$lib/editor/mentions.js';
   import { save as rustSave } from '$lib/rust-editor.js';
   import { invalidateAll, goto, beforeNavigate } from '$app/navigation';
   import { page } from '$app/state';
@@ -307,8 +308,27 @@
   /** @type {import('$lib/editor/find.js').FindMatch[]} */
   let rustMatches = $state([]);
   let rustCurrent = $state(-1);
-  /** What the surface draws: the matches, with the current one marked. */
-  let rustDecorations = $derived(rustSearch ? findDecorations(rustMatches, rustCurrent) : []);
+  /**
+   * Bumped whenever the engine path redraws, so the mentions are recomputed
+   * once per edit rather than on every read of the derived value.
+   */
+  let rustRevision = $state(0);
+
+  /**
+   * Codex names underlined where they appear. Recomputed when the document or
+   * the entries change, rather than mapped through the edit — the same choice
+   * the find highlights make, and for the same reason.
+   */
+  let rustMentions = $derived.by(() => {
+    void rustRevision;
+    if (!useRust || codexEntities.length === 0) return [];
+    return mentionDecorations(rustSurface?.snapshot()?.blocks ?? [], codexEntities);
+  });
+
+  /** What the surface draws: the mentions, with any search matches over them. */
+  let rustDecorations = $derived(
+    rustSearch ? [...rustMentions, ...findDecorations(rustMatches, rustCurrent)] : rustMentions
+  );
 
   /**
    * Rescans for the active search, keeping the writer on the match they were
@@ -367,6 +387,8 @@
 
   /** @param {import('$lib/rust-editor.js').EditorStateView} state */
   function onRustState(state) {
+    // Mentions are drawn from the blocks, so the first draw needs this too.
+    rustRevision += 1;
     // The engine already knows the headings. `pos` carries the block id here,
     // which is what the outline hands back when one is clicked.
     editorState.setHeadings(
@@ -382,8 +404,9 @@
 
   /** @param {import('$lib/rust-editor.js').EditorUpdate} update */
   function onRustUpdate(update) {
-    // A rescan rather than mapping the matches through the edit: cheap enough
-    // over the blocks the view already holds, and it cannot drift.
+    // A rescan rather than mapping anything through the edit: cheap enough over
+    // the blocks the view already holds, and it cannot drift from them.
+    rustRevision += 1;
     if (rustSearch) rustRescan();
     if (update.outline) {
       editorState.setHeadings(

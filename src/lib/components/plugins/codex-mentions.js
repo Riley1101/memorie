@@ -1,6 +1,13 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+// Both surfaces underline the same things. The matching rules are pure and
+// live with the engine-side mentions, which must not load ProseMirror.
+import { buildMatcher, findMentions } from '$lib/editor/mentions.js';
+
+export { buildMatcher, findMentions };
+
+/** @typedef {import('$lib/editor/mentions.js').Matcher} Matcher */
 
 /**
  * @file Underlines codex names and aliases in the editor, with the entry's
@@ -15,75 +22,6 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 /** @typedef {import('$lib/runes/codex.svelte.js').Entity} Entity */
 
 export const codexMentionsKey = new PluginKey('codex-mentions');
-
-/** @param {string} s */
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * @typedef {{ regex: RegExp, owners: Map<string, Entity> }} Pattern
- * @typedef {{ patterns: Pattern[] }} Matcher
- */
-
-/**
- * @param {Entity[]} entities
- * @returns {Matcher}
- */
-export function buildMatcher(entities) {
-  /** @type {Pattern[]} */
-  const patterns = [];
-  for (const insensitive of [false, true]) {
-    /** @type {Map<string, Entity>} */
-    const owners = new Map();
-    for (const entity of entities) {
-      if (entity.matchMode === 'off') continue;
-      if ((entity.matchMode === 'insensitive') !== insensitive) continue;
-      for (const raw of [entity.name, ...entity.aliases]) {
-        const term = raw.trim();
-        if ([...term].length < 2) continue;
-        const key = insensitive ? term.toLowerCase() : term;
-        if (!owners.has(key)) owners.set(key, entity);
-      }
-    }
-    if (!owners.size) continue;
-    // Longest first, so the alternation prefers "Kael Dor" to "Kael"; if the
-    // longer one fails the word check the regex backtracks to the shorter.
-    const alternation = [...owners.keys()]
-      .sort((a, b) => b.length - a.length)
-      .map(escapeRegex)
-      .join('|');
-    const regex = new RegExp(
-      `(?<![\\p{L}\\p{N}_])(?:${alternation})(?![\\p{L}\\p{N}_])`,
-      insensitive ? 'giu' : 'gu'
-    );
-    patterns.push({ regex, owners });
-  }
-  return { patterns };
-}
-
-/**
- * Every mention in `text`, in order, none overlapping.
- * @param {Matcher} matcher
- * @param {string} text
- * @returns {{ from: number, to: number, entity: Entity }[]}
- */
-export function findMentions(matcher, text) {
-  const hits = [];
-  for (const { regex, owners } of matcher.patterns) {
-    const insensitive = regex.flags.includes('i');
-    for (const m of text.matchAll(regex)) {
-      const entity = owners.get(insensitive ? m[0].toLowerCase() : m[0]);
-      if (entity) hits.push({ from: m.index, to: m.index + m[0].length, entity });
-    }
-  }
-  hits.sort((a, b) => a.from - b.from || b.to - b.from - (a.to - a.from));
-  const kept = [];
-  for (const hit of hits) {
-    if (!kept.length || hit.from >= kept[kept.length - 1].to) kept.push(hit);
-  }
-  return kept;
-}
 
 /**
  * @param {import('@milkdown/kit/prose/model').Node} node - A textblock.

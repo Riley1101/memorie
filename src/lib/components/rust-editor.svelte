@@ -873,11 +873,16 @@
       {#if run.href}
         <!-- A link in the document is content, not navigation: clicking it has
              to put the caret in it, so it isn't an anchor. -->
-        <span class="{runClass(run)} {run.deco ?? ''} mark-link" data-run data-href={run.href}
-          >{run.text}</span
+        <span
+          class="{runClass(run)} {run.deco ?? ''} mark-link"
+          data-run
+          data-href={run.href}
+          {...run.decoAttrs ?? {}}>{run.text}</span
         >
       {:else}
-        <span class="{runClass(run)} {run.deco ?? ''}" data-run>{run.text}</span>
+        <span class="{runClass(run)} {run.deco ?? ''}" data-run {...run.decoAttrs ?? {}}
+          >{run.text}</span
+        >
       {/if}
     {:else if run.type === 'image'}
       <img data-atom class={run.deco ?? ''} src={run.source} alt={run.alt ?? ''} />

@@ -24,6 +24,10 @@
  * @property {number} end - Exclusive. A zero-width range draws nothing.
  * @property {string} class - A `deco-*` class; `rust-editor.svelte` styles the
  *   ones it knows and ignores the rest.
+ * @property {Record<string, string>} [attrs] - Put on the element as written: a
+ *   `title` for a hover, a `data-*` for the caller to hook on to. Not for
+ *   anything that changes how the text measures — `dom.js` counts text nodes
+ *   and `data-atom`, and a decoration must not add either.
  */
 
 /** @typedef {import('$lib/rust-editor.js').EditorRun} EditorRun */
@@ -106,7 +110,7 @@ export function matchDecorations(blocks, pattern, className) {
  * split, so a decoration touching one covers all of it.
  * @param {EditorRun[]} runs
  * @param {Decoration[]} decorations - For this block only.
- * @returns {(EditorRun & { deco?: string })[]}
+ * @returns {(EditorRun & { deco?: string, decoAttrs?: Record<string, string> })[]}
  */
 export function decorate(runs, decorations) {
   const list = runs ?? [];
@@ -153,14 +157,18 @@ export function decorate(runs, decorations) {
  * @param {Decoration[]} ranges
  * @param {number} start
  * @param {number} end
- * @returns {EditorRun & { deco?: string }}
+ * @returns {EditorRun & { deco?: string, decoAttrs?: Record<string, string> }}
  */
 function withClasses(run, ranges, start, end) {
-  const classes = ranges
-    .filter((range) => range.start < end && range.end > start)
-    .map((range) => range.class);
-  if (classes.length === 0) return run;
-  return { ...run, deco: [...new Set(classes)].join(' ') };
+  const covering = ranges.filter((range) => range.start < end && range.end > start);
+  if (covering.length === 0) return run;
+  const classes = [...new Set(covering.map((range) => range.class))].join(' ');
+  // Later decorations win a contested attribute, which is the order the caller
+  // put them in.
+  const attrs = Object.assign({}, ...covering.map((range) => range.attrs ?? {}));
+  const decorated = { ...run, deco: classes };
+  if (Object.keys(attrs).length > 0) decorated.decoAttrs = attrs;
+  return decorated;
 }
 
 /**
