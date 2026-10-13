@@ -15,7 +15,7 @@
 
 use editor_core::{
     Block, BlockId, BlockKind, Change, ColumnAlignment, Direction, Document, Editor, EditorCommand,
-    ImageNode, Inline, InlineContent, MarkSet, Position, SelectionRange,
+    Fragment, ImageNode, Inline, InlineContent, MarkSet, Position, SelectionRange,
 };
 use serde::{Deserialize, Serialize};
 
@@ -107,6 +107,42 @@ fn mark_named(name: &str) -> Result<MarkSet, String> {
         "code" => Ok(MarkSet::CODE),
         "strike" | "strikethrough" => Ok(MarkSet::STRIKE),
         other => Err(format!("unknown mark '{other}'")),
+    }
+}
+
+// --- the clipboard ----------------------------------------------------------
+
+/// What a copy puts on the clipboard: both flavours, written once.
+///
+/// `markdown` goes on as `text/plain` rather than the plain text, because a
+/// paste back into Memorie — or into any other Markdown editor — should bring
+/// the formatting with it, and a reader that wants no syntax has `text` next
+/// to it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WireClipboard {
+    pub markdown: String,
+    pub text: String,
+    /// False when the selection was empty, so the view can let the browser's
+    /// own copy happen instead of putting nothing on the clipboard.
+    pub has_content: bool,
+}
+
+impl WireClipboard {
+    pub fn empty() -> Self {
+        Self {
+            markdown: String::new(),
+            text: String::new(),
+            has_content: false,
+        }
+    }
+
+    pub fn of(fragment: &Fragment) -> Self {
+        Self {
+            markdown: fragment.to_markdown(),
+            text: fragment.to_plain_text(),
+            has_content: !fragment.is_empty(),
+        }
     }
 }
 
@@ -525,6 +561,11 @@ pub enum WireCommand {
     InsertText {
         text: String,
     },
+    /// Markdown off a clipboard. Parsed, so a heading pasted from another
+    /// Markdown editor arrives as a heading rather than as two hashes.
+    InsertMarkdown {
+        markdown: String,
+    },
     /// The text a block now holds, after the *view* changed it — an IME
     /// composition, an autocorrect, a spellcheck replacement. The engine works
     /// out the smallest edit that explains it, so formatting outside the change
@@ -615,6 +656,7 @@ impl WireCommand {
                 EditorCommand::SetSelection(SelectionRange::new(position(anchor), position(head)))
             }
             WireCommand::InsertText { text } => EditorCommand::InsertText(text),
+            WireCommand::InsertMarkdown { markdown } => EditorCommand::InsertMarkdown(markdown),
             WireCommand::Delete { forward } => EditorCommand::Delete(if forward {
                 Direction::Forward
             } else {

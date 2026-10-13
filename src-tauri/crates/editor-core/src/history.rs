@@ -112,7 +112,7 @@ impl History {
         let Some(current) = self.current else {
             return false;
         };
-        let entry = &mut self.nodes[current.0];
+        let entry = &self.nodes[current.0];
         let (Some(then), Some(now)) = (entry.created_at, created_at) else {
             return false;
         };
@@ -125,7 +125,24 @@ impl History {
         if !belongs {
             return false;
         }
+        self.fold(undo, redo);
+        self.nodes[current.0].created_at = Some(now);
+        true
+    }
 
+    /// Folds an edit into the current node whatever it is, without the checks
+    /// [`History::coalesce`] makes. For a command that needs two transactions
+    /// to carry it out — a paste over a selection deletes before it splices,
+    /// because the delete rewrites the block list the splice is built from —
+    /// and should still be one press of undo.
+    ///
+    /// Returns false at the root, where there is no node to fold into and the
+    /// caller has to record instead.
+    pub fn fold(&mut self, undo: Transaction, redo: Transaction) -> bool {
+        let Some(current) = self.current else {
+            return false;
+        };
+        let entry = &mut self.nodes[current.0];
         // Redoing runs the old operations then the new ones; undoing runs the
         // new inverses first, then the old ones.
         entry.redo.operations.extend(redo.operations);
@@ -134,7 +151,6 @@ impl History {
         inverse.append(&mut entry.undo.operations);
         entry.undo.operations = inverse;
         entry.undo.selection_before = undo.selection_before;
-        entry.created_at = Some(now);
         true
     }
 

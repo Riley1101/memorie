@@ -282,6 +282,7 @@ pub async fn run() {
             editor::editor_open_text,
             editor::editor_apply,
             editor::editor_state,
+            editor::editor_copy,
             editor::editor_markdown,
             editor::editor_save,
             editor::editor_close,

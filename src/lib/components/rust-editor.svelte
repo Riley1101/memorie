@@ -19,6 +19,7 @@
     apply as applyCommands,
     patchState,
     patchBlocks,
+    getClipboard,
     close as closeDocument,
   } from '$lib/rust-editor.js';
   import {
@@ -55,12 +56,16 @@
    *   onupdate?: (update: EditorUpdate, elapsed: number) => void,
    *   onerror?: (message: string) => void,
    *   onedit?: () => void,
+   *   onlink?: () => Promise<string | null> | string | null,
    *   placeholder?: string,
    * }}
    * `name` is the writing's path, which is also the engine's session key. With
    * `text`, the document is opened from that string instead of from disk —
    * nothing is written either way; saving is the caller's business.
    * `onedit` fires after any edit, for autosave.
+   * `onlink` is asked for the URL when the writer presses ⌘K; this component
+   * draws no dialogs. Without it, a URL on the clipboard is used. Return null
+   * to leave the text unlinked.
    */
   let {
     name,
@@ -72,6 +77,7 @@
     onupdate = undefined,
     onerror = undefined,
     onedit = undefined,
+    onlink = undefined,
     placeholder = 'Start writing…',
   } = $props();
 
@@ -357,7 +363,11 @@
         event.preventDefault();
         return;
       }
-      commands.push({ command: 'insertText', text: pasted });
+      // Markdown, not characters: `## Heading` off a clipboard means a heading,
+      // and the engine decides whether what it parses to is blocks or a run of
+      // text. A `text/plain` payload from anywhere else is still the writer's
+      // best guess at what they copied, so it goes through the same door.
+      commands.push({ command: 'insertMarkdown', markdown: pasted });
     } else if (pair) {
       event.preventDefault();
       send(pair);
@@ -492,6 +502,68 @@
     await send(commands);
   }
 
+  /**
+   * A copy or a cut.
+   *
+   * The clipboard is written asynchronously: the engine is across a bridge and
+   * `clipboardData` can only be set inside the event, so the browser's own copy
+   * is prevented and the Clipboard API used instead. What goes on is Markdown —
+   * a paste back into Memorie keeps the formatting, and a paste anywhere else
+   * reads as Markdown rather than as a DOM full of `data-block-id`.
+   * @param {ClipboardEvent} event
+   * @param {boolean} cut
+   */
+  async function onCopy(event, cut) {
+    const selection = selectionCommand();
+    if (!selection || !doc) return;
+    const { anchor, head } = selection;
+    // Nothing selected: leave the clipboard as it is rather than emptying it.
+    if (anchor.block === head.block && anchor.offset === head.offset) return;
+
+    event.preventDefault();
+    try {
+      // The engine hears about the caret on an edit, and a copy is not one, so
+      // the selection goes over first. It changes no document state.
+      await applyCommands(name, [selection]);
+      const clipboard = await getClipboard(name);
+      if (!clipboard.hasContent) return;
+      await navigator.clipboard.writeText(clipboard.markdown);
+      if (cut) await send([selection, { command: 'delete', forward: true }]);
+    } catch (error) {
+      onerror?.(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * ⌘K. The URL is the host's to ask for — this component draws no dialogs —
+   * so it calls `onlink` and falls back to a URL sitting on the clipboard,
+   * which is how a link usually arrives. Returning null leaves the text alone.
+   */
+  async function linkSelection() {
+    const selection = selectionCommand();
+    if (!selection) return;
+    try {
+      const url = onlink ? await onlink() : await urlOnClipboard();
+      if (!url) return;
+      await send([selection, { command: 'setLink', url }]);
+    } catch (error) {
+      onerror?.(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /** The clipboard's contents, if they read as a URL. */
+  async function urlOnClipboard() {
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (!text || /\s/.test(text)) return null;
+      // A bare domain is what people copy out of a browser bar as often as a
+      // full URL, so both count.
+      return /^[a-z][a-z0-9+.-]*:/i.test(text) || /^[\w-]+(\.[\w-]+)+/.test(text) ? text : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** @param {KeyboardEvent} event */
   function onKeydown(event) {
     if (!isMod(event) || composing) return;
@@ -511,6 +583,12 @@
       case 'z':
         command = { command: event.shiftKey ? 'redo' : 'undo' };
         break;
+      case 'k':
+        // The URL has to be asked for, so this one is its own path rather than
+        // a command the switch can hand on.
+        event.preventDefault();
+        linkSelection();
+        return;
       default:
         return;
     }
@@ -712,6 +790,8 @@
   oncompositionstart={onCompositionStart}
   oncompositionend={onCompositionEnd}
   onkeydown={onKeydown}
+  oncopy={(event) => onCopy(event, false)}
+  oncut={(event) => onCopy(event, true)}
   onclick={onClick}
 >
   {#each doc?.blocks ?? [] as block (block.id)}{@render blockView(block)}{/each}

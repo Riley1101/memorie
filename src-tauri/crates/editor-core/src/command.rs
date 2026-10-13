@@ -5,8 +5,14 @@
 //! second consumer of this engine gets the same editing behaviour for free.
 
 use crate::inline::{ImageNode, MarkSet};
+
 use crate::selection::SelectionRange;
 use serde::{Deserialize, Serialize};
+
+/// The history label a paste carries. A paste over a selection takes two
+/// transactions — the delete rewrites the block list the splice is built from
+/// — and they are folded into one entry under this label.
+pub(crate) const PASTE: &str = "Paste";
 
 /// Which way a delete with a collapsed caret goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,6 +52,16 @@ pub enum EditorCommand {
     /// `text` counts an atom (an image, a break) as one U+FFFC character, the
     /// way [`crate::InlineContent::offset_text`] writes it.
     SetBlockText(String),
+
+    /// Pastes Markdown at the caret, replacing the selection.
+    ///
+    /// The text is parsed, so `## Heading` arrives as a heading rather than as
+    /// two hashes — which is what a copy out of this editor, or out of any
+    /// other Markdown one, means by it. What it turns into depends on what it
+    /// parses to: one paragraph is a run of characters and goes in without
+    /// disturbing the block it lands in, anything more is blocks and splits
+    /// that block around them, and inside a code block it is text either way.
+    InsertMarkdown(String),
 
     /// Toggles a mark over the selection: on unless the whole selection
     /// already carries it. With a collapsed caret it toggles the mark for the
@@ -134,6 +150,7 @@ impl EditorCommand {
             EditorCommand::SplitBlock => "Split block",
             EditorCommand::MergeBlocks => "Merge blocks",
             EditorCommand::SetBlockText(_) => "Typing",
+            EditorCommand::InsertMarkdown(_) => PASTE,
             EditorCommand::ToggleMark(_) => "Formatting",
             EditorCommand::SetHeadingLevel(_) => "Heading",
             EditorCommand::SetCodeBlock { .. } => "Code block",

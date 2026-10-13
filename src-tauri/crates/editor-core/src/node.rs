@@ -71,7 +71,7 @@ impl Block {
         }
     }
 
-    fn child_lists_mut(&mut self) -> Vec<&mut Vec<Block>> {
+    pub(crate) fn child_lists_mut(&mut self) -> Vec<&mut Vec<Block>> {
         match &mut self.kind {
             BlockKind::Quote { blocks } => vec![blocks],
             BlockKind::List { items, .. } => {

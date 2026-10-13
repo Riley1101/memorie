@@ -5,12 +5,14 @@
 //! recorded with its inverse. Nothing here knows about Markdown, files, Tauri
 //! or the frontend.
 
-use crate::command::{Direction, EditorCommand};
+use crate::command::{Direction, EditorCommand, PASTE};
 use crate::document::Document;
 use crate::error::{EditorError, Result};
+use crate::fragment::Fragment;
 use crate::history::History;
-use crate::ids::BlockId;
+use crate::ids::{BlockId, IdGenerator};
 use crate::inline::{Inline, InlineContent, Link, MarkSet};
+use crate::markdown;
 use crate::node::{Block, BlockKind, ColumnAlignment, ListItem, TableCell, TableNode, TableRow};
 use crate::selection::{Position, SelectionRange};
 use crate::transaction::{Change, Operation, Transaction};
@@ -101,6 +103,80 @@ impl Editor {
         }
     }
 
+    /// What the selection holds, for a copy or a cut.
+    ///
+    /// Copying changes nothing, so this is not a command: the host asks for the
+    /// fragment, puts [`Fragment::to_markdown`] and
+    /// [`Fragment::to_plain_text`] on the clipboard, and sends
+    /// [`EditorCommand::Delete`] afterwards for a cut.
+    ///
+    /// The three shapes a selection can have are kept apart (see
+    /// [`Fragment`]): a run of characters from one block, raw text from inside
+    /// a code block, and whole blocks trimmed at the ends. A selection that
+    /// covers a block exactly is blocks, not inline, so pasting it back keeps
+    /// the block break.
+    pub fn copy(&self) -> Result<Fragment> {
+        if self.selection.is_collapsed() {
+            return Err(EditorError::NothingToDo);
+        }
+
+        if let Some((id, start, end)) = self.selection.single_block_range() {
+            let block = self
+                .document
+                .block(id)
+                .ok_or(EditorError::NoSuchBlock(id))?;
+
+            if let Some(code) = block.kind.code() {
+                let characters: Vec<char> = code.chars().collect();
+                let (start, end) = (start.min(characters.len()), end.min(characters.len()));
+                // The whole of a code block keeps its fence and its language;
+                // part of one is text, and a fence around half a line would be
+                // a lie about what was selected.
+                if start == 0 && end == characters.len() {
+                    return Ok(Fragment::Blocks {
+                        blocks: vec![block.clone()],
+                    });
+                }
+                return Ok(Fragment::Text {
+                    text: characters[start..end].iter().collect(),
+                });
+            }
+
+            let content = block.content().ok_or(EditorError::NotTextual(id))?;
+            if start == 0 && end >= content.len() {
+                return Ok(Fragment::Blocks {
+                    blocks: vec![block.clone()],
+                });
+            }
+            return Ok(Fragment::Inline {
+                content: content.slice(start, end),
+            });
+        }
+
+        let (from, to) = self.selection.ordered(&self.document);
+        self.guard_span(from.block, to.block)?;
+        let first_top = self
+            .document
+            .top_ancestor(from.block)
+            .and_then(|id| self.document.top_index(id))
+            .ok_or(EditorError::NoSuchBlock(from.block))?;
+        let last_top = self
+            .document
+            .top_ancestor(to.block)
+            .and_then(|id| self.document.top_index(id))
+            .ok_or(EditorError::NoSuchBlock(to.block))?;
+
+        let run = self.document.blocks()[first_top..=last_top].to_vec();
+        let mut phase = Phase::Before;
+        let mut blocks = keep_covered(run, from.block, to.block, &mut phase);
+        // The ends are trimmed after the walk rather than during it: the walk
+        // works on ids, and until it is done there is no telling which copy of
+        // a block is the one that survived.
+        trim_start(&mut blocks, from.block, from.offset);
+        trim_end(&mut blocks, to.block, to.offset);
+        Ok(Fragment::Blocks { blocks })
+    }
+
     /// Applies a command, returning what it changed. See [`Editor::apply_at`]
     /// to stamp the history entry.
     pub fn apply(&mut self, command: EditorCommand) -> Result<Change> {
@@ -133,6 +209,9 @@ impl Editor {
             }
             EditorCommand::Undo => self.step_history(true),
             EditorCommand::Redo => self.step_history(false),
+            // A paste may need two transactions, so it commits its own rather
+            // than handing one back to `build`.
+            EditorCommand::InsertMarkdown(source) => self.insert_markdown(source, created_at),
             other => {
                 let label = other.label();
                 let transaction = self.build(other)?;
@@ -174,7 +253,10 @@ impl Editor {
             EditorCommand::InsertThematicBreak => {
                 self.insert_block_after_caret(BlockKind::ThematicBreak, false)
             }
-            EditorCommand::SetSelection(_) | EditorCommand::Undo | EditorCommand::Redo => {
+            EditorCommand::SetSelection(_)
+            | EditorCommand::Undo
+            | EditorCommand::Redo
+            | EditorCommand::InsertMarkdown(_) => {
                 Err(EditorError::Unsupported("handled before build"))
             }
         }
@@ -209,6 +291,183 @@ impl Editor {
         }
         self.history
             .record(inverse, transaction, Some(label.to_string()), created_at);
+        Ok(change)
+    }
+
+    /// Parses pasted Markdown and puts it in, replacing the selection.
+    fn insert_markdown(&mut self, source: String, created_at: Option<i64>) -> Result<Change> {
+        if source.is_empty() {
+            return Err(EditorError::NothingToDo);
+        }
+
+        // Inside a code block the text goes in as it is. Parsing it would turn
+        // a pasted fence into a block, and a fence inside a fence is not what
+        // anyone means by pasting code into code.
+        if self.caret_holds_code() && self.selection.single_block_range().is_some() {
+            let transaction = self.insert_code(source)?;
+            return self.commit(transaction, PASTE, created_at);
+        }
+
+        let mut ids = IdGenerator::default();
+        let parsed = markdown::parse_blocks(&source, &mut ids);
+        let blocks = self.document.adopt(parsed);
+
+        // Markdown that parses to no blocks is still characters the writer
+        // asked for — whitespace on its own, or syntax carrying no content —
+        // so it goes in as text rather than being dropped.
+        if blocks.is_empty() {
+            let transaction = self.insert_content(InlineContent::empty(), source)?;
+            return self.commit(transaction, PASTE, created_at);
+        }
+
+        // One paragraph is a run of characters, not a block: pasting a
+        // sentence into the middle of a heading leaves one heading, and the
+        // marks the Markdown carried come with it.
+        if let [block] = blocks.as_slice() {
+            if let BlockKind::Paragraph { content } = &block.kind {
+                let content = restore_edge_spaces(content.clone(), &source);
+                let transaction = self.insert_content(content, String::new())?;
+                return self.commit(transaction, PASTE, created_at);
+            }
+        }
+
+        // Whole blocks. A selection is deleted first, in a transaction of its
+        // own: the splice below is built from the block list the delete
+        // leaves behind, so it cannot be built before the delete has run.
+        let mut change = Change::default();
+        let deleted = if self.selection.is_collapsed() {
+            false
+        } else {
+            let transaction = self.delete(Direction::Backward)?;
+            change.merge(self.commit(transaction, PASTE, created_at)?);
+            true
+        };
+
+        let transaction = self.splice_at_caret(blocks)?;
+        change.merge(if deleted {
+            self.commit_folded(transaction)?
+        } else {
+            self.commit(transaction, PASTE, created_at)?
+        });
+        Ok(change)
+    }
+
+    /// Puts whole blocks in at a collapsed caret, splitting the block the
+    /// caret sits in around them.
+    ///
+    /// The text before the caret keeps the block's id and kind, and the first
+    /// pasted paragraph joins onto it — so pasting two paragraphs into the
+    /// middle of a sentence gives three blocks, not four, and the half
+    /// sentence before the caret isn't left in a block of its own. The text
+    /// after the caret joins the last pasted paragraph the same way.
+    fn splice_at_caret(&mut self, mut blocks: Vec<Block>) -> Result<Transaction> {
+        let caret_block = self.selection.head.block;
+        let site = self.site(caret_block)?;
+        let offset = self.selection.head.offset;
+        let existing = self
+            .document
+            .block(caret_block)
+            .ok_or(EditorError::NoSuchBlock(caret_block))?;
+
+        // A block with no runs to split — a rule, an image, a code block the
+        // selection ran out of — takes the paste after it, whole.
+        let Some(content) = existing.content() else {
+            let caret = end_of_last_text_block(&blocks).ok_or(EditorError::Unsupported(
+                "pasting blocks with no text in them",
+            ))?;
+            let insert = self.splice(site, site.index + 1, site.index + 1, blocks)?;
+            return Ok(
+                Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(insert),
+            );
+        };
+
+        let heading_level = match &existing.kind {
+            BlockKind::Heading { level, .. } => Some(*level),
+            _ => None,
+        };
+        let head = content.slice(0, offset);
+        let tail = content.slice(offset, content.len());
+
+        // The first pasted paragraph is text, so it joins the text before the
+        // caret instead of becoming a block of its own.
+        let mut lead = head;
+        if matches!(
+            blocks.first().map(|b| &b.kind),
+            Some(BlockKind::Paragraph { .. })
+        ) {
+            let first = blocks.remove(0);
+            if let BlockKind::Paragraph { content } = first.kind {
+                lead = join_content(&lead, &content);
+            }
+        }
+        // Nothing before the caret means the block contributes nothing: the
+        // text after the caret has already gone onto the end of the paste, so
+        // keeping it would leave an empty paragraph above what was pasted.
+        // This is what makes pasting into an empty block replace it.
+        let lead_length = lead.len();
+        let first = (lead_length > 0).then(|| {
+            Block::new(
+                caret_block,
+                match heading_level {
+                    Some(level) => BlockKind::Heading {
+                        level,
+                        content: lead,
+                    },
+                    None => BlockKind::Paragraph { content: lead },
+                },
+            )
+        });
+
+        // Where the caret lands: the end of what was pasted, which is the end
+        // of the last pasted block before the tail is appended to it. A paste
+        // with no text in it at all — a rule, a divider — leaves the caret
+        // where the lead ends.
+        let caret = end_of_last_text_block(&blocks)
+            .or_else(|| {
+                first
+                    .as_ref()
+                    .map(|block| Position::new(block.id, lead_length))
+            })
+            .unwrap_or(self.selection.head);
+
+        if !tail.is_empty() {
+            match blocks.last_mut().map(|block| &mut block.kind) {
+                // The text after the caret joins the last pasted paragraph.
+                Some(BlockKind::Paragraph { content }) => {
+                    *content = join_content(content, &tail);
+                }
+                // Nothing to join it to — the paste ended in a list, a table,
+                // a fence — so it carries on in a paragraph of its own.
+                _ => {
+                    let block = self
+                        .document
+                        .new_block(BlockKind::Paragraph { content: tail });
+                    blocks.push(block);
+                }
+            }
+        }
+
+        let mut list = Vec::with_capacity(blocks.len() + 1);
+        list.extend(first);
+        list.extend(blocks);
+        let splice = self.splice(site, site.index, site.index + 1, list)?;
+        Ok(Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(splice))
+    }
+
+    /// Applies a transaction and folds it into the history entry the previous
+    /// one made, so a command that takes two transactions is one press of
+    /// undo. Records normally when there is no entry to fold into.
+    fn commit_folded(&mut self, transaction: Transaction) -> Result<Change> {
+        let inverse = transaction.apply(&mut self.document)?;
+        let change = transaction.change();
+        self.selection = transaction
+            .selection_after
+            .clamp(&self.document, start_of_document(&self.document));
+        self.pending_marks = None;
+        if !self.history.fold(inverse.clone(), transaction.clone()) {
+            self.history
+                .record(inverse, transaction, Some(PASTE.to_string()), None);
+        }
         Ok(change)
     }
 
@@ -368,10 +627,10 @@ impl Editor {
         Ok((operations, caret))
     }
 
-    /// What both ends of a cross-block edit have to satisfy: in document order,
-    /// on the same side of every table's edge — a prune can't keep a table's
-    /// rows the same length — and a start block that holds inline content.
-    fn guard_join(&self, from: BlockId, to: BlockId) -> Result<()> {
+    /// What both ends of any cross-block operation have to satisfy: in
+    /// document order, and on the same side of every table's edge — neither a
+    /// prune nor a copy can keep a table's rows the same length across one.
+    fn guard_span(&self, from: BlockId, to: BlockId) -> Result<()> {
         let first_order = self
             .document
             .order_index(from)
@@ -390,6 +649,13 @@ impl Editor {
                 "a selection crossing the edge of a table",
             ));
         }
+        Ok(())
+    }
+
+    /// The same, for an edit that joins the two ends into one block: the start
+    /// block is the one that survives, so it has to hold inline content.
+    fn guard_join(&self, from: BlockId, to: BlockId) -> Result<()> {
+        self.guard_span(from, to)?;
         self.content_of(from)?;
         Ok(())
     }
@@ -1438,6 +1704,162 @@ enum Phase {
     Inside,
     /// Past the block the selection ends in.
     After,
+}
+
+/// Puts back the spaces and tabs Markdown drops from the edges of a block.
+///
+/// `  and more` is a paragraph of `and more` to a Markdown parser: whitespace
+/// at the edge of a block carries no meaning there. Pasted into the middle of
+/// a sentence it carries all of it, so it is restored — but only for a paste
+/// that was one line to begin with, since across a block break the whitespace
+/// really is insignificant.
+fn restore_edge_spaces(content: InlineContent, source: &str) -> InlineContent {
+    let space = |c: char| c == ' ' || c == '\t';
+    if source.contains('\n') {
+        return content;
+    }
+    let leading: String = source.chars().take_while(|c| space(*c)).collect();
+    let trailing: String = source
+        .chars()
+        .rev()
+        .take_while(|c| space(*c))
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    if leading.is_empty() && trailing.is_empty() {
+        return content;
+    }
+    let mut pieces = Vec::with_capacity(content.pieces().len() + 2);
+    if !leading.is_empty() {
+        pieces.push(Inline::text(leading));
+    }
+    pieces.extend(content.pieces().iter().cloned());
+    if !trailing.is_empty() {
+        pieces.push(Inline::text(trailing));
+    }
+    InlineContent::new(pieces)
+}
+
+/// Two runs of inline content, one after the other.
+fn join_content(first: &InlineContent, second: &InlineContent) -> InlineContent {
+    let mut pieces = first.pieces().to_vec();
+    pieces.extend(second.pieces().iter().cloned());
+    InlineContent::new(pieces)
+}
+
+/// The end of the last block in `blocks` a caret can go in, at any depth —
+/// where a paste leaves the caret. `None` when nothing pasted holds text.
+fn end_of_last_text_block(blocks: &[Block]) -> Option<Position> {
+    blocks
+        .iter()
+        .flat_map(Block::descendants)
+        .rfind(|block| block.kind.holds_text())
+        .map(|block| {
+            let len = match (block.content(), block.kind.code()) {
+                (Some(content), _) => content.len(),
+                (None, Some(code)) => code.chars().count(),
+                _ => 0,
+            };
+            Position::new(block.id, len)
+        })
+}
+
+/// Keeps only what a selection covers, the mirror of [`prune_covered`].
+///
+/// Containers are kept when the selection runs through them, holding only the
+/// children it reached, so copying from the middle of one list item to the
+/// middle of another gives back a list of two items rather than two loose
+/// paragraphs. Both end blocks are kept whole here and trimmed to their
+/// offsets afterwards.
+fn keep_covered(list: Vec<Block>, from: BlockId, to: BlockId, phase: &mut Phase) -> Vec<Block> {
+    let mut out = Vec::new();
+    for block in list {
+        match phase {
+            Phase::Before => {
+                if block.id == from {
+                    *phase = Phase::Inside;
+                    out.push(block);
+                } else if block.find(from).is_some() {
+                    let kept = keep_children(block, from, to, phase);
+                    if !kept.children().is_empty() {
+                        out.push(kept);
+                    }
+                }
+                // Anything wholly before the start is not part of the copy.
+            }
+            Phase::Inside => {
+                if block.id == to {
+                    *phase = Phase::After;
+                    out.push(block);
+                } else if block.find(to).is_some() {
+                    let kept = keep_children(block, from, to, phase);
+                    if !kept.children().is_empty() {
+                        out.push(kept);
+                    }
+                } else {
+                    out.push(block);
+                }
+            }
+            Phase::After => {}
+        }
+    }
+    out
+}
+
+/// The same walk, through one block's children. Tables are left whole: a
+/// selection crossing a table's edge is refused by [`Editor::guard_span`], so
+/// a table reached here is one the selection covers entirely.
+fn keep_children(mut block: Block, from: BlockId, to: BlockId, phase: &mut Phase) -> Block {
+    match &mut block.kind {
+        BlockKind::Quote { blocks } => {
+            let taken = std::mem::take(blocks);
+            *blocks = keep_covered(taken, from, to, phase);
+        }
+        BlockKind::List { items, .. } => {
+            let mut kept = Vec::new();
+            for mut item in std::mem::take(items) {
+                let taken = std::mem::take(&mut item.blocks);
+                item.blocks = keep_covered(taken, from, to, phase);
+                // An item the selection never reached is not an empty bullet.
+                if !item.blocks.is_empty() {
+                    kept.push(item);
+                }
+            }
+            *items = kept;
+        }
+        _ => {}
+    }
+    block
+}
+
+/// Drops what comes before `offset` in the copied tree's first text block.
+fn trim_start(blocks: &mut [Block], id: BlockId, offset: usize) {
+    trim(blocks, id, |len| (offset.min(len), len));
+}
+
+/// Drops what comes after `offset` in the copied tree's last text block.
+fn trim_end(blocks: &mut [Block], id: BlockId, offset: usize) {
+    trim(blocks, id, |len| (0, offset.min(len)));
+}
+
+/// Cuts a block's text down to the range `bounds` gives for its length.
+/// A block holding neither runs nor code — a rule, an image — has no offsets
+/// to trim to and is left as it is.
+fn trim(blocks: &mut [Block], id: BlockId, bounds: impl Fn(usize) -> (usize, usize)) {
+    let Some(block) = blocks.iter_mut().find_map(|block| block.find_mut(id)) else {
+        return;
+    };
+    if let Some(content) = block.content_mut() {
+        let (start, end) = bounds(content.len());
+        *content = content.slice(start, end);
+        return;
+    }
+    if let BlockKind::CodeBlock { code, .. } = &mut block.kind {
+        let characters: Vec<char> = code.chars().collect();
+        let (start, end) = bounds(characters.len());
+        *code = characters[start..end].iter().collect();
+    }
 }
 
 /// Removes what a selection covers from a list of blocks, containers included.

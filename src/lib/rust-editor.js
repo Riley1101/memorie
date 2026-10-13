@@ -69,6 +69,7 @@ import { invoke } from '@tauri-apps/api/core';
  * @typedef {
  *   | { command: 'setSelection', anchor: EditorPosition, head: EditorPosition }
  *   | { command: 'insertText', text: string }
+ *   | { command: 'insertMarkdown', markdown: string }
  *   | { command: 'reconcileBlock', block: number, text: string }
  *   | { command: 'delete', forward?: boolean }
  *   | { command: 'splitBlock' }
@@ -161,6 +162,27 @@ export function getState(name) {
 }
 
 /**
+ * @typedef {Object} EditorClipboard
+ * @property {string} markdown - What the selection holds, as Markdown. This is
+ *   what goes on the clipboard as `text/plain`, so a paste back into Memorie
+ *   brings the formatting with it.
+ * @property {string} text - The same selection with no syntax, for a reader
+ *   that wants it plain.
+ * @property {boolean} hasContent - False when nothing was selected, so the
+ *   caller leaves the clipboard alone rather than emptying it.
+ */
+
+/**
+ * What the selection holds, for a copy or a cut. Changes nothing: a cut sends
+ * a `delete` afterwards.
+ * @param {string} name
+ * @returns {Promise<EditorClipboard>}
+ */
+export function getClipboard(name) {
+  return invoke('editor_copy', { name });
+}
+
+/**
  * The Markdown that a save would write, front matter included.
  * @param {string} name
  * @returns {Promise<string>}
@@ -202,6 +224,8 @@ export const commands = {
   heading: (level) => ({ command: 'setHeadingLevel', level }),
   /** @param {string | null} url @returns {EditorCommand} */
   link: (url) => ({ command: 'setLink', url }),
+  /** @param {string} markdown @returns {EditorCommand} */
+  insertMarkdown: (markdown) => ({ command: 'insertMarkdown', markdown }),
 };
 
 /**

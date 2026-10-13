@@ -110,6 +110,16 @@ impl Document {
         document_block(&mut self.ids, kind)
     }
 
+    /// Re-ids a tree of blocks from this document's generator.
+    ///
+    /// Blocks built outside the document — parsed from pasted Markdown, or
+    /// lifted off a clipboard — carry ids from whatever generator made them,
+    /// which will collide with ids already in use here. Adopting them first is
+    /// what makes a paste safe to splice in.
+    pub fn adopt(&mut self, blocks: Vec<Block>) -> Vec<Block> {
+        adopt_blocks(&mut self.ids, blocks)
+    }
+
     /// Makes sure ids handed out later can't collide with ones already in the
     /// document, after loading it from a serialized form.
     pub fn reseal_ids(&mut self) {
@@ -385,6 +395,22 @@ fn kind_max_id(kind: &BlockKind) -> Option<BlockId> {
 
 fn document_block(ids: &mut IdGenerator, kind: BlockKind) -> Block {
     Block::new(ids.next_id(), kind)
+}
+
+/// Hands every block in a tree a fresh id, depth first. A free function
+/// rather than a method so the recursion can hold the generator without
+/// holding the document.
+fn adopt_blocks(ids: &mut IdGenerator, blocks: Vec<Block>) -> Vec<Block> {
+    let mut out = Vec::with_capacity(blocks.len());
+    for mut block in blocks {
+        block.id = ids.next_id();
+        for list in block.child_lists_mut() {
+            let taken = std::mem::take(list);
+            *list = adopt_blocks(ids, taken);
+        }
+        out.push(block);
+    }
+    out
 }
 
 fn push_block_text(block: &Block, out: &mut String) {

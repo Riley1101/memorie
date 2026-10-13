@@ -12,6 +12,7 @@
 //! editor_open_text open a document from text, for content with no file yet
 //! editor_apply     apply commands, get back only what changed
 //! editor_state     the current state, without changing anything
+//! editor_copy      what the selection holds, for a copy or a cut
 //! editor_markdown  what would be written to disk
 //! editor_save      write it, through the same path the old save used
 //! editor_close     forget the session
@@ -27,11 +28,11 @@ pub mod wire;
 use crate::fs::File;
 use crate::AppState;
 use editor_core::Change;
-use editor_core::{markdown, Editor};
+use editor_core::{markdown, Editor, EditorError};
 use std::collections::HashMap;
 use tauri::State;
 use tokio::sync::Mutex;
-use wire::{WireCommand, WireState, WireUpdate};
+use wire::{WireClipboard, WireCommand, WireState, WireUpdate};
 
 /// The documents open right now, by writing path.
 #[derive(Default)]
@@ -139,6 +140,29 @@ pub async fn editor_state(name: String, state: State<'_, AppState>) -> Result<Wi
         .get(&name)
         .ok_or_else(|| format!("'{name}' is not open"))?;
     Ok(wire::state_view(&name, editor))
+}
+
+/// What the selection holds, as Markdown and as plain text.
+///
+/// Copying changes nothing, so this is a read: the view puts both flavours on
+/// the clipboard, and a cut sends a `delete` through `editor_apply` after it.
+/// An empty selection is not an error — the view asks on every copy, including
+/// the ones where the writer had selected nothing — so it comes back with
+/// `hasContent: false` and the view leaves the clipboard alone.
+#[tauri::command]
+pub async fn editor_copy(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<WireClipboard, String> {
+    let sessions = state.editors.0.lock().await;
+    let editor = sessions
+        .get(&name)
+        .ok_or_else(|| format!("'{name}' is not open"))?;
+    match editor.copy() {
+        Ok(fragment) => Ok(WireClipboard::of(&fragment)),
+        Err(EditorError::NothingToDo) => Ok(WireClipboard::empty()),
+        Err(error) => Err(error.to_string()),
+    }
 }
 
 #[tauri::command]
