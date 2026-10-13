@@ -182,15 +182,23 @@ fn a_nested_list_flips_without_disturbing_the_one_around_it() {
 }
 
 #[test]
-fn unwrapping_a_nested_list_is_refused_rather_than_guessed_at() {
+fn unwrapping_a_nested_list_lifts_it_into_the_item_around_it() {
     let mut editor = open("- one\n  - inner\n");
     let inner = editor.document().text_block_ids()[1];
     select(&mut editor, inner, 0, 0);
 
-    assert!(matches!(
-        editor.apply(EditorCommand::ToggleList { ordered: false }),
-        Err(EditorError::NestedBlock(_))
-    ));
+    editor
+        .apply(EditorCommand::ToggleList { ordered: false })
+        .unwrap();
+
+    // One level of list gone, not both: the outer item keeps the text.
+    let outer = editor.document().blocks();
+    assert_eq!(outer.len(), 1);
+    assert_eq!(outer[0].kind.name(), "list");
+    assert_eq!(editor.document().plain_text(), "one\n\ninner");
+    assert_eq!(editor.document().text_block_ids()[1], inner);
+
+    editor.apply(EditorCommand::Undo).unwrap();
     assert_eq!(
         markdown::to_markdown(editor.document()),
         "- one\n  - inner\n"
@@ -710,5 +718,538 @@ fn words_are_counted_without_building_the_document() {
         editor.document().word_count(),
         editor.document().plain_text().split_whitespace().count(),
         "the cheap count agrees with the one that builds the text"
+    );
+}
+
+// --- in-place transforms inside containers -----------------------------------
+
+#[test]
+fn a_heading_can_be_made_inside_a_quote() {
+    let mut editor = open("> quoted\n");
+    let inner = editor.document().text_block_ids()[0];
+    select(&mut editor, inner, 0, 0);
+
+    editor.apply(EditorCommand::SetHeadingLevel(2)).unwrap();
+
+    assert_eq!(markdown::to_markdown(editor.document()), "> ## quoted\n");
+    assert_eq!(editor.selection(), SelectionRange::in_block(inner, 0, 0));
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(markdown::to_markdown(editor.document()), "> quoted\n");
+}
+
+#[test]
+fn a_list_item_can_become_a_code_block() {
+    let mut editor = open("- one\n- two\n");
+    let second = editor.document().text_block_ids()[1];
+    select(&mut editor, second, 0, 0);
+
+    editor
+        .apply(EditorCommand::SetCodeBlock {
+            language: Some("rust".to_string()),
+        })
+        .unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "- one\n- ```rust\n  two\n  ```\n"
+    );
+}
+
+#[test]
+fn a_block_inside_a_list_can_be_wrapped_in_a_quote() {
+    let mut editor = open("- one\n");
+    let inner = editor.document().text_block_ids()[0];
+    select(&mut editor, inner, 0, 0);
+
+    editor.apply(EditorCommand::WrapInQuote).unwrap();
+
+    assert_eq!(markdown::to_markdown(editor.document()), "- > one\n");
+    assert_eq!(editor.document().text_block_ids(), vec![inner]);
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(markdown::to_markdown(editor.document()), "- one\n");
+}
+
+// --- structural edits inside containers --------------------------------------
+
+#[test]
+fn return_inside_a_quote_splits_within_the_quote() {
+    let mut editor = open("> onetwo\n");
+    let inner = editor.document().text_block_ids()[0];
+    select(&mut editor, inner, 3, 3);
+
+    editor.apply(EditorCommand::SplitBlock).unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "> one\n>\n> two\n"
+    );
+    // Still one top-level block: the split happened inside the quote.
+    assert_eq!(editor.document().blocks().len(), 1);
+    let second = editor.document().text_block_ids()[1];
+    assert_eq!(editor.selection(), SelectionRange::in_block(second, 0, 0));
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(markdown::to_markdown(editor.document()), "> onetwo\n");
+}
+
+#[test]
+fn return_inside_a_list_item_splits_within_the_item() {
+    let mut editor = open("- onetwo\n");
+    let inner = editor.document().text_block_ids()[0];
+    select(&mut editor, inner, 3, 3);
+
+    editor.apply(EditorCommand::SplitBlock).unwrap();
+
+    // One top-level list still, with two paragraphs in its one item.
+    assert_eq!(editor.document().blocks().len(), 1);
+    assert_eq!(editor.document().text_block_ids().len(), 2);
+    assert_eq!(editor.document().plain_text(), "one\n\ntwo");
+}
+
+#[test]
+fn backspace_joins_two_paragraphs_inside_one_quote() {
+    let mut editor = open("> one\n>\n> two\n");
+    let second = editor.document().text_block_ids()[1];
+    select(&mut editor, second, 0, 0);
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    assert_eq!(markdown::to_markdown(editor.document()), "> onetwo\n");
+    assert_eq!(editor.document().text_block_ids().len(), 1);
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "> one\n>\n> two\n"
+    );
+}
+
+#[test]
+fn backspace_at_the_top_of_a_quote_joins_it_to_the_block_before() {
+    let mut editor = open("before\n\n> quoted\n");
+    let before = editor.document().text_block_ids()[0];
+    let inner = editor.document().text_block_ids()[1];
+    select(&mut editor, inner, 0, 0);
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    // The quote held nothing else, so it went with its paragraph.
+    assert_eq!(markdown::to_markdown(editor.document()), "beforequoted\n");
+    assert_eq!(editor.document().blocks().len(), 1);
+    assert_eq!(editor.selection(), SelectionRange::in_block(before, 6, 6));
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "before\n\n> quoted\n"
+    );
+}
+
+#[test]
+fn backspace_in_a_quote_with_more_in_it_leaves_the_quote_standing() {
+    let mut editor = open("before\n\n> first\n>\n> second\n");
+    let inner = editor.document().text_block_ids()[1];
+    select(&mut editor, inner, 0, 0);
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "beforefirst\n\n> second\n"
+    );
+}
+
+#[test]
+fn backspace_at_the_start_of_a_list_joins_the_item_to_the_block_before() {
+    let mut editor = open("before\n\n- one\n- two\n");
+    let inner = editor.document().text_block_ids()[1];
+    select(&mut editor, inner, 0, 0);
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    // The first item is absorbed; the rest of the list stays a list.
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "beforeone\n\n- two\n"
+    );
+}
+
+#[test]
+fn a_selection_across_two_paragraphs_of_one_quote_is_joined() {
+    let mut editor = open("> one two\n>\n> three four\n");
+    let first = editor.document().text_block_ids()[0];
+    let second = editor.document().text_block_ids()[1];
+    select_across(
+        &mut editor,
+        Position::new(first, 4),
+        Position::new(second, 6),
+    );
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    assert_eq!(markdown::to_markdown(editor.document()), "> one four\n");
+    assert_eq!(editor.selection(), SelectionRange::in_block(first, 4, 4));
+}
+
+#[test]
+fn a_selection_across_two_list_items_joins_them_into_one() {
+    let mut editor = open("- one two\n- three four\n");
+    let first = editor.document().text_block_ids()[0];
+    let second = editor.document().text_block_ids()[1];
+    select_across(
+        &mut editor,
+        Position::new(first, 4),
+        Position::new(second, 6),
+    );
+
+    editor.apply(EditorCommand::insert_text("and ")).unwrap();
+
+    assert_eq!(markdown::to_markdown(editor.document()), "- one and four\n");
+    assert_eq!(editor.selection(), SelectionRange::in_block(first, 8, 8));
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "- one two\n- three four\n"
+    );
+}
+
+#[test]
+fn a_container_is_refused_inside_a_table_cell() {
+    let mut editor = open("| a | b |\n| --- | --- |\n| c | d |\n");
+    let cell = editor.document().text_block_ids()[0];
+    select(&mut editor, cell, 0, 0);
+
+    for command in [
+        EditorCommand::WrapInQuote,
+        EditorCommand::ToggleList { ordered: false },
+        EditorCommand::SetCodeBlock { language: None },
+        EditorCommand::InsertTable {
+            rows: 1,
+            columns: 1,
+        },
+    ] {
+        assert!(matches!(
+            editor.apply(command),
+            Err(EditorError::Unsupported(_))
+        ));
+    }
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "| a | b |\n| --- | --- |\n| c | d |\n"
+    );
+}
+
+// --- selections that run through containers -----------------------------------
+
+#[test]
+fn a_selection_from_prose_into_a_list_keeps_the_items_it_did_not_cover() {
+    let mut editor = open("before\n\n- one\n- two\n- three\n");
+    let before = editor.document().text_block_ids()[0];
+    let second = editor.document().text_block_ids()[2];
+    select_across(
+        &mut editor,
+        Position::new(before, 3),
+        Position::new(second, 1),
+    );
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "befwo\n\n- three\n"
+    );
+    assert_eq!(editor.selection(), SelectionRange::in_block(before, 3, 3));
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "before\n\n- one\n- two\n- three\n"
+    );
+}
+
+#[test]
+fn a_selection_spanning_a_quote_and_a_list_removes_what_it_covers() {
+    let mut editor = open("> quoted\n>\n> more\n\n- one\n- two\n\nafter\n");
+    let quoted = editor.document().text_block_ids()[0];
+    let after = editor.document().text_block_ids()[4];
+    select_across(
+        &mut editor,
+        Position::new(quoted, 3),
+        Position::new(after, 2),
+    );
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    // The quote keeps the start block, the list is gone entirely.
+    assert_eq!(markdown::to_markdown(editor.document()), "> quoter\n");
+    assert_eq!(editor.document().blocks().len(), 1);
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "> quoted\n>\n> more\n\n- one\n- two\n\nafter\n"
+    );
+}
+
+#[test]
+fn a_selection_ending_in_code_leaves_the_code_after_it() {
+    let mut editor = open("before\n\n```rust\nlet a = 1;\nlet b = 2;\n```\n");
+    let before = editor.document().text_block_ids()[0];
+    let code = editor.document().text_block_ids()[1];
+    select_across(
+        &mut editor,
+        Position::new(before, 3),
+        Position::new(code, 11),
+    );
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    // Prose can't absorb code, so the code block stays — minus what was
+    // selected.
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "bef\n\n```rust\nlet b = 2;\n```\n"
+    );
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "before\n\n```rust\nlet a = 1;\nlet b = 2;\n```\n"
+    );
+}
+
+#[test]
+fn a_selection_crossing_the_edge_of_a_table_is_refused() {
+    let mut editor = open("before\n\n| a | b |\n| --- | --- |\n| c | d |\n");
+    let before = editor.document().text_block_ids()[0];
+    let cell = editor.document().text_block_ids()[1];
+    select_across(
+        &mut editor,
+        Position::new(before, 3),
+        Position::new(cell, 1),
+    );
+
+    assert!(matches!(
+        editor.apply(EditorCommand::insert_text("x")),
+        Err(EditorError::Unsupported(_))
+    ));
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "before\n\n| a | b |\n| --- | --- |\n| c | d |\n"
+    );
+}
+
+#[test]
+fn return_works_two_containers_deep() {
+    let mut editor = open("- > onetwo\n");
+    let inner = editor.document().text_block_ids()[0];
+    select(&mut editor, inner, 3, 3);
+
+    editor.apply(EditorCommand::SplitBlock).unwrap();
+
+    // Still a list holding a quote: the split happened inside the quote.
+    assert_eq!(editor.document().blocks().len(), 1);
+    assert_eq!(editor.document().blocks()[0].kind.name(), "list");
+    assert_eq!(editor.document().text_block_ids().len(), 2);
+    assert_eq!(editor.document().plain_text(), "one\n\ntwo");
+}
+
+#[test]
+fn backspace_joins_a_paragraph_onto_the_quote_before_it() {
+    let mut editor = open("> quoted\n\nafter\n");
+    let after = editor.document().text_block_ids()[1];
+    select(&mut editor, after, 0, 0);
+
+    editor
+        .apply(EditorCommand::Delete(Direction::Backward))
+        .unwrap();
+
+    // The text joins the quote's last paragraph, where the caret now is.
+    assert_eq!(markdown::to_markdown(editor.document()), "> quotedafter\n");
+    assert_eq!(editor.document().blocks().len(), 1);
+}
+
+#[test]
+fn return_over_a_selection_spanning_blocks_splits_where_it_was() {
+    let mut editor = open("one two\n\n> three four\n");
+    let first = editor.document().text_block_ids()[0];
+    let quoted = editor.document().text_block_ids()[1];
+    select_across(
+        &mut editor,
+        Position::new(first, 3),
+        Position::new(quoted, 6),
+    );
+
+    editor.apply(EditorCommand::SplitBlock).unwrap();
+
+    // One press, one undo step: the selection went and the split happened.
+    assert_eq!(markdown::to_markdown(editor.document()), "one\n\nfour\n");
+    let second = editor.document().text_block_ids()[1];
+    assert_eq!(editor.selection(), SelectionRange::in_block(second, 0, 0));
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "one two\n\n> three four\n"
+    );
+}
+
+#[test]
+fn return_over_a_selection_inside_a_quote_keeps_both_halves_quoted() {
+    let mut editor = open("> one two\n>\n> three four\n");
+    let first = editor.document().text_block_ids()[0];
+    let second = editor.document().text_block_ids()[1];
+    select_across(
+        &mut editor,
+        Position::new(first, 3),
+        Position::new(second, 6),
+    );
+
+    editor.apply(EditorCommand::SplitBlock).unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "> one\n>\n> four\n"
+    );
+    assert_eq!(editor.document().blocks().len(), 1);
+}
+
+#[test]
+fn bold_over_a_selection_spanning_blocks_marks_every_block_it_covers() {
+    let mut editor = open("one two\n\n> three\n\n- four five\n");
+    let first = editor.document().text_block_ids()[0];
+    let last = editor.document().text_block_ids()[2];
+    select_across(&mut editor, Position::new(first, 4), Position::new(last, 4));
+
+    editor.apply(EditorCommand::toggle_bold()).unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "one **two**\n\n> **three**\n\n- **four** five\n"
+    );
+
+    // Toggling again over the same selection takes it all off.
+    editor.apply(EditorCommand::toggle_bold()).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "one two\n\n> three\n\n- four five\n"
+    );
+}
+
+#[test]
+fn bold_across_blocks_leaves_a_code_block_between_them_alone() {
+    let mut editor = open("one\n\n```\nlet a = 1;\n```\n\ntwo\n");
+    let first = editor.document().text_block_ids()[0];
+    let last = editor.document().text_block_ids()[2];
+    select_across(&mut editor, Position::new(first, 0), Position::new(last, 3));
+
+    editor.apply(EditorCommand::toggle_bold()).unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "**one**\n\n```\nlet a = 1;\n```\n\n**two**\n"
+    );
+}
+
+// --- block commands over a selection that spans blocks -------------------------
+
+#[test]
+fn a_heading_over_a_selection_spanning_blocks_changes_every_block() {
+    let mut editor = open("one\n\ntwo\n\nthree\n");
+    let first = editor.document().text_block_ids()[0];
+    let last = editor.document().text_block_ids()[1];
+    select_across(&mut editor, Position::new(first, 0), Position::new(last, 3));
+
+    editor.apply(EditorCommand::SetHeadingLevel(2)).unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "## one\n\n## two\n\nthree\n"
+    );
+
+    editor.apply(EditorCommand::SetParagraph).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "one\n\ntwo\n\nthree\n"
+    );
+}
+
+#[test]
+fn a_list_over_a_selection_spanning_blocks_makes_one_item_each() {
+    let mut editor = open("one\n\ntwo\n\nthree\n");
+    let first = editor.document().text_block_ids()[0];
+    let last = editor.document().text_block_ids()[2];
+    select_across(&mut editor, Position::new(first, 0), Position::new(last, 1));
+
+    editor
+        .apply(EditorCommand::ToggleList { ordered: true })
+        .unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "1. one\n2. two\n3. three\n"
+    );
+    assert_eq!(editor.document().blocks().len(), 1);
+
+    editor.apply(EditorCommand::Undo).unwrap();
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "one\n\ntwo\n\nthree\n"
+    );
+}
+
+#[test]
+fn a_quote_over_a_selection_spanning_blocks_wraps_the_lot_once() {
+    let mut editor = open("one\n\ntwo\n\nthree\n");
+    let first = editor.document().text_block_ids()[0];
+    let last = editor.document().text_block_ids()[1];
+    select_across(&mut editor, Position::new(first, 0), Position::new(last, 3));
+
+    editor.apply(EditorCommand::WrapInQuote).unwrap();
+
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "> one\n>\n> two\n\nthree\n"
+    );
+    assert_eq!(editor.document().blocks().len(), 2);
+}
+
+#[test]
+fn a_quote_over_a_selection_that_leaves_a_container_is_refused() {
+    let mut editor = open("before\n\n> quoted\n");
+    let before = editor.document().text_block_ids()[0];
+    let inner = editor.document().text_block_ids()[1];
+    select_across(
+        &mut editor,
+        Position::new(before, 0),
+        Position::new(inner, 6),
+    );
+
+    assert!(matches!(
+        editor.apply(EditorCommand::WrapInQuote),
+        Err(EditorError::Unsupported(_))
+    ));
+    assert_eq!(
+        markdown::to_markdown(editor.document()),
+        "before\n\n> quoted\n"
     );
 }

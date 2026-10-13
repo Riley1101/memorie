@@ -140,7 +140,12 @@ edit, and each is its own inverse, so no operation has a hand-written undo rule
 that can drift from its do-rule. Commands are the rich vocabulary; operations
 stay minimal. `ReplaceBlock` is how a container is restructured: adding a table
 row or flipping a list replaces the container wholesale, and because the blocks
-inside keep their ids, a caret in a cell survives a row appearing above it.
+inside keep their ids, a caret in a cell survives a row appearing above it. It is
+also how a structural edit works at depth: splitting a paragraph inside a quote
+splices that quote's own block list and sends the quote back rewritten, so the
+document's top-level list never moves. An operation built this way is a copy of
+the container as it stands, so it is applied *before* any inline edit in the same
+transaction — otherwise the copy would put back what the inline edit changed.
 
 **Transactions are atomic.** A failure halfway rolls back what already applied;
 one transaction bumps the revision once, however many operations it holds.
@@ -166,14 +171,23 @@ worse than an extra undo.
 
 These are refusals with a clear error, not silent wrong behaviour:
 
-- **Splitting, merging, quoting and heading changes are top-level only**
-  (`EditorError::NestedBlock`). Inline editing works at any depth, and lists
-  and tables restructure at any depth via `ReplaceBlock`; splitting a paragraph
-  *inside* a list item does not yet.
-- A **selection with an end inside a nested block** is refused
-  (`NestedBlock`). Both ends at the top level is the case that works.
+- **Block content inside a table cell is refused** (`Unsupported`): a quote, a
+  list, a code block or a table in a cell would be dropped the next time the
+  document is written, because a GFM pipe table holds inline content only.
+- A **selection crossing the edge of a table** is refused (`Unsupported`).
+  Removing cells to close the gap would leave rows of different lengths, so the
+  edit is refused rather than the table broken.
+- A command that **puts one container around a selection** — quote, list —
+  needs the selection to be one run of siblings. Ends in different lists (two
+  list items, two cells, inside and outside a quote) are refused: there is no
+  single place for the container to go.
+- **Code joins nothing.** Backspace at the seam between code and prose does
+  nothing, and a selection ending inside a code block keeps the code that
+  follows it rather than merging it into prose.
 - **Indent/outdent** of list items, and removing a row or column, are not
   implemented; the commands that exist cover creating and toggling.
+- **A heading inside a table cell** keeps its text but loses its level when the
+  document is written, since a cell has nowhere to put it.
 - **Coalescing needs a host clock.** `apply` without a timestamp records every
   keystroke separately; `apply_at` is what the Tauri layer should call.
 
@@ -258,12 +272,15 @@ Two serializer details worth knowing, because they are easy to get wrong:
 
 A selection spanning blocks is served by joining its two ends: what follows the
 selection in the last block moves onto the first, and every block between them
-is removed — one transaction, two operations, invertible like any other. Ends
-inside a quote or a list item are refused rather than half-handled.
+is removed — one transaction, two operations, invertible like any other. The two
+ends may sit at different depths: what the selection covers is pruned out of the
+block tree, and a quote or a list item left with nothing in it goes with it.
+Backspace at the start of a block is built from the same code, so a seam
+behaves the same way however it is closed.
 
 Lists and tables are now editable through `ReplaceBlock`, which replaces a
 container in place. `ToggleList` wraps a paragraph, flips bullets to numbers
-(at any depth), or unwraps a top-level list; `ToggleTask` makes an item a task
+(at any depth), or unwraps a list into whatever is around it; `ToggleTask` makes an item a task
 and then ticks and unticks it; tables gain rows and columns around the caret.
 The caret survives all of it because the blocks inside a container keep their
 ids.
@@ -433,13 +450,17 @@ paragraph in the view, because the whole document arrived new.
 Two changes came out of that:
 
 **The engine reports what it changed.** `Transaction::change()` gives a
-`Change { blocks, structural }`, which `Editor::apply` now returns. A keystroke
-touches one block; only a change to the top-level block list is `structural`.
+`Change { blocks, structural, reshaped }`, which `Editor::apply` now returns. A
+keystroke touches one block; only a change to the top-level block list is
+`structural`. `reshaped` is set when a whole block was replaced — a heading
+toggled inside a quote moves no block but does change the outline, and that is
+the flag the outline is sent on.
 
 **The wire sends an update, not a document.** `editor_apply` returns
 `WireUpdate`: the revision, the selection, the toolbar state, and *only the
 blocks that changed* — the whole list again just when the structure moved, with
-the outline attached only then, since headings can't move otherwise. Editing a
+the outline attached whenever a block was replaced or the list moved, the only
+changes that can add, remove or re-level a heading. Editing a
 table cell sends that cell; adding a row sends that table; neither sends the
 document. On the frontend, `patchState` folds an update into the state in place,
 so the view redraws one paragraph.

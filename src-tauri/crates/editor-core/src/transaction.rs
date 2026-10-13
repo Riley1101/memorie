@@ -167,6 +167,11 @@ pub struct Change {
     /// Set when the top-level block list itself changed — blocks added, removed
     /// or reordered — so their order has to be sent again.
     pub structural: bool,
+    /// Set when a whole block was replaced rather than its text edited, so its
+    /// kind, or the structure nested under it, may be different. A heading
+    /// toggled inside a quote is this and not `structural`: the document's own
+    /// list did not move, but an outline built from the document did change.
+    pub reshaped: bool,
 }
 
 impl Change {
@@ -179,6 +184,7 @@ impl Change {
     /// Folds another change into this one, for a batch applied as a unit.
     pub fn merge(&mut self, other: Change) {
         self.structural |= other.structural;
+        self.reshaped |= other.reshaped;
         for block in other.blocks {
             self.touch(block);
         }
@@ -213,8 +219,12 @@ impl Transaction {
                 Operation::ReplaceBlock { block, with } => {
                     change.touch(*block);
                     change.touch(with.id);
+                    change.reshaped = true;
                 }
-                Operation::ReplaceBlocks { .. } => change.structural = true,
+                Operation::ReplaceBlocks { .. } => {
+                    change.structural = true;
+                    change.reshaped = true;
+                }
             }
         }
         change

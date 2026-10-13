@@ -12,7 +12,7 @@ pub enum EditorError {
     NoSuchBlock(BlockId),
     /// The block holds no editable inline content (a code block, a rule).
     NotTextual(BlockId),
-    /// A block range outside the top-level list.
+    /// A block range outside the list it was meant to splice.
     OutOfRange {
         start: usize,
         end: usize,
@@ -20,8 +20,6 @@ pub enum EditorError {
     },
     /// The selection spans blocks and the command only handles one.
     MultiBlockSelection,
-    /// The command needs a top-level block and got a nested one.
-    NestedBlock(BlockId),
     /// Nothing to undo or redo.
     NothingToDo,
     /// Knowingly not implemented yet, with what is missing.
@@ -43,13 +41,6 @@ impl fmt::Display for EditorError {
             }
             EditorError::MultiBlockSelection => {
                 write!(f, "this command needs a selection inside one block")
-            }
-            EditorError::NestedBlock(id) => {
-                write!(
-                    f,
-                    "block {} is nested; structural edits are top-level only",
-                    id.0
-                )
             }
             EditorError::NothingToDo => write!(f, "nothing to undo or redo"),
             EditorError::Unsupported(what) => write!(f, "not supported yet: {what}"),

@@ -555,7 +555,7 @@ fn moving_the_caret_is_not_an_edit() {
 // --- commands that can't be honoured ---------------------------------------
 
 #[test]
-fn a_selection_ending_inside_a_nested_block_is_refused_rather_than_half_handled() {
+fn a_selection_ending_inside_a_quote_joins_the_two_ends() {
     let mut editor = editor(vec![
         BlockKind::paragraph("first"),
         BlockKind::paragraph("quoted"),
@@ -575,11 +575,15 @@ fn a_selection_ending_inside_a_nested_block_is_refused_rather_than_half_handled(
             Position::new(quoted, 2),
         )))
         .unwrap();
-    assert!(matches!(
-        editor.apply(EditorCommand::insert_text("x")),
-        Err(EditorError::NestedBlock(_))
-    ));
-    // And the document is untouched.
+    editor.apply(EditorCommand::insert_text("x")).unwrap();
+
+    // The quote's only paragraph was consumed by the selection, so the quote
+    // goes with it and what survived joined the first block.
+    assert_eq!(text(&editor, 0), "fxoted");
+    assert_eq!(editor.document().blocks().len(), 1);
+    assert_eq!(editor.document().block(quoted), None);
+
+    editor.apply(EditorCommand::Undo).unwrap();
     assert_eq!(text(&editor, 0), "first");
     assert_eq!(
         editor.document().block(quoted).unwrap().own_text(),

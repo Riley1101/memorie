@@ -52,6 +52,55 @@ impl Block {
         }
     }
 
+    /// The child lists this block owns, in document order.
+    ///
+    /// A container keeps its children in several lists — a list one per item, a
+    /// table one per cell — and a structural edit has to splice the one list
+    /// the edited block actually sits in, not all the children at once.
+    fn child_lists(&self) -> Vec<&Vec<Block>> {
+        match &self.kind {
+            BlockKind::Quote { blocks } => vec![blocks],
+            BlockKind::List { items, .. } => items.iter().map(|item| &item.blocks).collect(),
+            BlockKind::Table { table } => table
+                .rows
+                .iter()
+                .flat_map(|row| row.cells.iter())
+                .map(|cell| &cell.blocks)
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn child_lists_mut(&mut self) -> Vec<&mut Vec<Block>> {
+        match &mut self.kind {
+            BlockKind::Quote { blocks } => vec![blocks],
+            BlockKind::List { items, .. } => {
+                items.iter_mut().map(|item| &mut item.blocks).collect()
+            }
+            BlockKind::Table { table } => table
+                .rows
+                .iter_mut()
+                .flat_map(|row| row.cells.iter_mut())
+                .map(|cell| &mut cell.blocks)
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// The child list holding `child` directly, if this block owns one.
+    pub fn child_list(&self, child: BlockId) -> Option<&Vec<Block>> {
+        self.child_lists()
+            .into_iter()
+            .find(|list| list.iter().any(|block| block.id == child))
+    }
+
+    /// The child list holding `child` directly, for a structural edit.
+    pub(crate) fn child_list_mut(&mut self, child: BlockId) -> Option<&mut Vec<Block>> {
+        self.child_lists_mut()
+            .into_iter()
+            .find(|list| list.iter().any(|block| block.id == child))
+    }
+
     fn children_mut(&mut self) -> Vec<&mut Block> {
         match &mut self.kind {
             BlockKind::Quote { blocks } => blocks.iter_mut().collect(),

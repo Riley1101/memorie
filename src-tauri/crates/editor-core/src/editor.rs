@@ -284,9 +284,10 @@ impl Editor {
     ///
     /// A selection spanning blocks is served by joining its two ends: what
     /// follows the selection in the last block moves onto the first block, and
-    /// every block between them (the last included) is removed. Both ends have
-    /// to be top-level blocks — a selection ending inside a quote or a list is
-    /// refused rather than half-handled.
+    /// everything the selection covers in between is removed, including quotes
+    /// and lists left with nothing in them. The ends may sit at different
+    /// depths; only a selection crossing a table's edge is refused, since
+    /// removing cells would leave rows of different lengths.
     fn replace_selection_ops(&self, content: InlineContent) -> Result<(Vec<Operation>, Position)> {
         if let Some((block, start, end)) = self.selection.single_block_range() {
             self.content_of(block)?;
@@ -303,43 +304,156 @@ impl Editor {
         }
 
         let (from, to) = self.selection.ordered(&self.document);
-        let first = self.top_index(from.block)?;
-        let last = self.top_index(to.block)?;
-        if last <= first {
-            return Err(EditorError::Unsupported(
-                "a selection whose ends are not in document order",
-            ));
-        }
-        self.content_of(from.block)?;
+        self.join_ops(from, to, content)
+    }
+
+    /// The operations that replace everything between `from` and `to` with
+    /// `content`, joining the two blocks into one.
+    ///
+    /// Both a selection being typed over and a backspace at the start of a
+    /// block come through here, so the seam between two blocks behaves the same
+    /// way however it is closed.
+    fn join_ops(
+        &self,
+        from: Position,
+        to: Position,
+        content: InlineContent,
+    ) -> Result<(Vec<Operation>, Position)> {
+        self.guard_join(from.block, to.block)?;
+
+        // Code is kept rather than joined: prose can't absorb it without
+        // losing its fence, so the code after the selection stays where it is.
+        let end_holds_code = self
+            .document
+            .block(to.block)
+            .map(|block| block.kind.code().is_some())
+            .unwrap_or(false);
+        let end_code_tail = end_holds_code && to.offset < self.document.block_len(to.block);
 
         // What survives in the last block joins the first one, right after the
         // inserted content.
-        let tail = self
-            .document
-            .block(to.block)
-            .and_then(Block::content)
-            .map(|content| content.slice(to.offset, content.len()))
-            .unwrap_or_default();
+        let tail = if end_holds_code {
+            InlineContent::default()
+        } else {
+            self.document
+                .block(to.block)
+                .and_then(Block::content)
+                .map(|content| content.slice(to.offset, content.len()))
+                .unwrap_or_default()
+        };
         let caret = Position::new(from.block, from.offset + content.len());
         let mut joined: Vec<Inline> = content.pieces().to_vec();
         joined.extend(tail.pieces().iter().cloned());
 
-        Ok((
-            vec![
-                Operation::ReplaceInline {
-                    block: from.block,
-                    start: from.offset,
-                    end: self.document.block_len(from.block),
-                    content: InlineContent::new(joined),
-                },
-                Operation::ReplaceBlocks {
-                    start: first + 1,
-                    end: last + 1,
-                    blocks: Vec::new(),
-                },
-            ],
-            caret,
-        ))
+        // The structural operation comes first: it is built from the document
+        // as it stands, so an inline edit applied before it would be lost when
+        // the blocks it rewrites are put back.
+        let mut operations =
+            vec![self.prune_selection_op(from.block, to.block, end_code_tail, None)?];
+        operations.push(Operation::ReplaceInline {
+            block: from.block,
+            start: from.offset,
+            end: self.document.block_len(from.block),
+            content: InlineContent::new(joined),
+        });
+        if end_code_tail {
+            // The selected head of the code block goes; the rest stays.
+            operations.push(Operation::ReplaceCode {
+                block: to.block,
+                start: 0,
+                end: to.offset,
+                text: String::new(),
+            });
+        }
+        Ok((operations, caret))
+    }
+
+    /// What both ends of a cross-block edit have to satisfy: in document order,
+    /// on the same side of every table's edge — a prune can't keep a table's
+    /// rows the same length — and a start block that holds inline content.
+    fn guard_join(&self, from: BlockId, to: BlockId) -> Result<()> {
+        let first_order = self
+            .document
+            .order_index(from)
+            .ok_or(EditorError::NoSuchBlock(from))?;
+        let last_order = self
+            .document
+            .order_index(to)
+            .ok_or(EditorError::NoSuchBlock(to))?;
+        if last_order <= first_order {
+            return Err(EditorError::Unsupported(
+                "a selection whose ends are not in document order",
+            ));
+        }
+        if self.document.table_position(from) != self.document.table_position(to) {
+            return Err(EditorError::Unsupported(
+                "a selection crossing the edge of a table",
+            ));
+        }
+        self.content_of(from)?;
+        Ok(())
+    }
+
+    /// The operation removing everything the selection covers between its two
+    /// ends, at whatever depth they sit.
+    ///
+    /// Two blocks in one list are a plain splice of that list. Otherwise the
+    /// top-level blocks the selection runs through are rewritten from a pruned
+    /// copy: one block when both ends are inside the same one — a quote, or two
+    /// items of one list — and the whole run when it spans several.
+    ///
+    /// `replace_from` puts blocks where the start block was, which is how a
+    /// return pressed over a selection splits and deletes in one operation.
+    fn prune_selection_op(
+        &self,
+        from: BlockId,
+        to: BlockId,
+        keep_end: bool,
+        replace_from: Option<Vec<Block>>,
+    ) -> Result<Operation> {
+        let first = self.site(from)?;
+        let last = self.site(to)?;
+        if replace_from.is_none() && first.shares_list_with(&last) && !keep_end {
+            return self.splice(first, first.index + 1, last.index + 1, Vec::new());
+        }
+
+        let first_top = self
+            .document
+            .top_ancestor(from)
+            .and_then(|id| self.document.top_index(id))
+            .ok_or(EditorError::NoSuchBlock(from))?;
+        let last_top = self
+            .document
+            .top_ancestor(to)
+            .and_then(|id| self.document.top_index(id))
+            .ok_or(EditorError::NoSuchBlock(to))?;
+
+        let mut phase = Phase::Before;
+        let run = self.document.blocks()[first_top..=last_top].to_vec();
+        let mut pruned = prune_covered(run, from, to, keep_end, &mut phase);
+        if let Some(blocks) = replace_from {
+            if !splice_in_tree(&mut pruned, from, blocks) {
+                return Err(EditorError::NoSuchBlock(from));
+            }
+        }
+
+        // Both ends inside one top-level block: that block is rewritten, which
+        // leaves the document's own list untouched and the ids inside it alone.
+        if first_top == last_top {
+            let block = pruned
+                .into_iter()
+                .next()
+                .ok_or(EditorError::NoSuchBlock(from))?;
+            return Ok(Operation::ReplaceBlock {
+                block: self.document.blocks()[first_top].id,
+                with: Box::new(block),
+            });
+        }
+        Ok(Operation::ReplaceBlocks {
+            start: first_top,
+            end: last_top + 1,
+            blocks: pruned,
+        })
     }
 
     /// Types `text` into a code block, where there is no formatting to carry.
@@ -361,7 +475,10 @@ impl Editor {
     /// Replaces the selection with `content`, or with `text` carrying the marks
     /// and link in force at the insertion point when `content` is empty.
     fn insert_content(&self, content: InlineContent, text: String) -> Result<Transaction> {
-        if self.caret_holds_code() && content.is_empty() {
+        if self.caret_holds_code()
+            && content.is_empty()
+            && self.selection.single_block_range().is_some()
+        {
             return self.insert_code(text);
         }
         let content = if content.is_empty() {
@@ -388,7 +505,10 @@ impl Editor {
     }
 
     fn delete(&self, direction: Direction) -> Result<Transaction> {
-        if self.caret_holds_code() {
+        // Code is edited as text, but only when the whole selection is inside
+        // it: a selection that runs out of a code block is a block-level edit
+        // like any other.
+        if self.caret_holds_code() && self.selection.single_block_range().is_some() {
             let (block, start, end) = self.code_target()?;
             let (start, end) = match (start == end, direction) {
                 (false, _) => (start, end),
@@ -458,12 +578,6 @@ impl Editor {
         }
     }
 
-    /// The smallest edit that turns the caret block's text into `text`.
-    ///
-    /// The common prefix and suffix are left untouched, so only what actually
-    /// changed is replaced and formatting on either side of it survives. New
-    /// text takes the marks in force where it starts, so composing inside a
-    /// bold word stays bold.
     fn set_block_text(&self, text: String) -> Result<Transaction> {
         let block = self.selection.head.block;
         let before_text = self
@@ -549,8 +663,11 @@ impl Editor {
         if self.caret_holds_code() {
             return self.insert_code("\n".to_string());
         }
+        if self.selection.single_block_range().is_none() {
+            return self.split_over_selection();
+        }
         let (block, start, end, content) = self.inline_target_owned()?;
-        let index = self.top_index(block)?;
+        let site = self.site(block)?;
         let heading_level = match &self.document.block(block).expect("checked above").kind {
             BlockKind::Heading { level, .. } => Some(*level),
             _ => None,
@@ -577,15 +694,69 @@ impl Editor {
             .new_block(BlockKind::Paragraph { content: tail });
 
         let caret = Position::new(second.id, 0);
-        Ok(
-            Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
-                Operation::ReplaceBlocks {
-                    start: index,
-                    end: index + 1,
-                    blocks: vec![first, second],
-                },
+        let split = self.splice(site, site.index, site.index + 1, vec![first, second])?;
+        Ok(Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(split))
+    }
+
+    /// Return pressed with a selection that spans blocks: the selection goes
+    /// and the split happens where it was, in one operation rather than a
+    /// delete the writer would have to undo twice.
+    fn split_over_selection(&mut self) -> Result<Transaction> {
+        let (from, to) = self.selection.ordered(&self.document);
+        self.guard_join(from.block, to.block)?;
+        let content = self.content_of(from.block)?.clone();
+
+        let (tail, keep_end) = match self.document.block(to.block) {
+            Some(block) if block.kind.code().is_some() => (
+                InlineContent::default(),
+                to.offset < self.document.block_len(to.block),
             ),
-        )
+            Some(block) => (
+                block
+                    .content()
+                    .map(|content| content.slice(to.offset, content.len()))
+                    .unwrap_or_default(),
+                false,
+            ),
+            None => return Err(EditorError::NoSuchBlock(to.block)),
+        };
+
+        let head = content.slice(0, from.offset);
+        let heading_level = match &self.document.block(from.block).expect("checked above").kind {
+            BlockKind::Heading { level, .. } => Some(*level),
+            _ => None,
+        };
+        let first = Block::new(
+            from.block,
+            match heading_level {
+                Some(level) => BlockKind::Heading {
+                    level,
+                    content: head,
+                },
+                None => BlockKind::Paragraph { content: head },
+            },
+        );
+        let second = self
+            .document
+            .new_block(BlockKind::Paragraph { content: tail });
+        let caret = Position::new(second.id, 0);
+
+        let mut transaction = Transaction::new(self.selection, SelectionRange::collapsed(caret));
+        transaction.operations.push(self.prune_selection_op(
+            from.block,
+            to.block,
+            keep_end,
+            Some(vec![first, second]),
+        )?);
+        if keep_end {
+            transaction.operations.push(Operation::ReplaceCode {
+                block: to.block,
+                start: 0,
+                end: to.offset,
+                text: String::new(),
+            });
+        }
+        Ok(transaction)
     }
 
     fn merge_blocks(&mut self) -> Result<Transaction> {
@@ -593,7 +764,12 @@ impl Editor {
         self.merge(block)
     }
 
-    /// Joins `block` onto the text block before it.
+    /// Joins `block` onto the text block before it, wherever the two sit.
+    ///
+    /// This is the same edit as deleting a selection that runs from the end of
+    /// the previous block to the start of this one, and it is built that way:
+    /// one seam, one behaviour. A quote or a list left empty by the join is
+    /// removed with it.
     fn merge(&self, block: BlockId) -> Result<Transaction> {
         let previous = self
             .document
@@ -611,38 +787,68 @@ impl Editor {
         if joins_code {
             return Err(EditorError::NothingToDo);
         }
-        let index = self.top_index(block)?;
-        let previous_index = self.top_index(previous)?;
-        if previous_index + 1 != index {
-            return Err(EditorError::Unsupported("merging across nested blocks"));
-        }
+        self.content_of(block)?;
 
-        let tail = self
-            .document
-            .block(block)
-            .and_then(Block::content)
-            .cloned()
-            .ok_or(EditorError::NotTextual(block))?;
         let joint = self.document.block_len(previous);
+        let (operations, caret) = self.join_ops(
+            Position::new(previous, joint),
+            Position::new(block, 0),
+            InlineContent::empty(),
+        )?;
+        let mut transaction = Transaction::new(self.selection, SelectionRange::collapsed(caret));
+        transaction.operations = operations;
+        Ok(transaction)
+    }
 
-        let caret = Position::new(previous, joint);
-        Ok(
-            Transaction::new(self.selection, SelectionRange::collapsed(caret))
-                .with(Operation::ReplaceInline {
-                    block: previous,
-                    start: joint,
-                    end: joint,
-                    content: tail,
-                })
-                .with(Operation::ReplaceBlocks {
-                    start: index,
-                    end: index + 1,
-                    blocks: Vec::new(),
-                }),
-        )
+    /// The text blocks a selection spanning blocks covers, in document order,
+    /// at whatever depth they sit.
+    fn covered_text_blocks(&self) -> Result<Vec<BlockId>> {
+        let (from, to) = self.selection.ordered(&self.document);
+        let ids = self.document.text_block_ids();
+        let first = ids
+            .iter()
+            .position(|id| *id == from.block)
+            .ok_or(EditorError::NoSuchBlock(from.block))?;
+        let last = ids
+            .iter()
+            .position(|id| *id == to.block)
+            .ok_or(EditorError::NoSuchBlock(to.block))?;
+        if last < first {
+            return Err(EditorError::Unsupported(
+                "a selection whose ends are not in document order",
+            ));
+        }
+        Ok(ids[first..=last].to_vec())
+    }
+
+    /// The run of sibling blocks a selection covers, as the list it sits in and
+    /// the first and last index in it.
+    ///
+    /// A command that puts one container around what is selected needs the
+    /// selection to be one run of siblings; ends in different lists — two list
+    /// items, two table cells, inside and outside a quote — are refused, since
+    /// there is no single place for the container to go.
+    fn covered_run(&self) -> Result<(Site, usize)> {
+        let (from, to) = self.selection.ordered(&self.document);
+        let first = self.site(from.block)?;
+        let last = self.site(to.block)?;
+        if !first.shares_list_with(&last) {
+            return Err(EditorError::Unsupported(
+                "a selection whose ends are in different containers",
+            ));
+        }
+        if last.index < first.index {
+            return Err(EditorError::Unsupported(
+                "a selection whose ends are not in document order",
+            ));
+        }
+        Ok((first, last.index))
     }
 
     fn toggle_mark(&self, mark: MarkSet) -> Result<Transaction> {
+        if self.selection.single_block_range().is_none() {
+            return self.toggle_mark_across_blocks(mark);
+        }
         let (block, start, end, content) = self.inline_target()?;
         if start == end {
             // Marks for text not yet typed are editor state, not document
@@ -670,6 +876,76 @@ impl Editor {
         )
     }
 
+    /// Toggles a mark over a selection that spans blocks, one inline edit per
+    /// block it covers.
+    ///
+    /// Marks change no structure, so this works at any depth and across a quote
+    /// or a list. It is on unless every covered run already carries it — the
+    /// same rule as inside one block — and a code block in the way is left
+    /// alone, since code carries no marks.
+    fn toggle_mark_across_blocks(&self, mark: MarkSet) -> Result<Transaction> {
+        let (from, to) = self.selection.ordered(&self.document);
+        let ids = self.document.text_block_ids();
+        let first = ids
+            .iter()
+            .position(|id| *id == from.block)
+            .ok_or(EditorError::NoSuchBlock(from.block))?;
+        let last = ids
+            .iter()
+            .position(|id| *id == to.block)
+            .ok_or(EditorError::NoSuchBlock(to.block))?;
+        if last <= first {
+            return Err(EditorError::Unsupported(
+                "a selection whose ends are not in document order",
+            ));
+        }
+
+        let mut spans: Vec<(BlockId, usize, usize)> = Vec::new();
+        for (offset, id) in ids[first..=last].iter().enumerate() {
+            let Some(content) = self.document.block(*id).and_then(Block::content) else {
+                continue;
+            };
+            let start = if offset == 0 { from.offset } else { 0 };
+            let end = if first + offset == last {
+                to.offset.min(content.len())
+            } else {
+                content.len()
+            };
+            if end > start {
+                spans.push((*id, start, end));
+            }
+        }
+        if spans.is_empty() {
+            return Err(EditorError::NothingToDo);
+        }
+
+        let on = !spans.iter().all(|(id, start, end)| {
+            self.document
+                .block(*id)
+                .and_then(Block::content)
+                .map(|content| content.has_mark_throughout(*start, *end, mark))
+                .unwrap_or(false)
+        });
+
+        let mut transaction = Transaction::new(self.selection, self.selection);
+        for (block, start, end) in spans {
+            let content = self.content_of(block)?;
+            let mut middle = content.slice(start, end);
+            if on {
+                middle.apply_marks(0, middle.len(), mark, MarkSet::NONE);
+            } else {
+                middle.apply_marks(0, middle.len(), MarkSet::NONE, mark);
+            }
+            transaction = transaction.with(Operation::ReplaceInline {
+                block,
+                start,
+                end,
+                content: middle,
+            });
+        }
+        Ok(transaction)
+    }
+
     fn set_link(&self, url: Option<String>) -> Result<Transaction> {
         let (block, start, end, content) = self.inline_target()?;
         if start == end {
@@ -689,9 +965,14 @@ impl Editor {
     }
 
     fn set_heading_level(&self, level: u8) -> Result<Transaction> {
+        if self.selection.single_block_range().is_none() {
+            return self.set_heading_level_across_blocks(level);
+        }
         let block = self.selection.head.block;
-        let index = self.top_index(block)?;
-        let existing = self.document.block(block).expect("checked above");
+        let existing = self
+            .document
+            .block(block)
+            .ok_or(EditorError::NoSuchBlock(block))?;
 
         let content = match &existing.kind {
             BlockKind::Paragraph { content } | BlockKind::Heading { content, .. } => {
@@ -707,18 +988,47 @@ impl Editor {
         };
 
         Ok(
-            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlocks {
-                start: index,
-                end: index + 1,
-                blocks: vec![Block::new(block, kind)],
+            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlock {
+                block,
+                with: Box::new(Block::new(block, kind)),
             }),
         )
     }
 
+    /// Sets the heading level on every block a selection spanning blocks
+    /// covers. One replacement each, so a block keeps its id and its place.
+    /// Code blocks in the way are left as code.
+    fn set_heading_level_across_blocks(&self, level: u8) -> Result<Transaction> {
+        let mut transaction = Transaction::new(self.selection, self.selection);
+        for id in self.covered_text_blocks()? {
+            let Some(content) = self.document.block(id).and_then(Block::content) else {
+                continue;
+            };
+            let kind = if level == 0 {
+                BlockKind::Paragraph {
+                    content: content.clone(),
+                }
+            } else {
+                BlockKind::heading(level, content.clone())
+            };
+            transaction = transaction.with(Operation::ReplaceBlock {
+                block: id,
+                with: Box::new(Block::new(id, kind)),
+            });
+        }
+        if transaction.is_empty() {
+            return Err(EditorError::NothingToDo);
+        }
+        Ok(transaction)
+    }
+
     fn set_code_block(&self, language: Option<String>) -> Result<Transaction> {
         let block = self.selection.head.block;
-        let index = self.top_index(block)?;
-        let existing = self.document.block(block).expect("checked above");
+        self.reject_container_in_cell(block, "a code block inside a table cell")?;
+        let existing = self
+            .document
+            .block(block)
+            .ok_or(EditorError::NoSuchBlock(block))?;
         let code = match &existing.kind {
             BlockKind::Paragraph { content } | BlockKind::Heading { content, .. } => {
                 content.plain_text()
@@ -730,31 +1040,66 @@ impl Editor {
         let caret = Position::new(block, 0);
         Ok(
             Transaction::new(self.selection, SelectionRange::collapsed(caret)).with(
-                Operation::ReplaceBlocks {
-                    start: index,
-                    end: index + 1,
-                    blocks: vec![Block::new(block, BlockKind::CodeBlock { language, code })],
+                Operation::ReplaceBlock {
+                    block,
+                    with: Box::new(Block::new(block, BlockKind::CodeBlock { language, code })),
                 },
             ),
         )
     }
 
     fn wrap_in_quote(&mut self) -> Result<Transaction> {
+        if self.selection.single_block_range().is_none() {
+            return self.wrap_run_in_quote();
+        }
         let block = self.selection.head.block;
-        let index = self.top_index(block)?;
-        let inner = self.document.block(block).expect("checked above").clone();
+        self.reject_container_in_cell(block, "a quote inside a table cell")?;
+        let inner = self
+            .document
+            .block(block)
+            .ok_or(EditorError::NoSuchBlock(block))?
+            .clone();
         // The quoted block keeps its id, so the caret inside it stays valid.
         let quote = self.document.new_block(BlockKind::Quote {
             blocks: vec![inner],
         });
 
         Ok(
-            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlocks {
-                start: index,
-                end: index + 1,
-                blocks: vec![quote],
+            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlock {
+                block,
+                with: Box::new(quote),
             }),
         )
+    }
+
+    /// Puts one quote around every block a selection spanning blocks covers.
+    fn wrap_run_in_quote(&mut self) -> Result<Transaction> {
+        let (run, last) = self.covered_run()?;
+        self.reject_container_in_cell(run.anchor, "a quote inside a table cell")?;
+        let inner = self.sibling_run(run, last)?;
+        let quote = self.document.new_block(BlockKind::Quote { blocks: inner });
+        let wrap = self.splice(run, run.index, last + 1, vec![quote])?;
+        Ok(Transaction::new(self.selection, self.selection).with(wrap))
+    }
+
+    /// The blocks of `site`'s list from its index through `last`.
+    fn sibling_run(&self, site: Site, last: usize) -> Result<Vec<Block>> {
+        let list: &[Block] = match site.parent {
+            None => self.document.blocks(),
+            Some(parent) => self
+                .document
+                .block(parent)
+                .and_then(|block| block.child_list(site.anchor))
+                .ok_or(EditorError::NoSuchBlock(parent))?,
+        };
+        if last >= list.len() {
+            return Err(EditorError::OutOfRange {
+                start: site.index,
+                end: last + 1,
+                len: list.len(),
+            });
+        }
+        Ok(list[site.index..=last].to_vec())
     }
 
     fn insert_block_after_caret(
@@ -763,7 +1108,7 @@ impl Editor {
         move_caret: bool,
     ) -> Result<Transaction> {
         let block = self.selection.head.block;
-        let index = self.top_index(block)?;
+        let site = self.site(block)?;
         let inserted = self.document.new_block(kind);
         let id = inserted.id;
 
@@ -772,16 +1117,14 @@ impl Editor {
         } else {
             self.selection
         };
-        Ok(
-            Transaction::new(self.selection, after).with(Operation::ReplaceBlocks {
-                start: index + 1,
-                end: index + 1,
-                blocks: vec![inserted],
-            }),
-        )
+        let insert = self.splice(site, site.index + 1, site.index + 1, vec![inserted])?;
+        Ok(Transaction::new(self.selection, after).with(insert))
     }
 
     fn toggle_list(&mut self, ordered: bool) -> Result<Transaction> {
+        if self.selection.single_block_range().is_none() {
+            return self.list_run(ordered);
+        }
         let block = self.selection.head.block;
 
         if let Some((list_id, _)) = self.document.list_position(block) {
@@ -803,15 +1146,12 @@ impl Editor {
             // The same kind again means "stop being a list": the items' blocks
             // take the list's place, keeping their ids and the caret with them.
             if was == ordered {
-                let index = self.top_index(list_id)?;
+                let site = self.site(list_id)?;
                 let blocks: Vec<Block> = items.into_iter().flat_map(|item| item.blocks).collect();
-                return Ok(Transaction::new(self.selection, self.selection).with(
-                    Operation::ReplaceBlocks {
-                        start: index,
-                        end: index + 1,
-                        blocks,
-                    },
-                ));
+                // A nested list unwraps into the item or quote around it, which
+                // is one level of indentation gone rather than the lot.
+                let unwrap = self.splice(site, site.index, site.index + 1, blocks)?;
+                return Ok(Transaction::new(self.selection, self.selection).with(unwrap));
             }
 
             // Bullets to numbers or back. A nested list is replaced in place,
@@ -833,21 +1173,41 @@ impl Editor {
             ));
         }
 
-        let index = self.top_index(block)?;
-        let inner = self.document.block(block).expect("checked above").clone();
+        self.reject_container_in_cell(block, "a list inside a table cell")?;
+        let site = self.site(block)?;
+        let inner = self
+            .document
+            .block(block)
+            .ok_or(EditorError::NoSuchBlock(block))?
+            .clone();
         let list = self.document.new_block(BlockKind::List {
             ordered,
             start: None,
             tight: true,
             items: vec![ListItem::new(vec![inner])],
         });
-        Ok(
-            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlocks {
-                start: index,
-                end: index + 1,
-                blocks: vec![list],
-            }),
-        )
+        let wrap = self.splice(site, site.index, site.index + 1, vec![list])?;
+        Ok(Transaction::new(self.selection, self.selection).with(wrap))
+    }
+
+    /// Makes one list of every block a selection spanning blocks covers, one
+    /// item per block — the usual way a few lines become a list.
+    fn list_run(&mut self, ordered: bool) -> Result<Transaction> {
+        let (run, last) = self.covered_run()?;
+        self.reject_container_in_cell(run.anchor, "a list inside a table cell")?;
+        let items: Vec<ListItem> = self
+            .sibling_run(run, last)?
+            .into_iter()
+            .map(|block| ListItem::new(vec![block]))
+            .collect();
+        let list = self.document.new_block(BlockKind::List {
+            ordered,
+            start: None,
+            tight: true,
+            items,
+        });
+        let wrap = self.splice(run, run.index, last + 1, vec![list])?;
+        Ok(Transaction::new(self.selection, self.selection).with(wrap))
     }
 
     fn toggle_task(&self) -> Result<Transaction> {
@@ -875,7 +1235,8 @@ impl Editor {
 
     fn insert_table(&mut self, rows: usize, columns: usize) -> Result<Transaction> {
         let block = self.selection.head.block;
-        let index = self.top_index(block)?;
+        self.reject_container_in_cell(block, "a table inside a table cell")?;
+        let site = self.site(block)?;
         let columns = columns.max(1);
 
         // A GFM table is a header row plus body rows; `rows` counts the body.
@@ -893,15 +1254,12 @@ impl Editor {
             },
         });
 
+        let insert = self.splice(site, site.index + 1, site.index + 1, vec![table])?;
         Ok(Transaction::new(
             self.selection,
             SelectionRange::collapsed(Position::new(caret, 0)),
         )
-        .with(Operation::ReplaceBlocks {
-            start: index + 1,
-            end: index + 1,
-            blocks: vec![table],
-        }))
+        .with(insert))
     }
 
     fn insert_table_row(&mut self, before: bool) -> Result<Transaction> {
@@ -987,16 +1345,215 @@ impl Editor {
         }
     }
 
-    /// Where `block` sits in the top-level list. Structural operations are
-    /// top-level only for now; inline edits work at any depth.
-    fn top_index(&self, block: BlockId) -> Result<usize> {
-        if self.document.block(block).is_none() {
-            return Err(EditorError::NoSuchBlock(block));
+    /// Refuses a container — a quote, list, code block or table — where
+    /// Markdown cannot write one. A table cell holds inline content only, so a
+    /// container put in one would be dropped the next time the document is
+    /// written out.
+    fn reject_container_in_cell(&self, block: BlockId, what: &'static str) -> Result<()> {
+        if self.document.table_position(block).is_some() {
+            return Err(EditorError::Unsupported(what));
         }
-        self.document
-            .top_index(block)
-            .ok_or(EditorError::NestedBlock(block))
+        Ok(())
     }
+
+    /// Where `block` sits among its siblings.
+    fn site(&self, block: BlockId) -> Result<Site> {
+        let (parent, list, index) = self
+            .document
+            .sibling_position(block)
+            .ok_or(EditorError::NoSuchBlock(block))?;
+        Ok(Site {
+            parent,
+            list,
+            anchor: block,
+            index,
+        })
+    }
+
+    /// The operation replacing `start..end` of the sibling list `site` sits in.
+    ///
+    /// At top level that is a block-list splice. Inside a quote, a list item or
+    /// a table cell the container is rewritten instead, with every block that
+    /// survives keeping its id so carets and annotations pointing into it stay
+    /// valid.
+    fn splice(
+        &self,
+        site: Site,
+        start: usize,
+        end: usize,
+        blocks: Vec<Block>,
+    ) -> Result<Operation> {
+        let Some(parent) = site.parent else {
+            return Ok(Operation::ReplaceBlocks { start, end, blocks });
+        };
+        let mut container = self
+            .document
+            .block(parent)
+            .ok_or(EditorError::NoSuchBlock(parent))?
+            .clone();
+        let list = container
+            .child_list_mut(site.anchor)
+            .ok_or(EditorError::NoSuchBlock(site.anchor))?;
+        if start > end || end > list.len() {
+            return Err(EditorError::OutOfRange {
+                start,
+                end,
+                len: list.len(),
+            });
+        }
+        list.splice(start..end, blocks);
+        Ok(Operation::ReplaceBlock {
+            block: parent,
+            with: Box::new(container),
+        })
+    }
+}
+
+/// Where a block sits among its siblings, for the structural edits that splice
+/// a list of blocks: the container holding it (`None` at top level), the list
+/// itself, named by its first block, and the block's index in that list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Site {
+    parent: Option<BlockId>,
+    list: BlockId,
+    anchor: BlockId,
+    index: usize,
+}
+
+impl Site {
+    /// Whether both blocks sit in the same list, so one edit can span them.
+    /// Separate list items and separate table cells share a parent without
+    /// sharing a list.
+    fn shares_list_with(&self, other: &Site) -> bool {
+        self.parent == other.parent && self.list == other.list
+    }
+}
+
+/// How far a walk over the block tree has got through a selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Phase {
+    /// Before the block the selection starts in.
+    Before,
+    /// Between the selection's two ends: what is here is covered by it.
+    Inside,
+    /// Past the block the selection ends in.
+    After,
+}
+
+/// Removes what a selection covers from a list of blocks, containers included.
+///
+/// The block the selection starts in stays, with its id: joining the two ends
+/// is an inline edit on it, applied after this. The block it ends in goes,
+/// unless `keep_end` — a code block keeps the code that follows the selection,
+/// since there is no joining prose and code. Containers left holding nothing
+/// are removed with their contents, which is what makes deleting a whole quote
+/// or list from the middle of one block to the middle of another work.
+fn prune_covered(
+    list: Vec<Block>,
+    from: BlockId,
+    to: BlockId,
+    keep_end: bool,
+    phase: &mut Phase,
+) -> Vec<Block> {
+    let mut out = Vec::new();
+    for block in list {
+        match phase {
+            Phase::Before => {
+                if block.id == from {
+                    *phase = Phase::Inside;
+                    out.push(block);
+                } else if block.find(from).is_some() {
+                    // The container holding the start always survives: the
+                    // start block is still in it.
+                    out.push(prune_children(block, from, to, keep_end, phase));
+                } else {
+                    out.push(block);
+                }
+            }
+            Phase::Inside => {
+                if block.id == to {
+                    *phase = Phase::After;
+                    if keep_end {
+                        out.push(block);
+                    }
+                } else if block.find(to).is_some() {
+                    let pruned = prune_children(block, from, to, keep_end, phase);
+                    // Emptied by the deletion: the container goes too.
+                    if !pruned.children().is_empty() {
+                        out.push(pruned);
+                    }
+                }
+                // Anything else here is covered by the selection, so it goes.
+            }
+            Phase::After => out.push(block),
+        }
+    }
+    out
+}
+
+/// The same walk, through one block's children. Tables are left alone: a
+/// selection crossing a table's edge is refused rather than pruned, because
+/// removing cells would leave rows of different lengths.
+fn prune_children(
+    mut block: Block,
+    from: BlockId,
+    to: BlockId,
+    keep_end: bool,
+    phase: &mut Phase,
+) -> Block {
+    match &mut block.kind {
+        BlockKind::Quote { blocks } => {
+            let taken = std::mem::take(blocks);
+            *blocks = prune_covered(taken, from, to, keep_end, phase);
+        }
+        BlockKind::List { items, .. } => {
+            let mut kept = Vec::new();
+            for mut item in std::mem::take(items) {
+                let taken = std::mem::take(&mut item.blocks);
+                item.blocks = prune_covered(taken, from, to, keep_end, phase);
+                // An item with nothing left in it is not an empty bullet, it
+                // is an item the selection covered.
+                if !item.blocks.is_empty() {
+                    kept.push(item);
+                }
+            }
+            *items = kept;
+        }
+        _ => {}
+    }
+    block
+}
+
+/// Puts `blocks` where `target` sits in a tree of blocks, at any depth.
+///
+/// Used on a tree that has already been pruned, so the replacement lands in the
+/// document that the deletion leaves behind rather than the one before it.
+fn splice_in_tree(list: &mut Vec<Block>, target: BlockId, blocks: Vec<Block>) -> bool {
+    if let Some(index) = list.iter().position(|block| block.id == target) {
+        list.splice(index..index + 1, blocks);
+        return true;
+    }
+    for block in list.iter_mut() {
+        let lists: Vec<&mut Vec<Block>> = match &mut block.kind {
+            BlockKind::Quote { blocks } => vec![blocks],
+            BlockKind::List { items, .. } => {
+                items.iter_mut().map(|item| &mut item.blocks).collect()
+            }
+            BlockKind::Table { table } => table
+                .rows
+                .iter_mut()
+                .flat_map(|row| row.cells.iter_mut())
+                .map(|cell| &mut cell.blocks)
+                .collect(),
+            _ => Vec::new(),
+        };
+        for nested in lists {
+            if splice_in_tree(nested, target, blocks.clone()) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// The caret's home: the start of the first block that can hold text.

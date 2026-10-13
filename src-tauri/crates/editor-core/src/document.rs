@@ -171,6 +171,24 @@ impl Document {
             .map(|block| block.id)
     }
 
+    /// Where `id` sits among its siblings: the container holding it — `None`
+    /// at top level — the first block of that sibling list, which identifies
+    /// the list itself, and `id`'s index in it.
+    ///
+    /// Two blocks in the same list are edited together; two in different lists
+    /// of the same container — separate list items, separate table cells — are
+    /// not, which is why the list is named and not just the parent.
+    pub fn sibling_position(&self, id: BlockId) -> Option<(Option<BlockId>, BlockId, usize)> {
+        if let Some(index) = self.top_index(id) {
+            let first = self.blocks.first()?.id;
+            return Some((None, first, index));
+        }
+        let parent = self.parent_of(id)?;
+        let list = self.block(parent)?.child_list(id)?;
+        let index = list.iter().position(|block| block.id == id)?;
+        Some((Some(parent), list.first()?.id, index))
+    }
+
     /// The blocks `id` sits inside, innermost first.
     pub fn ancestors(&self, id: BlockId) -> Vec<BlockId> {
         let mut out = Vec::new();
@@ -180,6 +198,21 @@ impl Document {
             at = parent;
         }
         out
+    }
+
+    /// The top-level block `id` sits inside — `id` itself when it is already
+    /// top level.
+    pub fn top_ancestor(&self, id: BlockId) -> Option<BlockId> {
+        if self.top_index(id).is_some() {
+            return Some(id);
+        }
+        self.ancestors(id).into_iter().last()
+    }
+
+    /// Position of `id` in document order, nested blocks included. Two blocks
+    /// anywhere in the tree are compared with this.
+    pub fn order_index(&self, id: BlockId) -> Option<usize> {
+        self.all_blocks().iter().position(|block| block.id == id)
     }
 
     /// The innermost list around `id`, with the index of the item holding it.

@@ -450,8 +450,9 @@ pub struct WireUpdate {
     /// and telling them apart is the difference between optimising the right
     /// thing and the wrong one.
     pub engine_micros: u64,
-    /// Sent with a structural change: the outline is only worth recomputing
-    /// when headings could have moved.
+    /// Sent when a block was replaced or the block list moved: those are the
+    /// changes that can add, remove or re-level a heading. Typing into a
+    /// heading changes its text, not the outline's shape, and sends nothing.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outline: Option<Vec<WireHeading>>,
 }
@@ -488,7 +489,7 @@ pub fn update_view(editor: &Editor, change: &Change, engine_micros: u64) -> Wire
         structural,
         blocks,
         engine_micros,
-        outline: structural.then(|| {
+        outline: (structural || change.reshaped).then(|| {
             document
                 .outline()
                 .into_iter()
@@ -862,6 +863,29 @@ mod tests {
         assert_eq!(update.blocks.len(), 1);
         assert_eq!(update.blocks[0].id, cell.0);
         assert_eq!(update.blocks[0].runs[0].text, "d!");
+    }
+
+    #[test]
+    fn a_heading_change_sends_the_outline_back_even_inside_a_quote() {
+        let mut editor = Editor::new(markdown::parse("t.md", "# Title\n\n> quoted\n"));
+        let inner = editor.document().text_block_ids()[1];
+        editor
+            .apply(EditorCommand::SetSelection(SelectionRange::in_block(
+                inner, 0, 0,
+            )))
+            .unwrap();
+
+        let change = editor.apply(EditorCommand::SetHeadingLevel(2)).unwrap();
+        let update = update_view(&editor, &change, 0);
+
+        // The document's own list did not move, so only the quote travels —
+        // but the outline gained a heading and has to travel with it.
+        assert!(!update.structural);
+        assert!(change.reshaped);
+        let outline = update.outline.expect("a heading was added");
+        assert_eq!(outline.len(), 2);
+        assert_eq!(outline[1].level, 2);
+        assert_eq!(outline[1].text, "quoted");
     }
 
     #[test]
