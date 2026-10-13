@@ -15,7 +15,6 @@
   import { cn } from '$lib/utils';
   import { appState } from '$lib/runes/app.svelte.js';
   import { configManager } from '$lib/runes/config.svelte.js';
-  import { toggleMark } from '@milkdown/kit/prose/commands';
   import BookUserIcon from '@lucide/svelte/icons/book-user';
   import { page } from '$app/state';
   import { editorState } from '$lib/runes/editor.svelte.js';
@@ -27,11 +26,19 @@
    * @property {string} originalText - The original text that needs grammar suggestions.
    * @property {(suggestion: string) => void} onFix - Callback function to apply the suggested fix.
    * @property {number} sequence - The sequence number of the text segment.
-   * @property {import('prosemirror-view').EditorView} [view] - The ProseMirror view, for applying inline marks.
+   * @property {(mark: 'bold' | 'italic' | 'strike' | 'code') => void} [onMark] - Toggles a
+   *   mark on whatever is selected now. Read at click time, not from props: the
+   *   box can outlive the selection it was opened for.
+   * @property {() => string} [selectedText] - The selection as plain text, for
+   *   offering it as a codex name. Also read at click time.
    */
 
-  /** @type {GrammarBoxProps} */
-  let { originalText, onFix, view } = $props();
+  /**
+   * The box is surface-agnostic on purpose: Milkdown and the Rust engine both
+   * mount it, so what it knows how to do is call back, not drive an editor.
+   * @type {GrammarBoxProps}
+   */
+  let { originalText, onFix, onMark, selectedText } = $props();
 
   let customPrompt = $state('');
 
@@ -50,26 +57,26 @@
     }
   }
 
-  const markButtons = [
-    { label: 'Bold', markName: 'strong', icon: BoldIcon },
-    { label: 'Italic', markName: 'emphasis', icon: ItalicIcon },
-    { label: 'Strikethrough', markName: 'strike_through', icon: StrikethroughIcon },
-    { label: 'Code', markName: 'inlineCode', icon: CodeIcon },
-  ];
+  /**
+   * The engine's mark names. Milkdown's schema calls these `strong`,
+   * `emphasis`, `strike_through` and `inlineCode`; the adapter that mounts this
+   * box over Milkdown maps them, so the box itself speaks one vocabulary.
+   */
+  const markButtons = /** @type {{ label: string, markName: 'bold' | 'italic' | 'strike' | 'code', icon: any }[]} */ ([
+    { label: 'Bold', markName: 'bold', icon: BoldIcon },
+    { label: 'Italic', markName: 'italic', icon: ItalicIcon },
+    { label: 'Strikethrough', markName: 'strike', icon: StrikethroughIcon },
+    { label: 'Code', markName: 'code', icon: CodeIcon },
+  ]);
 
   /**
-   * Toggle a mark on the editor's current selection. The widget can stay mounted
-   * across selection changes within the same paragraph (ProseMirror dedupes the
-   * decoration by key), so the live selection is read from the view at click time
-   * rather than trusted from props.
-   * @param {string} markName
+   * Toggle a mark on the editor's current selection. The box can stay mounted
+   * across selection changes within the same paragraph, so the surface is asked
+   * at click time rather than trusted from props.
+   * @param {'bold' | 'italic' | 'strike' | 'code'} markName
    */
   function applyMark(markName) {
-    if (!view) return;
-    const markType = view.state.schema.marks[markName];
-    if (!markType) return;
-    toggleMark(markType)(view.state, view.dispatch);
-    view.focus();
+    onMark?.(markName);
   }
 
   /** Longest selection offered as a codex entry's name. */
@@ -77,9 +84,7 @@
 
   /** The selection, if it's short enough to be a name. Read at click time, like `applyMark`. */
   function selectedName() {
-    if (!view) return '';
-    const { from, to } = view.state.selection;
-    const text = view.state.doc.textBetween(from, to, ' ', ' ').replace(/\s+/g, ' ').trim();
+    const text = (selectedText?.() ?? '').replace(/\s+/g, ' ').trim();
     return text && text.length <= CODEX_NAME_MAX ? text.replace(/['’]s$/, '') : '';
   }
 

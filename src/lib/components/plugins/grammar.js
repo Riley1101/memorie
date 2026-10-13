@@ -1,4 +1,5 @@
 import { $prose } from '@milkdown/kit/utils';
+import { toggleMark } from '@milkdown/kit/prose/commands';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { mount, unmount } from 'svelte';
@@ -37,6 +38,28 @@ export const grammarPlugin = $prose(() => {
     },
   });
 });
+
+/** The engine's mark names, which the box speaks, in Milkdown's schema. */
+const MILKDOWN_MARKS = {
+  bold: 'strong',
+  italic: 'emphasis',
+  strike: 'strike_through',
+  code: 'inlineCode',
+};
+
+/**
+ * Toggles a mark on the Milkdown selection. The box names marks the way the
+ * Rust engine does — it is mounted over both surfaces — so the name is
+ * translated here rather than there.
+ * @param {import('prosemirror-view').EditorView} view
+ * @param {'bold' | 'italic' | 'strike' | 'code'} mark
+ */
+function applyMark(view, mark) {
+  const markType = view.state.schema.marks[MILKDOWN_MARKS[mark]];
+  if (!markType) return;
+  toggleMark(markType)(view.state, view.dispatch);
+  view.focus();
+}
 
 /**
  * Creates a decoration for the last selected paragraph only (single AI box per selection).
@@ -109,7 +132,11 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
               sequence: 0,
               originalText: node.textContent,
               onFix: handleFix,
-              view,
+              onMark: (mark) => applyMark(view, mark),
+              selectedText: () => {
+                const { from, to } = view.state.selection;
+                return view.state.doc.textBetween(from, to, ' ', ' ');
+              },
             },
           });
           /** @type {HTMLDivElement & { _cleanup?: () => void }} */ (container)._cleanup = () => {

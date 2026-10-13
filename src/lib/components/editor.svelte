@@ -238,6 +238,19 @@
             editorState.flushSave = flushSave;
             editorState.revealPending = () =>
               editor.action((ctx) => revealMatch(ctx.get(editorViewCtx)));
+            // The selection if there is one, the whole document if not — the
+            // same contract the engine path registers, so the AI edit actions
+            // work the same either side.
+            editorState.selectedText = () => {
+              let text = '';
+              editor.action((ctx) => {
+                const { state } = ctx.get(editorViewCtx);
+                const { from, to } = state.selection;
+                text = from === to ? getMarkdown()(ctx) : state.doc.textBetween(from, to, ' ');
+              });
+              return text;
+            };
+            editorState.focusEditor = () => editor.action((ctx) => ctx.get(editorViewCtx).focus());
             if (editorState.pendingReveal) editorState.revealPending();
             editor.action((ctx) => {
               const { doc } = ctx.get(editorViewCtx).state;
@@ -262,6 +275,8 @@
         if (editorState.flushSave === flushSave) {
           editorState.flushSave = null;
           editorState.revealPending = null;
+          editorState.selectedText = null;
+          editorState.focusEditor = null;
         }
         editorState.setHeadings([]);
       };

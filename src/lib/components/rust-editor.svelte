@@ -28,13 +28,14 @@
     blockElementOf,
     blockText,
     positionOf,
+    rectOfSelection,
   } from '$lib/editor/dom.js';
   import {
     commandsForCharacter,
     mightBeRule,
     backspaceThroughPair,
   } from '$lib/editor/input-rules.js';
-  import { decorate, forBlock } from '$lib/editor/decorations.js';
+  import { decorate, forBlock, textOfRuns } from '$lib/editor/decorations.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { openHref } from '$lib/components/plugins/link-popover.svelte.js';
   import { DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
@@ -43,6 +44,7 @@
   /** @typedef {import('$lib/rust-editor.js').EditorStateView} EditorStateView */
   /** @typedef {import('$lib/rust-editor.js').EditorBlock} EditorBlock */
   /** @typedef {import('$lib/rust-editor.js').EditorPosition} EditorPosition */
+  /** @typedef {import('$lib/editor/dom.js').SelectionInfo} SelectionInfo */
   /** @typedef {import('$lib/rust-editor.js').EditorRun} EditorRun */
   /** @typedef {import('$lib/rust-editor.js').EditorCommand} EditorCommand */
   /** @typedef {import('$lib/rust-editor.js').EditorUpdate} EditorUpdate */
@@ -60,6 +62,7 @@
    *   onedit?: () => void,
    *   onlink?: () => Promise<string | null> | string | null,
    *   decorations?: import('$lib/editor/decorations.js').Decoration[],
+   *   onselection?: (info: SelectionInfo | null) => void,
    *   placeholder?: string,
    * }}
    * `name` is the writing's path, which is also the engine's session key. With
@@ -73,6 +76,9 @@
    * highlights, codex mentions, grammar squiggles. The caller computes them;
    * they never reach the engine, so they are not in the Markdown or the undo
    * history. See `$lib/editor/decorations.js`.
+   * `onselection` fires when the selection settles, with everything a panel
+   * floating beside the text needs to place itself — or null when the caret
+   * left the surface or collapsed. This component draws no panels.
    */
   let {
     name,
@@ -86,6 +92,7 @@
     onedit = undefined,
     onlink = undefined,
     decorations = [],
+    onselection = undefined,
     placeholder = 'Start writing…',
   } = $props();
 
@@ -180,6 +187,80 @@
     return doc;
   }
 
+  /**
+   * Where the selection is on screen and what it holds, for a caller drawing a
+   * panel beside it. Null when nothing is selected or the blocks aren't
+   * rendered yet.
+   *
+   * Read from the DOM rather than from the engine's last reply: a panel is
+   * placed in answer to a selection the browser already has, and waiting for a
+   * round trip to agree would put the panel a beat behind the mouse.
+   */
+  export function selectionInfo() {
+    if (!root || !doc) return null;
+    const selection = readSelection(root);
+    if (!selection) return null;
+    const { anchor, head } = selection;
+    if (anchor.block === head.block && anchor.offset === head.offset) return null;
+
+    const rect = rectOfSelection(root, selection);
+    if (!rect) return null;
+    const block = findBlock(doc.blocks, head.block);
+    const whole = block?.runs ? textOfRuns(block.runs) : (block?.text ?? '');
+    return {
+      selection,
+      rect,
+      text: selectedText(),
+      blockText: whole,
+      block: head.block,
+    };
+  }
+
+  /**
+   * The selected text, read from the DOM. The engine could answer this through
+   * `editor_copy`, but a panel asks at click time and a round trip for a name
+   * is a round trip too many.
+   */
+  function selectedText() {
+    const current = document.getSelection();
+    return current && current.rangeCount > 0 ? current.toString() : '';
+  }
+
+  /**
+   * Toggles a mark on whatever is selected now — what a floating toolbar's
+   * bold button needs, without the caller having to know the command shape.
+   * @param {'bold' | 'italic' | 'strike' | 'code'} mark
+   */
+  export async function toggleMark(mark) {
+    const selection = selectionCommand();
+    await send(
+      selection ? [selection, { command: 'toggleMark', mark }] : [{ command: 'toggleMark', mark }]
+    );
+    root?.focus();
+  }
+
+  /**
+   * Replaces a whole block's text with `markdown` — how an accepted AI
+   * suggestion lands. The engine parses it, so a suggestion that comes back as
+   * two paragraphs becomes two blocks, and the whole thing is one undo step.
+   * @param {number} blockId
+   * @param {string} markdown
+   */
+  export async function replaceBlock(blockId, markdown) {
+    const block = doc ? findBlock(doc.blocks, blockId) : null;
+    if (!block) return;
+    const length = block.runs ? textOfRuns(block.runs).length : (block.text ?? '').length;
+    await send([
+      {
+        command: 'setSelection',
+        anchor: { block: blockId, offset: 0 },
+        head: { block: blockId, offset: length },
+      },
+      { command: 'insertMarkdown', markdown },
+    ]);
+    root?.focus();
+  }
+
   /** Input intents seen but not handled, so gaps are visible rather than silent. */
   export function unsupportedInputs() {
     return unsupported;
@@ -269,13 +350,23 @@
   function onSelectionChange() {
     if (composing || !doc || !root) return;
     const selection = document.getSelection();
-    // Somewhere else on the page: not ours to report.
-    if (!selection?.anchorNode || !root.contains(selection.anchorNode)) return;
+    // Somewhere else on the page. The engine keeps the caret it had — it is
+    // still where the writer will carry on typing — but a panel floating
+    // beside the text has to know it has nothing left to float beside.
+    if (!selection?.anchorNode || !root.contains(selection.anchorNode)) {
+      clearTimeout(syncTimer);
+      onselection?.(null);
+      return;
+    }
     clearTimeout(syncTimer);
     syncTimer = setTimeout(syncSelection, 50);
   }
 
   async function syncSelection() {
+    // The panel callback fires from the DOM, before and regardless of the
+    // round trip: a selection that didn't change for the engine — a click
+    // inside the same offsets — can still have moved on screen.
+    onselection?.(selectionInfo());
     // An edit is already on its way, and its reply carries the caret the engine
     // decided on — which beats the one the browser is showing now.
     if (composing || inFlight > 0 || !doc || !root) return;

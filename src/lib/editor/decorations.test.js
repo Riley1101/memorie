@@ -6,15 +6,20 @@
  * the view with the fiddly arithmetic in it can be tested without one.
  */
 
+/// <reference types="bun" />
 import { describe, expect, test } from 'bun:test';
 import { decorate, matchDecorations, textOfRuns, forBlock, flattenBlocks } from './decorations.js';
 
-/** "She found the letter", with `letter` bold. */
+/** @typedef {import('$lib/rust-editor.js').EditorRun} EditorRun */
+/** @typedef {import('$lib/rust-editor.js').EditorBlock} EditorBlock */
+
+/** "She found the letter", with `letter` bold. @type {EditorRun[]} */
 const runs = [
   { type: 'text', text: 'She found the ', length: 14 },
   { type: 'text', text: 'letter', length: 6, marks: ['bold'] },
 ];
 
+/** @param {(EditorRun & { deco?: string })[]} list */
 const shape = (list) => list.map((run) => [run.text, run.deco]);
 
 describe('textOfRuns', () => {
@@ -23,7 +28,12 @@ describe('textOfRuns', () => {
   });
 
   test('an atom is one unit of something', () => {
-    expect(textOfRuns([{ type: 'text', text: 'ab' }, { type: 'image' }])).toBe('ab￼');
+    expect(
+      textOfRuns([
+        { type: 'text', text: 'ab', length: 2 },
+        { type: 'image', length: 1 },
+      ])
+    ).toBe('ab￼');
   });
 });
 
@@ -61,6 +71,7 @@ describe('decorate', () => {
   });
 
   test('an atom is covered whole, never split', () => {
+    /** @type {EditorRun[]} */
     const withAtom = [
       { type: 'text', text: 'ab', length: 2 },
       { type: 'image', length: 1, source: 'x.png' },
@@ -83,10 +94,13 @@ describe('decorate', () => {
   test('two decorations over the same text both land', () => {
     expect(
       shape(
-        decorate([{ type: 'text', text: 'abcdef', length: 6 }], [
-          { block: 1, start: 0, end: 4, class: 'deco-find' },
-          { block: 1, start: 2, end: 6, class: 'deco-mention' },
-        ])
+        decorate(
+          [{ type: 'text', text: 'abcdef', length: 6 }],
+          [
+            { block: 1, start: 0, end: 4, class: 'deco-find' },
+            { block: 1, start: 2, end: 6, class: 'deco-mention' },
+          ]
+        )
       )
     ).toEqual([
       ['ab', 'deco-find'],
@@ -97,25 +111,30 @@ describe('decorate', () => {
 });
 
 describe('matchDecorations', () => {
+  /** @type {EditorBlock[]} */
   const blocks = [
     { id: 1, kind: 'paragraph', runs: [{ type: 'text', text: 'cat and cat', length: 11 }] },
     {
       id: 2,
       kind: 'list',
       items: [
-        { blocks: [{ id: 3, kind: 'paragraph', runs: [{ type: 'text', text: 'a cat', length: 5 }] }] },
+        {
+          blocks: [
+            { id: 3, kind: 'paragraph', runs: [{ type: 'text', text: 'a cat', length: 5 }] },
+          ],
+        },
       ],
     },
   ];
 
   test('finds every match, nested blocks included', () => {
-    expect(matchDecorations(blocks, /cat/g, 'deco-find').map((d) => [d.block, d.start, d.end])).toEqual(
-      [
-        [1, 0, 3],
-        [1, 8, 11],
-        [3, 2, 5],
-      ]
-    );
+    expect(
+      matchDecorations(blocks, /cat/g, 'deco-find').map((d) => [d.block, d.start, d.end])
+    ).toEqual([
+      [1, 0, 3],
+      [1, 8, 11],
+      [3, 2, 5],
+    ]);
   });
 
   test('a pattern that can match nothing still terminates', () => {
@@ -123,6 +142,7 @@ describe('matchDecorations', () => {
   });
 
   test('reads a code block from its text rather than its runs', () => {
+    /** @type {EditorBlock[]} */
     const code = [{ id: 7, kind: 'codeBlock', text: 'let cat = 1;' }];
     expect(matchDecorations(code, /cat/g, 'deco-find')).toEqual([
       { block: 7, start: 4, end: 7, class: 'deco-find' },
@@ -131,11 +151,13 @@ describe('matchDecorations', () => {
 
   test('flattenBlocks walks quotes, list items and table cells', () => {
     expect(
-      flattenBlocks([
-        { id: 1, children: [{ id: 2 }] },
-        { id: 3, items: [{ blocks: [{ id: 4 }] }] },
-        { id: 5, rows: [{ cells: [[{ id: 6 }]] }] },
-      ]).map((block) => block.id)
+      flattenBlocks(
+        /** @type {EditorBlock[]} */ ([
+          { id: 1, children: [{ id: 2 }] },
+          { id: 3, items: [{ blocks: [{ id: 4 }] }] },
+          { id: 5, rows: [{ cells: [[{ id: 6 }]] }] },
+        ])
+      ).map((block) => block.id)
     ).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });

@@ -6,6 +6,7 @@
   import { deriveTitle, sanitizeTitle, isUntitled, UNTITLED } from '$lib/new-writing.js';
   import Editor from './editor.svelte';
   import RustEditor from './rust-editor.svelte';
+  import EditorAiBox from './editor-ai-box.svelte';
   import { save as rustSave } from '$lib/rust-editor.js';
   import { invalidateAll, goto, beforeNavigate } from '$app/navigation';
   import { page } from '$app/state';
@@ -285,6 +286,14 @@
 
   /** @type {RustEditor | null} */
   let rustSurface = $state(null);
+
+  /**
+   * The selection the Rust surface last reported, which is what decides whether
+   * the AI box is on screen and where. Milkdown mounts its own copy from a
+   * ProseMirror widget, so this is only for the engine path.
+   * @type {import('$lib/editor/dom.js').SelectionInfo | null}
+   */
+  let rustSelection = $state(null);
   /** @type {ReturnType<typeof setTimeout> | null} */
   let rustTimer = null;
 
@@ -370,10 +379,21 @@
     editorState.revealHeading = (heading) => rustSurface?.goToBlock(heading.pos);
     editorState.headingAbove = (heading, threshold) =>
       rustSurface?.blockAbove(heading.pos, threshold) ?? null;
+    // The selection if there is one, the whole document if not — what the AI
+    // edit actions act on, the same contract Milkdown registers.
+    editorState.selectedText = () => {
+      const selected = rustSurface?.selectionInfo()?.text;
+      if (selected) return selected;
+      const blocks = rustSurface?.snapshot()?.blocks ?? [];
+      return plainTextOf(blocks);
+    };
+    editorState.focusEditor = () => rustSurface?.focus();
     return () => {
       if (editorState.flushSave === flushRustSave) editorState.flushSave = null;
       editorState.revealHeading = null;
       editorState.headingAbove = null;
+      editorState.selectedText = null;
+      editorState.focusEditor = null;
     };
   });
 
@@ -436,8 +456,10 @@
           onstate={onRustState}
           onupdate={onRustUpdate}
           onedit={scheduleRustSave}
+          onselection={(info) => (rustSelection = info)}
           onerror={(message) => toast.error('Editor error', message)}
         />
+        <EditorAiBox info={rustSelection} surface={rustSurface} />
       {:else}
         <Editor defaultValue={parsed.body} {onSave} autofocus={draft} {codexEntities} />
       {/if}

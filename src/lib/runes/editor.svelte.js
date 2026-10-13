@@ -120,6 +120,22 @@ class EditorState {
   headingAbove = $state(null);
 
   /**
+   * Registered by the mounted editor: the text the writer has selected, or the
+   * whole document when nothing is. What the AI edit actions act on, so they
+   * don't have to know which surface is mounted or how to read a selection
+   * out of it.
+   * @type {(() => string | Promise<string>) | null}
+   */
+  selectedText = $state(null);
+
+  /**
+   * Registered by the mounted editor: puts focus back in the document, after a
+   * command bar or a dialog has taken it.
+   * @type {(() => void) | null}
+   */
+  focusEditor = $state(null);
+
+  /**
    * A search match to select once the target writing's editor is ready.
    * `occurrence` is the match's index within that writing.
    * @type {{ query: string, options: { caseSensitive: boolean, wholeWord: boolean, regex: boolean }, occurrence: number } | null}

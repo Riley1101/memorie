@@ -32,7 +32,6 @@
   import BracketsIcon from '@lucide/svelte/icons/parentheses';
   import EditorStats from '$lib/components/editor-stats.svelte';
   import { writingState } from '$lib/runes/writing.svelte.js';
-  import { getMarkdown } from '@milkdown/kit/utils';
   import { editorViewCtx } from '@milkdown/kit/core';
   import { invoke } from '@tauri-apps/api/core';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -340,7 +339,10 @@
         appState.toggleProjectSearch(true);
         break;
       case 'export':
-        appState.openExport({ fileName: isDraft ? null : (fileName ?? null), dir: dirOf(fileName ?? '') });
+        appState.openExport({
+          fileName: isDraft ? null : (fileName ?? null),
+          dir: dirOf(fileName ?? ''),
+        });
         break;
       case 'import':
         appState.openImport({ dir: dirOf(fileName ?? '') });
@@ -351,11 +353,15 @@
         break;
       case 'toggleSmartPunctuation':
         writingState.setSmartPunctuation(!writingState.smartPunctuation);
-        toast.info(writingState.smartPunctuation ? 'Smart punctuation on' : 'Smart punctuation off');
+        toast.info(
+          writingState.smartPunctuation ? 'Smart punctuation on' : 'Smart punctuation off'
+        );
         break;
       case 'toggleAutoPair':
         writingState.setAutoPair(!writingState.autoPair);
-        toast.info(writingState.autoPair ? 'Auto-closing brackets on' : 'Auto-closing brackets off');
+        toast.info(
+          writingState.autoPair ? 'Auto-closing brackets on' : 'Auto-closing brackets off'
+        );
         break;
       case 'sidebar':
         goto(resolve('/'));
@@ -419,23 +425,11 @@
         };
         const milkdownAction = actionMap[command.action];
 
-        // Get text from selection if possible, otherwise use full document
-        let textToEdit = '';
-        if (editorState.editor) {
-          editorState.editor.action((ctx) => {
-            const view = ctx.get(editorViewCtx);
-            const { state } = view;
-            const { from, to } = state.selection;
-            if (from !== to) {
-              textToEdit = state.doc.textBetween(from, to, ' ');
-            } else {
-              // Fallback to full doc if no selection?
-              // Actually, GrammarBox works per-paragraph.
-              // For now, let's just use selection if available.
-              textToEdit = getMarkdown()(ctx);
-            }
-          });
-        }
+        // The selection if there is one, the whole document if not. Whichever
+        // editing surface is mounted registers this, so the command doesn't
+        // have to know which one that is — the Rust engine has no ProseMirror
+        // view to read a selection out of.
+        const textToEdit = (await editorState.selectedText?.()) ?? '';
 
         if (textToEdit) {
           llmManager.sendEditActionMessage(textToEdit, milkdownAction);
@@ -450,11 +444,9 @@
   function closeCommandMode() {
     isCommandMode = false;
     input = '';
-    // Return focus to editor
-    editorState.editor?.action((ctx) => {
-      const view = ctx.get(editorViewCtx);
-      view.focus();
-    });
+    // Whichever surface is mounted registers this; reaching for the Milkdown
+    // instance would leave focus in the command bar on the engine path.
+    editorState.focusEditor?.();
   }
 
   /**
@@ -511,7 +503,10 @@
           return;
         }
         // Only when nothing else (a dialog, a popover) is going to take the Escape.
-        if (writingState.focusMode && !document.querySelector('[role="dialog"], [data-slot="popover-content"]')) {
+        if (
+          writingState.focusMode &&
+          !document.querySelector('[role="dialog"], [data-slot="popover-content"]')
+        ) {
           e.preventDefault();
           writingState.toggleFocusMode(false);
           return;
@@ -532,11 +527,7 @@
         // Exact modifier match, so ⌘Z (editor undo) and ⌘⌥Z (version undo) stay distinct.
         const key = e.key.toLowerCase();
         const match = commands.find(
-          (c) =>
-            c.key &&
-            c.key === key &&
-            !!c.shift === e.shiftKey &&
-            !!c.alt === e.altKey
+          (c) => c.key && c.key === key && !!c.shift === e.shiftKey && !!c.alt === e.altKey
         );
         if (match) {
           e.preventDefault();
@@ -644,7 +635,7 @@
         placeholder="Type command..."
         class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full px-2"
         aria-label="Command input"
- />
+      />
     </div>
   {:else}
     <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] font-mono">
@@ -716,63 +707,64 @@
         </Tooltip.Root>
 
         {#if aiEnabled}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                onclick={() => {
-                  if (llmManager.isLoadModelsInProgress || llmManager.downloadingModelId) return;
-                  if (aiProvider === 'openrouter') {
-                    if (!aiReady) {
-                      goto(resolve('/settings'));
-                      toast.info('Add your OpenRouter API key', 'Settings → AI → OpenRouter');
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
+                  onclick={() => {
+                    if (llmManager.isLoadModelsInProgress || llmManager.downloadingModelId) return;
+                    if (aiProvider === 'openrouter') {
+                      if (!aiReady) {
+                        goto(resolve('/settings'));
+                        toast.info('Add your OpenRouter API key', 'Settings → AI → OpenRouter');
+                      } else {
+                        appState.toggleAiChat(!appState.ui.isChatOpen);
+                      }
+                      return;
+                    }
+                    if (!llmManager.modelsLoaded) {
+                      const isDownloaded = llmManager.modelStatuses.some((m) => m.downloaded);
+                      if (isDownloaded) {
+                        llmManager.loadModels();
+                      } else {
+                        isDownloadDialogOpen = true;
+                      }
                     } else {
                       appState.toggleAiChat(!appState.ui.isChatOpen);
                     }
-                    return;
-                  }
-                  if (!llmManager.modelsLoaded) {
-                    const isDownloaded = llmManager.modelStatuses.some((m) => m.downloaded);
-                    if (isDownloaded) {
-                      llmManager.loadModels();
-                    } else {
-                      isDownloadDialogOpen = true;
-                    }
-                  } else {
-                    appState.toggleAiChat(!appState.ui.isChatOpen);
-                  }
-                }}
-                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <AiSparkleIcon strokeWidth={1.5}
-                  class={cn(
-                    'size-3.5 transition-colors',
-                    isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
-                    !aiReady ? 'text-warning' : ''
-                  )}
- />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>
-            {#if aiProvider === 'openrouter'}
-              {#if !aiReady}
-                Click to add your OpenRouter API key
+                  }}
+                  class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
+                >
+                  <AiSparkleIcon
+                    strokeWidth={1.5}
+                    class={cn(
+                      'size-3.5 transition-colors',
+                      isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
+                      !aiReady ? 'text-warning' : ''
+                    )}
+                  />
+                </button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content side="top" portalProps={{}}>
+              {#if aiProvider === 'openrouter'}
+                {#if !aiReady}
+                  Click to add your OpenRouter API key
+                {:else}
+                  AI chat (OpenRouter) · {MOD_KEY}L
+                {/if}
+              {:else if llmManager.isLoadModelsInProgress}
+                Loading AI model… {llmManager.loadingProgress}%
+              {:else if llmManager.downloadingModelId}
+                Downloading model… {llmManager.loadingProgress}%
+              {:else if !llmManager.modelsLoaded}
+                Click to set up local AI
               {:else}
-                AI chat (OpenRouter) · {MOD_KEY}L
+                AI chat · {MOD_KEY}L
               {/if}
-            {:else if llmManager.isLoadModelsInProgress}
-              Loading AI model… {llmManager.loadingProgress}%
-            {:else if llmManager.downloadingModelId}
-              Downloading model… {llmManager.loadingProgress}%
-            {:else if !llmManager.modelsLoaded}
-              Click to set up local AI
-            {:else}
-              AI chat · {MOD_KEY}L
-            {/if}
-          </Tooltip.Content>
-        </Tooltip.Root>
+            </Tooltip.Content>
+          </Tooltip.Root>
         {/if}
       </div>
 

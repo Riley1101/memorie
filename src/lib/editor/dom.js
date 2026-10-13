@@ -19,6 +19,21 @@
 /** @typedef {{ block: number, offset: number }} EnginePosition */
 /** @typedef {{ anchor: EnginePosition, head: EnginePosition }} EngineSelection */
 
+/**
+ * What a panel floating beside the text needs in order to place itself and to
+ * act on what is selected. The editing surface reports one of these whenever
+ * the selection settles; it lives here rather than in the component so that a
+ * caller can name the type without importing a `.svelte` file.
+ * @typedef {Object} SelectionInfo
+ * @property {EngineSelection} selection
+ * @property {DOMRect} rect - Covering the whole selection, in screen
+ *   coordinates, so a `position: fixed` panel can use it directly.
+ * @property {string} text - The selection as plain text.
+ * @property {string} blockText - All the text of the block the head is in,
+ *   which is the unit the AI suggestions work on.
+ * @property {number} block - The head's block.
+ */
+
 /** Nodes that carry length: text, and atoms standing in for one unit. */
 const LENGTH_NODES = NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT;
 
