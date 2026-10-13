@@ -597,6 +597,8 @@ pub enum WireCommand {
         ordered: bool,
     },
     ToggleTask,
+    IndentListItem,
+    OutdentListItem,
     InsertTable {
         rows: usize,
         columns: usize,
@@ -671,6 +673,8 @@ impl WireCommand {
             WireCommand::WrapInQuote => EditorCommand::WrapInQuote,
             WireCommand::ToggleList { ordered } => EditorCommand::ToggleList { ordered },
             WireCommand::ToggleTask => EditorCommand::ToggleTask,
+            WireCommand::IndentListItem => EditorCommand::IndentListItem,
+            WireCommand::OutdentListItem => EditorCommand::OutdentListItem,
             WireCommand::InsertTable { rows, columns } => {
                 EditorCommand::InsertTable { rows, columns }
             }

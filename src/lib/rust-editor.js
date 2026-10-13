@@ -81,6 +81,8 @@ import { invoke } from '@tauri-apps/api/core';
  *   | { command: 'wrapInQuote' }
  *   | { command: 'toggleList', ordered?: boolean }
  *   | { command: 'toggleTask' }
+ *   | { command: 'indentListItem' }
+ *   | { command: 'outdentListItem' }
  *   | { command: 'insertTable', rows: number, columns: number }
  *   | { command: 'insertTableRow', before?: boolean }
  *   | { command: 'insertTableColumn', before?: boolean }

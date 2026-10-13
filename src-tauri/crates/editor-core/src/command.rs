@@ -91,6 +91,19 @@ pub enum EditorCommand {
     /// Never takes taskness away again.
     ToggleTask,
 
+    /// Makes the list item at the caret a child of the one above it — ⇥.
+    ///
+    /// The first item of a list has nothing above it to become a child of, so
+    /// there it does nothing rather than inventing a level.
+    IndentListItem,
+    /// Moves the list item at the caret out one level — ⇧⇥.
+    ///
+    /// Out of a nested list it joins the list around it, directly after the
+    /// item it was inside. Out of a top-level list it stops being a list item
+    /// at all: its blocks take their place beside the list, which splits in
+    /// two if the item was in the middle of it.
+    OutdentListItem,
+
     /// Inserts a table after the block at the caret, with a header row and
     /// `rows` body rows.
     InsertTable {
@@ -158,6 +171,8 @@ impl EditorCommand {
             EditorCommand::WrapInQuote => "Quote",
             EditorCommand::ToggleList { .. } => "List",
             EditorCommand::ToggleTask => "Task",
+            EditorCommand::IndentListItem => "Indent",
+            EditorCommand::OutdentListItem => "Outdent",
             EditorCommand::InsertTable { .. } => "Table",
             EditorCommand::InsertTableRow { .. } => "Table row",
             EditorCommand::InsertTableColumn { .. } => "Table column",

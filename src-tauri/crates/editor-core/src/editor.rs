@@ -243,6 +243,8 @@ impl Editor {
             EditorCommand::WrapInQuote => self.wrap_in_quote(),
             EditorCommand::ToggleList { ordered } => self.toggle_list(ordered),
             EditorCommand::ToggleTask => self.toggle_task(),
+            EditorCommand::IndentListItem => self.indent_list_item(),
+            EditorCommand::OutdentListItem => self.outdent_list_item(),
             EditorCommand::InsertTable { rows, columns } => self.insert_table(rows, columns),
             EditorCommand::InsertTableRow { before } => self.insert_table_row(before),
             EditorCommand::InsertTableColumn { before } => self.insert_table_column(before),
@@ -1476,6 +1478,195 @@ impl Editor {
         Ok(Transaction::new(self.selection, self.selection).with(wrap))
     }
 
+    /// Makes the item at the caret a child of the one above it.
+    ///
+    /// Every block in the item moves with it, ids and all, so the caret, a
+    /// task's tick and anything nested under it survive the move. The item
+    /// goes into the list already at the end of the item above when there is
+    /// one, so indenting twice gives one nested list rather than two.
+    fn indent_list_item(&mut self) -> Result<Transaction> {
+        let (list_id, index) = self
+            .document
+            .list_position(self.selection.head.block)
+            .ok_or(EditorError::Unsupported("the caret is not in a list"))?;
+        // The first item of a list has nothing above it to become a child of.
+        if index == 0 {
+            return Err(EditorError::NothingToDo);
+        }
+
+        let mut list = self.document.block(list_id).expect("found above").clone();
+        let BlockKind::List { ordered, tight, .. } = list.kind else {
+            unreachable!("list_position only points at lists");
+        };
+
+        let mut moving = {
+            let BlockKind::List { items, .. } = &mut list.kind else {
+                unreachable!("checked above");
+            };
+            Some(items.remove(index))
+        };
+
+        if let BlockKind::List { items, .. } = &mut list.kind {
+            if let Some(BlockKind::List {
+                ordered: inner,
+                items: nested,
+                ..
+            }) = items[index - 1]
+                .blocks
+                .last_mut()
+                .map(|block| &mut block.kind)
+            {
+                // A list of the other kind is a different list, not this one
+                // one level down, so it is left alone and a new one is made.
+                if *inner == ordered {
+                    nested.push(moving.take().expect("not yet taken"));
+                }
+            }
+        }
+
+        if let Some(item) = moving {
+            let nested = self.document.new_block(BlockKind::List {
+                ordered,
+                start: None,
+                tight,
+                items: vec![item],
+            });
+            let BlockKind::List { items, .. } = &mut list.kind else {
+                unreachable!("checked above");
+            };
+            items[index - 1].blocks.push(nested);
+        }
+
+        Ok(
+            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlock {
+                block: list_id,
+                with: Box::new(list),
+            }),
+        )
+    }
+
+    /// Moves the item at the caret out one level.
+    fn outdent_list_item(&mut self) -> Result<Transaction> {
+        let (list_id, index) = self
+            .document
+            .list_position(self.selection.head.block)
+            .ok_or(EditorError::Unsupported("the caret is not in a list"))?;
+
+        match self.document.list_position(list_id) {
+            Some((outer_id, outer_index)) => {
+                self.outdent_into(list_id, index, outer_id, outer_index)
+            }
+            None => self.outdent_out_of_list(list_id, index),
+        }
+    }
+
+    /// An item of a nested list joins the list around it, directly after the
+    /// item it was inside.
+    ///
+    /// The items that followed it stay below it rather than jumping a level:
+    /// they become a list nested under the item that just moved out, which is
+    /// what keeps the shape of a list the writer is reorganising.
+    fn outdent_into(
+        &mut self,
+        list_id: BlockId,
+        index: usize,
+        outer_id: BlockId,
+        outer_index: usize,
+    ) -> Result<Transaction> {
+        let mut outer = self.document.block(outer_id).expect("found above").clone();
+        let (ordered, tight, mut lifted, trailing, emptied) = {
+            let inner = outer
+                .find_mut(list_id)
+                .ok_or(EditorError::NoSuchBlock(list_id))?;
+            let BlockKind::List {
+                ordered,
+                tight,
+                items,
+                ..
+            } = &mut inner.kind
+            else {
+                unreachable!("list_position only points at lists");
+            };
+            let lifted = items.remove(index);
+            let trailing = items.split_off(index);
+            (*ordered, *tight, lifted, trailing, items.is_empty())
+        };
+
+        if !trailing.is_empty() {
+            let below = self.document.new_block(BlockKind::List {
+                ordered,
+                start: None,
+                tight,
+                items: trailing,
+            });
+            lifted.blocks.push(below);
+        }
+        // Nothing left in the list the item came out of, so the list goes too:
+        // an empty list is not a list with no items, it is nothing.
+        if emptied {
+            remove_descendant(&mut outer, list_id);
+        }
+
+        let BlockKind::List { items, .. } = &mut outer.kind else {
+            unreachable!("list_position only points at lists");
+        };
+        items.insert(outer_index + 1, lifted);
+
+        Ok(
+            Transaction::new(self.selection, self.selection).with(Operation::ReplaceBlock {
+                block: outer_id,
+                with: Box::new(outer),
+            }),
+        )
+    }
+
+    /// An item of a top-level list stops being a list item: its blocks take
+    /// their place beside the list.
+    ///
+    /// The list splits around it when the item was in the middle of one — the
+    /// items above keep the list's id, the ones below get a new list — so
+    /// outdenting the third of five leaves a list of two, the blocks, and a
+    /// list of two.
+    fn outdent_out_of_list(&mut self, list_id: BlockId, index: usize) -> Result<Transaction> {
+        let site = self.site(list_id)?;
+        let mut above = self.document.block(list_id).expect("found above").clone();
+        let BlockKind::List { ordered, tight, .. } = above.kind else {
+            unreachable!("list_position only points at lists");
+        };
+
+        let (lifted, below_items) = {
+            let BlockKind::List { items, .. } = &mut above.kind else {
+                unreachable!("checked above");
+            };
+            let lifted = items.remove(index);
+            let below = items.split_off(index);
+            (lifted, below)
+        };
+        let emptied = match &above.kind {
+            BlockKind::List { items, .. } => items.is_empty(),
+            _ => unreachable!("checked above"),
+        };
+
+        let mut blocks = Vec::new();
+        if !emptied {
+            blocks.push(above);
+        }
+        // The item's own blocks, nested lists included: a lift takes the level
+        // off the item, not off everything under it.
+        blocks.extend(lifted.blocks);
+        if !below_items.is_empty() {
+            blocks.push(self.document.new_block(BlockKind::List {
+                ordered,
+                start: None,
+                tight,
+                items: below_items,
+            }));
+        }
+
+        let splice = self.splice(site, site.index, site.index + 1, blocks)?;
+        Ok(Transaction::new(self.selection, self.selection).with(splice))
+    }
+
     fn toggle_task(&self) -> Result<Transaction> {
         let (list_id, item) = self
             .document
@@ -1739,6 +1930,23 @@ fn restore_edge_spaces(content: InlineContent, source: &str) -> InlineContent {
         pieces.push(Inline::text(trailing));
     }
     InlineContent::new(pieces)
+}
+
+/// Takes the block with id `id` out of whichever child list holds it, at any
+/// depth inside `block`. False when it isn't in there at all.
+fn remove_descendant(block: &mut Block, id: BlockId) -> bool {
+    for list in block.child_lists_mut() {
+        if let Some(at) = list.iter().position(|child| child.id == id) {
+            list.remove(at);
+            return true;
+        }
+        for child in list.iter_mut() {
+            if remove_descendant(child, id) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Two runs of inline content, one after the other.

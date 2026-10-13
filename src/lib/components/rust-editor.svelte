@@ -41,6 +41,7 @@
 
   /** @typedef {import('$lib/rust-editor.js').EditorStateView} EditorStateView */
   /** @typedef {import('$lib/rust-editor.js').EditorBlock} EditorBlock */
+  /** @typedef {import('$lib/rust-editor.js').EditorPosition} EditorPosition */
   /** @typedef {import('$lib/rust-editor.js').EditorRun} EditorRun */
   /** @typedef {import('$lib/rust-editor.js').EditorCommand} EditorCommand */
   /** @typedef {import('$lib/rust-editor.js').EditorUpdate} EditorUpdate */
@@ -225,6 +226,71 @@
     };
   });
 
+  $effect(() => {
+    // `selectionchange` only fires on the document, never on an element, so the
+    // listener cannot live on the surface in the template.
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', onSelectionChange);
+      clearTimeout(syncTimer);
+    };
+  });
+
+  /** The selection the engine was last told about, so a sync says it once. */
+  let sentSelection = '';
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let syncTimer;
+
+  /** @param {{ anchor: EditorPosition, head: EditorPosition }} selection */
+  function selectionKey({ anchor, head }) {
+    return `${anchor.block}:${anchor.offset}/${head.block}:${head.offset}`;
+  }
+
+  /**
+   * Keeps the engine's idea of the caret current when the browser moves it.
+   *
+   * Arrow keys, a click and a drag are the browser's to handle — reimplementing
+   * what a line is would be the first thing to get wrong — so the engine is
+   * told about those moves here instead of hearing nothing until the next edit.
+   * It matters because the caret decides what ⌘B applies to, which block focus
+   * mode lights, and what a toolbar shows as active: without this they are a
+   * keystroke behind the writer.
+   *
+   * A drag fires this per mouse move, so the work is put off until the
+   * selection settles.
+   */
+  function onSelectionChange() {
+    if (composing || !doc || !root) return;
+    const selection = document.getSelection();
+    // Somewhere else on the page: not ours to report.
+    if (!selection?.anchorNode || !root.contains(selection.anchorNode)) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncSelection, 50);
+  }
+
+  async function syncSelection() {
+    // An edit is already on its way, and its reply carries the caret the engine
+    // decided on — which beats the one the browser is showing now.
+    if (composing || inFlight > 0 || !doc || !root) return;
+    const command = selectionCommand();
+    if (!command) return;
+    const key = selectionKey(command);
+    if (key === sentSelection) return;
+    sentSelection = key;
+
+    const mine = generation;
+    try {
+      const update = await applyCommands(name, [command]);
+      // Nothing is drawn and the caret is not written back: a selection changes
+      // no blocks, and writing it would fight the browser for a selection it
+      // already has.
+      if (mine === generation && doc && inFlight === 0) patchState(doc, update);
+    } catch {
+      // A selection the engine won't take is not worth telling the writer
+      // about: the next edit sends its own, and the view still shows the truth.
+    }
+  }
+
   /**
    * Applies commands and patches the view with what changed.
    * @param {EditorCommand[]} commands
@@ -263,6 +329,9 @@
       // still on its way: moving it under a keystroke that hasn't been answered
       // yet would put it behind the writer.
       if (root && !composing && inFlight === 1) writeSelection(root, update.selection);
+      // Writing the caret fires `selectionchange`; this is the engine's own
+      // answer, so the sync has nothing left to tell it.
+      sentSelection = selectionKey(update.selection);
       onupdate?.(update, performance.now() - started);
       if (update.blocks.length > 0) onedit?.();
     } catch (e) {
@@ -363,6 +432,12 @@
         event.preventDefault();
         return;
       }
+      // A drop names the range it lands in, and that is the one to use: the
+      // selection the DOM is still showing is the text being dragged, not
+      // where the writer let go of it. The source end of a move within the
+      // document is a `deleteByDrag` of its own, which the delete branch below
+      // handles.
+      if (type === 'insertFromDrop') commands[0] = targetSelection(event) ?? commands[0];
       // Markdown, not characters: `## Heading` off a clipboard means a heading,
       // and the engine decides whether what it parses to is blocks or a run of
       // text. A `text/plain` payload from anywhere else is still the writer's
@@ -564,9 +639,39 @@
     }
   }
 
+  /**
+   * Whether the caret is inside a list item, so ⇥ belongs to the engine rather
+   * than to focus. Asked of the DOM rather than of the engine: the engine's
+   * selection lags a caret moved with the arrow keys, and the answer decides
+   * whether the key is swallowed.
+   */
+  function inList() {
+    if (!root) return false;
+    const node = document.getSelection()?.anchorNode ?? null;
+    const element = node instanceof Element ? node : node?.parentElement;
+    return !!element?.closest('li');
+  }
+
   /** @param {KeyboardEvent} event */
   function onKeydown(event) {
-    if (!isMod(event) || composing) return;
+    if (composing) return;
+
+    // ⇥ and ⇧⇥ carry no modifier, so they come before the test for one. Only
+    // a list answers them: anywhere else the key keeps its usual job of moving
+    // focus out of the editor, which is what a writer reaching for it with no
+    // list in sight expects, and what keyboard navigation needs.
+    if (event.key === 'Tab') {
+      if (!inList()) return;
+      event.preventDefault();
+      const selection = selectionCommand();
+      const command = /** @type {EditorCommand} */ ({
+        command: event.shiftKey ? 'outdentListItem' : 'indentListItem',
+      });
+      send(selection ? [selection, command] : [command]);
+      return;
+    }
+
+    if (!isMod(event)) return;
 
     /** @type {EditorCommand} */
     let command;
