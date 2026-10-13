@@ -166,9 +166,9 @@ function withClasses(run, ranges, start, end) {
   // Later decorations win a contested attribute, which is the order the caller
   // put them in.
   const attrs = Object.assign({}, ...covering.map((range) => range.attrs ?? {}));
-  const decorated = { ...run, deco: classes };
-  if (Object.keys(attrs).length > 0) decorated.decoAttrs = attrs;
-  return decorated;
+  return Object.keys(attrs).length > 0
+    ? { ...run, deco: classes, decoAttrs: attrs }
+    : { ...run, deco: classes };
 }
 
 /**
