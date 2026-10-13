@@ -509,3 +509,20 @@ fn other_spellings_reach_a_fixed_point_without_losing_text() {
         );
     }
 }
+
+#[test]
+fn a_list_nested_under_a_task_survives_being_written() {
+    // A task's `[x] ` is content, not part of the list marker. Indenting a
+    // nested list past it put the list four columns beyond where the item's
+    // content starts, which reads back as indented code: the nesting was lost
+    // on the first save and the text itself on the second.
+    assert_canonical("- [ ] one\n  - [x] two\n");
+    assert_canonical("- [x] done\n  - plain child\n");
+    assert_canonical("1. [ ] numbered task\n   - child\n");
+
+    let document = parse("- [ ] one\n  - [x] two\n");
+    let printed = assert_idempotent("- [ ] one\n  - [x] two\n");
+    let after = parse(&printed);
+    assert_eq!(after.plain_text(), document.plain_text());
+    assert_eq!(after.all_blocks().len(), document.all_blocks().len());
+}

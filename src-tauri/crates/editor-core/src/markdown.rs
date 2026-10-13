@@ -594,6 +594,13 @@ fn write_list(
         } else {
             "- ".to_string()
         };
+        // The indent that continuation lines take is the width of the list
+        // marker, worked out before a task's checkbox is added to it: `[x] ` is
+        // the item's content, not part of the marker, so indenting past it
+        // would put a nested list four columns beyond where its content starts
+        // — which reads as indented code on the way back in, and loses the
+        // list.
+        let indent = " ".repeat(marker.chars().count());
         let marker = match item.checked {
             Some(true) => format!("{marker}[x] "),
             Some(false) => format!("{marker}[ ] "),
@@ -602,7 +609,6 @@ fn write_list(
 
         let mut inner = String::new();
         write_blocks_spaced(&item.blocks, &mut inner, false, !tight);
-        let indent = " ".repeat(marker.chars().count());
         out.push_str(&prefix_lines(
             inner.trim_end_matches('\n'),
             &marker,
