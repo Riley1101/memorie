@@ -212,3 +212,58 @@ export function writeSelection(root, selection) {
     current.collapse(anchorBlock, 0);
   }
 }
+
+/**
+ * The screen rectangle for a position, for anything that has to float beside
+ * the text: the AI box, the slash menu, a link popover.
+ *
+ * This is the inverse of {@link positionOf} — an engine position back out to
+ * where the browser has actually drawn it — and it is what ProseMirror's
+ * `coordsAtPos` did for the plugins that are being ported off it. Null when
+ * the block isn't in the DOM yet, which happens while a render is pending.
+ * @param {HTMLElement} root
+ * @param {EnginePosition} position
+ * @returns {DOMRect | null}
+ */
+export function rectAt(root, position) {
+  const block = root.querySelector(`[data-block-id="${position.block}"]`);
+  if (!(block instanceof HTMLElement)) return null;
+  const point = domPointOf(block, position.offset);
+
+  const range = document.createRange();
+  try {
+    range.setStart(point.node, point.offset);
+    range.setEnd(point.node, point.offset);
+  } catch {
+    return block.getBoundingClientRect();
+  }
+  const rect = range.getBoundingClientRect();
+  // A collapsed range at a block's edge, or in an empty block, measures zero
+  // on both axes in every browser. The block's own box is the honest fallback:
+  // it says where the line is, which is all a floating panel needs.
+  return rect.width === 0 && rect.height === 0 ? block.getBoundingClientRect() : rect;
+}
+
+/**
+ * The screen rectangle covering a whole selection, for a panel that should sit
+ * under everything the writer has selected rather than under one end of it.
+ *
+ * Collapses to {@link rectAt} when the selection is collapsed or its ends are
+ * in blocks that aren't both rendered.
+ * @param {HTMLElement} root
+ * @param {EngineSelection} selection
+ * @returns {DOMRect | null}
+ */
+export function rectOfSelection(root, selection) {
+  const anchor = rectAt(root, selection.anchor);
+  const head = rectAt(root, selection.head);
+  if (!anchor || !head) return anchor ?? head;
+  const left = Math.min(anchor.left, head.left);
+  const top = Math.min(anchor.top, head.top);
+  return new DOMRect(
+    left,
+    top,
+    Math.max(anchor.right, head.right) - left,
+    Math.max(anchor.bottom, head.bottom) - top
+  );
+}

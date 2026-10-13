@@ -34,6 +34,7 @@
     mightBeRule,
     backspaceThroughPair,
   } from '$lib/editor/input-rules.js';
+  import { decorate, forBlock } from '$lib/editor/decorations.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { openHref } from '$lib/components/plugins/link-popover.svelte.js';
   import { DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
@@ -58,6 +59,7 @@
    *   onerror?: (message: string) => void,
    *   onedit?: () => void,
    *   onlink?: () => Promise<string | null> | string | null,
+   *   decorations?: import('$lib/editor/decorations.js').Decoration[],
    *   placeholder?: string,
    * }}
    * `name` is the writing's path, which is also the engine's session key. With
@@ -67,6 +69,10 @@
    * `onlink` is asked for the URL when the writer presses ⌘K; this component
    * draws no dialogs. Without it, a URL on the clipboard is used. Return null
    * to leave the text unlinked.
+   * `decorations` are ranges drawn over the text that are not in it — find
+   * highlights, codex mentions, grammar squiggles. The caller computes them;
+   * they never reach the engine, so they are not in the Markdown or the undo
+   * history. See `$lib/editor/decorations.js`.
    */
   let {
     name,
@@ -79,6 +85,7 @@
     onerror = undefined,
     onedit = undefined,
     onlink = undefined,
+    decorations = [],
     placeholder = 'Start writing…',
   } = $props();
 
@@ -738,22 +745,27 @@
   }
 </script>
 
-{#snippet runs(list)}
-  {#each list as run, index (index)}
+{#snippet runs(list, blockId)}
+  <!-- Decorations split the run list before it is drawn, so a highlight that
+       covers half a bold word becomes two runs rather than a nested element the
+       caret mapping would have to understand. -->
+  {#each decorations.length ? decorate(list, forBlock(decorations, blockId)) : list as run, index (index)}
     {#if run.type === 'text'}
       {#if run.href}
         <!-- A link in the document is content, not navigation: clicking it has
              to put the caret in it, so it isn't an anchor. -->
-        <span class="{runClass(run)} mark-link" data-run data-href={run.href}>{run.text}</span>
+        <span class="{runClass(run)} {run.deco ?? ''} mark-link" data-run data-href={run.href}
+          >{run.text}</span
+        >
       {:else}
-        <span class={runClass(run)} data-run>{run.text}</span>
+        <span class="{runClass(run)} {run.deco ?? ''}" data-run>{run.text}</span>
       {/if}
     {:else if run.type === 'image'}
-      <img data-atom src={run.source} alt={run.alt ?? ''} />
+      <img data-atom class={run.deco ?? ''} src={run.source} alt={run.alt ?? ''} />
     {:else if run.type === 'break'}
       <br data-atom />
     {:else if run.type === 'html'}
-      <span data-atom class="raw-html">{run.html}</span>
+      <span data-atom class="raw-html {run.deco ?? ''}">{run.html}</span>
     {/if}
   {/each}
 {/snippet}
@@ -768,7 +780,7 @@
       data-placeholder={placeholder}
       class:is-current-block={isCurrentBlock(block)}
     >
-      {@render runs(block.runs ?? [])}
+      {@render runs(block.runs ?? [], block.id)}
     </p>
   {:else if block.kind === 'heading'}
     <!-- A level outside 1–6 is not a heading the DOM has; clamping keeps a bad
@@ -777,27 +789,27 @@
     {@const current = isCurrentBlock(block)}
     {#if level === 1}
       <h1 data-block-id={block.id} class:is-current-block={current}>
-        {@render runs(block.runs ?? [])}
+        {@render runs(block.runs ?? [], block.id)}
       </h1>
     {:else if level === 2}
       <h2 data-block-id={block.id} class:is-current-block={current}>
-        {@render runs(block.runs ?? [])}
+        {@render runs(block.runs ?? [], block.id)}
       </h2>
     {:else if level === 3}
       <h3 data-block-id={block.id} class:is-current-block={current}>
-        {@render runs(block.runs ?? [])}
+        {@render runs(block.runs ?? [], block.id)}
       </h3>
     {:else if level === 4}
       <h4 data-block-id={block.id} class:is-current-block={current}>
-        {@render runs(block.runs ?? [])}
+        {@render runs(block.runs ?? [], block.id)}
       </h4>
     {:else if level === 5}
       <h5 data-block-id={block.id} class:is-current-block={current}>
-        {@render runs(block.runs ?? [])}
+        {@render runs(block.runs ?? [], block.id)}
       </h5>
     {:else}
       <h6 data-block-id={block.id} class:is-current-block={current}>
-        {@render runs(block.runs ?? [])}
+        {@render runs(block.runs ?? [], block.id)}
       </h6>
     {/if}
   {:else if block.kind === 'quote'}
@@ -954,6 +966,29 @@
 
   .rust-editor.focus-mode :global(> :not(.is-current-block)) {
     opacity: 0.3;
+  }
+
+  /* Decorations: drawn over the text, never in it. The caller names the class
+     and these are the ones this component knows; an unknown `deco-*` lands on
+     the span and is the caller's to style. */
+  .rust-editor :global(.deco-find) {
+    background: color-mix(in oklab, var(--find, #fbbf24) 45%, transparent);
+    border-radius: 0.15em;
+  }
+  .rust-editor :global(.deco-find-current) {
+    background: var(--find-current, #fbbf24);
+    border-radius: 0.15em;
+  }
+  .rust-editor :global(.deco-mention) {
+    background: color-mix(in oklab, currentColor 8%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, currentColor 35%, transparent);
+    cursor: pointer;
+  }
+  /* A squiggle, not a colour change: a grammar hint has to be legible over
+     text that may already be bold, linked or highlighted by a find. */
+  .rust-editor :global(.deco-grammar) {
+    text-decoration: underline wavy color-mix(in oklab, #ef4444 70%, transparent);
+    text-decoration-skip-ink: none;
   }
 
   .rust-editor :global(.mark-bold) {
