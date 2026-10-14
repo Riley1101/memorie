@@ -56,7 +56,11 @@ pub fn is_codex_folder(path: &str) -> bool {
 /// Refuses a writing (`is_file`) or folder path that would land in a codex
 /// folder, where it would vanish from the binder tree.
 pub fn ensure_not_reserved(path: &str, is_file: bool) -> Result<(), String> {
-    let reserved = if is_file { is_codex_name(path) } else { is_codex_folder(path) };
+    let reserved = if is_file {
+        is_codex_name(path)
+    } else {
+        is_codex_folder(path)
+    };
     if reserved {
         return Err(format!(
             "\"{CODEX_DIR}\" is reserved for the codex. Choose another name for this folder."
@@ -71,7 +75,9 @@ pub fn ensure_relative(path: &str) -> Result<(), String> {
         || path.starts_with('/')
         || path.contains('\\')
         || path.contains(':')
-        || path.split('/').any(|s| s.is_empty() || s == "." || s == "..");
+        || path
+            .split('/')
+            .any(|s| s.is_empty() || s == "." || s == "..");
     if bad {
         return Err(format!("\"{path}\" is not a valid path"));
     }
@@ -229,11 +235,22 @@ impl Entity {
     }
 }
 
-const KNOWN_KEYS: [&str; 7] = ["codex", "aliases", "summary", "fields", "relationships", "match", "pinned"];
+const KNOWN_KEYS: [&str; 7] = [
+    "codex",
+    "aliases",
+    "summary",
+    "fields",
+    "relationships",
+    "match",
+    "pinned",
+];
 
 /// Splits a file into its front matter (unparsed) and body.
 fn split_front_matter(content: &str) -> (Option<&str>, &str) {
-    let rest = match content.strip_prefix("---\n").or_else(|| content.strip_prefix("---\r\n")) {
+    let rest = match content
+        .strip_prefix("---\n")
+        .or_else(|| content.strip_prefix("---\r\n"))
+    {
         Some(rest) => rest,
         None => return (None, content),
     };
@@ -302,7 +319,12 @@ pub fn parse_entity(name: &str, content: &str) -> Entity {
     let aliases = match get(&map, "aliases") {
         Some(Value::Sequence(items)) => items.iter().filter_map(scalar_string).collect(),
         Some(value) => scalar_string(value)
-            .map(|s| s.split(',').map(|a| a.trim().to_string()).filter(|a| !a.is_empty()).collect())
+            .map(|s| {
+                s.split(',')
+                    .map(|a| a.trim().to_string())
+                    .filter(|a| !a.is_empty())
+                    .collect()
+            })
             .unwrap_or_default(),
         None => Vec::new(),
     };
@@ -310,7 +332,12 @@ pub fn parse_entity(name: &str, content: &str) -> Entity {
     let fields = match get(&map, "fields") {
         Some(Value::Mapping(fields)) => fields
             .iter()
-            .filter_map(|(k, v)| Some(Field { key: scalar_string(k)?, value: scalar_string(v).unwrap_or_default() }))
+            .filter_map(|(k, v)| {
+                Some(Field {
+                    key: scalar_string(k)?,
+                    value: scalar_string(v).unwrap_or_default(),
+                })
+            })
             .collect(),
         _ => Vec::new(),
     };
@@ -323,7 +350,10 @@ pub fn parse_entity(name: &str, content: &str) -> Entity {
                     to: get(rel, "to").and_then(scalar_string)?,
                     kind: get(rel, "kind").and_then(scalar_string).unwrap_or_default(),
                 }),
-                other => scalar_string(other).map(|to| Relationship { to, kind: String::new() }),
+                other => scalar_string(other).map(|to| Relationship {
+                    to,
+                    kind: String::new(),
+                }),
             })
             .filter(|rel| !rel.to.trim().is_empty())
             .collect(),
@@ -341,10 +371,15 @@ pub fn parse_entity(name: &str, content: &str) -> Entity {
         name: file_stem.to_string(),
         kind,
         aliases,
-        summary: get(&map, "summary").and_then(scalar_string).unwrap_or_default(),
+        summary: get(&map, "summary")
+            .and_then(scalar_string)
+            .unwrap_or_default(),
         fields,
         relationships,
-        match_mode: get(&map, "match").and_then(scalar_string).map(|m| MatchMode::parse(&m)).unwrap_or_default(),
+        match_mode: get(&map, "match")
+            .and_then(scalar_string)
+            .map(|m| MatchMode::parse(&m))
+            .unwrap_or_default(),
         pinned: matches!(get(&map, "pinned"), Some(Value::Bool(true))),
         notes: body.trim_start_matches(['\r', '\n']).trim_end().to_string(),
     }
@@ -427,7 +462,13 @@ fn file_stem(name: &str) -> Result<String, String> {
     let stem: String = name
         .trim()
         .chars()
-        .map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { '-' } else { c })
+        .map(|c| {
+            if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                '-'
+            } else {
+                c
+            }
+        })
         .collect();
     let stem = stem.trim().trim_start_matches('.').trim().to_string();
     if stem.is_empty() {
@@ -507,7 +548,8 @@ pub fn save_entity(
     };
 
     let moving = original.is_some_and(|o| o != target);
-    let case_only = original.is_some_and(|o| o != target && o.to_lowercase() == target.to_lowercase());
+    let case_only =
+        original.is_some_and(|o| o != target && o.to_lowercase() == target.to_lowercase());
     if (original.is_none() || moving) && target_path.exists() && !case_only {
         return Err(format!("\"{}\" is already in the codex", input.name.trim()));
     }
@@ -539,10 +581,14 @@ pub fn delete_entity(content_dir: &Path, path: &str) -> Result<(), String> {
 /// from being deleted. Stops at the first folder that still holds anything.
 fn prune_empty_dirs(content_dir: &Path, path: &str) {
     let segments: Vec<&str> = path.split('/').collect();
-    let Some(codex_at) = segments.iter().position(|s| *s == CODEX_DIR) else { return };
+    let Some(codex_at) = segments.iter().position(|s| *s == CODEX_DIR) else {
+        return;
+    };
     for end in (codex_at + 1..segments.len()).rev() {
         let dir = content_dir.join(segments[..end].join("/"));
-        let empty = std::fs::read_dir(&dir).map(|mut d| d.next().is_none()).unwrap_or(false);
+        let empty = std::fs::read_dir(&dir)
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(false);
         if !empty || std::fs::remove_dir(&dir).is_err() {
             break;
         }
@@ -616,16 +662,28 @@ impl Matcher {
                 .ok()
                 .map(|ac| (ac, owners))
         };
-        Matcher { sensitive: build(sensitive), insensitive: build(insensitive) }
+        Matcher {
+            sensitive: build(sensitive),
+            insensitive: build(insensitive),
+        }
     }
 
     /// Every mention in `text`, in order, none overlapping.
     pub fn find(&self, text: &str) -> Vec<Hit> {
         let mut hits = Vec::new();
-        let folded = if self.insensitive.is_some() { fold_case(text) } else { String::new() };
-        let searches = [(self.sensitive.as_ref(), text), (self.insensitive.as_ref(), folded.as_str())];
+        let folded = if self.insensitive.is_some() {
+            fold_case(text)
+        } else {
+            String::new()
+        };
+        let searches = [
+            (self.sensitive.as_ref(), text),
+            (self.insensitive.as_ref(), folded.as_str()),
+        ];
         for (automaton, haystack) in searches {
-            let Some((ac, owners)) = automaton else { continue };
+            let Some((ac, owners)) = automaton else {
+                continue;
+            };
             for m in ac.find_overlapping_iter(haystack) {
                 let (start, end) = (m.start(), m.end());
                 let before = text[..start].chars().next_back();
@@ -633,10 +691,18 @@ impl Matcher {
                 if before.is_some_and(is_word_char) || after.is_some_and(is_word_char) {
                     continue;
                 }
-                hits.push(Hit { entity: owners[m.pattern().as_usize()], start, end });
+                hits.push(Hit {
+                    entity: owners[m.pattern().as_usize()],
+                    start,
+                    end,
+                });
             }
         }
-        hits.sort_by(|a, b| a.start.cmp(&b.start).then((b.end - b.start).cmp(&(a.end - a.start))));
+        hits.sort_by(|a, b| {
+            a.start
+                .cmp(&b.start)
+                .then((b.end - b.start).cmp(&(a.end - a.start)))
+        });
         let mut kept: Vec<Hit> = Vec::with_capacity(hits.len());
         for hit in hits {
             if kept.last().is_none_or(|last| hit.start >= last.end) {
@@ -672,7 +738,11 @@ pub fn detect(entities: &[Entity], text: &str) -> Vec<Mention> {
     for hit in matcher.find(text) {
         by_entity
             .entry(hit.entity)
-            .or_insert_with(|| Mention { path: entities[hit.entity].path.clone(), count: 0, first: hit.start })
+            .or_insert_with(|| Mention {
+                path: entities[hit.entity].path.clone(),
+                count: 0,
+                first: hit.start,
+            })
             .count += 1;
     }
     let mut mentions: Vec<Mention> = by_entity.into_values().collect();
@@ -729,7 +799,11 @@ pub struct Passage {
 
 /// Paragraphs that mention `entity`, from `writings` in the order given, until
 /// `budget` characters are used. Front matter is skipped.
-pub fn gather_passages(entity: &Entity, writings: &[(String, String)], budget: usize) -> Vec<Passage> {
+pub fn gather_passages(
+    entity: &Entity,
+    writings: &[(String, String)],
+    budget: usize,
+) -> Vec<Passage> {
     // Match on the name and aliases even when detection is off for this entry.
     let mut probe = entity.clone();
     if probe.match_mode == MatchMode::Off {
@@ -750,7 +824,10 @@ pub fn gather_passages(entity: &Entity, writings: &[(String, String)], budget: u
                 return passages;
             }
             used += text.len();
-            passages.push(Passage { writing: name.clone(), text });
+            passages.push(Passage {
+                writing: name.clone(),
+                text,
+            });
         }
     }
     passages
@@ -775,7 +852,11 @@ impl SheetDraft {
             .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
             .filter(|(k, v)| !v.is_empty() && wanted.contains(&k.to_lowercase()))
             .collect();
-        self.summary = if want_summary { self.summary.trim().to_string() } else { String::new() };
+        self.summary = if want_summary {
+            self.summary.trim().to_string()
+        } else {
+            String::new()
+        };
         self
     }
 }
@@ -793,7 +874,13 @@ pub fn draft_message(entity: &Entity, keys: &[String], passages: &[Passage]) -> 
     }
     let excerpts = passages
         .iter()
-        .map(|p| format!("<passage writing=\"{}\">\n{}\n</passage>", attr(&crate::memory::pretty_title(&p.writing)), p.text))
+        .map(|p| {
+            format!(
+                "<passage writing=\"{}\">\n{}\n</passage>",
+                attr(&crate::memory::pretty_title(&p.writing)),
+                p.text
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n\n");
     format!(
@@ -834,7 +921,12 @@ pub struct ContextBlock {
 /// often the open document mentions them, then linked to a top entry.
 pub fn rank_for_context(entities: &[Entity], sources: &ContextSources) -> Vec<usize> {
     let matcher = Matcher::new(entities);
-    let lower = |names: &[String]| names.iter().map(|n| n.trim().to_lowercase()).collect::<HashSet<_>>();
+    let lower = |names: &[String]| {
+        names
+            .iter()
+            .map(|n| n.trim().to_lowercase())
+            .collect::<HashSet<_>>()
+    };
     let (exclude, pin) = (lower(sources.exclude), lower(sources.pin));
 
     let mut scores: HashMap<usize, i64> = HashMap::new();
@@ -863,7 +955,11 @@ pub fn rank_for_context(entities: &[Entity], sources: &ContextSources) -> Vec<us
         .enumerate()
         .flat_map(|(i, e)| e.terms().into_iter().map(move |t| (t.to_lowercase(), i)))
         .collect();
-    let named_in_message: Vec<usize> = scores.iter().filter(|(_, s)| **s >= 1_000).map(|(i, _)| *i).collect();
+    let named_in_message: Vec<usize> = scores
+        .iter()
+        .filter(|(_, s)| **s >= 1_000)
+        .map(|(i, _)| *i)
+        .collect();
     for i in named_in_message {
         for rel in &entities[i].relationships {
             if let Some(&j) = by_name.get(&rel.to.trim().to_lowercase()) {
@@ -876,7 +972,10 @@ pub fn rank_for_context(entities: &[Entity], sources: &ContextSources) -> Vec<us
         .into_iter()
         .filter(|(i, _)| !exclude.contains(&entities[*i].name.to_lowercase()))
         .collect();
-    ranked.sort_by(|a, b| b.1.cmp(&a.1).then(entities[a.0].name.cmp(&entities[b.0].name)));
+    ranked.sort_by(|a, b| {
+        b.1.cmp(&a.1)
+            .then(entities[a.0].name.cmp(&entities[b.0].name))
+    });
     ranked.into_iter().map(|(i, _)| i).collect()
 }
 
@@ -892,9 +991,16 @@ fn truncate(text: &str, max_chars: usize) -> String {
 }
 
 fn render_for_model(entity: &Entity, full: bool) -> String {
-    let mut open = format!("<entity name=\"{}\" kind=\"{}\"", attr(&entity.name), entity.kind.as_str());
+    let mut open = format!(
+        "<entity name=\"{}\" kind=\"{}\"",
+        attr(&entity.name),
+        entity.kind.as_str()
+    );
     if !entity.aliases.is_empty() {
-        open.push_str(&format!(" aliases=\"{}\"", attr(&entity.aliases.join(", "))));
+        open.push_str(&format!(
+            " aliases=\"{}\"",
+            attr(&entity.aliases.join(", "))
+        ));
     }
     open.push('>');
 
@@ -910,12 +1016,21 @@ fn render_for_model(entity: &Entity, full: bool) -> String {
             let rels: Vec<String> = entity
                 .relationships
                 .iter()
-                .map(|r| if r.kind.is_empty() { r.to.clone() } else { format!("{} ({})", r.to, r.kind) })
+                .map(|r| {
+                    if r.kind.is_empty() {
+                        r.to.clone()
+                    } else {
+                        format!("{} ({})", r.to, r.kind)
+                    }
+                })
                 .collect();
             lines.push(format!("Relationships: {}", rels.join("; ")));
         }
         if !entity.notes.is_empty() {
-            lines.push(format!("Notes: {}", truncate(&entity.notes, CONTEXT_NOTES_CHARS)));
+            lines.push(format!(
+                "Notes: {}",
+                truncate(&entity.notes, CONTEXT_NOTES_CHARS)
+            ));
         }
     }
     lines.push("</entity>".to_string());
@@ -963,7 +1078,10 @@ pub fn build_context(entities: &[Entity], sources: &ContextSources, budget: usiz
         return ContextBlock::default();
     }
     ContextBlock {
-        text: format!("<codex>\n{CONTEXT_PREAMBLE}\n\n{}\n</codex>", parts.join("\n\n")),
+        text: format!(
+            "<codex>\n{CONTEXT_PREAMBLE}\n\n{}\n</codex>",
+            parts.join("\n\n")
+        ),
         used,
     }
 }
@@ -996,8 +1114,14 @@ mod tests {
             kind: EntityKind::Character,
             aliases: vec!["Ari".into()],
             summary: "Exiled heir.".into(),
-            fields: vec![Field { key: "appearance".into(), value: "Grey eyes".into() }],
-            relationships: vec![Relationship { to: "Kael".into(), kind: "rival".into() }],
+            fields: vec![Field {
+                key: "appearance".into(),
+                value: "Grey eyes".into(),
+            }],
+            relationships: vec![Relationship {
+                to: "Kael".into(),
+                kind: "rival".into(),
+            }],
             match_mode: MatchMode::CaseSensitive,
             pinned: false,
             notes: "Hates the sea.".into(),
@@ -1113,7 +1237,8 @@ mod tests {
     #[test]
     fn matcher_finds_whole_words_and_possessives() {
         let entities = vec![entity("Aria", &["Ari"], MatchMode::CaseSensitive)];
-        let counts = Matcher::new(&entities).counts("Aria's sword. Ari ran. Arianne and aria stayed.");
+        let counts =
+            Matcher::new(&entities).counts("Aria's sword. Ari ran. Arianne and aria stayed.");
         assert_eq!(counts.get(&0), Some(&2));
     }
 
@@ -1124,7 +1249,8 @@ mod tests {
             entity("Citadel", &[], MatchMode::CaseSensitive),
             entity("Will", &[], MatchMode::Off),
         ];
-        let counts = Matcher::new(&entities).counts("They reached the iron citadel. Will the Citadel hold?");
+        let counts =
+            Matcher::new(&entities).counts("They reached the iron citadel. Will the Citadel hold?");
         assert_eq!(counts.get(&0), Some(&1));
         assert_eq!(counts.get(&1), Some(&1));
         assert_eq!(counts.get(&2), None);
@@ -1137,7 +1263,14 @@ mod tests {
             entity("Kael Dor", &[], MatchMode::CaseSensitive),
         ];
         let hits = Matcher::new(&entities).find("Kael Dora waved.");
-        assert_eq!(hits, vec![Hit { entity: 0, start: 0, end: 4 }]);
+        assert_eq!(
+            hits,
+            vec![Hit {
+                entity: 0,
+                start: 0,
+                end: 4
+            }]
+        );
     }
 
     #[test]
@@ -1177,12 +1310,25 @@ mod tests {
 
     #[test]
     fn pinned_sheets_can_be_left_out() {
-        let mut entities = vec![entity("Aria", &[], MatchMode::CaseSensitive), entity("Oren", &[], MatchMode::CaseSensitive)];
+        let mut entities = vec![
+            entity("Aria", &[], MatchMode::CaseSensitive),
+            entity("Oren", &[], MatchMode::CaseSensitive),
+        ];
         entities[1].pinned = true;
         let pin = vec!["aria".to_string()];
-        let sources = ContextSources { message: "No names here.", history: &[], document: None, exclude: &[], pin: &pin, use_pinned: false };
+        let sources = ContextSources {
+            message: "No names here.",
+            history: &[],
+            document: None,
+            exclude: &[],
+            pin: &pin,
+            use_pinned: false,
+        };
         // A pin from the chat still counts; the sheet's own pinned flag doesn't.
-        let ranked: Vec<&str> = rank_for_context(&entities, &sources).into_iter().map(|i| entities[i].name.as_str()).collect();
+        let ranked: Vec<&str> = rank_for_context(&entities, &sources)
+            .into_iter()
+            .map(|i| entities[i].name.as_str())
+            .collect();
         assert_eq!(ranked, vec!["Aria"]);
     }
 
@@ -1193,7 +1339,10 @@ mod tests {
             entity("Kael", &[], MatchMode::CaseSensitive),
             entity("Veyra", &[], MatchMode::Off),
         ];
-        entities[0].relationships = vec![Relationship { to: "veyra".into(), kind: "home".into() }];
+        entities[0].relationships = vec![Relationship {
+            to: "veyra".into(),
+            kind: "home".into(),
+        }];
         let exclude = vec!["kael".to_string()];
         let sources = ContextSources {
             message: "Aria and Kael argue.",
@@ -1214,17 +1363,38 @@ mod tests {
     fn context_falls_back_to_summaries_within_budget() {
         let mut big = entity("Aria", &[], MatchMode::CaseSensitive);
         big.notes = "x".repeat(2_000);
-        big.fields = vec![Field { key: "arc".into(), value: "y".repeat(400) }];
+        big.fields = vec![Field {
+            key: "arc".into(),
+            value: "y".repeat(400),
+        }];
         let entities = vec![big, entity("Kael", &[], MatchMode::CaseSensitive)];
-        let sources = ContextSources { message: "Aria, Kael", history: &[], document: None, exclude: &[], pin: &[], use_pinned: true };
+        let sources = ContextSources {
+            message: "Aria, Kael",
+            history: &[],
+            document: None,
+            exclude: &[],
+            pin: &[],
+            use_pinned: true,
+        };
 
         let block = build_context(&entities, &sources, 600);
-        let used: Vec<(&str, bool)> = block.used.iter().map(|(e, full)| (e.name.as_str(), *full)).collect();
+        let used: Vec<(&str, bool)> = block
+            .used
+            .iter()
+            .map(|(e, full)| (e.name.as_str(), *full))
+            .collect();
         assert_eq!(used, vec![("Aria", false), ("Kael", true)]);
         assert!(block.text.len() <= 600);
         assert!(block.text.starts_with("<codex>"));
 
-        let none = ContextSources { message: "hello", history: &[], document: None, exclude: &[], pin: &[], use_pinned: true };
+        let none = ContextSources {
+            message: "hello",
+            history: &[],
+            document: None,
+            exclude: &[],
+            pin: &[],
+            use_pinned: true,
+        };
         assert!(build_context(&entities, &none, 600).text.is_empty());
     }
 
@@ -1233,8 +1403,14 @@ mod tests {
         let mut aria = entity("Aria", &["Ari"], MatchMode::Off);
         aria.summary.clear();
         let writings = vec![
-            ("Novel/a.md".to_string(), "---\nsynopsis: Aria waits\n---\nRain fell.\n\nAri drew her sword.".to_string()),
-            ("Novel/b.md".to_string(), "Aria laughed.\n\nKael did not.".to_string()),
+            (
+                "Novel/a.md".to_string(),
+                "---\nsynopsis: Aria waits\n---\nRain fell.\n\nAri drew her sword.".to_string(),
+            ),
+            (
+                "Novel/b.md".to_string(),
+                "Aria laughed.\n\nKael did not.".to_string(),
+            ),
         ];
         let passages = gather_passages(&aria, &writings, 1_000);
         let texts: Vec<&str> = passages.iter().map(|p| p.text.as_str()).collect();
@@ -1258,12 +1434,18 @@ mod tests {
         }
         .keep_only(&["appearance".to_string(), "arc".to_string()], true);
         assert_eq!(draft.summary, "A swordswoman.");
-        assert_eq!(draft.fields, HashMap::from([("Appearance".to_string(), "Grey eyes".to_string())]));
+        assert_eq!(
+            draft.fields,
+            HashMap::from([("Appearance".to_string(), "Grey eyes".to_string())])
+        );
     }
 
     #[test]
     fn matrix_counts_mentions_per_scene() {
-        let entities = vec![entity("Aria", &[], MatchMode::CaseSensitive), entity("Kael", &[], MatchMode::CaseSensitive)];
+        let entities = vec![
+            entity("Aria", &[], MatchMode::CaseSensitive),
+            entity("Kael", &[], MatchMode::CaseSensitive),
+        ];
         let m = matrix(
             entities,
             vec![
@@ -1272,7 +1454,13 @@ mod tests {
             ],
         );
         assert_eq!(m.scenes[0].name, "Novel/a.md");
-        assert_eq!(m.scenes[0].counts.get("Novel/Codex/Characters/Aria.md"), Some(&2));
-        assert_eq!(m.scenes[1].counts.get("Novel/Codex/Characters/Aria.md"), None);
+        assert_eq!(
+            m.scenes[0].counts.get("Novel/Codex/Characters/Aria.md"),
+            Some(&2)
+        );
+        assert_eq!(
+            m.scenes[1].counts.get("Novel/Codex/Characters/Aria.md"),
+            None
+        );
     }
 }

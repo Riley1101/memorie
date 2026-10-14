@@ -162,7 +162,10 @@ async fn run_chat_worker(
             let config = state.config.lock().await;
             (
                 config.system_prompt.clone().unwrap_or_default(),
-                config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
+                config
+                    .default_llm_model_id
+                    .clone()
+                    .unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
                 config.provider.clone(),
                 config.openrouter_model.clone(),
             )
@@ -184,7 +187,10 @@ async fn run_chat_worker(
             .filter(|content| !content.is_empty())
             .map(|content| {
                 (
-                    context.document_title.clone().unwrap_or_else(|| "Untitled".to_string()),
+                    context
+                        .document_title
+                        .clone()
+                        .unwrap_or_else(|| "Untitled".to_string()),
                     content.to_string(),
                 )
             });
@@ -288,7 +294,10 @@ async fn run_chat_worker(
 
         match provider {
             ProviderKind::Local => {
-                let mut chat_session = model.run_chat(&model_id, &sys_prompt, app_handle.clone()).await.map_err(|e| e.to_string())?;
+                let mut chat_session = model
+                    .run_chat(&model_id, &sys_prompt, app_handle.clone())
+                    .await
+                    .map_err(|e| e.to_string())?;
 
                 // TODO! Add sampler
                 let mut stream = chat_session.add_message(with_transcript(&history, &user_message));
@@ -348,12 +357,19 @@ async fn run_chat_worker(
                 message
             )
         };
-        let prompt = prompt.lines().map(|s| s.trim()).collect::<Vec<_>>().join("\n");
+        let prompt = prompt
+            .lines()
+            .map(|s| s.trim())
+            .collect::<Vec<_>>()
+            .join("\n");
 
         let (model_id, provider, openrouter_model, content_dir) = {
             let config = state.config.lock().await;
             (
-                config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
+                config
+                    .default_llm_model_id
+                    .clone()
+                    .unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
                 config.provider.clone(),
                 config.openrouter_model.clone(),
                 config.content_directory.clone(),
@@ -361,7 +377,11 @@ async fn run_chat_worker(
         };
 
         // Sheets for whoever the passage names, so a rewrite keeps names and facts straight.
-        let codex_binder = context.document_title.as_deref().and_then(binder_of).map(str::to_string);
+        let codex_binder = context
+            .document_title
+            .as_deref()
+            .and_then(binder_of)
+            .map(str::to_string);
         let block = codex_context(
             content_dir,
             codex_binder,
@@ -385,7 +405,10 @@ async fn run_chat_worker(
 
         match provider {
             ProviderKind::Local => {
-                let mut chat_session = model.run_chat(&model_id, "", app_handle.clone()).await.map_err(|e| e.to_string())?;
+                let mut chat_session = model
+                    .run_chat(&model_id, "", app_handle.clone())
+                    .await
+                    .map_err(|e| e.to_string())?;
 
                 let mut stream = chat_session.add_message(prompt);
 
@@ -431,7 +454,10 @@ async fn run_chat_worker(
         let (model_id, provider, openrouter_model) = {
             let config = state.config.lock().await;
             (
-                config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
+                config
+                    .default_llm_model_id
+                    .clone()
+                    .unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
                 config.provider.clone(),
                 config.openrouter_model.clone(),
             )
@@ -439,7 +465,10 @@ async fn run_chat_worker(
 
         let result = match provider {
             ProviderKind::Local => {
-                let grammar_check_session = model.run_grammar_check(&model_id, app_handle.clone()).await.map_err(|e| e.to_string())?;
+                let grammar_check_session = model
+                    .run_grammar_check(&model_id, app_handle.clone())
+                    .await
+                    .map_err(|e| e.to_string())?;
 
                 tokio::select! {
                     _ = cancellation_token.cancelled() => {
@@ -452,7 +481,8 @@ async fn run_chat_worker(
             }
             ProviderKind::OpenRouter => {
                 let api_key = openrouter_api_key()?;
-                let model_name = openrouter_model.unwrap_or_else(|| providers::DEFAULT_OPENROUTER_MODEL.to_string());
+                let model_name = openrouter_model
+                    .unwrap_or_else(|| providers::DEFAULT_OPENROUTER_MODEL.to_string());
                 tokio::select! {
                     _ = cancellation_token.cancelled() => {
                         return Err("Grammar check cancelled".to_string());
@@ -478,7 +508,10 @@ async fn run_chat_worker(
         let (model_id, provider, openrouter_model) = {
             let config = state.config.lock().await;
             (
-                config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
+                config
+                    .default_llm_model_id
+                    .clone()
+                    .unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
                 config.provider.clone(),
                 config.openrouter_model.clone(),
             )
@@ -486,13 +519,17 @@ async fn run_chat_worker(
 
         let result = match provider {
             ProviderKind::Local => {
-                let chat_session = model.run_autocomplete(&model_id, app_handle.clone()).await.map_err(|e| e.to_string())?;
+                let chat_session = model
+                    .run_autocomplete(&model_id, app_handle.clone())
+                    .await
+                    .map_err(|e| e.to_string())?;
                 let stream = chat_session(&message);
                 stream.await.map_err(|e| e.to_string())?
             }
             ProviderKind::OpenRouter => {
                 let api_key = openrouter_api_key()?;
-                let model_name = openrouter_model.unwrap_or_else(|| providers::DEFAULT_OPENROUTER_MODEL.to_string());
+                let model_name = openrouter_model
+                    .unwrap_or_else(|| providers::DEFAULT_OPENROUTER_MODEL.to_string());
                 tokio::select! {
                     _ = cancellation_token.cancelled() => {
                         return Err("Autocomplete cancelled".to_string());
@@ -581,15 +618,26 @@ async fn route_message(
         ("/chat", Intent::General),
     ] {
         if let Some(rest) = strip_command(message, command) {
-            let mut route =
-                finalize_route(intent, rest.to_string(), rest.to_string(), has_document, has_index);
+            let mut route = finalize_route(
+                intent,
+                rest.to_string(),
+                rest.to_string(),
+                has_document,
+                has_index,
+            );
             route.all_notes = command == "/search-all";
             return route;
         }
     }
 
     if is_small_talk(message) || (!has_document && !has_index) {
-        return finalize_route(Intent::General, String::new(), message.to_string(), has_document, has_index);
+        return finalize_route(
+            Intent::General,
+            String::new(),
+            message.to_string(),
+            has_document,
+            has_index,
+        );
     }
 
     let input = classifier_input(message, document_title, history);
@@ -649,12 +697,20 @@ fn finalize_route(
         _ => String::new(),
     };
 
-    Route { intent, all_notes: false, query, question }
+    Route {
+        intent,
+        all_notes: false,
+        query,
+        question,
+    }
 }
 
 /// The binder (top-level folder) a note lives in, or `None` for a note at the top level.
 fn binder_of(title: &str) -> Option<&str> {
-    title.split_once('/').map(|(binder, _)| binder).filter(|b| !b.is_empty())
+    title
+        .split_once('/')
+        .map(|(binder, _)| binder)
+        .filter(|b| !b.is_empty())
 }
 
 /// Returns the text after `command` when the message starts with it followed by
@@ -670,8 +726,22 @@ fn strip_command<'a>(message: &'a str, command: &str) -> Option<&'a str> {
 
 fn is_small_talk(message: &str) -> bool {
     const PHRASES: &[&str] = &[
-        "hi", "hello", "hey", "yo", "thanks", "thank you", "thx", "ok", "okay", "cool", "nice",
-        "great", "good morning", "good evening", "good night", "bye",
+        "hi",
+        "hello",
+        "hey",
+        "yo",
+        "thanks",
+        "thank you",
+        "thx",
+        "ok",
+        "okay",
+        "cool",
+        "nice",
+        "great",
+        "good morning",
+        "good evening",
+        "good night",
+        "bye",
     ];
     let normalized = message
         .chars()
@@ -727,7 +797,9 @@ fn classifier_input(message: &str, document_title: Option<&str>, history: &[Chat
 fn recent_history(history: &[ChatTurn]) -> Vec<ChatTurn> {
     let turns: Vec<&ChatTurn> = history
         .iter()
-        .filter(|turn| (turn.role == "user" || turn.role == "assistant") && !turn.content.trim().is_empty())
+        .filter(|turn| {
+            (turn.role == "user" || turn.role == "assistant") && !turn.content.trim().is_empty()
+        })
         .collect();
     let start = turns.len().saturating_sub(HISTORY_TURNS);
     turns[start..]
@@ -762,10 +834,16 @@ fn build_rag_message(results: &[SearchResult], question: &str) -> String {
             .map(|result| {
                 let mut attrs = format!("note=\"{}\"", pretty_title(&result.title));
                 if !result.section.is_empty() {
-                    attrs.push_str(&format!(" section=\"{}\"", result.section.replace('"', "'")));
+                    attrs.push_str(&format!(
+                        " section=\"{}\"",
+                        result.section.replace('"', "'")
+                    ));
                 }
                 if result.start_line > 0 {
-                    attrs.push_str(&format!(" lines=\"{}-{}\"", result.start_line, result.end_line));
+                    attrs.push_str(&format!(
+                        " lines=\"{}-{}\"",
+                        result.start_line, result.end_line
+                    ));
                 }
                 format!("<excerpt {attrs}>\n{}\n</excerpt>", result.content.trim())
             })
@@ -899,12 +977,19 @@ fn passage_refs(results: &[SearchResult]) -> Vec<serde_json::Value> {
 
 /// One reply to one message, outside the chat: no streaming events, no history.
 /// Waits for the model if a chat reply is using it.
-pub async fn complete_once(app_handle: &AppHandle, system_prompt: &str, message: &str) -> Result<String, String> {
+pub async fn complete_once(
+    app_handle: &AppHandle,
+    system_prompt: &str,
+    message: &str,
+) -> Result<String, String> {
     let state: tauri::State<crate::AppState> = app_handle.state();
     let (model_id, provider, openrouter_model) = {
         let config = state.config.lock().await;
         (
-            config.default_llm_model_id.clone().unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
+            config
+                .default_llm_model_id
+                .clone()
+                .unwrap_or_else(|| "qwen_2_5_1_5b_instruct".to_string()),
             config.provider.clone(),
             config.openrouter_model.clone(),
         )
@@ -925,7 +1010,8 @@ pub async fn complete_once(app_handle: &AppHandle, system_prompt: &str, message:
         }
         ProviderKind::OpenRouter => {
             let api_key = openrouter_api_key()?;
-            let model_name = openrouter_model.unwrap_or_else(|| providers::DEFAULT_OPENROUTER_MODEL.to_string());
+            let model_name =
+                openrouter_model.unwrap_or_else(|| providers::DEFAULT_OPENROUTER_MODEL.to_string());
             providers::chat_completion(&api_key, &model_name, system_prompt, message)
                 .await
                 .map_err(|e| e.to_string())
@@ -1120,8 +1206,14 @@ mod routing_tests {
 
     #[test]
     fn strip_command_needs_a_separator_and_an_argument() {
-        assert_eq!(strip_command("/search dragon lore", "/search"), Some("dragon lore"));
-        assert_eq!(strip_command("/search   spaced  ", "/search"), Some("spaced"));
+        assert_eq!(
+            strip_command("/search dragon lore", "/search"),
+            Some("dragon lore")
+        );
+        assert_eq!(
+            strip_command("/search   spaced  ", "/search"),
+            Some("spaced")
+        );
         assert_eq!(strip_command("/searching things", "/search"), None);
         assert_eq!(strip_command("/search", "/search"), None);
         assert_eq!(strip_command("/search   ", "/search"), None);
@@ -1138,7 +1230,10 @@ mod routing_tests {
     #[test]
     fn search_all_command_widens_the_search() {
         assert_eq!(strip_command("/search-all dragons", "/search"), None);
-        assert_eq!(strip_command("/search-all dragons", "/search-all"), Some("dragons"));
+        assert_eq!(
+            strip_command("/search-all dragons", "/search-all"),
+            Some("dragons")
+        );
     }
 
     #[test]
@@ -1151,20 +1246,39 @@ mod routing_tests {
 
     #[test]
     fn finalize_route_falls_back_when_context_is_missing() {
-        let doc_without_document = finalize_route(Intent::CurrentDocument, String::new(), "summarize this".into(), false, true);
+        let doc_without_document = finalize_route(
+            Intent::CurrentDocument,
+            String::new(),
+            "summarize this".into(),
+            false,
+            true,
+        );
         assert_eq!(doc_without_document.intent, Intent::General);
 
-        let search_without_index = finalize_route(Intent::SearchNotes, "storm".into(), "q".into(), true, false);
+        let search_without_index =
+            finalize_route(Intent::SearchNotes, "storm".into(), "q".into(), true, false);
         assert_eq!(search_without_index.intent, Intent::CurrentDocument);
         assert_eq!(search_without_index.query, "");
 
-        let search_without_anything = finalize_route(Intent::SearchNotes, "storm".into(), "q".into(), false, false);
+        let search_without_anything = finalize_route(
+            Intent::SearchNotes,
+            "storm".into(),
+            "q".into(),
+            false,
+            false,
+        );
         assert_eq!(search_without_anything.intent, Intent::General);
     }
 
     #[test]
     fn finalize_route_always_gives_a_search_something_to_embed() {
-        let blank_query = finalize_route(Intent::SearchNotes, "  ".into(), "where is the lighthouse scene".into(), false, true);
+        let blank_query = finalize_route(
+            Intent::SearchNotes,
+            "  ".into(),
+            "where is the lighthouse scene".into(),
+            false,
+            true,
+        );
         assert_eq!(blank_query.intent, Intent::SearchNotes);
         assert_eq!(blank_query.query, "where is the lighthouse scene");
 
@@ -1187,7 +1301,14 @@ mod routing_tests {
 
     #[test]
     fn recent_history_keeps_last_real_turns_and_caps_length() {
-        let mut history: Vec<ChatTurn> = (0..10).map(|i| turn(if i % 2 == 0 { "user" } else { "assistant" }, &format!("m{i}"))).collect();
+        let mut history: Vec<ChatTurn> = (0..10)
+            .map(|i| {
+                turn(
+                    if i % 2 == 0 { "user" } else { "assistant" },
+                    &format!("m{i}"),
+                )
+            })
+            .collect();
         history.push(turn("system", "ignore me"));
         history.push(turn("user", "   "));
         history.push(turn("assistant", &"x".repeat(HISTORY_TURN_CHARS + 50)));
@@ -1197,15 +1318,28 @@ mod routing_tests {
         assert_eq!(recent.len(), HISTORY_TURNS);
         assert_eq!(recent[0].content, "m5");
         assert!(recent.iter().all(|t| t.role != "system"));
-        assert_eq!(recent.last().unwrap().content.chars().count(), HISTORY_TURN_CHARS + 1);
+        assert_eq!(
+            recent.last().unwrap().content.chars().count(),
+            HISTORY_TURN_CHARS + 1
+        );
     }
 
     #[test]
     fn classifier_input_describes_document_and_conversation() {
         let none = classifier_input("hi there", None, &[]);
-        assert_eq!(none, "Open document: none\nRecent conversation:\nnone\nLatest message: hi there");
+        assert_eq!(
+            none,
+            "Open document: none\nRecent conversation:\nnone\nLatest message: hi there"
+        );
 
-        let with_doc = classifier_input("and her sister?", Some("Novel/Mara.md"), &[turn("user", "who is Mara?"), turn("assistant", "The captain.")]);
+        let with_doc = classifier_input(
+            "and her sister?",
+            Some("Novel/Mara.md"),
+            &[
+                turn("user", "who is Mara?"),
+                turn("assistant", "The captain."),
+            ],
+        );
         assert_eq!(
             with_doc,
             "Open document: \"Novel › Mara\"\nRecent conversation:\nUser: who is Mara?\nAssistant: The captain.\nLatest message: and her sister?"
@@ -1232,9 +1366,18 @@ mod routing_tests {
 
     #[test]
     fn rag_message_names_notes_and_keeps_note_text_literal() {
-        let message = build_rag_message(&[result("Lore/Dragons.md", "They hate {question} marks.", 0.9)], "why do dragons hoard?");
+        let message = build_rag_message(
+            &[result(
+                "Lore/Dragons.md",
+                "They hate {question} marks.",
+                0.9,
+            )],
+            "why do dragons hoard?",
+        );
 
-        assert!(message.contains("<excerpt note=\"Lore › Dragons\">\nThey hate {question} marks.\n</excerpt>"));
+        assert!(message.contains(
+            "<excerpt note=\"Lore › Dragons\">\nThey hate {question} marks.\n</excerpt>"
+        ));
         assert!(message.contains("<question>\nwhy do dragons hoard?\n</question>"));
     }
 
@@ -1265,8 +1408,14 @@ mod routing_tests {
         assert_eq!(refs.len(), 2);
         assert_eq!(refs[0]["title"], "Novel/Ch 3.md");
         assert_eq!(refs[0]["section"], "Part 1");
-        assert_eq!((refs[0]["startLine"].as_u64(), refs[0]["endLine"].as_u64()), (Some(4), Some(9)));
-        assert_eq!(refs[0]["foundBy"], serde_json::json!(["meaning", "keywords"]));
+        assert_eq!(
+            (refs[0]["startLine"].as_u64(), refs[0]["endLine"].as_u64()),
+            (Some(4), Some(9))
+        );
+        assert_eq!(
+            refs[0]["foundBy"],
+            serde_json::json!(["meaning", "keywords"])
+        );
         assert_eq!(refs[0]["rerankScore"], 6.5);
         assert!(refs[0]["excerpt"].as_str().unwrap().chars().count() <= PASSAGE_EXCERPT_CHARS + 1);
         assert_eq!(refs[1]["excerpt"], "short");
@@ -1293,6 +1442,9 @@ mod routing_tests {
     fn transcript_is_only_added_when_there_is_history() {
         assert_eq!(with_transcript(&[], "hello"), "hello");
         let with = with_transcript(&[turn("user", "hi"), turn("assistant", "hey")], "next");
-        assert_eq!(with, "<conversation_so_far>\nUser: hi\n\nAssistant: hey\n</conversation_so_far>\n\nnext");
+        assert_eq!(
+            with,
+            "<conversation_so_far>\nUser: hi\n\nAssistant: hey\n</conversation_so_far>\n\nnext"
+        );
     }
 }

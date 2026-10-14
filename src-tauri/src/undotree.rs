@@ -606,7 +606,10 @@ mod tests {
     use super::*;
 
     fn content_at(tree: &mut UndoTree, name: &str, i: usize) -> String {
-        tree.get_history(name).unwrap().content_of(NodeIndex(i)).unwrap()
+        tree.get_history(name)
+            .unwrap()
+            .content_of(NodeIndex(i))
+            .unwrap()
     }
 
     #[test]

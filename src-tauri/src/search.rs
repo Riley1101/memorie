@@ -57,8 +57,16 @@ pub struct Replaced {
 }
 
 pub fn build_regex(query: &str, options: &SearchOptions) -> Result<Regex, String> {
-    let pattern = if options.regex { query.to_string() } else { regex::escape(query) };
-    let pattern = if options.whole_word { format!(r"\b(?:{pattern})\b") } else { pattern };
+    let pattern = if options.regex {
+        query.to_string()
+    } else {
+        regex::escape(query)
+    };
+    let pattern = if options.whole_word {
+        format!(r"\b(?:{pattern})\b")
+    } else {
+        pattern
+    };
     RegexBuilder::new(&pattern)
         .case_insensitive(!options.case_sensitive)
         .multi_line(true)
@@ -93,7 +101,13 @@ fn preview(line: &str, start: usize, end: usize) -> SearchMatch {
     let before = format!("{prefix}{}", &line[from..start]);
     let text = format!("{before}{}{}{suffix}", &line[start..end], &line[end..to]);
     let start16 = utf16_len(&before);
-    SearchMatch { line: 0, preview: text, start: start16, end: start16 + utf16_len(&line[start..end]), meta: false }
+    SearchMatch {
+        line: 0,
+        preview: text,
+        start: start16,
+        end: start16 + utf16_len(&line[start..end]),
+        meta: false,
+    }
 }
 
 /// Searches already-loaded contents. Split out from the command for testing.
@@ -129,7 +143,11 @@ pub fn search_contents(regex: &Regex, contents: Vec<(String, String)>) -> Search
         }
     }
 
-    SearchResults { files, total, truncated }
+    SearchResults {
+        files,
+        total,
+        truncated,
+    }
 }
 
 /// Number of lines (including both `---`) taken by front matter at the top,
@@ -145,13 +163,21 @@ fn front_matter_lines(content: &str) -> usize {
 /// Applies a replacement to one file's content, line by line so it changes
 /// exactly what the search listed. `$1`-style references are only honoured in
 /// regex mode, so a literal "$5" in plain mode stays "$5".
-pub fn replace_content(regex: &Regex, content: &str, replacement: &str, options: &SearchOptions) -> (String, usize) {
+pub fn replace_content(
+    regex: &Regex,
+    content: &str,
+    replacement: &str,
+    options: &SearchOptions,
+) -> (String, usize) {
     let mut out = String::with_capacity(content.len());
     let mut count = 0;
     for line in content.split_inclusive('\n') {
         let body = line.trim_end_matches(['\n', '\r']);
         let ending = &line[body.len()..];
-        let n = regex.find_iter(body).filter(|m| m.start() != m.end()).count();
+        let n = regex
+            .find_iter(body)
+            .filter(|m| m.start() != m.end())
+            .count();
         if n == 0 {
             out.push_str(line);
             continue;
@@ -181,18 +207,28 @@ mod tests {
         let re = build_regex("tavern", &opts()).unwrap();
         let results = search_contents(
             &re,
-            vec![("a.md".into(), "Intro\n😀 The Tavern was loud. tavern!".into())],
+            vec![(
+                "a.md".into(),
+                "Intro\n😀 The Tavern was loud. tavern!".into(),
+            )],
         );
         assert_eq!(results.total, 2);
         let first = &results.files[0].matches[0];
         assert_eq!(first.line, 2);
         let units: Vec<u16> = first.preview.encode_utf16().collect();
-        assert_eq!(String::from_utf16(&units[first.start..first.end]).unwrap(), "Tavern");
+        assert_eq!(
+            String::from_utf16(&units[first.start..first.end]).unwrap(),
+            "Tavern"
+        );
     }
 
     #[test]
     fn whole_word_and_case_sensitive() {
-        let options = SearchOptions { case_sensitive: true, whole_word: true, regex: false };
+        let options = SearchOptions {
+            case_sensitive: true,
+            whole_word: true,
+            regex: false,
+        };
         let re = build_regex("Ann", &options).unwrap();
         let results = search_contents(&re, vec![("a.md".into(), "Ann met Anna and ann.".into())]);
         assert_eq!(results.total, 1);
@@ -208,7 +244,10 @@ mod tests {
 
     #[test]
     fn regex_mode_expands_groups() {
-        let options = SearchOptions { regex: true, ..opts() };
+        let options = SearchOptions {
+            regex: true,
+            ..opts()
+        };
         let re = build_regex(r"(\w+) Smith", &options).unwrap();
         let (out, n) = replace_content(&re, "John Smith and Jane Smith", "$1 Jones", &options);
         assert_eq!(n, 2);
@@ -217,7 +256,10 @@ mod tests {
 
     #[test]
     fn replace_never_crosses_lines_and_keeps_endings() {
-        let options = SearchOptions { regex: true, ..opts() };
+        let options = SearchOptions {
+            regex: true,
+            ..opts()
+        };
         let re = build_regex(r"a\s+b", &options).unwrap();
         let (out, n) = replace_content(&re, "a b\r\na\nb\n", "X", &options);
         assert_eq!(n, 1);
@@ -227,14 +269,23 @@ mod tests {
     #[test]
     fn front_matter_matches_are_marked() {
         let re = build_regex("ann", &opts()).unwrap();
-        let results = search_contents(&re, vec![("a.md".into(), "---\nsynopsis: \"Ann leaves\"\n---\n\nAnn stays.".into())]);
+        let results = search_contents(
+            &re,
+            vec![(
+                "a.md".into(),
+                "---\nsynopsis: \"Ann leaves\"\n---\n\nAnn stays.".into(),
+            )],
+        );
         let flags: Vec<bool> = results.files[0].matches.iter().map(|m| m.meta).collect();
         assert_eq!(flags, vec![true, false]);
     }
 
     #[test]
     fn invalid_regex_is_an_error() {
-        let options = SearchOptions { regex: true, ..opts() };
+        let options = SearchOptions {
+            regex: true,
+            ..opts()
+        };
         assert!(build_regex("(unclosed", &options).is_err());
     }
 
@@ -247,6 +298,9 @@ mod tests {
         assert!(m.preview.chars().count() < 140);
         assert!(m.preview.starts_with('…') && m.preview.ends_with('…'));
         let units: Vec<u16> = m.preview.encode_utf16().collect();
-        assert_eq!(String::from_utf16(&units[m.start..m.end]).unwrap(), "needle");
+        assert_eq!(
+            String::from_utf16(&units[m.start..m.end]).unwrap(),
+            "needle"
+        );
     }
 }

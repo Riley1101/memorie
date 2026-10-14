@@ -252,7 +252,10 @@ impl Indexer {
                         let full = indexer.pending_full.swap(false, Ordering::SeqCst);
                         let force = indexer.pending_force.swap(false, Ordering::SeqCst);
                         let paths = std::mem::take(
-                            &mut *indexer.pending_paths.lock().unwrap_or_else(|e| e.into_inner()),
+                            &mut *indexer
+                                .pending_paths
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()),
                         );
                         // A full pass covers any notes the watcher reported.
                         let scope = if full || force {
@@ -266,10 +269,8 @@ impl Indexer {
                             }
                             Ok(None) => {}
                             Err(message) => {
-                                let _ = handle.emit(
-                                    "index-error",
-                                    serde_json::json!({ "message": message }),
-                                );
+                                let _ = handle
+                                    .emit("index-error", serde_json::json!({ "message": message }));
                             }
                         }
                     }
@@ -287,7 +288,11 @@ impl Indexer {
 
     /// One pass over the content directory, or over just the notes in `scope`.
     /// Returns `None` when AI is off and nothing was indexed.
-    async fn run_pass(&self, handle: &AppHandle, scope: Scope) -> Result<Option<IndexStats>, String> {
+    async fn run_pass(
+        &self,
+        handle: &AppHandle,
+        scope: Scope,
+    ) -> Result<Option<IndexStats>, String> {
         let state = handle.state::<AppState>();
         let content_dir = {
             let config = state.config.lock().await;
@@ -318,7 +323,10 @@ impl Indexer {
                     if on_disk.contains(title.as_str()) {
                         in_db.insert(title);
                     } else {
-                        memory.delete_document(&title).await.map_err(|e| e.to_string())?;
+                        memory
+                            .delete_document(&title)
+                            .await
+                            .map_err(|e| e.to_string())?;
                     }
                 }
 
@@ -328,7 +336,9 @@ impl Indexer {
                     dirty = true;
                 }
                 let before = manifest.entries.len();
-                manifest.entries.retain(|name, _| on_disk.contains(name.as_str()));
+                manifest
+                    .entries
+                    .retain(|name, _| on_disk.contains(name.as_str()));
                 dirty |= manifest.entries.len() != before;
             }
             Scope::Notes(paths) => {
@@ -349,7 +359,10 @@ impl Indexer {
                         }
                         files.push(fs::File::with_relative_dir(path, None, dirs));
                     } else {
-                        memory.delete_document(&name).await.map_err(|e| e.to_string())?;
+                        memory
+                            .delete_document(&name)
+                            .await
+                            .map_err(|e| e.to_string())?;
                         dirty |= manifest.entries.remove(&name).is_some();
                     }
                 }
@@ -391,7 +404,10 @@ impl Indexer {
             };
             let hash = content_hash(&content);
             let same_text = in_db.contains(&file.name)
-                && manifest.entries.get(&file.name).is_some_and(|e| e.hash == hash);
+                && manifest
+                    .entries
+                    .get(&file.name)
+                    .is_some_and(|e| e.hash == hash);
             if !same_text {
                 // No lock on Memory: chat searches run alongside indexing.
                 // A note that fails stays out of the manifest, so the next pass retries it.
@@ -429,7 +445,11 @@ impl Indexer {
         }
         drop(manifest);
 
-        memory.index_stats().await.map(Some).map_err(|e| e.to_string())
+        memory
+            .index_stats()
+            .await
+            .map(Some)
+            .map_err(|e| e.to_string())
     }
 
     /// A failed write only costs re-reading some notes next pass, so it is logged, not raised.
@@ -484,7 +504,10 @@ mod tests {
         assert!(is_note_path(root, Path::new("/notes/Novel/Ch 1/Scene.md")));
         // A deleted or renamed folder may have held notes.
         assert!(is_note_path(root, Path::new("/notes/Novel")));
-        assert!(!is_note_path(root, Path::new("/notes/.git/objects/ab/cdef")));
+        assert!(!is_note_path(
+            root,
+            Path::new("/notes/.git/objects/ab/cdef")
+        ));
         assert!(!is_note_path(root, Path::new("/notes/Novel/.hidden.md")));
         assert!(!is_note_path(root, Path::new("/notes/cover.png")));
         assert!(!is_note_path(root, Path::new("/elsewhere/Ideas.md")));
@@ -502,9 +525,16 @@ mod tests {
             WatchChange::Nothing
         );
         assert_eq!(
-            classify_changes(root, paths(&["/notes/a.md", "/notes/Novel/b.md", "/notes/a.md"])),
+            classify_changes(
+                root,
+                paths(&["/notes/a.md", "/notes/Novel/b.md", "/notes/a.md"])
+            ),
             WatchChange::Notes(
-                [PathBuf::from("/notes/a.md"), PathBuf::from("/notes/Novel/b.md")].into()
+                [
+                    PathBuf::from("/notes/a.md"),
+                    PathBuf::from("/notes/Novel/b.md")
+                ]
+                .into()
             )
         );
         assert_eq!(
@@ -524,19 +554,30 @@ mod tests {
         for file in fs::discover_files(dir.path()).unwrap() {
             let (name, dirs) = note_name(dir.path(), &file.path).unwrap();
             assert_eq!(name, file.name);
-            assert_eq!(fs::File::with_relative_dir(file.path.clone(), None, dirs).name, file.name);
+            assert_eq!(
+                fs::File::with_relative_dir(file.path.clone(), None, dirs).name,
+                file.name
+            );
         }
         assert_eq!(note_name(dir.path(), Path::new("/elsewhere/a.md")), None);
     }
 
     #[test]
     fn recently_written_files_are_not_trusted_by_mtime() {
-        let settled = Entry { mtime_ms: 1_000, size: 10, hash: String::new(), checked_at_ms: 10_000 };
+        let settled = Entry {
+            mtime_ms: 1_000,
+            size: 10,
+            hash: String::new(),
+            checked_at_ms: 10_000,
+        };
         assert!(settled.matches(1_000, 10));
         assert!(!settled.matches(1_001, 10));
         assert!(!settled.matches(1_000, 11));
 
-        let racy = Entry { checked_at_ms: 1_500, ..settled };
+        let racy = Entry {
+            checked_at_ms: 1_500,
+            ..settled
+        };
         assert!(!racy.matches(1_000, 10));
     }
 
@@ -546,10 +587,18 @@ mod tests {
         let path = dir.path().join("db/index-manifest.json");
         assert!(Manifest::load(&path).entries.is_empty());
 
-        let mut manifest = Manifest { version: EMBED_VERSION.to_string(), ..Manifest::default() };
+        let mut manifest = Manifest {
+            version: EMBED_VERSION.to_string(),
+            ..Manifest::default()
+        };
         manifest.entries.insert(
             "a.md".into(),
-            Entry { mtime_ms: 1, size: 2, hash: content_hash("x"), checked_at_ms: 3 },
+            Entry {
+                mtime_ms: 1,
+                size: 2,
+                hash: content_hash("x"),
+                checked_at_ms: 3,
+            },
         );
         manifest.save(&path).unwrap();
         let loaded = Manifest::load(&path);

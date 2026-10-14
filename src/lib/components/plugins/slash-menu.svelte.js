@@ -147,6 +147,9 @@ function filterItems(query) {
 export const slashMenu = prose((ctx) => {
   const content = document.createElement('div');
   content.classList.add('slash-menu-portal');
+  // Start hidden: the provider only sets this once it decides to hide, and on a
+  // fresh, unchanged document its first update bails out before doing so.
+  content.dataset.show = 'false';
   content.style.position = 'absolute';
   content.style.zIndex = '50';
 

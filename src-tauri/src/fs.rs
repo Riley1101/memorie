@@ -25,7 +25,11 @@ impl File {
 
     /// `folder`, if given, is treated as the single top-level directory the file
     /// lives in. Kept for callers that only ever deal with one level of nesting.
-    pub fn with_folder(path: PathBuf, modified: Option<SystemTime>, folder: Option<String>) -> Self {
+    pub fn with_folder(
+        path: PathBuf,
+        modified: Option<SystemTime>,
+        folder: Option<String>,
+    ) -> Self {
         Self::with_relative_dir(path, modified, folder.into_iter().collect())
     }
 
@@ -57,7 +61,12 @@ impl File {
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        File { path, name, last_modified, folder }
+        File {
+            path,
+            name,
+            last_modified,
+            folder,
+        }
     }
 
     pub fn read_content(&self) -> Result<String, FileError> {
@@ -122,7 +131,9 @@ pub fn get_recent(directory: &Path) -> Result<Vec<File>, FileError> {
     // Codex entries are files too, but they aren't writings; the codex lists them.
     let files = files_with_mod_time
         .into_iter()
-        .map(|(path, mod_time, relative_dir)| File::with_relative_dir(path, Some(mod_time), relative_dir))
+        .map(|(path, mod_time, relative_dir)| {
+            File::with_relative_dir(path, Some(mod_time), relative_dir)
+        })
         .filter(|file| !crate::codex::is_codex_name(&file.name))
         .collect();
 
@@ -153,7 +164,9 @@ pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
 
     let mut files: Vec<File> = found
         .into_iter()
-        .map(|(path, modified, relative_dir)| File::with_relative_dir(path, Some(modified), relative_dir))
+        .map(|(path, modified, relative_dir)| {
+            File::with_relative_dir(path, Some(modified), relative_dir)
+        })
         .collect();
 
     files.sort_by(|a, b| a.name.cmp(&b.name));
@@ -162,13 +175,21 @@ pub fn discover_files(directory: &Path) -> Result<Vec<File>, FileError> {
 
 /// `relative_dir` is the full chain of directory names (binder, then any nested
 /// chapter/scene folders) the file lives in, e.g. `["Novel", "Chapter 1"]`.
-pub fn create_file(path: &Path, content: &str, relative_dir: Vec<String>) -> Result<File, FileError> {
+pub fn create_file(
+    path: &Path,
+    content: &str,
+    relative_dir: Vec<String>,
+) -> Result<File, FileError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
     fs::write(path, content)?;
     let modified = fs::metadata(path)?.modified().ok();
-    Ok(File::with_relative_dir(path.to_path_buf(), modified, relative_dir))
+    Ok(File::with_relative_dir(
+        path.to_path_buf(),
+        modified,
+        relative_dir,
+    ))
 }
 
 /// Creates an empty folder (binder subdirectory, chapter, scene grouping, ...)
@@ -320,13 +341,21 @@ mod fs_tests {
     #[test]
     fn codex_entries_are_not_writings_binders_or_tree_folders() {
         let dir = tempdir().unwrap();
-        for name in ["Novel/Scene.md", "Novel/Codex/Characters/Aria.md", "Codex/Items/Sword.md"] {
+        for name in [
+            "Novel/Scene.md",
+            "Novel/Codex/Characters/Aria.md",
+            "Codex/Items/Sword.md",
+        ] {
             let path = dir.path().join(name);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, "text").unwrap();
         }
 
-        let recent: Vec<_> = get_recent(dir.path()).unwrap().into_iter().map(|f| f.name).collect();
+        let recent: Vec<_> = get_recent(dir.path())
+            .unwrap()
+            .into_iter()
+            .map(|f| f.name)
+            .collect();
         assert_eq!(recent, vec!["Novel/Scene.md".to_string()]);
         assert_eq!(list_binders(dir.path()).unwrap(), vec!["Novel".to_string()]);
         assert_eq!(list_folders(dir.path()).unwrap(), vec!["Novel".to_string()]);
@@ -344,7 +373,10 @@ mod fs_tests {
         rename_file(dir.path(), "Novel/Ch 1/Scene.md", "Novel/Ch 1/Opening.md").unwrap();
 
         assert!(!chapter.join("Scene.md").exists());
-        assert_eq!(fs::read_to_string(chapter.join("Opening.md")).unwrap(), "text");
+        assert_eq!(
+            fs::read_to_string(chapter.join("Opening.md")).unwrap(),
+            "text"
+        );
     }
 
     #[test]
@@ -453,7 +485,10 @@ mod fs_tests {
         let discovered = discover_files(dir.path()).unwrap();
 
         assert_eq!(discovered.len(), 2);
-        let nested = discovered.iter().find(|f| f.name == "Binder/nested.md").unwrap();
+        let nested = discovered
+            .iter()
+            .find(|f| f.name == "Binder/nested.md")
+            .unwrap();
         assert_eq!(nested.folder.as_deref(), Some("Binder"));
         let top = discovered.iter().find(|f| f.name == "top.md").unwrap();
         assert_eq!(top.folder, None);
@@ -464,7 +499,10 @@ mod fs_tests {
         let dir = tempdir().unwrap();
 
         create_file(
-            &dir.path().join("Novel").join("Chapter 1").join("Scene 1.md"),
+            &dir.path()
+                .join("Novel")
+                .join("Chapter 1")
+                .join("Scene 1.md"),
             "scene one",
             vec!["Novel".to_string(), "Chapter 1".to_string()],
         )
@@ -562,7 +600,10 @@ mod fs_tests {
     fn test_delete_folder_with_scenes_fails() {
         let dir = tempdir().unwrap();
         create_file(
-            &dir.path().join("Novel").join("Chapter 1").join("Scene 1.md"),
+            &dir.path()
+                .join("Novel")
+                .join("Chapter 1")
+                .join("Scene 1.md"),
             "content",
             vec!["Novel".to_string(), "Chapter 1".to_string()],
         )

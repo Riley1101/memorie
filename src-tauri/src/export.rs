@@ -195,7 +195,13 @@ impl ExportRequest {
         }
         let surname = self.author.split_whitespace().last().unwrap_or("");
         let title = self.title.trim().to_uppercase();
-        Some([surname, title.as_str()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" / "))
+        Some(
+            [surname, title.as_str()]
+                .into_iter()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" / "),
+        )
     }
 
     /// The language code if it looks valid, else English.
@@ -215,10 +221,18 @@ fn default_true() -> bool {
 /// A document with its Markdown already loaded, in manuscript order.
 #[derive(Clone)]
 enum Part {
-    Heading { level: u8, text: String },
+    Heading {
+        level: u8,
+        text: String,
+    },
     /// `label` is the file name without extension, for tables of contents
     /// when the writing's title isn't printed.
-    Document { title: Option<String>, label: String, markdown: String, status: Option<String> },
+    Document {
+        title: Option<String>,
+        label: String,
+        markdown: String,
+        status: Option<String>,
+    },
 }
 
 /// Rejects names that could escape the content directory.
@@ -237,13 +251,20 @@ fn safe_join(content_dir: &Path, name: &str) -> Result<PathBuf, String> {
 /// the top of a writing. Same rule as the editor: a `---` block whose first
 /// line is `key: value`.
 pub fn strip_front_matter(markdown: &str) -> &str {
-    let Some(rest) = markdown.strip_prefix("---\n").or_else(|| markdown.strip_prefix("---\r\n")) else {
+    let Some(rest) = markdown
+        .strip_prefix("---\n")
+        .or_else(|| markdown.strip_prefix("---\r\n"))
+    else {
         return markdown;
     };
     let is_key = |line: &str| {
         line.split_once(':').is_some_and(|(key, _)| {
-            key.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-                && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            key.chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                && key
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         })
     };
     if !is_key(rest.lines().next().unwrap_or("")) {
@@ -286,7 +307,12 @@ fn load_parts(content_dir: &Path, items: &[ExportItem]) -> Result<Vec<Part>, Str
                     .file_stem()
                     .map(|s| s.to_string_lossy().into_owned())
                     .unwrap_or_default();
-                Ok(Part::Document { title: title.clone(), label, markdown, status })
+                Ok(Part::Document {
+                    title: title.clone(),
+                    label,
+                    markdown,
+                    status,
+                })
             }
         })
         .collect()
@@ -294,7 +320,11 @@ fn load_parts(content_dir: &Path, items: &[ExportItem]) -> Result<Vec<Part>, Str
 
 /// Front or back matter with `{year}`, `{author}` and `{title}` filled in.
 /// Pages that come out empty are skipped.
-fn load_matter(request: &ExportRequest, content_dir: &Path, items: &[MatterItem]) -> Result<Vec<Matter>, String> {
+fn load_matter(
+    request: &ExportRequest,
+    content_dir: &Path,
+    items: &[MatterItem],
+) -> Result<Vec<Matter>, String> {
     let year = chrono::Local::now().format("%Y").to_string();
     let mut out = Vec::new();
     for item in items {
@@ -312,7 +342,10 @@ fn load_matter(request: &ExportRequest, content_dir: &Path, items: &[MatterItem]
             .replace("{author}", request.author.trim())
             .replace("{title}", request.title.trim());
         if !markdown.trim().is_empty() {
-            out.push(Matter { kind: item.kind, markdown });
+            out.push(Matter {
+                kind: item.kind,
+                markdown,
+            });
         }
     }
     Ok(out)
@@ -344,7 +377,10 @@ fn load_manuscript(request: &ExportRequest, content_dir: &Path) -> Result<Vec<Pa
         .collect();
     if !excluded.is_empty() {
         parts.retain(|part| match part {
-            Part::Document { status: Some(status), .. } => !excluded.contains(&status.trim().to_lowercase()),
+            Part::Document {
+                status: Some(status),
+                ..
+            } => !excluded.contains(&status.trim().to_lowercase()),
             _ => true,
         });
         parts = drop_empty_headings(parts);
@@ -396,7 +432,11 @@ fn drop_empty_headings(parts: Vec<Part>) -> Vec<Part> {
             Part::Document { .. } => true,
         })
         .collect();
-    parts.into_iter().zip(keep).filter_map(|(p, k)| k.then_some(p)).collect()
+    parts
+        .into_iter()
+        .zip(keep)
+        .filter_map(|(p, k)| k.then_some(p))
+        .collect()
 }
 
 /// Rewrites chapter headings from `template`. Chapters are the innermost
@@ -422,7 +462,10 @@ fn apply_chapter_headings(template: &str, parts: &mut [Part]) {
         match &mut parts[i] {
             Part::Heading { text, .. } => *text = chapter_heading(template, n, text),
             Part::Document { title, label, .. } => {
-                let name = title.as_deref().filter(|t| !t.trim().is_empty()).unwrap_or(label);
+                let name = title
+                    .as_deref()
+                    .filter(|t| !t.trim().is_empty())
+                    .unwrap_or(label);
                 *title = Some(chapter_heading(template, n, name));
             }
         }
@@ -446,7 +489,9 @@ fn toc_entries(parts: &[Part]) -> Vec<(usize, String)> {
     parts
         .iter()
         .filter_map(|p| match p {
-            Part::Document { title: Some(title), .. } if !title.trim().is_empty() => Some((1, title.trim().to_string())),
+            Part::Document {
+                title: Some(title), ..
+            } if !title.trim().is_empty() => Some((1, title.trim().to_string())),
             _ => None,
         })
         .collect()
@@ -460,17 +505,40 @@ fn chapter_heading(template: &str, n: usize, name: &str) -> String {
         .replace("{roman}", &roman(n))
         .replace("{title}", name.trim());
     let heading = heading.trim();
-    if heading.is_empty() { name.to_string() } else { heading.to_string() }
+    if heading.is_empty() {
+        name.to_string()
+    } else {
+        heading.to_string()
+    }
 }
 
 /// "One" to "Ninety-Nine", then digits.
 fn number_word(n: usize) -> String {
     const ONES: [&str; 20] = [
-        "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven",
-        "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+        "Zero",
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five",
+        "Six",
+        "Seven",
+        "Eight",
+        "Nine",
+        "Ten",
+        "Eleven",
+        "Twelve",
+        "Thirteen",
+        "Fourteen",
+        "Fifteen",
+        "Sixteen",
+        "Seventeen",
+        "Eighteen",
+        "Nineteen",
     ];
-    const TENS: [&str; 10] =
-        ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    const TENS: [&str; 10] = [
+        "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety",
+    ];
     match n {
         0..=19 => ONES[n].to_string(),
         20..=99 if n % 10 == 0 => TENS[n / 10].to_string(),
@@ -485,8 +553,19 @@ fn roman(mut n: usize) -> String {
         return n.to_string();
     }
     const NUMERALS: [(usize, &str); 13] = [
-        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"),
-        (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
     ];
     let mut out = String::new();
     for (value, numeral) in NUMERALS {
@@ -503,13 +582,23 @@ fn roman(mut n: usize) -> String {
 fn compile_markdown(request: &ExportRequest, parts: &[Part]) -> String {
     let mut out = String::new();
     if !request.title.trim().is_empty() {
-        out.push_str(&format!("# {}\n\n", escape_inline_markdown(request.title.trim())));
+        out.push_str(&format!(
+            "# {}\n\n",
+            escape_inline_markdown(request.title.trim())
+        ));
         if !request.author.trim().is_empty() {
-            out.push_str(&format!("*{}*\n\n", escape_inline_markdown(request.author.trim())));
+            out.push_str(&format!(
+                "*{}*\n\n",
+                escape_inline_markdown(request.author.trim())
+            ));
         }
     }
     // Everything shifts down one level under the book title.
-    let shift = if request.title.trim().is_empty() { 0 } else { 1 };
+    let shift = if request.title.trim().is_empty() {
+        0
+    } else {
+        1
+    };
     let mut current_level = shift;
     let mut previous_was_document = false;
 
@@ -517,18 +606,31 @@ fn compile_markdown(request: &ExportRequest, parts: &[Part]) -> String {
         match part {
             Part::Heading { level, text } => {
                 let level = (*level as usize + shift).min(6);
-                out.push_str(&format!("{} {}\n\n", "#".repeat(level), escape_inline_markdown(text)));
+                out.push_str(&format!(
+                    "{} {}\n\n",
+                    "#".repeat(level),
+                    escape_inline_markdown(text)
+                ));
                 current_level = level;
                 previous_was_document = false;
             }
-            Part::Document { title, markdown, .. } => {
+            Part::Document {
+                title, markdown, ..
+            } => {
                 if previous_was_document && !request.scene_separator.trim().is_empty() {
-                    out.push_str(&format!("{}\n\n", escape_separator(&request.scene_separator)));
+                    out.push_str(&format!(
+                        "{}\n\n",
+                        escape_separator(&request.scene_separator)
+                    ));
                 }
                 let mut inner_level = current_level;
                 if let Some(title) = title.as_deref().filter(|t| !t.trim().is_empty()) {
                     inner_level = (current_level + 1).min(6);
-                    out.push_str(&format!("{} {}\n\n", "#".repeat(inner_level), escape_inline_markdown(title.trim())));
+                    out.push_str(&format!(
+                        "{} {}\n\n",
+                        "#".repeat(inner_level),
+                        escape_inline_markdown(title.trim())
+                    ));
                 }
                 // A writing's own headings sit below the folder and title
                 // headings, so a "# Heading" in a scene never becomes a chapter.
@@ -547,22 +649,32 @@ fn compile_book_markdown(request: &ExportRequest, book: &Book) -> String {
     // compile_markdown starts with the title block; matter goes right after it.
     let title_block = compile_markdown(request, &[]);
     let body = full.strip_prefix(title_block.as_str()).unwrap_or(&full);
-    let level = if request.title.trim().is_empty() { 1 } else { 2 };
+    let level = if request.title.trim().is_empty() {
+        1
+    } else {
+        2
+    };
     let matter = |pages: &[Matter]| -> String {
         pages
             .iter()
             .map(|m| {
                 let body = demote_headings(m.markdown.trim(), level);
                 match m.kind.style() {
-                    MatterStyle::Headed(heading) => format!("{} {heading}\n\n{}\n\n", "#".repeat(level), body.trim()),
+                    MatterStyle::Headed(heading) => {
+                        format!("{} {heading}\n\n{}\n\n", "#".repeat(level), body.trim())
+                    }
                     _ => format!("{}\n\n", body.trim()),
                 }
             })
             .collect()
     };
-    format!("{title_block}{}{body}{}", matter(&book.front), matter(&book.back))
-        .trim_end()
-        .to_string()
+    format!(
+        "{title_block}{}{body}{}",
+        matter(&book.front),
+        matter(&book.back)
+    )
+    .trim_end()
+    .to_string()
         + "\n"
 }
 
@@ -570,7 +682,10 @@ fn compile_book_markdown(request: &ExportRequest, book: &Book) -> String {
 fn escape_inline_markdown(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
-        if matches!(c, '\\' | '*' | '_' | '[' | ']' | '<' | '>' | '#' | '`' | '~' | '|') {
+        if matches!(
+            c,
+            '\\' | '*' | '_' | '[' | ']' | '<' | '>' | '#' | '`' | '~' | '|'
+        ) {
             out.push('\\');
         }
         out.push(c);
@@ -700,7 +815,11 @@ const PRINT_CSS: &str = r#"
 
 /// One standalone HTML page for the whole manuscript. Also what gets printed to PDF.
 fn render_html(request: &ExportRequest, book: &Book) -> String {
-    let body_request = ExportRequest { title: String::new(), author: String::new(), ..request.clone() };
+    let body_request = ExportRequest {
+        title: String::new(),
+        author: String::new(),
+        ..request.clone()
+    };
     let mut body = markdown_to_html(&compile_markdown(&body_request, &book.parts));
 
     if request.chapter_page_breaks {
@@ -736,7 +855,10 @@ fn matter_html(m: &Matter) -> String {
     let (class, heading) = match m.kind.style() {
         MatterStyle::Small => (" matter-small", String::new()),
         MatterStyle::Centered => (" matter-centered", String::new()),
-        MatterStyle::Headed(h) => ("", format!("<h2 class=\"matter-heading\">{}</h2>\n", html_escape(h))),
+        MatterStyle::Headed(h) => (
+            "",
+            format!("<h2 class=\"matter-heading\">{}</h2>\n", html_escape(h)),
+        ),
     };
     format!(
         "<section class=\"matter matter-{}{class} page-break\">\n{heading}{}</section>\n",
@@ -791,9 +913,15 @@ fn epub_chapters(request: &ExportRequest, parts: &[Part]) -> Vec<Chapter> {
         .into_iter()
         .map(|(title, members)| {
             let owned: Vec<Part> = members.into_iter().cloned().collect();
-            let chapter_request =
-                ExportRequest { title: String::new(), author: String::new(), ..request.clone() };
-            Chapter { title, markdown: compile_markdown(&chapter_request, &owned) }
+            let chapter_request = ExportRequest {
+                title: String::new(),
+                author: String::new(),
+                ..request.clone()
+            };
+            Chapter {
+                title,
+                markdown: compile_markdown(&chapter_request, &owned),
+            }
         })
         .collect()
 }
@@ -810,7 +938,11 @@ fn render_epub(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
     let err = |e: epub_builder::Error| format!("EPUB error: {e}");
     let mut builder = EpubBuilder::new(ZipLibrary::new().map_err(err)?).map_err(err)?;
     builder.epub_version(epub_builder::EpubVersion::V30);
-    let title = if request.title.trim().is_empty() { "Untitled" } else { request.title.trim() };
+    let title = if request.title.trim().is_empty() {
+        "Untitled"
+    } else {
+        request.title.trim()
+    };
     builder.set_title(title);
     if !request.author.trim().is_empty() {
         builder.add_author(request.author.trim());
@@ -822,7 +954,10 @@ fn render_epub(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
 
     let mut title_page = format!("<h1 class=\"book-title\">{}</h1>\n", html_escape(title));
     if !request.author.trim().is_empty() {
-        title_page.push_str(&format!("<p class=\"book-author\">{}</p>\n", html_escape(request.author.trim())));
+        title_page.push_str(&format!(
+            "<p class=\"book-author\">{}</p>\n",
+            html_escape(request.author.trim())
+        ));
     }
     builder
         .add_content(
@@ -838,12 +973,18 @@ fn render_epub(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
                 MatterStyle::Headed(h) => h,
                 _ => "",
             };
-            let page = xhtml_page(if title.is_empty() { m.kind.id() } else { title }, &matter_html(m));
+            let page = xhtml_page(
+                if title.is_empty() { m.kind.id() } else { title },
+                &matter_html(m),
+            );
             builder
                 .add_content(
-                    EpubContent::new(format!("{place}_{:02}_{}.xhtml", i + 1, m.kind.id()), page.as_bytes())
-                        .title(title)
-                        .reftype(m.kind.epub_reftype()),
+                    EpubContent::new(
+                        format!("{place}_{:02}_{}.xhtml", i + 1, m.kind.id()),
+                        page.as_bytes(),
+                    )
+                    .title(title)
+                    .reftype(m.kind.epub_reftype()),
                 )
                 .map_err(err)?;
         }
@@ -909,8 +1050,16 @@ const TWIPS_PER_INCH: i32 = 1440;
 
 impl DocxWriter {
     fn new(manuscript: bool, chapter_page_breaks: bool) -> Self {
-        let body_font = if manuscript { "Times New Roman" } else { "Georgia" };
-        let fonts = RunFonts::new().ascii(body_font).hi_ansi(body_font).cs(body_font).east_asia(body_font);
+        let body_font = if manuscript {
+            "Times New Roman"
+        } else {
+            "Georgia"
+        };
+        let fonts = RunFonts::new()
+            .ascii(body_font)
+            .hi_ansi(body_font)
+            .cs(body_font)
+            .east_asia(body_font);
         let mut docx = Docx::new()
             .default_fonts(fonts)
             .default_size(24) // half-points: 12pt
@@ -956,7 +1105,10 @@ impl DocxWriter {
 
     fn body_paragraph(&self) -> Paragraph {
         let mut p = Paragraph::new();
-        if matches!(self.matter, Some(MatterStyle::Small | MatterStyle::Centered)) {
+        if matches!(
+            self.matter,
+            Some(MatterStyle::Small | MatterStyle::Centered)
+        ) {
             p = p.line_spacing(LineSpacing::new().after(160));
             if self.matter == Some(MatterStyle::Centered) {
                 p = p.align(AlignmentType::Center);
@@ -965,7 +1117,12 @@ impl DocxWriter {
             // Double spaced, half-inch first line indent, no gap between paragraphs.
             p = p
                 .line_spacing(LineSpacing::new().line(480).after(0))
-                .indent(None, Some(SpecialIndentType::FirstLine(TWIPS_PER_INCH / 2)), None, None);
+                .indent(
+                    None,
+                    Some(SpecialIndentType::FirstLine(TWIPS_PER_INCH / 2)),
+                    None,
+                    None,
+                );
         } else {
             p = p.line_spacing(LineSpacing::new().line(300).after(160));
         }
@@ -1000,7 +1157,9 @@ impl DocxWriter {
         }
         let runs = std::mem::take(&mut self.runs);
         let mut p = if let Some(level) = self.heading {
-            let mut p = Paragraph::new().style(&format!("Heading{level}")).keep_next(true);
+            let mut p = Paragraph::new()
+                .style(&format!("Heading{level}"))
+                .keep_next(true);
             if level == 1 && self.chapter_page_breaks {
                 if self.seen_top_heading {
                     p = p.page_break_before(true);
@@ -1055,7 +1214,8 @@ impl DocxWriter {
             }
             MatterStyle::Centered => {
                 // Set a third of the way down the page.
-                let p = Paragraph::new().line_spacing(LineSpacing::new().before(TWIPS_PER_INCH as u32 * 2));
+                let p = Paragraph::new()
+                    .line_spacing(LineSpacing::new().before(TWIPS_PER_INCH as u32 * 2));
                 self.docx = std::mem::take(&mut self.docx).add_paragraph(p);
             }
             MatterStyle::Small => {}
@@ -1138,7 +1298,9 @@ impl DocxWriter {
                             .add_run(
                                 Run::new()
                                     .add_text(line)
-                                    .fonts(RunFonts::new().ascii("Courier New").hi_ansi("Courier New"))
+                                    .fonts(
+                                        RunFonts::new().ascii("Courier New").hi_ansi("Courier New"),
+                                    )
                                     .size(20),
                             );
                         self.docx = std::mem::take(&mut self.docx).add_paragraph(p);
@@ -1174,12 +1336,18 @@ impl DocxWriter {
                     .strip_prefix("<p class=\"separator\">")
                     .and_then(|s| s.strip_suffix("</p>"))
                 {
-                    let text = inner.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"");
+                    let text = inner
+                        .replace("&amp;", "&")
+                        .replace("&lt;", "<")
+                        .replace("&gt;", ">")
+                        .replace("&quot;", "\"");
                     self.centered_line(&text);
                 }
             }
             Event::SoftBreak => self.runs.push(Run::new().add_text(" ")),
-            Event::HardBreak => self.runs.push(Run::new().add_break(BreakType::TextWrapping)),
+            Event::HardBreak => self
+                .runs
+                .push(Run::new().add_break(BreakType::TextWrapping)),
             Event::Rule => self.centered_line("* * *"),
             _ => {}
         }
@@ -1205,7 +1373,11 @@ fn render_docx(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
     if !title.is_empty() {
         let mut p = Paragraph::new()
             .align(AlignmentType::Center)
-            .line_spacing(LineSpacing::new().before(TWIPS_PER_INCH as u32 * 3).after(240))
+            .line_spacing(
+                LineSpacing::new()
+                    .before(TWIPS_PER_INCH as u32 * 3)
+                    .after(240),
+            )
             .add_run(Run::new().add_text(title).size(48));
         if !writer.manuscript {
             p = p.bold();
@@ -1241,7 +1413,12 @@ fn render_docx(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
                     .add_run(Run::new().add_text("Contents").size(32)),
             );
         for (level, text) in &entries {
-            toc = toc.add_item(TableOfContentsItem::new().text(text).level(*level).page_ref(""));
+            toc = toc.add_item(
+                TableOfContentsItem::new()
+                    .text(text)
+                    .level(*level)
+                    .page_ref(""),
+            );
         }
         writer.docx = std::mem::take(&mut writer.docx).add_table_of_contents(toc);
         writer.page_break();
@@ -1258,7 +1435,8 @@ fn render_docx(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
             .add_field_char(FieldCharType::Separate, false)
             .add_text("1")
             .add_field_char(FieldCharType::End, false);
-        let header = Header::new().add_paragraph(Paragraph::new().align(AlignmentType::Right).add_run(run));
+        let header =
+            Header::new().add_paragraph(Paragraph::new().align(AlignmentType::Right).add_run(run));
         writer.docx = std::mem::take(&mut writer.docx).header(header);
         if !title.is_empty() {
             // Nothing on the title page.
@@ -1266,7 +1444,11 @@ fn render_docx(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
         }
     }
 
-    let body_request = ExportRequest { title: String::new(), author: String::new(), ..request.clone() };
+    let body_request = ExportRequest {
+        title: String::new(),
+        author: String::new(),
+        ..request.clone()
+    };
     writer.write_markdown(&compile_markdown(&body_request, parts));
     for m in &book.back {
         writer.page_break();
@@ -1288,7 +1470,11 @@ fn render_docx(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> 
 
 fn render_pdf(request: &ExportRequest, book: &Book) -> Result<Vec<u8>, String> {
     let parts = &book.parts;
-    let body_request = ExportRequest { title: String::new(), author: String::new(), ..request.clone() };
+    let body_request = ExportRequest {
+        title: String::new(),
+        author: String::new(),
+        ..request.clone()
+    };
     let markdown = compile_markdown(&body_request, parts);
     let mut body = crate::pdf::events_to_typst(clean_events(&markdown));
     for m in &book.back {
@@ -1339,10 +1525,22 @@ fn file_stem(title: &str) -> String {
     let cleaned: String = title
         .trim()
         .chars()
-        .map(|c| if "/\\:*?\"<>|".contains(c) || c.is_control() { '-' } else { c })
+        .map(|c| {
+            if "/\\:*?\"<>|".contains(c) || c.is_control() {
+                '-'
+            } else {
+                c
+            }
+        })
         .collect();
-    let cleaned = cleaned.trim_matches(|c: char| c == '.' || c.is_whitespace()).to_string();
-    if cleaned.is_empty() { "Untitled".to_string() } else { cleaned }
+    let cleaned = cleaned
+        .trim_matches(|c: char| c == '.' || c.is_whitespace())
+        .to_string();
+    if cleaned.is_empty() {
+        "Untitled".to_string()
+    } else {
+        cleaned
+    }
 }
 
 /// `dir/stem.ext`, or `dir/stem 2.ext` and so on if that is taken.
@@ -1379,7 +1577,11 @@ pub fn read_compile_settings(content_dir: &Path, binder: &str) -> Result<Option<
 }
 
 /// Saves the binder's settings. `settings` must be a JSON object.
-pub fn write_compile_settings(content_dir: &Path, binder: &str, settings: &serde_json::Value) -> Result<(), String> {
+pub fn write_compile_settings(
+    content_dir: &Path,
+    binder: &str,
+    settings: &serde_json::Value,
+) -> Result<(), String> {
     if !settings.is_object() {
         return Err("Compile settings must be an object".into());
     }
@@ -1388,11 +1590,16 @@ pub fn write_compile_settings(content_dir: &Path, binder: &str, settings: &serde
         return Err(format!("No binder named \"{binder}\""));
     }
     let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json + "\n").map_err(|e| format!("Could not write {}: {e}", path.display()))
+    std::fs::write(&path, json + "\n")
+        .map_err(|e| format!("Could not write {}: {e}", path.display()))
 }
 
 /// Renders the manuscript and writes it to `out_dir`. Returns the file written.
-pub fn export(request: &ExportRequest, content_dir: &Path, out_dir: &Path) -> Result<PathBuf, String> {
+pub fn export(
+    request: &ExportRequest,
+    content_dir: &Path,
+    out_dir: &Path,
+) -> Result<PathBuf, String> {
     let book = load_book(request, content_dir)?;
     let bytes = match request.format {
         ExportFormat::Html => render_html(request, &book).into_bytes(),
@@ -1402,8 +1609,13 @@ pub fn export(request: &ExportRequest, content_dir: &Path, out_dir: &Path) -> Re
         ExportFormat::Pdf => render_pdf(request, &book)?,
     };
 
-    std::fs::create_dir_all(out_dir).map_err(|e| format!("Could not create {}: {e}", out_dir.display()))?;
-    let path = unique_path(out_dir, &file_stem(&request.title), request.format.extension());
+    std::fs::create_dir_all(out_dir)
+        .map_err(|e| format!("Could not create {}: {e}", out_dir.display()))?;
+    let path = unique_path(
+        out_dir,
+        &file_stem(&request.title),
+        request.format.extension(),
+    );
     std::fs::write(&path, bytes).map_err(|e| format!("Could not write {}: {e}", path.display()))?;
     Ok(path)
 }
@@ -1440,11 +1652,24 @@ mod tests {
             "It was a **dark** and _stormy_ night. See [Scene 2](#writing/Novel/Chapter%201/Scene%202.md).\n\n- one\n- two\n",
         )
         .unwrap();
-        std::fs::write(dir.join("Novel/Chapter 1/Scene 2.md"), "> A quote <b>raw</b>\n\n```\ncode & more\n```\n").unwrap();
+        std::fs::write(
+            dir.join("Novel/Chapter 1/Scene 2.md"),
+            "> A quote <b>raw</b>\n\n```\ncode & more\n```\n",
+        )
+        .unwrap();
         vec![
-            ExportItem::Heading { level: 1, text: "Chapter 1".into() },
-            ExportItem::Document { name: "Novel/Chapter 1/Scene 1.md".into(), title: None },
-            ExportItem::Document { name: "Novel/Chapter 1/Scene 2.md".into(), title: Some("Scene 2".into()) },
+            ExportItem::Heading {
+                level: 1,
+                text: "Chapter 1".into(),
+            },
+            ExportItem::Document {
+                name: "Novel/Chapter 1/Scene 1.md".into(),
+                title: None,
+            },
+            ExportItem::Document {
+                name: "Novel/Chapter 1/Scene 2.md".into(),
+                title: Some("Scene 2".into()),
+            },
         ]
     }
 
@@ -1479,7 +1704,13 @@ mod tests {
         let dir = tempdir().unwrap();
         let out = tempdir().unwrap();
         let items = sample(dir.path());
-        for format in [ExportFormat::Docx, ExportFormat::Epub, ExportFormat::Html, ExportFormat::Markdown, ExportFormat::Pdf] {
+        for format in [
+            ExportFormat::Docx,
+            ExportFormat::Epub,
+            ExportFormat::Html,
+            ExportFormat::Markdown,
+            ExportFormat::Pdf,
+        ] {
             let path = export(&request(format, items.clone()), dir.path(), out.path()).unwrap();
             assert!(path.exists(), "{format:?} not written");
             assert!(std::fs::metadata(&path).unwrap().len() > 0);
@@ -1496,17 +1727,33 @@ mod tests {
         let dir = tempdir().unwrap();
         let out = tempdir().unwrap();
         let items = sample(dir.path());
-        let a = export(&request(ExportFormat::Markdown, items.clone()), dir.path(), out.path()).unwrap();
-        let b = export(&request(ExportFormat::Markdown, items), dir.path(), out.path()).unwrap();
+        let a = export(
+            &request(ExportFormat::Markdown, items.clone()),
+            dir.path(),
+            out.path(),
+        )
+        .unwrap();
+        let b = export(
+            &request(ExportFormat::Markdown, items),
+            dir.path(),
+            out.path(),
+        )
+        .unwrap();
         assert_ne!(a, b);
         assert!(b.ends_with("My Novel 2.md"));
     }
 
     #[test]
     fn front_matter_is_not_exported() {
-        assert_eq!(strip_front_matter("---\nstatus: \"Done\"\n---\n\nBody"), "Body");
+        assert_eq!(
+            strip_front_matter("---\nstatus: \"Done\"\n---\n\nBody"),
+            "Body"
+        );
         assert_eq!(strip_front_matter("---\ntags:\n  - a\n---\nBody"), "Body");
-        assert_eq!(strip_front_matter("---\n\nNot metadata\n---\n"), "---\n\nNot metadata\n---\n");
+        assert_eq!(
+            strip_front_matter("---\n\nNot metadata\n---\n"),
+            "---\n\nNot metadata\n---\n"
+        );
         let prose = "---\ntitle: x\nSome prose here.\n---\nMore";
         assert_eq!(strip_front_matter(prose), prose);
         assert_eq!(strip_front_matter("Plain"), "Plain");
@@ -1527,10 +1774,19 @@ mod tests {
         let dir = tempdir().unwrap();
         std::fs::write(dir.path().join("a.md"), "# Scene heading\n\nText").unwrap();
         let items = vec![
-            ExportItem::Heading { level: 1, text: "Part *One* <draft>".into() },
-            ExportItem::Document { name: "a.md".into(), title: None },
+            ExportItem::Heading {
+                level: 1,
+                text: "Part *One* <draft>".into(),
+            },
+            ExportItem::Document {
+                name: "a.md".into(),
+                title: None,
+            },
         ];
-        let req = ExportRequest { title: String::new(), ..request(ExportFormat::Markdown, items) };
+        let req = ExportRequest {
+            title: String::new(),
+            ..request(ExportFormat::Markdown, items)
+        };
         let parts = load_parts(dir.path(), &req.items).unwrap();
         let md = compile_markdown(&req, &parts);
         assert!(md.starts_with("# Part \\*One\\* \\<draft\\>"), "{md}");
@@ -1553,15 +1809,33 @@ mod tests {
         for f in ["a.md", "b.md", "c.md"] {
             std::fs::write(dir.path().join(f), "Text").unwrap();
         }
-        let doc = |n: &str| ExportItem::Document { name: n.into(), title: None };
+        let doc = |n: &str| ExportItem::Document {
+            name: n.into(),
+            title: None,
+        };
         let items = vec![
-            ExportItem::Heading { level: 1, text: "Part One".into() },
-            ExportItem::Heading { level: 2, text: "Arrival".into() },
+            ExportItem::Heading {
+                level: 1,
+                text: "Part One".into(),
+            },
+            ExportItem::Heading {
+                level: 2,
+                text: "Arrival".into(),
+            },
             doc("a.md"),
-            ExportItem::Heading { level: 2, text: "Storm".into() },
+            ExportItem::Heading {
+                level: 2,
+                text: "Storm".into(),
+            },
             doc("b.md"),
-            ExportItem::Heading { level: 1, text: "Part Two".into() },
-            ExportItem::Heading { level: 2, text: "After".into() },
+            ExportItem::Heading {
+                level: 1,
+                text: "Part Two".into(),
+            },
+            ExportItem::Heading {
+                level: 2,
+                text: "After".into(),
+            },
             doc("c.md"),
         ];
         let req = ExportRequest {
@@ -1571,7 +1845,13 @@ mod tests {
         let parts = load_manuscript(&req, dir.path()).unwrap();
         assert_eq!(
             headings(&parts),
-            ["Part One", "Chapter One (I): Arrival", "Chapter Two (II): Storm", "Part Two", "Chapter Three (III): After"]
+            [
+                "Part One",
+                "Chapter One (I): Arrival",
+                "Chapter Two (II): Storm",
+                "Part Two",
+                "Chapter Three (III): After"
+            ]
         );
     }
 
@@ -1581,10 +1861,19 @@ mod tests {
         std::fs::write(dir.path().join("Opening.md"), "Text").unwrap();
         std::fs::write(dir.path().join("b.md"), "Text").unwrap();
         let items = vec![
-            ExportItem::Document { name: "Opening.md".into(), title: None },
-            ExportItem::Document { name: "b.md".into(), title: Some("The Road".into()) },
+            ExportItem::Document {
+                name: "Opening.md".into(),
+                title: None,
+            },
+            ExportItem::Document {
+                name: "b.md".into(),
+                title: Some("The Road".into()),
+            },
         ];
-        let req = ExportRequest { chapter_heading: "{n}. {title}".into(), ..request(ExportFormat::Markdown, items) };
+        let req = ExportRequest {
+            chapter_heading: "{n}. {title}".into(),
+            ..request(ExportFormat::Markdown, items)
+        };
         let parts = load_manuscript(&req, dir.path()).unwrap();
         assert_eq!(headings(&parts), ["1. Opening", "2. The Road"]);
     }
@@ -1593,16 +1882,41 @@ mod tests {
     fn status_filter_drops_writings_and_empty_folders() {
         let dir = tempdir().unwrap();
         std::fs::write(dir.path().join("a.md"), "---\nstatus: \"Done\"\n---\nKeep").unwrap();
-        std::fs::write(dir.path().join("b.md"), "---\nsynopsis: x\nstatus: to do\n---\nSkip").unwrap();
+        std::fs::write(
+            dir.path().join("b.md"),
+            "---\nsynopsis: x\nstatus: to do\n---\nSkip",
+        )
+        .unwrap();
         std::fs::write(dir.path().join("c.md"), "No metadata").unwrap();
         let items = vec![
-            ExportItem::Heading { level: 1, text: "One".into() },
-            ExportItem::Document { name: "a.md".into(), title: None },
-            ExportItem::Heading { level: 1, text: "Two".into() },
-            ExportItem::Heading { level: 2, text: "Inner".into() },
-            ExportItem::Document { name: "b.md".into(), title: None },
-            ExportItem::Heading { level: 1, text: "Three".into() },
-            ExportItem::Document { name: "c.md".into(), title: None },
+            ExportItem::Heading {
+                level: 1,
+                text: "One".into(),
+            },
+            ExportItem::Document {
+                name: "a.md".into(),
+                title: None,
+            },
+            ExportItem::Heading {
+                level: 1,
+                text: "Two".into(),
+            },
+            ExportItem::Heading {
+                level: 2,
+                text: "Inner".into(),
+            },
+            ExportItem::Document {
+                name: "b.md".into(),
+                title: None,
+            },
+            ExportItem::Heading {
+                level: 1,
+                text: "Three".into(),
+            },
+            ExportItem::Document {
+                name: "c.md".into(),
+                title: None,
+            },
         ];
         let req = ExportRequest {
             exclude_statuses: vec!["To Do".into()],
@@ -1612,9 +1926,15 @@ mod tests {
         let parts = load_manuscript(&req, dir.path()).unwrap();
         assert_eq!(headings(&parts), ["Chapter 1", "Chapter 2"]);
         let md = compile_markdown(&req, &parts);
-        assert!(md.contains("Keep") && md.contains("No metadata") && !md.contains("Skip"), "{md}");
+        assert!(
+            md.contains("Keep") && md.contains("No metadata") && !md.contains("Skip"),
+            "{md}"
+        );
 
-        let all_out = ExportRequest { exclude_statuses: vec!["done".into(), "to do".into()], ..req.clone() };
+        let all_out = ExportRequest {
+            exclude_statuses: vec!["done".into(), "to do".into()],
+            ..req.clone()
+        };
         let only_meta = ExportRequest {
             items: all_out.items[..5].to_vec(),
             ..all_out
@@ -1628,7 +1948,10 @@ mod tests {
         assert_eq!(number_word(40), "Forty");
         assert_eq!(number_word(120), "120");
         assert_eq!(roman(1994), "MCMXCIV");
-        assert_eq!(front_matter_value("---\nstatus: 'It''s done'\n---\nx", "status").as_deref(), Some("It's done"));
+        assert_eq!(
+            front_matter_value("---\nstatus: 'It''s done'\n---\nx", "status").as_deref(),
+            Some("It's done")
+        );
         assert_eq!(front_matter_value("No block", "status"), None);
     }
 
@@ -1650,20 +1973,48 @@ mod tests {
             author: "Ann Writer".into(),
             ..request(ExportFormat::Docx, items)
         };
-        assert_eq!(req.running_head_text().as_deref(), Some("Writer / MY NOVEL"));
+        assert_eq!(
+            req.running_head_text().as_deref(),
+            Some("Writer / MY NOVEL")
+        );
         let book = load_book(&req, dir.path()).unwrap();
 
         let docx = render_docx(&req, &book).unwrap();
         let document = unzip(&docx, "word/document.xml");
-        assert!(document.contains("TOC \\o &quot;1-1&quot;") || document.contains("TOC \\o \"1-1\""), "{document}");
-        assert!(document.contains("titlePg"), "title page should have no header");
-        let headers: String = (1..=2).map(|i| unzip(&docx, &format!("word/header{i}.xml"))).collect();
-        assert!(headers.contains("Writer / MY NOVEL / ") && headers.contains("PAGE"), "{headers}");
+        assert!(
+            document.contains("TOC \\o &quot;1-1&quot;") || document.contains("TOC \\o \"1-1\""),
+            "{document}"
+        );
+        assert!(
+            document.contains("titlePg"),
+            "title page should have no header"
+        );
+        let headers: String = (1..=2)
+            .map(|i| unzip(&docx, &format!("word/header{i}.xml")))
+            .collect();
+        assert!(
+            headers.contains("Writer / MY NOVEL / ") && headers.contains("PAGE"),
+            "{headers}"
+        );
 
-        let epub = render_epub(&ExportRequest { format: ExportFormat::Epub, ..req.clone() }, &book).unwrap();
+        let epub = render_epub(
+            &ExportRequest {
+                format: ExportFormat::Epub,
+                ..req.clone()
+            },
+            &book,
+        )
+        .unwrap();
         assert!(unzip(&epub, "OEBPS/toc.xhtml").contains("Chapter 1"));
 
-        let pdf = render_pdf(&ExportRequest { format: ExportFormat::Pdf, ..req }, &book).unwrap();
+        let pdf = render_pdf(
+            &ExportRequest {
+                format: ExportFormat::Pdf,
+                ..req
+            },
+            &book,
+        )
+        .unwrap();
         assert_eq!(&pdf[..4], b"%PDF");
     }
 
@@ -1671,8 +2022,16 @@ mod tests {
     fn front_and_back_matter() {
         let dir = tempdir().unwrap();
         let items = sample(dir.path());
-        std::fs::write(dir.path().join("Thanks.md"), "---\nstatus: Done\n---\nThank you, {author}.").unwrap();
-        let text = |kind, text: &str| MatterItem { kind, text: text.into(), name: None };
+        std::fs::write(
+            dir.path().join("Thanks.md"),
+            "---\nstatus: Done\n---\nThank you, {author}.",
+        )
+        .unwrap();
+        let text = |kind, text: &str| MatterItem {
+            kind,
+            text: text.into(),
+            name: None,
+        };
         let req = ExportRequest {
             table_of_contents: true,
             front_matter: vec![
@@ -1680,7 +2039,11 @@ mod tests {
                 text(MatterKind::Dedication, "For *Sam*"),
                 text(MatterKind::Epigraph, "   "),
             ],
-            back_matter: vec![MatterItem { kind: MatterKind::Acknowledgments, text: String::new(), name: Some("Thanks.md".into()) }],
+            back_matter: vec![MatterItem {
+                kind: MatterKind::Acknowledgments,
+                text: String::new(),
+                name: Some("Thanks.md".into()),
+            }],
             ..request(ExportFormat::Markdown, items)
         };
         let book = load_book(&req, dir.path()).unwrap();
@@ -1691,22 +2054,43 @@ mod tests {
         let copyright = md.find(&format!("Copyright © {year} A. Writer")).unwrap();
         let dedication = md.find("For *Sam*").unwrap();
         let chapter = md.find("## Chapter 1").unwrap();
-        let thanks = md.find("## Acknowledgments\n\nThank you, A. Writer.").unwrap();
-        assert!(md.starts_with("# My Novel") && copyright < dedication && dedication < chapter && chapter < thanks, "{md}");
+        let thanks = md
+            .find("## Acknowledgments\n\nThank you, A. Writer.")
+            .unwrap();
+        assert!(
+            md.starts_with("# My Novel")
+                && copyright < dedication
+                && dedication < chapter
+                && chapter < thanks,
+            "{md}"
+        );
         assert!(!md.contains("status:"));
 
         let html = render_html(&req, &book);
-        assert!(html.contains("matter-dedication matter-centered page-break"), "{html}");
+        assert!(
+            html.contains("matter-dedication matter-centered page-break"),
+            "{html}"
+        );
         assert!(html.contains("<h2 class=\"matter-heading\">Acknowledgments</h2>"));
 
         let docx = render_docx(&req, &book).unwrap();
         let document = unzip(&docx, "word/document.xml");
-        let (c, t, a) = (document.find("Copyright ©").unwrap(), document.find("TOC").unwrap(), document.find("Acknowledgments").unwrap());
-        assert!(c < t && t < a, "front matter before contents, back matter at the end");
+        let (c, t, a) = (
+            document.find("Copyright ©").unwrap(),
+            document.find("TOC").unwrap(),
+            document.find("Acknowledgments").unwrap(),
+        );
+        assert!(
+            c < t && t < a,
+            "front matter before contents, back matter at the end"
+        );
 
         let epub = render_epub(&req, &book).unwrap();
         let nav = unzip(&epub, "OEBPS/toc.xhtml");
-        assert!(nav.contains("Acknowledgments") && !nav.contains("copyright"), "{nav}");
+        assert!(
+            nav.contains("Acknowledgments") && !nav.contains("copyright"),
+            "{nav}"
+        );
         assert!(unzip(&epub, "OEBPS/front_02_dedication.xhtml").contains("Sam"));
 
         let pdf = render_pdf(&req, &book).unwrap();
@@ -1720,7 +2104,9 @@ mod tests {
         assert_eq!(read_compile_settings(dir.path(), "Novel").unwrap(), None);
         let settings = serde_json::json!({ "version": 1, "excluded": ["Notes"] });
         write_compile_settings(dir.path(), "Novel", &settings).unwrap();
-        let back: serde_json::Value = serde_json::from_str(&read_compile_settings(dir.path(), "Novel").unwrap().unwrap()).unwrap();
+        let back: serde_json::Value =
+            serde_json::from_str(&read_compile_settings(dir.path(), "Novel").unwrap().unwrap())
+                .unwrap();
         assert_eq!(back, settings);
         assert!(write_compile_settings(dir.path(), "Missing", &settings).is_err());
         assert!(write_compile_settings(dir.path(), "../x", &settings).is_err());
@@ -1730,9 +2116,10 @@ mod tests {
     #[test]
     fn rejects_paths_outside_content() {
         let dir = tempdir().unwrap();
-        let items = vec![ExportItem::Document { name: "../secret.md".into(), title: None }];
+        let items = vec![ExportItem::Document {
+            name: "../secret.md".into(),
+            title: None,
+        }];
         assert!(load_parts(dir.path(), &items).is_err());
     }
 }
-
-

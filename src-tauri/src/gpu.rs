@@ -44,11 +44,14 @@ mod tests {
 
     #[tokio::test]
     async fn calls_inside_exclusive_do_not_wait_on_themselves() {
-        let done = tokio::time::timeout(std::time::Duration::from_secs(2), exclusive(async {
-            let inner = lock().await;
-            assert!(inner.is_none());
-            exclusive(async { 7 }).await
-        }))
+        let done = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            exclusive(async {
+                let inner = lock().await;
+                assert!(inner.is_none());
+                exclusive(async { 7 }).await
+            }),
+        )
         .await;
         assert_eq!(done.unwrap(), 7);
     }
@@ -61,7 +64,10 @@ mod tests {
         let first = lock().await;
         assert!(first.is_some());
         let second = tokio::time::timeout(std::time::Duration::from_millis(100), lock()).await;
-        assert!(second.is_err(), "a second job got the GPU while the first held it");
+        assert!(
+            second.is_err(),
+            "a second job got the GPU while the first held it"
+        );
         drop(first);
         assert!(lock().await.is_some());
     }

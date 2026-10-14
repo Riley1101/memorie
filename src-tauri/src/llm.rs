@@ -1,11 +1,13 @@
 use super::error::{FileError, LlamaError};
-use serde::{Deserialize, Serialize};
-use super::prompts::{GRAMMAR_CHECK_PROMPT, INTENT_CLASSIFICATION_PROMPT, NORMAL_CHAT_PROMPT, TEXT_COMPLETION};
+use super::prompts::{
+    GRAMMAR_CHECK_PROMPT, INTENT_CLASSIFICATION_PROMPT, NORMAL_CHAT_PROMPT, TEXT_COMPLETION,
+};
 use super::responses::{AutoCompleteResponse, ModelLoadingResponse, Response};
 use crate::responses::{GrammarCheckResponse, IntentResponse};
 use crate::utils;
 use kalosm::language::*;
 use kalosm_common::Cache;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -237,29 +239,25 @@ pub async fn download_model_to_cache(
     let last_emitted_percent = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(101));
 
     let _path = cache
-        .get(
-            &source,
-            move |progress: FileLoadingProgress| {
-                use tauri::Emitter;
-                let progress_percent = if progress.size > 0 {
-                    (progress.progress as f64 / progress.size as f64 * 100.0) as u32
-                } else {
-                    0
-                };
-                let last = last_emitted_percent.load(std::sync::atomic::Ordering::Relaxed);
-                if progress_percent != last {
-                    last_emitted_percent
-                        .store(progress_percent, std::sync::atomic::Ordering::Relaxed);
-                    let _ = handle_clone.emit(
-                        "model-progress",
-                        serde_json::json!({
-                            "status": "Downloading model...",
-                            "progress": progress_percent
-                        }),
-                    );
-                }
-            },
-        )
+        .get(&source, move |progress: FileLoadingProgress| {
+            use tauri::Emitter;
+            let progress_percent = if progress.size > 0 {
+                (progress.progress as f64 / progress.size as f64 * 100.0) as u32
+            } else {
+                0
+            };
+            let last = last_emitted_percent.load(std::sync::atomic::Ordering::Relaxed);
+            if progress_percent != last {
+                last_emitted_percent.store(progress_percent, std::sync::atomic::Ordering::Relaxed);
+                let _ = handle_clone.emit(
+                    "model-progress",
+                    serde_json::json!({
+                        "status": "Downloading model...",
+                        "progress": progress_percent
+                    }),
+                );
+            }
+        })
         .await?;
     Ok(())
 }
@@ -307,8 +305,13 @@ impl Model {
         handle: tauri::AppHandle,
     ) -> Result<Response<ModelLoadingResponse>, LlamaError> {
         let is_already_loaded = match &model_type {
-            ModelType::Chat => self.chat_model.is_some() && self.loaded_chat_model_id.as_deref() == Some(model_id),
-            ModelType::AutoComplete => self.auto_complete_model.is_some() && self.loaded_autocomplete_model_id.as_deref() == Some(model_id),
+            ModelType::Chat => {
+                self.chat_model.is_some() && self.loaded_chat_model_id.as_deref() == Some(model_id)
+            }
+            ModelType::AutoComplete => {
+                self.auto_complete_model.is_some()
+                    && self.loaded_autocomplete_model_id.as_deref() == Some(model_id)
+            }
         };
 
         if !is_already_loaded {
@@ -320,7 +323,7 @@ impl Model {
             let source = source_for_model_id(model_id)?.with_cache(cache);
 
             let handle_clone = handle.clone();
-            let last_emitted_percent = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(101)); 
+            let last_emitted_percent = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(101));
 
             let loaded_model = Llama::builder()
                 .with_source(source)
@@ -334,12 +337,16 @@ impl Model {
                                 0
                             };
 
-                            let last = last_emitted_percent.load(std::sync::atomic::Ordering::Relaxed);
+                            let last =
+                                last_emitted_percent.load(std::sync::atomic::Ordering::Relaxed);
                             if progress_percent != last {
-                                last_emitted_percent.store(progress_percent, std::sync::atomic::Ordering::Relaxed);
-                                
+                                last_emitted_percent
+                                    .store(progress_percent, std::sync::atomic::Ordering::Relaxed);
+
                                 let elapsed = progress.start_time.elapsed().as_secs_f32();
-                                println!("Downloading file {source} {progress_percent}% ({elapsed}s)");
+                                println!(
+                                    "Downloading file {source} {progress_percent}% ({elapsed}s)"
+                                );
                                 let _ = handle_clone.emit(
                                     "model-progress",
                                     serde_json::json!({
@@ -351,10 +358,12 @@ impl Model {
                         }
                         ModelLoadingProgress::Loading { progress } => {
                             let progress = (progress * 100.0) as u32;
-                            
-                            let last = last_emitted_percent.load(std::sync::atomic::Ordering::Relaxed);
+
+                            let last =
+                                last_emitted_percent.load(std::sync::atomic::Ordering::Relaxed);
                             if progress != last {
-                                last_emitted_percent.store(progress, std::sync::atomic::Ordering::Relaxed);
+                                last_emitted_percent
+                                    .store(progress, std::sync::atomic::Ordering::Relaxed);
 
                                 println!("Loading model {progress}%");
                                 let _ = handle_clone.emit(
@@ -456,7 +465,8 @@ impl Model {
         model_type: ModelType,
         handle: tauri::AppHandle,
     ) -> Result<&Llama, LlamaError> {
-        self.download_or_load_model_by_id(model_id, model_type.clone(), handle).await?;
+        self.download_or_load_model_by_id(model_id, model_type.clone(), handle)
+            .await?;
         match &model_type {
             ModelType::Chat => Ok(self.chat_model.as_ref().unwrap()),
             ModelType::AutoComplete => Ok(self.auto_complete_model.as_ref().unwrap()),
@@ -474,7 +484,9 @@ impl Model {
         model_id: &str,
         handle: tauri::AppHandle,
     ) -> Result<Task<Llama, ArcParser<AutoCompleteResponse>>, LlamaError> {
-        let model = self.get_model(model_id, ModelType::AutoComplete, handle).await?;
+        let model = self
+            .get_model(model_id, ModelType::AutoComplete, handle)
+            .await?;
 
         let task = model
             .task(TEXT_COMPLETION.to_string())
