@@ -7,6 +7,7 @@
   import Editor from './editor.svelte';
   import RustEditor from './rust-editor.svelte';
   import EditorAiBox from './editor-ai-box.svelte';
+  import EditorSlashMenu from './editor-slash-menu.svelte';
   import { findAll, findDecorations, firstFrom, replaceCommands } from '$lib/editor/find.js';
   import { flattenBlocks } from '$lib/editor/decorations.js';
   import { mentionDecorations } from '$lib/editor/mentions.js';
@@ -366,6 +367,19 @@
   let rustTimer = null;
 
   /**
+   * The URL for a link, for ⌘K and for the slash menu's link item.
+   *
+   * The engine surface draws no dialogs, so it asks for this. A prompt is the
+   * placeholder: the link popover is still a Milkdown plugin, and porting it is
+   * what replaces this.
+   * @returns {string | null}
+   */
+  function askForLink() {
+    const url = window.prompt('Link to');
+    return url?.trim() ? url.trim() : null;
+  }
+
+  /**
    * The document as text, for the word count and the progress log.
    * @param {import('$lib/rust-editor.js').EditorBlock[]} blocks
    * @returns {string}
@@ -577,9 +591,11 @@
           onedit={scheduleRustSave}
           decorations={rustDecorations}
           onselection={(info) => (rustSelection = info)}
+          onlink={askForLink}
           onerror={(message) => toast.error('Editor error', message)}
         />
         <EditorAiBox info={rustSelection} surface={rustSurface} />
+        <EditorSlashMenu info={rustSelection} surface={rustSurface} onlink={askForLink} />
       {:else}
         <Editor defaultValue={parsed.body} {onSave} autofocus={draft} {codexEntities} />
       {/if}

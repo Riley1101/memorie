@@ -28,10 +28,15 @@
  * @property {EngineSelection} selection
  * @property {DOMRect} rect - Covering the whole selection, in screen
  *   coordinates, so a `position: fixed` panel can use it directly.
- * @property {string} text - The selection as plain text.
- * @property {string} blockText - All the text of the block the head is in,
- *   which is the unit the AI suggestions work on.
+ * @property {string} text - The selection as plain text; empty when collapsed.
+ * @property {string} blockText - All the text of the block the head is in: the
+ *   unit the AI suggestions work on, and what a trigger like `/` is looked for
+ *   in.
  * @property {number} block - The head's block.
+ * @property {number} offset - The head's offset in that block.
+ * @property {boolean} collapsed - A caret rather than a selection. Reported
+ *   either way, because a panel that answers a caret — the slash menu — needs
+ *   the ones a panel that acts on a selection ignores.
  */
 
 /** Nodes that carry length: text, and atoms standing in for one unit. */

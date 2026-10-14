@@ -3,9 +3,9 @@
 
   /**
    * @typedef {Object} Props
-   * @property {import('./slash-menu.svelte.js').SlashCommandItem[]} items
+   * @property {import('$lib/editor/slash-items.js').SlashItem[]} items
    * @property {number} selectedIndex
-   * @property {(item: import('./slash-menu.svelte.js').SlashCommandItem) => void} onSelect
+   * @property {(item: import('$lib/editor/slash-items.js').SlashItem) => void} onSelect
    */
 
   /** @type {Props} */

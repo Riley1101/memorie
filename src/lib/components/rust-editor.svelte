@@ -78,7 +78,9 @@
    * history. See `$lib/editor/decorations.js`.
    * `onselection` fires when the selection settles, with everything a panel
    * floating beside the text needs to place itself — or null when the caret
-   * left the surface or collapsed. This component draws no panels.
+   * left the surface. A collapsed caret is reported too, with `collapsed` set:
+   * a panel that acts on a selection ignores those, and one that answers a
+   * caret needs them. This component draws no panels.
    */
   let {
     name,
@@ -228,7 +230,7 @@
     const selection = readSelection(root);
     if (!selection) return null;
     const { anchor, head } = selection;
-    if (anchor.block === head.block && anchor.offset === head.offset) return null;
+    const collapsed = anchor.block === head.block && anchor.offset === head.offset;
 
     const rect = rectOfSelection(root, selection);
     if (!rect) return null;
@@ -237,9 +239,11 @@
     return {
       selection,
       rect,
-      text: selectedText(),
+      text: collapsed ? '' : selectedText(),
       blockText: whole,
       block: head.block,
+      offset: head.offset,
+      collapsed,
     };
   }
 

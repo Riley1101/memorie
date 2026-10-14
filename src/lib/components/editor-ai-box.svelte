@@ -24,7 +24,13 @@
    * }}
    * `info` is the last selection the surface reported; null hides the box.
    */
-  let { info, surface } = $props();
+  let { info: reported, surface } = $props();
+
+  /**
+   * The box acts on a selection, so a bare caret is not its business — the
+   * surface reports those too, for the panels that answer them.
+   */
+  let info = $derived(reported && !reported.collapsed ? reported : null);
 
   /**
    * Where the box sits: under the selection, nudged in from the left edge.
