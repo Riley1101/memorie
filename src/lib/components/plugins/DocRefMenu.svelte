@@ -3,9 +3,9 @@
 
   /**
    * @typedef {Object} Props
-   * @property {import('./doc-ref.svelte.js').DocRefItem[]} items
+   * @property {import('$lib/editor/doc-ref.js').DocRefItem[]} items
    * @property {number} selectedIndex
-   * @property {(item: import('./doc-ref.svelte.js').DocRefItem) => void} onSelect
+   * @property {(item: import('$lib/editor/doc-ref.js').DocRefItem) => void} onSelect
    */
 
   /** @type {Props} */

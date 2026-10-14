@@ -8,6 +8,7 @@
   import RustEditor from './rust-editor.svelte';
   import EditorAiBox from './editor-ai-box.svelte';
   import EditorSlashMenu from './editor-slash-menu.svelte';
+  import EditorDocRefMenu from './editor-doc-ref-menu.svelte';
   import { findAll, findDecorations, firstFrom, replaceCommands } from '$lib/editor/find.js';
   import { flattenBlocks } from '$lib/editor/decorations.js';
   import { mentionDecorations } from '$lib/editor/mentions.js';
@@ -596,6 +597,7 @@
         />
         <EditorAiBox info={rustSelection} surface={rustSurface} />
         <EditorSlashMenu info={rustSelection} surface={rustSurface} onlink={askForLink} />
+        <EditorDocRefMenu info={rustSelection} surface={rustSurface} />
       {:else}
         <Editor defaultValue={parsed.body} {onSave} autofocus={draft} {codexEntities} />
       {/if}

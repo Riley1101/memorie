@@ -1,24 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from '$lib/toast.js';
+import { dirOf, baseOf } from '$lib/paths.js';
 
-/**
- * Directory part of a content-relative name, e.g. "Novel/Ch 1/Scene.md" -> "Novel/Ch 1".
- * @param {string} name
- * @returns {string}
- */
-export function dirOf(name) {
-  const i = name.lastIndexOf('/');
-  return i === -1 ? '' : name.slice(0, i);
-}
-
-/**
- * Basename of a content-relative name, e.g. "Novel/Ch 1/Scene.md" -> "Scene.md".
- * @param {string} name
- * @returns {string}
- */
-export function baseOf(name) {
-  return name.slice(name.lastIndexOf('/') + 1);
-}
+// Pure path helpers live in `$lib/paths.js` so a module can take just those
+// without pulling this one in; re-exported here because most callers find them
+// at this address.
+export { dirOf, baseOf } from '$lib/paths.js';
 
 /** Basename without the ".md" extension, for messages. */
 function formatBase(base) {

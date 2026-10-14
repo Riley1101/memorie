@@ -38,7 +38,7 @@
   import { decorate, forBlock, textOfRuns } from '$lib/editor/decorations.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { openHref } from '$lib/components/plugins/link-popover.svelte.js';
-  import { DOC_REF_PREFIX } from '$lib/components/plugins/doc-ref.svelte.js';
+  import { DOC_REF_PREFIX } from '$lib/editor/doc-ref.js';
   import { isMod } from '$lib/keyboard.svelte.js';
 
   /** @typedef {import('$lib/rust-editor.js').EditorStateView} EditorStateView */

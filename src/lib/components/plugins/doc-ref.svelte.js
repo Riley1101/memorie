@@ -4,52 +4,24 @@ import { SlashProvider } from '@milkdown/kit/plugin/slash';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { mount, unmount } from 'svelte';
 import DocRefMenu from './DocRefMenu.svelte';
-import { fuzzyScore } from './fuzzy.js';
 import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte.js';
 import { invoke } from '@tauri-apps/api/core';
+// What a doc reference is, shared with the engine path: both surfaces read
+// each other's files, so they have to agree.
+import {
+  DOC_REF_PREFIX,
+  stripMd,
+  docRefItemsFrom,
+  filterDocRefItems,
+  docRefHref,
+} from '$lib/editor/doc-ref.js';
 
-/**
- * Prefix marking a link's href as an internal doc reference rather than an
- * external URL. Deliberately scheme-less (no "protocol:") — Milkdown's link
- * mark strips any href with an unrecognized scheme when rendering to the DOM.
- */
-export const DOC_REF_PREFIX = '#writing/';
+/** @param {string} query */
+const filterItems = (query) => filterDocRefItems(docRefItemsFrom(fileManager.files), query);
 
-/**
- * @typedef {Object} DocRefItem
- * @property {string} name - Content-relative file name, e.g. "Novel/Ch 1.md".
- * @property {string} title - Display title, no folder, no ".md".
- * @property {string} folder - Parent folder, or "" for top-level.
- */
+export { DOC_REF_PREFIX };
 
-function stripMd(name) {
-  return name.replace(/\.md$/i, '').trim();
-}
-
-/** @returns {DocRefItem[]} */
-function allItems() {
-  return fileManager.files.map((f) => ({
-    name: f.name,
-    title: stripMd(baseOf(f.name)),
-    folder: dirOf(f.name),
-  }));
-}
-
-/**
- * @param {string} query
- * @returns {DocRefItem[]}
- */
-function filterItems(query) {
-  const items = allItems();
-  if (!query) return items.slice(0, 20);
-
-  const scored = items
-    .map((item) => ({ item, score: fuzzyScore(query, item.title) }))
-    .filter(({ score }) => score !== null);
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, 20).map(({ item }) => item);
-}
+/** @typedef {import('$lib/editor/doc-ref.js').DocRefItem} DocRefItem */
 
 /** Matches an unclosed `[[query` at the end of the current text block. */
 const TRIGGER_RE = /\[\[([^[\]]*)$/;
@@ -70,11 +42,12 @@ export const docRefMenu = prose((ctx) => {
     const { from } = state.selection;
     const start = from - (menuState.query.length + 2); // "[[" + query
     // Auto-pairing leaves "]]" after the caret; take it with the trigger.
-    const end = state.doc.textBetween(from, Math.min(from + 2, state.selection.$from.end())) === ']]' ? from + 2 : from;
+    const end =
+      state.doc.textBetween(from, Math.min(from + 2, state.selection.$from.end())) === ']]'
+        ? from + 2
+        : from;
 
-    const linkMark = state.schema.marks.link.create({
-      href: `${DOC_REF_PREFIX}${encodeURIComponent(item.name)}`,
-    });
+    const linkMark = state.schema.marks.link.create({ href: docRefHref(item.name) });
     const node = state.schema.text(item.title || item.name, [linkMark]);
 
     dispatch(state.tr.delete(start, end).insert(start, node));
