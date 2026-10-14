@@ -41,7 +41,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM1MERFOEUxMTUzMjBGMkMKUldRc0R6SVY0ZWdOTlNLYXJoYkZoVzViYkh5SEEvRUZ0cWpjYzY4b0ZCaDBaTnQzbE9mNUErangK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM1MERFOEUxMTUzMjBGMkMKUldRc0R6SVY0ZWdOTlNLYXJoYkZoVzViYkh5SEEvRUZ0cWpjYzY4b0ZCaDBaTnQzbE9mNUErangK%",
       "endpoints": [
         "https://github.com/Riley1101/memorie/releases/latest/download/latest.json"
       ],
