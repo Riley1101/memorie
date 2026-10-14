@@ -17,6 +17,7 @@
   import { llmManager } from '@/runes/llm.svelte.js';
   import { configManager } from '@/runes/config.svelte.js';
   import { memoryManager } from '@/runes/memory.svelte.js';
+  import { updaterManager } from '$lib/runes/updater.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { onDestroy, onMount } from 'svelte';
   import { isMod, isMac } from '$lib/keyboard.svelte.js';
@@ -74,6 +75,8 @@
     } else {
       appState.setTheme('system');
     }
+
+    updaterManager.start();
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onSystemThemeChange = () => appState.syncSystemTheme();

@@ -50,8 +50,27 @@ pub(crate) fn escape_text(text: &str) -> String {
     for c in text.chars() {
         if matches!(
             c,
-            '\\' | '#' | '*' | '_' | '`' | '$' | '<' | '>' | '@' | '[' | ']' | '(' | ')' | '{' | '}'
-                | '~' | '/' | '=' | '-' | '+' | '.' | ':'
+            '\\' | '#'
+                | '*'
+                | '_'
+                | '`'
+                | '$'
+                | '<'
+                | '>'
+                | '@'
+                | '['
+                | ']'
+                | '('
+                | ')'
+                | '{'
+                | '}'
+                | '~'
+                | '/'
+                | '='
+                | '-'
+                | '+'
+                | '.'
+                | ':'
         ) {
             out.push('\\');
         }
@@ -169,7 +188,9 @@ pub fn events_to_typst(events: Vec<Event<'_>>) -> String {
                     buf.truncate(buf.trim_end().len());
                     buf.push_str("], ");
                 }
-                TagEnd::Emphasis | TagEnd::Strong | TagEnd::Strikethrough | TagEnd::Link => out!().push(']'),
+                TagEnd::Emphasis | TagEnd::Strong | TagEnd::Strikethrough | TagEnd::Link => {
+                    out!().push(']')
+                }
                 TagEnd::TableCell => {
                     let cell = buffers.pop().unwrap_or_default();
                     if let Some((_, cells)) = tables.last_mut() {
@@ -178,7 +199,10 @@ pub fn events_to_typst(events: Vec<Event<'_>>) -> String {
                 }
                 TagEnd::Table => {
                     if let Some((columns, cells)) = tables.pop() {
-                        out!().push_str(&format!("#table(columns: {columns}, {})\n\n", cells.join(", ")));
+                        out!().push_str(&format!(
+                            "#table(columns: {columns}, {})\n\n",
+                            cells.join(", ")
+                        ));
                     }
                 }
                 _ => {}
@@ -217,11 +241,27 @@ fn preamble(layout: &PdfLayout) -> String {
         PageSize::Letter => "us-letter",
     };
     let (font, size, leading, spacing, justify) = if layout.manuscript {
-        (r#"("Times New Roman", "Libertinus Serif")"#, "12pt", "1.5em", "1.5em", "false")
+        (
+            r#"("Times New Roman", "Libertinus Serif")"#,
+            "12pt",
+            "1.5em",
+            "1.5em",
+            "false",
+        )
     } else {
-        (r#"("Libertinus Serif", "New Computer Modern")"#, "11pt", "0.7em", "0.7em", "true")
+        (
+            r#"("Libertinus Serif", "New Computer Modern")"#,
+            "11pt",
+            "0.7em",
+            "0.7em",
+            "true",
+        )
     };
-    let chapter_break = if layout.chapter_page_breaks { "pagebreak(weak: true)" } else { "v(2em)" };
+    let chapter_break = if layout.chapter_page_breaks {
+        "pagebreak(weak: true)"
+    } else {
+        "v(2em)"
+    };
 
     let mut out = format!(
         r#"#set document(title: {title}, author: {author})
@@ -264,7 +304,11 @@ fn preamble(layout: &PdfLayout) -> String {
         out.push_str("]]\n#counter(page).update(1)\n\n");
     }
     if let Some(head) = &layout.running_head {
-        let prefix = if head.is_empty() { String::new() } else { format!("{} / ", escape_text(head)) };
+        let prefix = if head.is_empty() {
+            String::new()
+        } else {
+            format!("{} / ", escape_text(head))
+        };
         out.push_str(&format!(
             "#set page(header: align(right, text(size: 0.9em)[{prefix}#context counter(page).display()]), footer: none)\n"
         ));
@@ -350,7 +394,9 @@ fn describe(diagnostics: &[SourceDiagnostic]) -> String {
 /// Typesets Typst markup (body only; the preamble is added here) into PDF bytes.
 pub fn typeset(layout: &PdfLayout, body: &str) -> Result<Vec<u8>, String> {
     let markup = format!("{}{}", preamble(layout), body);
-    let world = ManuscriptWorld { source: Source::detached(markup) };
+    let world = ManuscriptWorld {
+        source: Source::detached(markup),
+    };
     let document: PagedDocument = typst::compile(&world)
         .output
         .map_err(|errors| format!("Could not lay out the PDF: {}", describe(&errors)))?;
@@ -364,29 +410,51 @@ mod tests {
     use pulldown_cmark::{Options, Parser};
 
     fn convert(markdown: &str) -> String {
-        let options = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_FOOTNOTES;
+        let options =
+            Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_FOOTNOTES;
         events_to_typst(Parser::new_ext(markdown, options).collect())
     }
 
     fn layout() -> PdfLayout<'static> {
-        PdfLayout { title: "My Novel", author: "A. Writer", page_size: PageSize::A4, manuscript: false, chapter_page_breaks: true, lang: "en", toc_depth: None, running_head: None, front: "" }
+        PdfLayout {
+            title: "My Novel",
+            author: "A. Writer",
+            page_size: PageSize::A4,
+            manuscript: false,
+            chapter_page_breaks: true,
+            lang: "en",
+            toc_depth: None,
+            running_head: None,
+            front: "",
+        }
     }
 
     #[test]
     fn escapes_everything_typst_would_read_as_syntax() {
         let out = convert("Price: $5 #1 @me = 1. <b> (a)[b] ~/ 2-3");
         assert!(!out.contains(" $5"), "{out}");
-        assert!(out.contains("\\$5") && out.contains("\\#1") && out.contains("\\@me") && out.contains("\\(a\\)"));
+        assert!(
+            out.contains("\\$5")
+                && out.contains("\\#1")
+                && out.contains("\\@me")
+                && out.contains("\\(a\\)")
+        );
     }
 
     #[test]
     fn structure_maps_to_typst_functions() {
         let out = convert("# Title\n\nSome *em* and **strong**.\n\n- one\n- two\n\n> quoted\n\n```\nlet x = \"y\";\n```\n");
         assert!(out.contains("#heading(level: 1)[Title]"), "{out}");
-        assert!(out.contains("#emph[em]") && out.contains("#strong[strong]"), "{out}");
+        assert!(
+            out.contains("#emph[em]") && out.contains("#strong[strong]"),
+            "{out}"
+        );
         assert!(out.contains("#list([one], [two], )"), "{out}");
         assert!(out.contains("#quote(block: true)[quoted]"), "{out}");
-        assert!(out.contains(r#"#raw(block: true, "let x = \"y\";")"#), "{out}");
+        assert!(
+            out.contains(r#"#raw(block: true, "let x = \"y\";")"#),
+            "{out}"
+        );
     }
 
     #[test]
@@ -400,7 +468,17 @@ mod tests {
 
     #[test]
     fn manuscript_and_letter_layouts_compile() {
-        let layout = PdfLayout { page_size: PageSize::Letter, manuscript: true, chapter_page_breaks: false, title: "", author: "", lang: "de", toc_depth: None, running_head: None, front: "" };
+        let layout = PdfLayout {
+            page_size: PageSize::Letter,
+            manuscript: true,
+            chapter_page_breaks: false,
+            title: "",
+            author: "",
+            lang: "de",
+            toc_depth: None,
+            running_head: None,
+            front: "",
+        };
         let pdf = typeset(&layout, &convert("Plain text.")).expect("compiles");
         assert!(pdf.starts_with(b"%PDF"));
     }

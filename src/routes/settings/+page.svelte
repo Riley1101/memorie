@@ -29,12 +29,16 @@
   import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
   import DownloadCloudIcon from '@lucide/svelte/icons/download-cloud';
   import DropboxIcon from '@lucide/svelte/icons/box';
+  import SparklesIcon from '@lucide/svelte/icons/sparkles';
+  import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+  import { updaterManager } from '$lib/runes/updater.svelte.js';
 
   const SECTIONS = [
     { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
     { id: 'writing', label: 'Writing', icon: PenLineIcon },
     { id: 'ai', label: 'AI', icon: CpuIcon },
     { id: 'sync', label: 'Cloud Sync', icon: CloudIcon },
+    { id: 'updates', label: 'Updates', icon: SparklesIcon },
   ];
 
   let activeSection = $state('appearance');
@@ -1274,6 +1278,83 @@
                   </p>
                 </div>
                 {/if}
+              </div>
+            </section>
+          {:else if activeSection === 'updates'}
+            <!-- Updates Section -->
+            <section>
+              <div class="flex items-center gap-2 mb-6">
+                <h3 class="font-writer text-2xl font-normal">Updates</h3>
+              </div>
+              <div class="grid grid-cols-1 gap-8">
+                <div class="flex flex-col gap-4 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-start justify-between gap-6">
+                    <div>
+                      <p class="text-lg font-normal">Memoire {updaterManager.currentVersion ?? ''}</p>
+                      <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                        Memoire checks for new versions in the background and downloads them
+                        quietly. Nothing installs until you restart.
+                      </p>
+                    </div>
+                    {#if updaterManager.status === 'ready'}
+                      <Button class="gap-2 shrink-0" onclick={() => updaterManager.installAndRestart()}>
+                        <RefreshCwIcon strokeWidth={1.5} class="size-3.5" />
+                        Restart to update
+                      </Button>
+                    {:else}
+                      <Button
+                        variant="outline"
+                        class="gap-2 shrink-0"
+                        onclick={() => updaterManager.check()}
+                        disabled={updaterManager.isBusy}
+                      >
+                        {#if updaterManager.status === 'checking'}
+                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                          Checking…
+                        {:else if updaterManager.status === 'downloading'}
+                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                          Downloading…
+                        {:else if updaterManager.status === 'installing'}
+                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                          Installing…
+                        {:else}
+                          <RefreshCwIcon strokeWidth={1.5} class="size-3.5" />
+                          Check for updates
+                        {/if}
+                      </Button>
+                    {/if}
+                  </div>
+
+                  {#if updaterManager.status === 'downloading' && updaterManager.progress !== null}
+                    <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        class="h-full bg-primary transition-[width]"
+                        style="width: {Math.round(updaterManager.progress * 100)}%"
+                      ></div>
+                    </div>
+                  {/if}
+
+                  {#if updaterManager.available && ['downloading', 'ready', 'installing'].includes(updaterManager.status)}
+                    <div class="p-3 rounded-md bg-primary/5 border border-primary/20 text-sm">
+                      <p class="font-medium">Version {updaterManager.available.version}</p>
+                      {#if updaterManager.available.notes}
+                        <p class="text-muted-foreground mt-1 whitespace-pre-line max-h-40 overflow-y-auto">{updaterManager.available.notes}</p>
+                      {/if}
+                    </div>
+                  {:else if updaterManager.status === 'up-to-date'}
+                    <p class="text-sm text-muted-foreground italic">You're on the latest version.</p>
+                  {:else if updaterManager.status === 'error'}
+                    <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere">
+                      {updaterManager.error ?? 'Update check failed.'}
+                    </div>
+                  {/if}
+
+                  {#if updaterManager.lastChecked}
+                    <p class="text-xs font-mono text-metadata">
+                      Last checked {updaterManager.lastChecked.toLocaleString()}
+                    </p>
+                  {/if}
+                </div>
               </div>
             </section>
           {/if}

@@ -4,12 +4,44 @@
 
 /// Destinations whose content is never body text.
 const SKIPPED_DESTINATIONS: &[&str] = &[
-    "fonttbl", "colortbl", "stylesheet", "info", "pict", "header", "headerl", "headerr", "headerf",
-    "footer", "footerl", "footerr", "footerf", "footnote", "listtable", "listoverridetable",
-    "generator", "xmlnstbl", "rsidtbl", "themedata", "colorschememapping", "latentstyles",
-    "datastore", "mmathPr", "pgdsctbl", "object", "fldinst", "field_instructions", "revtbl",
-    "filetbl", "private", "nonshppict", "shp", "expandedcolortbl", "annotation", "atnid",
-    "atnauthor", "comment",
+    "fonttbl",
+    "colortbl",
+    "stylesheet",
+    "info",
+    "pict",
+    "header",
+    "headerl",
+    "headerr",
+    "headerf",
+    "footer",
+    "footerl",
+    "footerr",
+    "footerf",
+    "footnote",
+    "listtable",
+    "listoverridetable",
+    "generator",
+    "xmlnstbl",
+    "rsidtbl",
+    "themedata",
+    "colorschememapping",
+    "latentstyles",
+    "datastore",
+    "mmathPr",
+    "pgdsctbl",
+    "object",
+    "fldinst",
+    "field_instructions",
+    "revtbl",
+    "filetbl",
+    "private",
+    "nonshppict",
+    "shp",
+    "expandedcolortbl",
+    "annotation",
+    "atnid",
+    "atnauthor",
+    "comment",
 ];
 
 #[derive(Clone, Copy)]
@@ -23,7 +55,12 @@ struct GroupState {
 
 impl Default for GroupState {
     fn default() -> Self {
-        GroupState { bold: false, italic: false, skip: false, uc: 1 }
+        GroupState {
+            bold: false,
+            italic: false,
+            skip: false,
+            uc: 1,
+        }
     }
 }
 
@@ -35,7 +72,9 @@ struct Paragraphs {
 impl Paragraphs {
     fn push_char(&mut self, c: char, state: &GroupState) {
         match self.runs.last_mut() {
-            Some((text, bold, italic)) if *bold == state.bold && *italic == state.italic => text.push(c),
+            Some((text, bold, italic)) if *bold == state.bold && *italic == state.italic => {
+                text.push(c)
+            }
             _ => self.runs.push((c.to_string(), state.bold, state.italic)),
         }
     }
@@ -119,8 +158,9 @@ fn render_run(text: &str, bold: bool, italic: bool) -> String {
 /// Windows-1252 differs from Latin-1 only in 0x80..=0x9F.
 fn cp1252(byte: u8) -> char {
     const HIGH: [char; 32] = [
-        '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8d}', 'Ž', '\u{8f}',
-        '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9d}', 'ž', 'Ÿ',
+        '€', '\u{81}', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\u{8d}', 'Ž',
+        '\u{8f}', '\u{90}', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\u{9d}',
+        'ž', 'Ÿ',
     ];
     match byte {
         0x80..=0x9F => HIGH[(byte - 0x80) as usize],
@@ -133,7 +173,10 @@ pub fn rtf_to_markdown(rtf: &str) -> String {
     let bytes = rtf.as_bytes();
     let mut stack: Vec<GroupState> = Vec::new();
     let mut state = GroupState::default();
-    let mut out = Paragraphs { done: Vec::new(), runs: Vec::new() };
+    let mut out = Paragraphs {
+        done: Vec::new(),
+        runs: Vec::new(),
+    };
     // After `\uN`, this many following characters are the ANSI fallback.
     let mut pending_skip = 0usize;
     // Set right after `{` so we can recognise `{\*\dest ...}` and `{\fonttbl ...}`.
@@ -287,6 +330,9 @@ She said \ldblquote hi\rdblquote  \emdash  then left.\par}";
     #[test]
     fn toggles_and_escapes() {
         let rtf = r"{\rtf1 \b bold\b0  plain *star* \{brace\}\par # not heading\par}";
-        assert_eq!(rtf_to_markdown(rtf), "**bold** plain \\*star\\* {brace}\n\n\\# not heading");
+        assert_eq!(
+            rtf_to_markdown(rtf),
+            "**bold** plain \\*star\\* {brace}\n\n\\# not heading"
+        );
     }
 }

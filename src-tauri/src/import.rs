@@ -46,9 +46,16 @@ pub fn with_front_matter(meta: &Meta, body: &str) -> String {
         return body.to_string();
     }
     let mut out = String::from("---\n");
-    for (key, value) in [("synopsis", &meta.synopsis), ("status", &meta.status), ("label", &meta.label)] {
+    for (key, value) in [
+        ("synopsis", &meta.synopsis),
+        ("status", &meta.status),
+        ("label", &meta.label),
+    ] {
         if let Some(value) = value.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
-            out.push_str(&format!("{key}: {}\n", serde_json::to_string(value).unwrap_or_default()));
+            out.push_str(&format!(
+                "{key}: {}\n",
+                serde_json::to_string(value).unwrap_or_default()
+            ));
         }
     }
     out.push_str("---\n\n");
@@ -64,14 +71,24 @@ pub fn with_front_matter(meta: &Meta, body: &str) -> String {
 fn clean_name(name: &str) -> String {
     let cleaned: String = name
         .chars()
-        .map(|c| if "/\\:*?\"<>|".contains(c) || c.is_control() { ' ' } else { c })
+        .map(|c| {
+            if "/\\:*?\"<>|".contains(c) || c.is_control() {
+                ' '
+            } else {
+                c
+            }
+        })
         .collect::<String>()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
     let cleaned = cleaned.trim_matches('.').trim();
     let short: String = cleaned.chars().take(120).collect();
-    if short.is_empty() { "Untitled".to_string() } else { short }
+    if short.is_empty() {
+        "Untitled".to_string()
+    } else {
+        short
+    }
 }
 
 /// `base` + `ext` under `dir`, adding " 2", " 3"… if taken (case-insensitively,
@@ -80,7 +97,11 @@ fn unique_child(dir: &Path, base: &str, ext: &str) -> PathBuf {
     let taken = |candidate: &str| -> bool {
         std::fs::read_dir(dir)
             .map(|entries| {
-                entries.flatten().any(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case(candidate))
+                entries.flatten().any(|e| {
+                    e.file_name()
+                        .to_string_lossy()
+                        .eq_ignore_ascii_case(candidate)
+                })
             })
             .unwrap_or(false)
     };
@@ -150,7 +171,8 @@ fn relative(content_dir: &Path, path: &Path) -> String {
 
 fn write_new(path: &Path, content: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("Could not create {}: {e}", parent.display()))?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Could not create {}: {e}", parent.display()))?;
     }
     std::fs::write(path, content).map_err(|e| format!("Could not write {}: {e}", path.display()))
 }
@@ -219,11 +241,17 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
     let mut in_fallback = 0usize;
 
     loop {
-        let event = reader.read_event().map_err(|e| format!("Unreadable Word document: {e}"))?;
+        let event = reader
+            .read_event()
+            .map_err(|e| format!("Unreadable Word document: {e}"))?;
         if in_fallback > 0 {
             match &event {
-                Event::Start(e) if e.local_name().as_ref().as_bytes() == b"Fallback" => in_fallback += 1,
-                Event::End(e) if e.local_name().as_ref().as_bytes() == b"Fallback" => in_fallback -= 1,
+                Event::Start(e) if e.local_name().as_ref().as_bytes() == b"Fallback" => {
+                    in_fallback += 1
+                }
+                Event::End(e) if e.local_name().as_ref().as_bytes() == b"Fallback" => {
+                    in_fallback -= 1
+                }
                 Event::Eof => break,
                 _ => {}
             }
@@ -246,7 +274,11 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
                         }
                         paragraph_depth += 1;
                     }
-                    b"pStyle" if outer => heading = attr(e, b"val").and_then(|s| heading_from_style(&s)).or(heading),
+                    b"pStyle" if outer => {
+                        heading = attr(e, b"val")
+                            .and_then(|s| heading_from_style(&s))
+                            .or(heading)
+                    }
                     b"outlineLvl" if outer => {
                         if let Some(level) = attr(e, b"val").and_then(|v| v.parse::<u8>().ok()) {
                             if level < 6 {
@@ -264,7 +296,9 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
                     b"b" if in_run_props => bold = toggle_on(e),
                     b"i" if in_run_props => italic = toggle_on(e),
                     b"t" if !empty => in_text = true,
-                    b"tab" if in_paragraph && !in_para_props => runs.push(("\t".into(), false, false)),
+                    b"tab" if in_paragraph && !in_para_props => {
+                        runs.push(("\t".into(), false, false))
+                    }
                     b"br" | b"cr" if in_paragraph => runs.push(("\n".into(), false, false)),
                     b"del" if !empty => in_deleted += 1,
                     _ => {}
@@ -286,7 +320,14 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
                     if text.trim().is_empty() {
                         continue;
                     }
-                    let plain = render_docx_run(text.split_whitespace().collect::<Vec<_>>().join(" ").as_str(), false, false);
+                    let plain = render_docx_run(
+                        text.split_whitespace()
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                            .as_str(),
+                        false,
+                        false,
+                    );
                     match heading {
                         Some(0) => blocks.push(DocBlock::Title(plain)),
                         Some(level) => blocks.push(DocBlock::Heading(level, plain)),
@@ -298,11 +339,20 @@ fn parse_docx_blocks(document_xml: &str) -> Result<Vec<DocBlock>, String> {
                             // Repeated spaces mean nothing in Markdown; text boxes leave some behind.
                             let line = line
                                 .split('\n')
-                                .map(|part| part.split(' ').filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "))
+                                .map(|part| {
+                                    part.split(' ')
+                                        .filter(|w| !w.is_empty())
+                                        .collect::<Vec<_>>()
+                                        .join(" ")
+                                })
                                 .collect::<Vec<_>>()
                                 .join("  \n");
                             let line = line.trim();
-                            blocks.push(DocBlock::Body(if list_item { format!("- {line}") } else { line.to_string() }));
+                            blocks.push(DocBlock::Body(if list_item {
+                                format!("- {line}")
+                            } else {
+                                line.to_string()
+                            }));
                         }
                     }
                 }
@@ -366,8 +416,10 @@ fn render_docx_run(text: &str, bold: bool, italic: bool) -> String {
 }
 
 fn read_docx_blocks(path: &Path) -> Result<Vec<DocBlock>, String> {
-    let file = std::fs::File::open(path).map_err(|e| format!("Could not open {}: {e}", path.display()))?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|_| format!("{} is not a Word document", path.display()))?;
+    let file =
+        std::fs::File::open(path).map_err(|e| format!("Could not open {}: {e}", path.display()))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|_| format!("{} is not a Word document", path.display()))?;
     let mut xml = String::new();
     archive
         .by_name("word/document.xml")
@@ -382,7 +434,9 @@ fn blocks_to_markdown(blocks: &[DocBlock]) -> String {
     for block in blocks {
         match block {
             DocBlock::Title(text) => out.push(format!("# {text}")),
-            DocBlock::Heading(level, text) => out.push(format!("{} {text}", "#".repeat(*level as usize))),
+            DocBlock::Heading(level, text) => {
+                out.push(format!("{} {text}", "#".repeat(*level as usize)))
+            }
             DocBlock::Body(text) => out.push(text.clone()),
         }
     }
@@ -401,7 +455,13 @@ fn blocks_to_markdown(blocks: &[DocBlock]) -> String {
 
 /// A Word document becomes one writing, or with `split` a folder holding one
 /// writing per top-level heading.
-fn import_docx(path: &Path, target: &Path, content_dir: &Path, split: bool, report: &mut ImportReport) -> Result<(), String> {
+fn import_docx(
+    path: &Path,
+    target: &Path,
+    content_dir: &Path,
+    split: bool,
+    report: &mut ImportReport,
+) -> Result<(), String> {
     let blocks = read_docx_blocks(path)?;
     let stem = clean_name(&path.file_stem().unwrap_or_default().to_string_lossy());
 
@@ -423,7 +483,9 @@ fn import_docx(path: &Path, target: &Path, content_dir: &Path, split: bool, repo
     let mut sections: Vec<(String, Vec<&DocBlock>)> = Vec::new();
     for block in &blocks {
         match block {
-            DocBlock::Heading(level, text) if *level == top => sections.push((clean_name(text), Vec::new())),
+            DocBlock::Heading(level, text) if *level == top => {
+                sections.push((clean_name(text), Vec::new()))
+            }
             _ => {
                 if sections.is_empty() {
                     sections.push(("Opening".to_string(), Vec::new()));
@@ -442,7 +504,9 @@ fn import_docx(path: &Path, target: &Path, content_dir: &Path, split: bool, repo
         let owned: Vec<DocBlock> = members
             .iter()
             .map(|b| match b {
-                DocBlock::Heading(l, t) => DocBlock::Heading((*l).saturating_sub(top).max(1), t.clone()),
+                DocBlock::Heading(l, t) => {
+                    DocBlock::Heading((*l).saturating_sub(top).max(1), t.clone())
+                }
                 DocBlock::Title(t) => DocBlock::Title(t.clone()),
                 DocBlock::Body(t) => DocBlock::Body(t.clone()),
             })
@@ -485,12 +549,17 @@ fn parse_scrivx(xml: &str) -> Result<ScrivenerProject, String> {
     let mut text = String::new();
 
     loop {
-        match reader.read_event().map_err(|e| format!("Unreadable Scrivener project: {e}"))? {
+        match reader
+            .read_event()
+            .map_err(|e| format!("Unreadable Scrivener project: {e}"))?
+        {
             Event::Start(e) => {
                 let name = e.local_name().as_ref().as_bytes().to_vec();
                 match name.as_slice() {
                     b"BinderItem" => stack.push(BinderItem {
-                        id: attr(&e, b"UUID").or_else(|| attr(&e, b"ID")).unwrap_or_default(),
+                        id: attr(&e, b"UUID")
+                            .or_else(|| attr(&e, b"ID"))
+                            .unwrap_or_default(),
                         kind: attr(&e, b"Type").unwrap_or_default(),
                         include_in_compile: true,
                         ..Default::default()
@@ -527,7 +596,9 @@ fn parse_scrivx(xml: &str) -> Result<ScrivenerProject, String> {
                         (b"Title", Some(item)) => item.title = value,
                         (b"StatusID", Some(item)) => item.status_id = Some(value),
                         (b"LabelID", Some(item)) => item.label_id = Some(value),
-                        (b"IncludeInCompile", Some(item)) => item.include_in_compile = value.eq_ignore_ascii_case("yes"),
+                        (b"IncludeInCompile", Some(item)) => {
+                            item.include_in_compile = value.eq_ignore_ascii_case("yes")
+                        }
                         (b"Status", _) => {
                             if let Some(id) = id {
                                 project.statuses.insert(id, value);
@@ -564,9 +635,12 @@ fn scrivener_files(scriv: &Path, id: &str) -> (Option<PathBuf>, Option<PathBuf>)
     let content = [v3.join("content.rtf"), v2.join(format!("{id}.rtf"))]
         .into_iter()
         .find(|p| p.exists());
-    let synopsis = [v3.join("synopsis.txt"), v2.join(format!("{id}_synopsis.txt"))]
-        .into_iter()
-        .find(|p| p.exists());
+    let synopsis = [
+        v3.join("synopsis.txt"),
+        v2.join(format!("{id}_synopsis.txt")),
+    ]
+    .into_iter()
+    .find(|p| p.exists());
     (content, synopsis)
 }
 
@@ -581,7 +655,10 @@ impl ScrivenerImport<'_> {
     fn meta_for(&self, item: &BinderItem) -> Result<Meta, String> {
         let (_, synopsis_path) = scrivener_files(self.scriv, &item.id);
         let synopsis = match synopsis_path {
-            Some(p) => Some(std::fs::read_to_string(&p).map_err(|e| format!("Could not read {}: {e}", p.display()))?),
+            Some(p) => Some(
+                std::fs::read_to_string(&p)
+                    .map_err(|e| format!("Could not read {}: {e}", p.display()))?,
+            ),
             None => None,
         };
         let lookup = |id: &Option<String>, table: &HashMap<String, String>| {
@@ -592,13 +669,20 @@ impl ScrivenerImport<'_> {
                 .cloned()
         };
         Ok(Meta {
-            synopsis: synopsis.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            synopsis: synopsis
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
             status: lookup(&item.status_id, &self.project.statuses),
             label: lookup(&item.label_id, &self.project.labels),
         })
     }
 
-    fn write_items(&mut self, items: &[&BinderItem], dir: &Path, report: &mut ImportReport) -> Result<(), String> {
+    fn write_items(
+        &mut self,
+        items: &[&BinderItem],
+        dir: &Path,
+        report: &mut ImportReport,
+    ) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         let titles: Vec<String> = items.iter().map(|i| clean_name(&i.title)).collect();
         for (item, name) in items.iter().zip(ordered_names(&titles)) {
@@ -612,7 +696,8 @@ impl ScrivenerImport<'_> {
             let (content_path, _) = scrivener_files(self.scriv, &item.id);
             let body = match content_path {
                 Some(p) => {
-                    let raw = std::fs::read(&p).map_err(|e| format!("Could not read {}: {e}", p.display()))?;
+                    let raw = std::fs::read(&p)
+                        .map_err(|e| format!("Could not read {}: {e}", p.display()))?;
                     rtf_to_markdown(&String::from_utf8_lossy(&raw))
                 }
                 None => String::new(),
@@ -632,7 +717,11 @@ impl ScrivenerImport<'_> {
             }
             if is_folder || !item.children.is_empty() {
                 let children: Vec<&BinderItem> = item.children.iter().collect();
-                let sub = if is_folder { unique_child(dir, &name, "") } else { dir.join(&name) };
+                let sub = if is_folder {
+                    unique_child(dir, &name, "")
+                } else {
+                    dir.join(&name)
+                };
                 self.write_items(&children, &sub, report)?;
             }
         }
@@ -640,23 +729,46 @@ impl ScrivenerImport<'_> {
     }
 }
 
-fn import_scrivener(scriv: &Path, target: &Path, content_dir: &Path, report: &mut ImportReport) -> Result<(), String> {
+fn import_scrivener(
+    scriv: &Path,
+    target: &Path,
+    content_dir: &Path,
+    report: &mut ImportReport,
+) -> Result<(), String> {
     let scrivx = std::fs::read_dir(scriv)
         .map_err(|e| format!("Could not open {}: {e}", scriv.display()))?
         .flatten()
         .map(|e| e.path())
-        .find(|p| p.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("scrivx")))
-        .ok_or_else(|| format!("{} has no .scrivx file; is it a Scrivener project?", scriv.display()))?;
-    let xml = std::fs::read_to_string(&scrivx).map_err(|e| format!("Could not read {}: {e}", scrivx.display()))?;
+        .find(|p| {
+            p.extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("scrivx"))
+        })
+        .ok_or_else(|| {
+            format!(
+                "{} has no .scrivx file; is it a Scrivener project?",
+                scriv.display()
+            )
+        })?;
+    let xml = std::fs::read_to_string(&scrivx)
+        .map_err(|e| format!("Could not read {}: {e}", scrivx.display()))?;
     let project = parse_scrivx(&xml)?;
 
     let stem = clean_name(&scriv.file_stem().unwrap_or_default().to_string_lossy());
     let root = unique_child(target, &stem, "");
     report.folders.push(relative(content_dir, &root));
 
-    let items: Vec<&BinderItem> = project.items.iter().filter(|i| i.kind != "TrashFolder").collect();
+    let items: Vec<&BinderItem> = project
+        .items
+        .iter()
+        .filter(|i| i.kind != "TrashFolder")
+        .collect();
     let excluded = count_excluded(&project.items);
-    let mut import = ScrivenerImport { scriv, content_dir, project: &project, skipped_media: 0 };
+    let mut import = ScrivenerImport {
+        scriv,
+        content_dir,
+        project: &project,
+        skipped_media: 0,
+    };
     import.write_items(&items, &root, report)?;
 
     if import.skipped_media > 0 {
@@ -677,7 +789,9 @@ fn count_excluded(items: &[BinderItem]) -> usize {
     items
         .iter()
         .filter(|i| i.kind != "TrashFolder")
-        .map(|i| usize::from(!i.include_in_compile && i.kind == "Text") + count_excluded(&i.children))
+        .map(|i| {
+            usize::from(!i.include_in_compile && i.kind == "Text") + count_excluded(&i.children)
+        })
         .sum()
 }
 
@@ -713,7 +827,9 @@ fn convert_wikilinks(markdown: &str, lookup: &HashMap<String, String>) -> String
     let mut out = String::with_capacity(markdown.len());
     let mut rest = markdown;
     while let Some(start) = rest.find("[[") {
-        let Some(len) = rest[start + 2..].find("]]") else { break };
+        let Some(len) = rest[start + 2..].find("]]") else {
+            break;
+        };
         let inner = &rest[start + 2..start + 2 + len];
         if inner.contains('\n') || inner.contains("[[") {
             out.push_str(&rest[..start + 2]);
@@ -744,7 +860,11 @@ fn convert_wikilinks(markdown: &str, lookup: &HashMap<String, String>) -> String
     out
 }
 
-fn collect_text_files(dir: &Path, found: &mut Vec<PathBuf>, skipped: &mut usize) -> Result<(), String> {
+fn collect_text_files(
+    dir: &Path,
+    found: &mut Vec<PathBuf>,
+    skipped: &mut usize,
+) -> Result<(), String> {
     let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
         .map_err(|e| format!("Could not open {}: {e}", dir.display()))?
         .flatten()
@@ -752,7 +872,9 @@ fn collect_text_files(dir: &Path, found: &mut Vec<PathBuf>, skipped: &mut usize)
         .collect();
     entries.sort();
     for path in entries {
-        let hidden = path.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.'));
+        let hidden = path
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().starts_with('.'));
         if hidden {
             continue;
         }
@@ -767,13 +889,20 @@ fn collect_text_files(dir: &Path, found: &mut Vec<PathBuf>, skipped: &mut usize)
     Ok(())
 }
 
-fn import_markdown_folder(source: &Path, target: &Path, content_dir: &Path, report: &mut ImportReport) -> Result<(), String> {
+fn import_markdown_folder(
+    source: &Path,
+    target: &Path,
+    content_dir: &Path,
+    report: &mut ImportReport,
+) -> Result<(), String> {
     let mut files = Vec::new();
     let mut skipped = 0;
     collect_text_files(source, &mut files, &mut skipped)?;
     let stem = clean_name(&source.file_name().unwrap_or_default().to_string_lossy());
     if files.is_empty() {
-        report.warnings.push(format!("{stem}: no Markdown or text files found."));
+        report
+            .warnings
+            .push(format!("{stem}: no Markdown or text files found."));
         return Ok(());
     }
 
@@ -796,32 +925,52 @@ fn import_markdown_folder(source: &Path, target: &Path, content_dir: &Path, repo
         let mut dest = unique_child(&dest_dir, &base, ".md");
         // unique_child only sees the disk; also avoid names planned in this run.
         let mut n = 2;
-        while plan.iter().any(|(_, d)| d.to_string_lossy().eq_ignore_ascii_case(&dest.to_string_lossy())) {
+        while plan.iter().any(|(_, d)| {
+            d.to_string_lossy()
+                .eq_ignore_ascii_case(&dest.to_string_lossy())
+        }) {
             dest = dest_dir.join(format!("{base} {n}.md"));
             n += 1;
         }
         lookup
-            .entry(file.file_stem().unwrap_or_default().to_string_lossy().to_lowercase())
+            .entry(
+                file.file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase(),
+            )
             .or_insert_with(|| relative(content_dir, &dest));
         plan.push((file.clone(), dest));
     }
 
     for (source_file, dest) in plan {
-        let raw = std::fs::read(&source_file).map_err(|e| format!("Could not read {}: {e}", source_file.display()))?;
+        let raw = std::fs::read(&source_file)
+            .map_err(|e| format!("Could not read {}: {e}", source_file.display()))?;
         let text = String::from_utf8_lossy(&raw);
         write_new(&dest, &convert_wikilinks(&text, &lookup))?;
         report.created.push(relative(content_dir, &dest));
     }
     if skipped > 0 {
-        report.warnings.push(format!("{stem}: skipped {skipped} files that aren't Markdown or text (images, PDFs…)."));
+        report.warnings.push(format!(
+            "{stem}: skipped {skipped} files that aren't Markdown or text (images, PDFs…)."
+        ));
     }
     Ok(())
 }
 
-fn import_single_text(path: &Path, target: &Path, content_dir: &Path, report: &mut ImportReport) -> Result<(), String> {
+fn import_single_text(
+    path: &Path,
+    target: &Path,
+    content_dir: &Path,
+    report: &mut ImportReport,
+) -> Result<(), String> {
     let raw = std::fs::read(path).map_err(|e| format!("Could not read {}: {e}", path.display()))?;
     let text = String::from_utf8_lossy(&raw);
-    let body = if has_extension(path, &["rtf"]) { rtf_to_markdown(&text) } else { text.into_owned() };
+    let body = if has_extension(path, &["rtf"]) {
+        rtf_to_markdown(&text)
+    } else {
+        text.into_owned()
+    };
     let stem = clean_name(&path.file_stem().unwrap_or_default().to_string_lossy());
     let file = unique_child(target, &stem, ".md");
     write_new(&file, &body)?;
@@ -841,17 +990,24 @@ pub fn import_sources(
     split_docx: bool,
     content_dir: &Path,
 ) -> Result<ImportReport, String> {
-    if Path::new(target_dir).components().any(|c| !matches!(c, std::path::Component::Normal(_))) {
+    if Path::new(target_dir)
+        .components()
+        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+    {
         return Err(format!("Invalid destination: {target_dir}"));
     }
     let target = content_dir.join(target_dir);
-    std::fs::create_dir_all(&target).map_err(|e| format!("Could not create {}: {e}", target.display()))?;
+    std::fs::create_dir_all(&target)
+        .map_err(|e| format!("Could not create {}: {e}", target.display()))?;
 
     let mut report = ImportReport::default();
     for source in sources {
         // Refuse to import the library into itself.
         if content_dir.starts_with(source) || source.starts_with(content_dir) {
-            report.warnings.push(format!("{} is inside your library already.", source.display()));
+            report.warnings.push(format!(
+                "{} is inside your library already.",
+                source.display()
+            ));
             continue;
         }
         let result = if source.is_dir() && has_extension(source, &["scriv"]) {
@@ -863,7 +1019,10 @@ pub fn import_sources(
         } else if has_extension(source, &["md", "markdown", "txt", "rtf"]) {
             import_single_text(source, &target, content_dir, &mut report)
         } else {
-            Err(format!("{} isn't a format Memorie can import.", source.display()))
+            Err(format!(
+                "{} isn't a format Memorie can import.",
+                source.display()
+            ))
         };
         if let Err(e) = result {
             report.warnings.push(e);
@@ -889,7 +1048,11 @@ mod tests {
 
     #[test]
     fn front_matter_quotes_values() {
-        let meta = Meta { synopsis: Some("She says: \"no\"\nThen leaves.".into()), status: Some("First Draft".into()), label: None };
+        let meta = Meta {
+            synopsis: Some("She says: \"no\"\nThen leaves.".into()),
+            status: Some("First Draft".into()),
+            label: None,
+        };
         let out = with_front_matter(&meta, "Body");
         assert_eq!(out, "---\nsynopsis: \"She says: \\\"no\\\"\\nThen leaves.\"\nstatus: \"First Draft\"\n---\n\nBody");
         assert_eq!(with_front_matter(&Meta::default(), "Body"), "Body");
@@ -932,7 +1095,11 @@ mod tests {
     fn write_docx(path: &Path, document_xml: &str) {
         let file = std::fs::File::create(path).unwrap();
         let mut zip = zip::ZipWriter::new(file);
-        zip.start_file("word/document.xml", zip::write::SimpleFileOptions::default()).unwrap();
+        zip.start_file(
+            "word/document.xml",
+            zip::write::SimpleFileOptions::default(),
+        )
+        .unwrap();
         zip.write_all(document_xml.as_bytes()).unwrap();
         zip.finish().unwrap();
     }
@@ -942,7 +1109,11 @@ mod tests {
         let content = tempdir().unwrap();
         let sources = tempdir().unwrap();
         let docx = sources.path().join("My Book.docx");
-        let heading = |t: &str| format!(r#"<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>{t}</w:t></w:r></w:p>"#);
+        let heading = |t: &str| {
+            format!(
+                r#"<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>{t}</w:t></w:r></w:p>"#
+            )
+        };
         let para = |t: &str| format!(r#"<w:p><w:r><w:t>{t}</w:t></w:r></w:p>"#);
         let xml = format!(
             r#"<w:document xmlns:w="x"><w:body>{}{}{}{}{}</w:body></w:document>"#,
@@ -956,7 +1127,14 @@ mod tests {
 
         let report = import_sources(&[docx], "", true, content.path()).unwrap();
         assert!(report.warnings.is_empty(), "{:?}", report.warnings);
-        assert_eq!(report.created, vec!["My Book/01 Opening.md", "My Book/02 Winter.md", "My Book/03 Autumn.md"]);
+        assert_eq!(
+            report.created,
+            vec![
+                "My Book/01 Opening.md",
+                "My Book/02 Winter.md",
+                "My Book/03 Autumn.md"
+            ]
+        );
         let winter = std::fs::read_to_string(content.path().join("My Book/02 Winter.md")).unwrap();
         assert_eq!(winter, "Cold.\n");
     }
@@ -969,7 +1147,10 @@ mod tests {
         let data = scriv.join("Files/Data");
         let scene_a = "AAAA-1";
         let scene_b = "BBBB-2";
-        for (id, rtf) in [(scene_a, r"{\rtf1 The {\i end} of it.\par}"), (scene_b, r"{\rtf1 Before it all.\par}")] {
+        for (id, rtf) in [
+            (scene_a, r"{\rtf1 The {\i end} of it.\par}"),
+            (scene_b, r"{\rtf1 Before it all.\par}"),
+        ] {
             std::fs::create_dir_all(data.join(id)).unwrap();
             std::fs::write(data.join(id).join("content.rtf"), rtf).unwrap();
         }
@@ -998,9 +1179,20 @@ mod tests {
         .unwrap();
 
         let report = import_sources(&[scriv], "", false, content.path()).unwrap();
-        assert_eq!(report.created, vec!["Novel/Draft/Chapter 1/01 Zebra & End.md", "Novel/Draft/Chapter 1/02 Aardvark.md"]);
+        assert_eq!(
+            report.created,
+            vec![
+                "Novel/Draft/Chapter 1/01 Zebra & End.md",
+                "Novel/Draft/Chapter 1/02 Aardvark.md"
+            ]
+        );
         assert_eq!(report.warnings.len(), 1, "{:?}", report.warnings);
-        let zebra = std::fs::read_to_string(content.path().join("Novel/Draft/Chapter 1/01 Zebra & End.md")).unwrap();
+        let zebra = std::fs::read_to_string(
+            content
+                .path()
+                .join("Novel/Draft/Chapter 1/01 Zebra & End.md"),
+        )
+        .unwrap();
         assert_eq!(zebra, "---\nsynopsis: \"Everything ends.\"\nstatus: \"First Draft\"\n---\n\nThe *end* of it.\n");
         assert!(content.path().join("Novel/Research").is_dir());
         assert!(!content.path().join("Novel/Trash").exists());
@@ -1015,7 +1207,11 @@ mod tests {
         std::fs::create_dir_all(vault.join("People")).unwrap();
         std::fs::write(vault.join(".obsidian/app.json"), "{}").unwrap();
         std::fs::write(vault.join("People/Ann (Lead).md"), "Ann.").unwrap();
-        std::fs::write(vault.join("Plot.md"), "See [[Ann (Lead)|Ann]], [[Missing]] and ![[map.png]].").unwrap();
+        std::fs::write(
+            vault.join("Plot.md"),
+            "See [[Ann (Lead)|Ann]], [[Missing]] and ![[map.png]].",
+        )
+        .unwrap();
         std::fs::write(vault.join("map.png"), [0u8; 4]).unwrap();
 
         let report = import_sources(&[vault], "Imports", false, content.path()).unwrap();
@@ -1035,7 +1231,10 @@ mod tests {
         std::fs::write(content.path().join("Note.md"), "old").unwrap();
         let report = import_sources(&[note.clone()], "", false, content.path()).unwrap();
         assert_eq!(report.created, vec!["Note 2.md"]);
-        assert_eq!(std::fs::read_to_string(content.path().join("Note.md")).unwrap(), "old");
+        assert_eq!(
+            std::fs::read_to_string(content.path().join("Note.md")).unwrap(),
+            "old"
+        );
         assert!(import_sources(&[note], "../outside", false, content.path()).is_err());
     }
 }

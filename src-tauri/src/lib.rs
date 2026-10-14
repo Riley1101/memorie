@@ -14,9 +14,9 @@ mod indexer;
 mod llm;
 mod memory;
 mod pdf;
-mod reranker;
 mod prompts;
 mod providers;
+mod reranker;
 mod responses;
 mod rtf;
 mod search;
@@ -40,6 +40,70 @@ pub struct AppState {
     memory: Memory,
     indexer: indexer::Indexer,
     workers: LlmEventService,
+}
+
+/// Pushes writing to the preferred remote when auto-push on exit is turned on.
+/// Runs when the main window closes, and before an update is installed.
+async fn run_exit_tasks(app_handle: &tauri::AppHandle) {
+    let state = app_handle.state::<AppState>();
+    // Only the preferred storage pushes on exit, so closing
+    // the app never fans the same writing out to two remotes.
+    let (should_push, content_dir, dropbox_folder) = {
+        let config = state.config.lock().await;
+        let provider = config.sync_provider.clone();
+        (
+            provider == SyncProvider::Github
+                && config.auto_push_on_exit
+                && config.github_repo.is_some(),
+            config.content_directory.clone(),
+            (provider == SyncProvider::Dropbox
+                && config.dropbox_auto_push_on_exit)
+                .then(|| config.dropbox_folder.clone())
+                .flatten(),
+        )
+    };
+
+    if should_push {
+        if let Ok(Some(token)) = git::load_token() {
+            if let Ok(user) = git::fetch_github_user(&token).await {
+                let author_name =
+                    user.name.unwrap_or_else(|| user.login.clone());
+                let author_email =
+                    format!("{}@users.noreply.github.com", user.login);
+                let message = format!(
+                    "Auto-sync on exit — {}",
+                    chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+                );
+                let _ = git::commit_and_push(
+                    &content_dir,
+                    &message,
+                    &token,
+                    &author_name,
+                    &author_email,
+                );
+            }
+        }
+    }
+
+    if let Some(folder) = dropbox_folder {
+        if let Err(e) = dropbox::push(&content_dir, &folder).await {
+            eprintln!("Dropbox auto-push on exit failed: {e}");
+        }
+    }
+}
+
+/// Runs the on-exit sync ahead of installing an update. The frontend calls this
+/// before `install()` because on Windows the installer quits the app at once,
+/// skipping the window-close handler.
+#[tauri::command]
+async fn prepare_for_update(app_handle: tauri::AppHandle) {
+    run_exit_tasks(&app_handle).await;
+}
+
+/// Relaunches the app so a freshly installed update takes effect.
+#[tauri::command]
+fn restart_app(app_handle: tauri::AppHandle) {
+    app_handle.restart();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -79,118 +143,81 @@ pub async fn run() {
 
     let model = Model::new(default_model_path);
 
-    let mut builder = tauri::Builder::default().setup(|app| {
-        let app_handle = app.handle().clone();
-        let app_state = AppState {
-            config: Mutex::new(app_config),
-            undotree: Mutex::new(undo_tree),
-            model: Mutex::new(model),
-            memory: memory_instance,
-            indexer: indexer::Indexer::new(
-                utils::get_app_dir()
-                    .expect("Failed to get app directory")
-                    .join("db/index-manifest.json"),
-            ),
-            workers: LlmEventService::new(app_handle),
-        };
-        app.manage(app_state);
-
-        // Load (and on first run download) the embedding model and reranker in the
-        // background, so neither delays the window nor the first notes search.
-        // Nothing else holds the config lock yet during setup.
-        let ai_enabled = app
-            .state::<AppState>()
-            .config
-            .try_lock()
-            .map(|config| config.ai_enabled)
-            .unwrap_or(false);
-        if ai_enabled {
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                let memory = &handle.state::<AppState>().memory;
-                if let Err(e) = memory.embedder().await {
-                    eprintln!("Could not load the embedding model: {e}");
-                }
-                memory.reranker().await;
-            });
-        }
-
-        // Keeps the note index current when notes change on disk. The frontend
-        // asks for a first pass on startup.
-        let watch_dir = watch_dir; // moved in: setup outlives `run`'s locals
-        if let Err(e) = app.state::<AppState>().indexer.watch(app.handle(), &watch_dir) {
-            eprintln!("Could not watch {} for changes: {e}", watch_dir.display());
-        }
-
-        if let Some(window) = app.get_webview_window("main") {
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
             let app_handle = app.handle().clone();
-            let closing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let window_for_close = window.clone();
+            let app_state = AppState {
+                config: Mutex::new(app_config),
+                undotree: Mutex::new(undo_tree),
+                model: Mutex::new(model),
+                memory: memory_instance,
+                indexer: indexer::Indexer::new(
+                    utils::get_app_dir()
+                        .expect("Failed to get app directory")
+                        .join("db/index-manifest.json"),
+                ),
+                workers: LlmEventService::new(app_handle),
+            };
+            app.manage(app_state);
 
-            window.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    if closing.swap(true, std::sync::atomic::Ordering::SeqCst) {
-                        // Already ran the auto-push check; let this close through.
-                        return;
+            // Load (and on first run download) the embedding model and reranker in the
+            // background, so neither delays the window nor the first notes search.
+            // Nothing else holds the config lock yet during setup.
+            let ai_enabled = app
+                .state::<AppState>()
+                .config
+                .try_lock()
+                .map(|config| config.ai_enabled)
+                .unwrap_or(false);
+            if ai_enabled {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let memory = &handle.state::<AppState>().memory;
+                    if let Err(e) = memory.embedder().await {
+                        eprintln!("Could not load the embedding model: {e}");
                     }
-                    api.prevent_close();
+                    memory.reranker().await;
+                });
+            }
 
-                    let app_handle = app_handle.clone();
-                    let window = window_for_close.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let state = app_handle.state::<AppState>();
-                        // Only the preferred storage pushes on exit, so closing
-                        // the app never fans the same writing out to two remotes.
-                        let (should_push, content_dir, dropbox_folder) = {
-                            let config = state.config.lock().await;
-                            let provider = config.sync_provider.clone();
-                            (
-                                provider == SyncProvider::Github
-                                    && config.auto_push_on_exit
-                                    && config.github_repo.is_some(),
-                                config.content_directory.clone(),
-                                (provider == SyncProvider::Dropbox
-                                    && config.dropbox_auto_push_on_exit)
-                                    .then(|| config.dropbox_folder.clone())
-                                    .flatten(),
-                            )
-                        };
+            // Keeps the note index current when notes change on disk. The frontend
+            // asks for a first pass on startup.
+            let watch_dir = watch_dir; // moved in: setup outlives `run`'s locals
+            if let Err(e) = app
+                .state::<AppState>()
+                .indexer
+                .watch(app.handle(), &watch_dir)
+            {
+                eprintln!("Could not watch {} for changes: {e}", watch_dir.display());
+            }
 
-                        if should_push {
-                            if let Ok(Some(token)) = git::load_token() {
-                                if let Ok(user) = git::fetch_github_user(&token).await {
-                                    let author_name = user.name.unwrap_or_else(|| user.login.clone());
-                                    let author_email =
-                                        format!("{}@users.noreply.github.com", user.login);
-                                    let message = format!(
-                                        "Auto-sync on exit — {}",
-                                        chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
-                                    );
-                                    let _ = git::commit_and_push(
-                                        &content_dir,
-                                        &message,
-                                        &token,
-                                        &author_name,
-                                        &author_email,
-                                    );
-                                }
-                            }
+            if let Some(window) = app.get_webview_window("main") {
+                let app_handle = app.handle().clone();
+                let closing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                let window_for_close = window.clone();
+
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        if closing.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                            // Already ran the auto-push check; let this close through.
+                            return;
                         }
+                        api.prevent_close();
 
-                        if let Some(folder) = dropbox_folder {
-                            if let Err(e) = dropbox::push(&content_dir, &folder).await {
-                                eprintln!("Dropbox auto-push on exit failed: {e}");
-                            }
-                        }
+                        let app_handle = app_handle.clone();
+                        let window = window_for_close.clone();
+                        tauri::async_runtime::spawn(async move {
+                            run_exit_tasks(&app_handle).await;
 
-                        let _ = window.close();
-                    });
-                }
-            });
-        }
+                            let _ = window.close();
+                        });
+                    }
+                });
+            }
 
-        Ok(())
-    });
+            Ok(())
+        });
 
     #[cfg(debug_assertions)]
     {
@@ -274,6 +301,8 @@ pub async fn run() {
             commands::codex_detect,
             commands::codex_matrix,
             commands::codex_draft,
+            prepare_for_update,
+            restart_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

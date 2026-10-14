@@ -91,7 +91,10 @@ pub async fn start_device_flow() -> Result<DeviceCode, GitError> {
     Ok(DeviceCode {
         device_code: res["device_code"].as_str().unwrap_or_default().to_string(),
         user_code: res["user_code"].as_str().unwrap_or_default().to_string(),
-        verification_uri: res["verification_uri"].as_str().unwrap_or_default().to_string(),
+        verification_uri: res["verification_uri"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
         interval: res["interval"].as_u64().unwrap_or(5),
         expires_in: res["expires_in"].as_u64().unwrap_or(900),
     })
@@ -122,8 +125,12 @@ pub async fn poll_device_flow(device_code: &str) -> Result<DevicePollResult, Git
         Some("authorization_pending") => Ok(DevicePollResult::Pending),
         Some("slow_down") => Ok(DevicePollResult::SlowDown),
         Some("expired_token") => Ok(DevicePollResult::Expired),
-        Some(other) => Ok(DevicePollResult::Error { message: other.to_string() }),
-        None => Ok(DevicePollResult::Error { message: "Unknown device flow response".to_string() }),
+        Some(other) => Ok(DevicePollResult::Error {
+            message: other.to_string(),
+        }),
+        None => Ok(DevicePollResult::Error {
+            message: "Unknown device flow response".to_string(),
+        }),
     }
 }
 
@@ -183,7 +190,10 @@ pub fn status(path: &Path) -> Result<Vec<GitFileStatus>, GitError> {
             } else {
                 "modified"
             };
-            Some(GitFileStatus { path, status: status.to_string() })
+            Some(GitFileStatus {
+                path,
+                status: status.to_string(),
+            })
         })
         .collect())
 }
@@ -222,12 +232,23 @@ pub fn pull(path: &Path, token: &str) -> Result<(), GitError> {
         remote.fetch(&[] as &[&str], Some(&mut fetch_opts), None)?;
     }
 
-    let branch = match repo.head().ok().and_then(|h| h.shorthand().ok().map(String::from)) {
-        Some(name) if repo.find_reference(&format!("refs/remotes/origin/{name}")).is_ok() => name,
+    let branch = match repo
+        .head()
+        .ok()
+        .and_then(|h| h.shorthand().ok().map(String::from))
+    {
+        Some(name)
+            if repo
+                .find_reference(&format!("refs/remotes/origin/{name}"))
+                .is_ok() =>
+        {
+            name
+        }
         _ => ["main", "master"]
             .into_iter()
             .find(|candidate| {
-                repo.find_reference(&format!("refs/remotes/origin/{candidate}")).is_ok()
+                repo.find_reference(&format!("refs/remotes/origin/{candidate}"))
+                    .is_ok()
             })
             .map(String::from)
             .ok_or(GitError::NoRemoteBranch)?,
@@ -256,9 +277,14 @@ pub fn pull(path: &Path, token: &str) -> Result<(), GitError> {
 
     if analysis.is_fast_forward() {
         let branch_ref_name = format!("refs/heads/{branch}");
-        let mut branch_ref = repo
-            .find_reference(&branch_ref_name)
-            .or_else(|_| repo.reference(&branch_ref_name, fetch_commit.id(), true, "fast-forward import"))?;
+        let mut branch_ref = repo.find_reference(&branch_ref_name).or_else(|_| {
+            repo.reference(
+                &branch_ref_name,
+                fetch_commit.id(),
+                true,
+                "fast-forward import",
+            )
+        })?;
         branch_ref.set_target(fetch_commit.id(), "fast-forward import")?;
         repo.set_head(&branch_ref_name)?;
         repo.checkout_head(Some(&mut checkout))?;
@@ -288,7 +314,14 @@ pub fn commit_and_push(
     let parent_commit = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
     let parents: Vec<&git2::Commit> = parent_commit.iter().collect();
 
-    repo.commit(Some("HEAD"), &signature, &signature, message, &tree, &parents)?;
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        message,
+        &tree,
+        &parents,
+    )?;
 
     let mut remote = repo.find_remote("origin")?;
     let branch = repo.head()?.shorthand().unwrap_or("main").to_string();

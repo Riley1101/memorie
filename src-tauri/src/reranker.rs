@@ -17,9 +17,7 @@ use candle_transformers::models::bert::{BertModel, Config};
 use kalosm_common::Cache;
 use kalosm_model_types::FileSource;
 use std::path::{Path, PathBuf};
-use tokenizers::{
-    PaddingParams, PaddingStrategy, Tokenizer, TruncationParams, TruncationStrategy,
-};
+use tokenizers::{PaddingParams, PaddingStrategy, Tokenizer, TruncationParams, TruncationStrategy};
 
 const MODEL_ID: &str = "cross-encoder/ms-marco-MiniLM-L-6-v2";
 const REVISION: &str = "main";
@@ -59,10 +57,9 @@ impl Reranker {
     }
 
     fn from_files(config: &Path, tokenizer: &Path, weights: &Path) -> Result<Self, String> {
-        let config: Config = serde_json::from_str(
-            &std::fs::read_to_string(config).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| format!("Bad reranker config: {e}"))?;
+        let config: Config =
+            serde_json::from_str(&std::fs::read_to_string(config).map_err(|e| e.to_string())?)
+                .map_err(|e| format!("Bad reranker config: {e}"))?;
 
         let mut tokenizer = Tokenizer::from_file(tokenizer).map_err(|e| e.to_string())?;
         tokenizer
@@ -92,7 +89,13 @@ impl Reranker {
         let classifier =
             candle_nn::linear(hidden, 1, vb.pp("classifier")).map_err(|e| e.to_string())?;
 
-        Ok(Self { model, pooler, classifier, tokenizer, device })
+        Ok(Self {
+            model,
+            pooler,
+            classifier,
+            tokenizer,
+            device,
+        })
     }
 
     /// How relevant each passage is to `query`, as raw logits: higher is more
@@ -103,9 +106,14 @@ impl Reranker {
             return Ok(Vec::new());
         }
         let query: String = query.chars().take(MAX_QUERY_CHARS).collect();
-        let pairs: Vec<(String, String)> =
-            passages.iter().map(|p| (query.clone(), p.clone())).collect();
-        let encodings = self.tokenizer.encode_batch(pairs, true).map_err(|e| e.to_string())?;
+        let pairs: Vec<(String, String)> = passages
+            .iter()
+            .map(|p| (query.clone(), p.clone()))
+            .collect();
+        let encodings = self
+            .tokenizer
+            .encode_batch(pairs, true)
+            .map_err(|e| e.to_string())?;
 
         let rows = encodings.len();
         let cols = encodings[0].get_ids().len();
@@ -121,7 +129,10 @@ impl Reranker {
             // Contiguous copy of the [CLS] row: Metal's matmul rejects the strided view.
             let cls = hidden.i((.., 0))?.contiguous()?;
             let pooled = self.pooler.forward(&cls)?.tanh()?;
-            self.classifier.forward(&pooled)?.squeeze(1)?.to_vec1::<f32>()
+            self.classifier
+                .forward(&pooled)?
+                .squeeze(1)?
+                .to_vec1::<f32>()
         };
         run().map_err(|e| e.to_string())
     }
@@ -144,7 +155,9 @@ mod tests {
             "Dragons appear in many myths.".to_string(),
         ];
         let started = std::time::Instant::now();
-        let scores = reranker.score("where does the dragon keep its gold?", &passages).unwrap();
+        let scores = reranker
+            .score("where does the dragon keep its gold?", &passages)
+            .unwrap();
         println!("scores {scores:?} in {:?}", started.elapsed());
         assert_eq!(scores.len(), 3);
         assert!(scores[1] > scores[2] && scores[2] > scores[0]);
@@ -153,7 +166,9 @@ mod tests {
         // chunker makes. Meaningful only in release: `cargo test --release`.
         let long = "She walked along the harbour wall, counting the boats. ".repeat(18);
         assert!(long.len() <= crate::chunker::CHUNK_SIZE_LIMIT);
-        let batch: Vec<String> = (0..16).map(|i| format!("Novel › Part {i}\n{long}")).collect();
+        let batch: Vec<String> = (0..16)
+            .map(|i| format!("Novel › Part {i}\n{long}"))
+            .collect();
         let started = std::time::Instant::now();
         reranker.score("where did she walk?", &batch).unwrap();
         println!("16 full passages in {:?}", started.elapsed());

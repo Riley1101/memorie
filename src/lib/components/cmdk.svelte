@@ -6,6 +6,8 @@
   import FileOutputIcon from '@lucide/svelte/icons/file-output';
   import FileInputIcon from '@lucide/svelte/icons/file-input';
   import BookUserIcon from '@lucide/svelte/icons/book-user';
+  import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+  import { updaterManager } from '$lib/runes/updater.svelte.js';
   import { openCodex } from '$lib/runes/codex.svelte.js';
   import * as Command from '$lib/components/ui/command/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
@@ -72,6 +74,15 @@
   function handleOpenSettings() {
     close();
     goto(resolve('/settings'));
+  }
+
+  function handleCheckUpdates() {
+    close();
+    if (updaterManager.status === 'ready') {
+      updaterManager.installAndRestart();
+    } else {
+      updaterManager.check();
+    }
   }
 </script>
 
@@ -176,6 +187,10 @@
       <Command.Item value="settings preferences" onSelect={handleOpenSettings} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <SettingsIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Open settings</span>
+      </Command.Item>
+      <Command.Item value="check for updates upgrade version" onSelect={handleCheckUpdates} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+        <RefreshCwIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+        <span>{updaterManager.status === 'ready' ? 'Restart to update' : 'Check for updates'}</span>
       </Command.Item>
     </Command.Group>
   </Command.List>

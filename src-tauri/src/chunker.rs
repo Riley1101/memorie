@@ -70,7 +70,10 @@ fn blocks(text: &str) -> Vec<Block> {
                     if in_metadata || matches!(tag, TagEnd::MetadataBlock(_)) {
                         in_metadata = false;
                     } else {
-                        out.push(Block { range: start..range.end, heading: heading.take() });
+                        out.push(Block {
+                            range: start..range.end,
+                            heading: heading.take(),
+                        });
                     }
                 }
             }
@@ -85,7 +88,10 @@ fn blocks(text: &str) -> Vec<Block> {
                 }
             }
             // Leaf blocks outside any container, e.g. a thematic break.
-            _ if depth == 0 => out.push(Block { range, heading: None }),
+            _ if depth == 0 => out.push(Block {
+                range,
+                heading: None,
+            }),
             _ => {}
         }
     }
@@ -268,7 +274,12 @@ mod tests {
         let chunks = chunk_markdown(note);
         assert_eq!(
             texts(&chunks),
-            vec!["Intro line.", "# Part 1\n\nOpening.", "## Scene 2\n\nShe runs.", "# Part 2\n\nLater."]
+            vec![
+                "Intro line.",
+                "# Part 1\n\nOpening.",
+                "## Scene 2\n\nShe runs.",
+                "# Part 2\n\nLater."
+            ]
         );
         assert!(chunks[0].headings.is_empty());
         assert_eq!(chunks[1].headings, vec!["Part 1"]);
@@ -322,7 +333,10 @@ mod tests {
         let note = "é".repeat(1500);
         let chunks = chunk_markdown(&note);
         assert!(chunks.len() > 1);
-        assert_eq!(chunks.iter().map(|c| c.text.as_str()).collect::<String>(), note);
+        assert_eq!(
+            chunks.iter().map(|c| c.text.as_str()).collect::<String>(),
+            note
+        );
     }
 
     #[test]

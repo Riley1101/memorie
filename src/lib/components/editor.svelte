@@ -335,9 +335,9 @@
     overflow: visible !important;
   }
 
-  main :global(.slash-menu-portal[data-show='false']),
-  main :global(.doc-ref-portal[data-show='false']),
-  main :global(.link-popover-portal[data-show='false']) {
+  main :global(.slash-menu-portal:not([data-show='true'])),
+  main :global(.doc-ref-portal:not([data-show='true'])),
+  main :global(.link-popover-portal:not([data-show='true'])) {
     display: none;
   }
 

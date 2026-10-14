@@ -688,7 +688,11 @@ pub fn normalize_folder(folder: &str) -> String {
 }
 
 async fn delete_remote(remote_path: &str) -> Result<(), DropboxError> {
-    rpc("files/delete_v2", serde_json::json!({ "path": remote_path })).await?;
+    rpc(
+        "files/delete_v2",
+        serde_json::json!({ "path": remote_path }),
+    )
+    .await?;
     Ok(())
 }
 
@@ -855,7 +859,9 @@ fn load_base(content_dir: &Path, folder: &str) -> HashMap<String, String> {
         return HashMap::new();
     };
     match serde_json::from_str::<SyncState>(&text) {
-        Ok(state) if state.content_dir == content_dir && state.folder == normalize_folder(folder) => {
+        Ok(state)
+            if state.content_dir == content_dir && state.folder == normalize_folder(folder) =>
+        {
             state.files
         }
         _ => HashMap::new(),
@@ -1008,8 +1014,11 @@ pub async fn push(content_dir: &Path, folder: &str) -> Result<SyncResult, Dropbo
             if local.contains_key(relative) {
                 continue;
             }
-            if classify(None, Some(remote_hash), base.get(relative).map(String::as_str))
-                != Change::LocalDeleted
+            if classify(
+                None,
+                Some(remote_hash),
+                base.get(relative).map(String::as_str),
+            ) != Change::LocalDeleted
             {
                 continue;
             }
@@ -1084,8 +1093,11 @@ pub async fn pull(content_dir: &Path, folder: &str) -> Result<SyncResult, Dropbo
             if remote.contains_key(relative) {
                 continue;
             }
-            if classify(Some(local_hash), None, base.get(relative).map(String::as_str))
-                != Change::RemoteDeleted
+            if classify(
+                Some(local_hash),
+                None,
+                base.get(relative).map(String::as_str),
+            ) != Change::RemoteDeleted
             {
                 continue;
             }
@@ -1180,8 +1192,14 @@ mod dropbox_tests {
         assert_eq!(classify(Some("a"), Some("a"), None), Change::InSync);
         assert_eq!(classify(Some("a"), None, None), Change::LocalNew);
         assert_eq!(classify(None, Some("a"), None), Change::RemoteNew);
-        assert_eq!(classify(Some("b"), Some("a"), Some("a")), Change::LocalModified);
-        assert_eq!(classify(Some("a"), Some("b"), Some("a")), Change::RemoteModified);
+        assert_eq!(
+            classify(Some("b"), Some("a"), Some("a")),
+            Change::LocalModified
+        );
+        assert_eq!(
+            classify(Some("a"), Some("b"), Some("a")),
+            Change::RemoteModified
+        );
     }
 
     #[test]
