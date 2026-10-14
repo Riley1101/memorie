@@ -50,7 +50,10 @@ hex = {version = "0.4.3", features = ["serde"] }
 tauri-plugin-log = "2.9.0"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 
-git2 = { version = "0.21", features = ["vendored-libgit2", "vendored-openssl"] }
+# git2 0.21 ships with no default features: `https` must be explicit or every
+# network op (import, sync, push) fails with "there is no TLS stream available".
+# It selects WinHTTP on Windows, SecureTransport on macOS and OpenSSL on Linux.
+git2 = { version = "0.21", features = ["https", "vendored-libgit2", "vendored-openssl"] }
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 pulldown-cmark = { version = "0.12", default-features = false, features = ["html"] }
