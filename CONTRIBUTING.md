@@ -31,6 +31,25 @@ not exist outside the desktop shell. Use it for pure UI work, not for testing be
 `bun run dev:release` runs the desktop app with an optimised Rust build. It is slower to compile
 and much faster at runtime, which matters when you are profiling editor responsiveness.
 
+## Building a release bundle
+
+```sh
+bun run tauri build
+```
+
+### Dropbox app key
+
+Dropbox sync needs an app key, which is baked in at build time:
+
+```sh
+DROPBOX_APP_KEY=your_app_key bun run tauri build
+```
+
+Create the app at [dropbox.com/developers/apps](https://www.dropbox.com/developers/apps)
+with the `files.content.read`, `files.content.write` and `account_info.read` scopes, and
+register `http://localhost:53682/` as a redirect URI. Login uses PKCE, so there is no
+client secret to keep; the refresh token is stored in the OS keyring.
+
 ## Before you open a pull request
 
 ```sh
@@ -107,6 +126,48 @@ with:
 
 Memoire keeps your writing in plain Markdown on your own disk. Please redact before attaching, and
 never paste an access token into an issue.
+
+## Releasing (maintainers)
+
+Bump the version everywhere it lives (`package.json`, `src-tauri/tauri.conf.json`,
+`src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`) and commit it with one command:
+
+```sh
+bun run release patch            # 0.3.0 → 0.3.1
+bun run release minor            # 0.3.0 → 0.4.0
+bun run release major            # 0.3.0 → 1.0.0
+bun run release 0.5.0-beta.1     # an exact version
+```
+
+| Flag        | Effect                                                               |
+| ----------- | -------------------------------------------------------------------- |
+| `--dry-run` | Show what would change; write nothing                                |
+| `--no-git`  | Edit the files but don't commit                                      |
+| `--push`    | Also push this branch and fast-forward `release` to it, starting CI |
+
+The script refuses to run with uncommitted changes, when the new version isn't higher
+than the current one (installed apps would never update to it), or when the updater
+public key is missing.
+
+Pushing to the `release` branch runs `.github/workflows/release.yml`, which builds every
+platform and creates a **draft** GitHub release with a `latest.json` for the updater.
+Publish the draft — installed apps only see the update once it's published.
+
+### Update signing (one-time setup)
+
+Updates are signed, and the app refuses any update it can't verify.
+
+```sh
+bunx tauri signer generate -w ~/.tauri/memoire.key
+```
+
+- Put the contents of `~/.tauri/memoire.key.pub` in `plugins.updater.pubkey` in
+  `src-tauri/tauri.conf.json`.
+- Add the repo secrets `TAURI_SIGNING_PRIVATE_KEY` (contents of `~/.tauri/memoire.key`)
+  and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+
+Keep the private key safe: if it's lost, existing installs can't receive updates
+anymore.
 
 ## Security
 
