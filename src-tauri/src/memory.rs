@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use surrealdb::engine::local::{Db, SurrealKv};
-use surrealdb::sql::Thing;
+use surrealdb::types::{RecordId, SurrealValue};
 use surrealdb::Surreal;
 
 // -------------------------------------------------------
@@ -19,9 +19,10 @@ use surrealdb::Surreal;
 const DOCUMENT_TABLE: &str = "documents";
 const CHUNK_TABLE: &str = "chunk";
 
-/// Bumped whenever what gets embedded for a chunk changes. It is mixed into the chunk
-/// hash, so existing chunks stop matching and are re-embedded on the next index pass.
-pub const EMBED_VERSION: &str = "v3-sections";
+/// Bumped whenever what gets embedded for a chunk changes, or the database is replaced.
+/// It is mixed into the chunk hash, so existing chunks stop matching and are re-embedded
+/// on the next index pass, and the indexer re-reads every note when it changes.
+pub const EMBED_VERSION: &str = "v4-surrealdb3";
 
 /// Chunks embedded per forward pass while indexing.
 const EMBED_BATCH: usize = 32;
@@ -109,9 +110,19 @@ impl Memory {
     /// The embedding model is not loaded here; see `embedder`.
     pub async fn new() -> Result<Self, MemoryError> {
         // TODO! Make the path configurable via app settings
-        let root_dir = utils::get_app_dir()?.join("db/memory/");
+        let app_dir = utils::get_app_dir()?;
+        // SurrealDB 3 can't open what 2.x wrote. The index is rebuilt from the notes,
+        // so the old one is dropped rather than migrated.
+        let legacy_dir = app_dir.join("db/memory/");
+        if legacy_dir.exists() {
+            if let Err(e) = std::fs::remove_dir_all(&legacy_dir) {
+                eprintln!("Could not remove the old search index: {e}");
+            }
+        }
+        let root_dir = app_dir.join("db/memory-v3/");
         let db = Surreal::new::<SurrealKv>(root_dir.clone()).await?;
         db.use_ns("embeddings_ns").use_db("embeddings").await?;
+        ensure_tables(&db).await?;
 
         let memory = Memory {
             db,
@@ -336,7 +347,7 @@ impl Memory {
             "DEFINE ANALYZER IF NOT EXISTS note_text TOKENIZERS blank, class \
                  FILTERS lowercase, ascii, snowball(english); \
              DEFINE INDEX IF NOT EXISTS chunk_content_fts ON chunk FIELDS content \
-                 SEARCH ANALYZER note_text BM25;",
+                 FULLTEXT ANALYZER note_text BM25;",
         );
         if let Some(dimension) = dimension {
             // The dimension is part of the name, so a model with a different output
@@ -366,7 +377,7 @@ impl Memory {
         &self,
         query_embedding: &[f32],
         k: usize,
-        within: Option<&[Thing]>,
+        within: Option<&[RecordId]>,
     ) -> Result<Vec<ScoredChunk>, MemoryError> {
         let k = k.max(1);
         if let Some(ids) = within {
@@ -428,7 +439,7 @@ impl Memory {
         query: &str,
         query_embedding: &[f32],
         k: usize,
-        within: Option<&[Thing]>,
+        within: Option<&[RecordId]>,
     ) -> Result<Vec<ScoredChunk>, MemoryError> {
         let terms = keyword_terms(query);
         if terms.is_empty() {
@@ -528,7 +539,7 @@ impl Memory {
     }
 
     /// Ids of the notes inside `binder` (a top-level folder), at any depth.
-    async fn binder_documents(&self, binder: &str) -> Result<Vec<Thing>, MemoryError> {
+    async fn binder_documents(&self, binder: &str) -> Result<Vec<RecordId>, MemoryError> {
         let mut response = self
             .db
             .query("SELECT VALUE id FROM documents WHERE string::starts_with(title, $prefix)")
@@ -543,11 +554,11 @@ impl Memory {
         chunks: Vec<ScoredChunk>,
     ) -> Result<Vec<SearchResult>, MemoryError> {
         let db = &self.db;
-        let mut parent_ids: Vec<Thing> = chunks.iter().map(|c| c.parent.clone()).collect();
+        let mut parent_ids: Vec<RecordId> = chunks.iter().map(|c| c.parent.clone()).collect();
         parent_ids.sort();
         parent_ids.dedup();
 
-        let mut doc_map: HashMap<Thing, String> = HashMap::new();
+        let mut doc_map: HashMap<RecordId, String> = HashMap::new();
         if !parent_ids.is_empty() {
             let sql_docs = "SELECT * FROM $ids";
             let mut doc_response = db.query(sql_docs).bind(("ids", parent_ids)).await?;
@@ -581,6 +592,18 @@ impl Memory {
             .collect();
         Ok(results)
     }
+}
+
+/// Creates the tables if they are missing. Selecting from a table that doesn't
+/// exist is an error, so a fresh database needs them before the first lookup.
+async fn ensure_tables(db: &Surreal<Db>) -> Result<(), MemoryError> {
+    db.query(format!(
+        "DEFINE TABLE IF NOT EXISTS {DOCUMENT_TABLE} SCHEMALESS; \
+         DEFINE TABLE IF NOT EXISTS {CHUNK_TABLE} SCHEMALESS;"
+    ))
+    .await?
+    .check()?;
+    Ok(())
 }
 
 /// Query instruction for bge-small-en-v1.5; see `generate_query_embedding`.
@@ -646,7 +669,7 @@ fn strong_keyword_matches(chunks: Vec<ScoredChunk>) -> Vec<ScoredChunk> {
 /// chunk's `found_by` records which lists it came from (bit `1 << n` for list `n`).
 fn fuse_ranked<const N: usize>(lists: [Vec<ScoredChunk>; N], limit: usize) -> Vec<ScoredChunk> {
     let mut fused: Vec<(f32, ScoredChunk)> = Vec::new();
-    let mut position: HashMap<Thing, usize> = HashMap::new();
+    let mut position: HashMap<RecordId, usize> = HashMap::new();
     for (n, list) in lists.into_iter().enumerate() {
         let bit = 1u8 << n;
         for (rank, mut chunk) in list.into_iter().enumerate() {
@@ -678,9 +701,9 @@ fn fuse_ranked<const N: usize>(lists: [Vec<ScoredChunk>; N], limit: usize) -> Ve
 
 /// Represents a note document with a title and body content.
 /// This struct is used for storing and managing documents in the RAG memory system.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, SurrealValue)]
 pub struct NoteDocument {
-    pub id: Option<Thing>,
+    pub id: Option<RecordId>,
     pub title: String,
     pub body: String,
 }
@@ -704,17 +727,17 @@ impl NoteDocument {
         self.title = title.to_string();
     }
 
-    pub fn get_thing_id(&self) -> Option<Thing> {
+    pub fn get_thing_id(&self) -> Option<RecordId> {
         self.id.clone()
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, SurrealValue)]
 pub struct TextChunk {
     /// Left out when unset, so new chunks get an id from the database.
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Thing>,
-    pub parent: Thing,
+    id: Option<RecordId>,
+    pub parent: RecordId,
     pub content: String,
     pub sequence: usize,
     content_hash: String,
@@ -724,29 +747,33 @@ pub struct TextChunk {
     pub embedding: Option<Vec<f32>>,
 
     #[serde(default)]
+    #[surreal(default)]
     pub created_at: i64,
 
     /// Headings above the passage joined with " › ", empty when it has none.
     #[serde(default)]
+    #[surreal(default)]
     pub section: String,
     /// Lines of the note the passage covers, 1-based.
     #[serde(default)]
+    #[surreal(default)]
     pub start_line: usize,
     #[serde(default)]
+    #[surreal(default)]
     pub end_line: usize,
 }
 
 impl TextChunk {
     #[cfg(test)]
-    pub fn get_thing_id(&self) -> Option<Thing> {
+    pub fn get_thing_id(&self) -> Option<RecordId> {
         self.id.clone()
     }
 }
 
 /// A kept chunk's new place in its note, after edits above it moved it.
-#[derive(Serialize)]
+#[derive(SurrealValue)]
 struct MovedChunk {
-    id: Thing,
+    id: RecordId,
     content: String,
     sequence: usize,
     section: String,
@@ -758,7 +785,7 @@ struct MovedChunk {
 /// its cosine similarity to the query. Results are ordered best match first.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
-    pub parent: Thing,
+    pub parent: RecordId,
     pub content: String,
     pub sequence: usize,
     pub title: String,
@@ -776,24 +803,20 @@ pub struct SearchResult {
 pub const FOUND_BY_MEANING: u8 = 1;
 pub const FOUND_BY_KEYWORDS: u8 = 2;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, SurrealValue)]
 struct ScoredChunk {
-    id: Thing,
-    parent: Thing,
+    id: RecordId,
+    parent: RecordId,
     content: String,
     sequence: usize,
     score: f32,
-    #[serde(default)]
     section: Option<String>,
-    #[serde(default)]
     start_line: Option<usize>,
-    #[serde(default)]
     end_line: Option<usize>,
     /// Keyword search only: summed BM25 over the matched terms.
-    #[serde(default)]
     bm25: Option<f32>,
     /// Set by `fuse_ranked`: bit `1 << n` for each input list it appeared in.
-    #[serde(skip)]
+    #[surreal(default)]
     found_by: u8,
 }
 
@@ -803,7 +826,7 @@ pub struct IndexStats {
     pub passages: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, SurrealValue)]
 struct CountRow {
     n: usize,
 }
@@ -822,7 +845,7 @@ pub trait MemoryDocumentAnalysisExt {
         limit: usize,
         binder: Option<&str>,
     ) -> Result<Vec<SearchResult>, MemoryError>;
-    async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk>;
+    async fn get_dirty_document_chunk(&self, document_id: RecordId) -> Vec<TextChunk>;
     async fn to_document_context(
         &self,
         embedding_document: NoteDocument,
@@ -869,7 +892,7 @@ impl MemoryDocumentAnalysisExt for Memory {
         updated
     }
 
-    async fn get_dirty_document_chunk(&self, document_id: Thing) -> Vec<TextChunk> {
+    async fn get_dirty_document_chunk(&self, document_id: RecordId) -> Vec<TextChunk> {
         let db = &self.db;
         let sql =
             "SELECT * FROM chunk WHERE parent = $id AND is_dirty = true ORDER BY sequence ASC";
@@ -976,7 +999,7 @@ impl MemoryDocumentAnalysisExt for Memory {
                 end_line: segment.end_line,
             })
             .collect();
-        let removed: Vec<Thing> = old_chunk_map.into_values().filter_map(|c| c.id).collect();
+        let removed: Vec<RecordId> = old_chunk_map.into_values().filter_map(|c| c.id).collect();
 
         println!(
             ">> Indexed '{}': {} new, {} moved, {} removed, {} unchanged",
@@ -1088,6 +1111,7 @@ mod memory_tests {
     async fn test_memory() -> Memory {
         let db = Surreal::new::<Mem>(()).await.unwrap();
         db.use_ns("test").use_db("test").await.unwrap();
+        ensure_tables(&db).await.unwrap();
         Memory {
             db,
             embedding_model: tokio::sync::OnceCell::new(),
@@ -1097,7 +1121,7 @@ mod memory_tests {
         }
     }
 
-    async fn insert_document(memory: &Memory, title: &str) -> Thing {
+    async fn insert_document(memory: &Memory, title: &str) -> RecordId {
         memory
             .create_or_update_document(title, "body")
             .await
@@ -1109,7 +1133,7 @@ mod memory_tests {
 
     async fn insert_chunk(
         memory: &Memory,
-        parent: &Thing,
+        parent: &RecordId,
         content: &str,
         embedding: Option<Vec<f32>>,
     ) {
@@ -1184,7 +1208,7 @@ mod memory_tests {
     #[tokio::test]
     async fn search_ignores_chunks_whose_note_was_deleted() {
         let memory = test_memory().await;
-        let orphan_parent = Thing::from((DOCUMENT_TABLE, "gone"));
+        let orphan_parent = RecordId::new(DOCUMENT_TABLE, "gone");
         insert_chunk(&memory, &orphan_parent, "orphan", Some(vec![1.0, 0.0])).await;
 
         let results = memory.search_by_embedding(vec![1.0, 0.0], 8).await.unwrap();

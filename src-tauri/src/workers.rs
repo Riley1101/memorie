@@ -1180,7 +1180,7 @@ impl ModelEvents {
 #[cfg(test)]
 mod routing_tests {
     use super::*;
-    use surrealdb::sql::Thing;
+    use surrealdb::types::RecordId;
 
     fn turn(role: &str, content: &str) -> ChatTurn {
         ChatTurn {
@@ -1191,7 +1191,7 @@ mod routing_tests {
 
     fn result(title: &str, content: &str, score: f32) -> SearchResult {
         SearchResult {
-            parent: Thing::from(("documents", title)),
+            parent: RecordId::new("documents", title),
             content: content.to_string(),
             sequence: 0,
             title: title.to_string(),
