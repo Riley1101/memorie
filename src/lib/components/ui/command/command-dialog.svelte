@@ -7,8 +7,8 @@
 		value = $bindable(""),
 		title = "Command Palette",
 		description = "Search for a command to run",
-		portalProps,
-		children,
+		portalProps = undefined,
+		children = undefined,
 		...restProps
 	} = $props();
 </script>

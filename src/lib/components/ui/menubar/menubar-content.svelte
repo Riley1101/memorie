@@ -2,14 +2,17 @@
 	import { Menubar as MenubarPrimitive } from "bits-ui";
 	import { cn } from "$lib/utils.js";
 
+	/** @type {{ ref?: any, class?: any, sideOffset?: any, alignOffset?: any, align?: "center" | "end" | "start", side?: "top" | "right" | "bottom" | "left", portalProps?: any, [key: string]: any }} */
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: className = undefined,
 		sideOffset = 8,
 		alignOffset = -4,
+		/** @type {"center" | "end" | "start"} */
 		align = "start",
+		/** @type {"top" | "right" | "bottom" | "left"} */
 		side = "bottom",
-		portalProps,
+		portalProps = undefined,
 		...restProps
 	} = $props();
 </script>
@@ -19,9 +22,9 @@
 		bind:ref
 		data-slot="menubar-content"
 		{sideOffset}
-		{align}
+		align={/** @type {any} */ (align)}
 		{alignOffset}
-		{side}
+		side={/** @type {any} */ (side)}
 		class={cn(
 			"bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--bits-menubar-content-transform-origin) z-50 min-w-[12rem] overflow-hidden rounded-xl ring-1 ring-foreground/10 p-1 shadow-md",
 			className

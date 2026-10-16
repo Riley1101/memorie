@@ -2,7 +2,8 @@
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { configManager } from '$lib/runes/config.svelte.js';
-  import { MOD_LABEL } from '$lib/keyboard.svelte.js';
+  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { page } from '$app/state';
   import HouseIcon from '@lucide/svelte/icons/house';
   import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
   import SearchIcon from '@lucide/svelte/icons/search';
@@ -19,33 +20,40 @@
   import FileOutputIcon from '@lucide/svelte/icons/file-output';
   import LinkIcon from '@lucide/svelte/icons/link';
 
+  /**
+   * Most shortcuts are the editor's: they are bound by the command bar, which
+   * only exists while a writing is open. Listing them on the home screen as if
+   * they worked everywhere is what made them feel broken.
+   */
+  let inEditor = $derived(Boolean(page.params.lexical));
+
   let shortcuts = $derived(
     [
-      { key: `${MOD_LABEL} + K`, description: 'Search writings', icon: SearchIcon },
-      { key: `${MOD_LABEL} + K`, description: 'Link selected text', icon: LinkIcon },
-      { key: `${MOD_LABEL} + Click`, description: 'Open link', icon: LinkIcon },
-      { key: `${MOD_LABEL} + ⇧ + F`, description: 'Find in all writings', icon: TextSearchIcon },
-      { key: `${MOD_LABEL} + ⇧ + E`, description: 'Export', icon: FileOutputIcon },
-      { key: `${MOD_LABEL} + N`, description: 'New writing here', icon: PlusIcon },
-      { key: `${MOD_LABEL} + ⇧ + N`, description: 'New writing in…', icon: PlusIcon },
+      { key: `${MOD_KEY} + K`, description: 'Search writings', icon: SearchIcon },
+      { key: `${MOD_KEY} + K`, description: 'Link selected text', editorOnly: true, icon: LinkIcon },
+      { key: `${MOD_KEY} + Click`, description: 'Open link', editorOnly: true, icon: LinkIcon },
+      { key: `${MOD_KEY} + ⇧ + F`, description: 'Find in all writings', icon: TextSearchIcon },
+      { key: `${MOD_KEY} + ⇧ + E`, description: 'Export', editorOnly: true, icon: FileOutputIcon },
+      { key: `${MOD_KEY} + N`, description: 'New writing here', icon: PlusIcon },
+      { key: `${MOD_KEY} + ⇧ + N`, description: 'New writing in…', icon: PlusIcon },
       configManager.config?.ai_enabled
-        ? { key: `${MOD_LABEL} + L`, description: 'Toggle AI chat', icon: SparklesIcon }
+        ? { key: `${MOD_KEY} + L`, description: 'Toggle AI chat', editorOnly: true, icon: SparklesIcon }
         : null,
-      { key: `${MOD_LABEL} + B`, description: 'Go back (bold while typing)', icon: ArrowLeftIcon },
-      { key: `${MOD_LABEL} + ⇧ + H`, description: 'Go home', icon: HouseIcon },
-      { key: `${MOD_LABEL} + U`, description: 'Toggle history', icon: HistoryIcon },
-      { key: `${MOD_LABEL} + ⇧ + O`, description: 'Toggle table of contents', icon: TableOfContentsIcon },
-      { key: `${MOD_LABEL} + .`, description: 'Toggle focus mode', icon: FocusIcon },
-      { key: `${MOD_LABEL} + S`, description: 'Save writing', icon: SaveIcon },
-      { key: `${MOD_LABEL} + Z`, description: 'Undo typing', icon: UndoIcon },
-      { key: `${MOD_LABEL} + ⇧ + Z`, description: 'Redo typing', icon: RedoIcon },
-      { key: `${MOD_LABEL} + ⌥ + Z`, description: 'Previous saved version', icon: UndoIcon },
-      { key: `${MOD_LABEL} + ⌥ + ⇧ + Z`, description: 'Next saved version', icon: RedoIcon },
-      { key: `${MOD_LABEL} + + / -`, description: 'Adjust font size', icon: TypeIcon },
-      { key: `${MOD_LABEL} + ⇧ + P`, description: 'Command mode' },
-      { key: `${MOD_LABEL} + /`, description: 'This help' },
+      { key: `${MOD_KEY} + B`, description: 'Go back (bold while typing)', icon: ArrowLeftIcon },
+      { key: `${MOD_KEY} + ⇧ + H`, description: 'Go home', editorOnly: true, icon: HouseIcon },
+      { key: `${MOD_KEY} + U`, description: 'Toggle history', editorOnly: true, icon: HistoryIcon },
+      { key: `${MOD_KEY} + ⇧ + O`, description: 'Toggle table of contents', editorOnly: true, icon: TableOfContentsIcon },
+      { key: `${MOD_KEY} + .`, description: 'Toggle focus mode', editorOnly: true, icon: FocusIcon },
+      { key: `${MOD_KEY} + S`, description: 'Save writing', editorOnly: true, icon: SaveIcon },
+      { key: `${MOD_KEY} + Z`, description: 'Undo typing', editorOnly: true, icon: UndoIcon },
+      { key: `${MOD_KEY} + ⇧ + Z`, description: 'Redo typing', editorOnly: true, icon: RedoIcon },
+      { key: `${MOD_KEY} + ⌥ + Z`, description: 'Previous saved version', editorOnly: true, icon: UndoIcon },
+      { key: `${MOD_KEY} + ⌥ + ⇧ + Z`, description: 'Next saved version', editorOnly: true, icon: RedoIcon },
+      { key: `${MOD_KEY} + + / -`, description: 'Adjust font size', icon: TypeIcon },
+      { key: `${MOD_KEY} + ⇧ + P`, description: 'Command mode' },
+      { key: `${MOD_KEY} + /`, description: 'This help' },
       { key: 'F2', description: 'Rename selected writing' },
-    ].filter(Boolean)
+    ].filter((s) => s && (inEditor || !s.editorOnly))
   );
 </script>
 
@@ -57,7 +65,7 @@
     <Dialog.Header class="px-6 pt-6 pb-4 bg-muted/20 border-b border-border/20">
       <Dialog.Title class="text-xl font-normal font-writer tracking-tight">Keyboard Shortcuts</Dialog.Title>
       <Dialog.Description class="text-sm text-muted-foreground/60">
-        Master your workflow with Memorie's quick commands.
+        Master your workflow with Memoire's quick commands.
       </Dialog.Description>
     </Dialog.Header>
 

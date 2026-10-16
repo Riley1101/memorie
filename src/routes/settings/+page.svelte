@@ -576,6 +576,7 @@
                   <button
                     type="button"
                     role="switch"
+                    aria-label="Enable AI"
                     aria-checked={configManager.config?.ai_enabled ?? false}
                     onclick={handleToggleAiEnabled}
                     class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
@@ -955,6 +956,7 @@
                     <button
                       type="button"
                       role="switch"
+                      aria-label="Auto-push on exit"
                       aria-checked={configManager.config?.auto_push_on_exit ?? false}
                       onclick={() =>
                         configManager.setAutoPushOnExit(!(configManager.config?.auto_push_on_exit ?? false))}

@@ -19,10 +19,11 @@
 
 <script>
 	import { cn } from "$lib/utils.js";
+	/** @type {{ ref?: any, class?: any, children?: any, orientation?: "horizontal" | "vertical", [key: string]: any }} */
 	let {
 		ref = $bindable(null),
-		class: className,
-		children,
+		class: className = undefined,
+		children = undefined,
 		orientation = "horizontal",
 		...restProps
 	} = $props();
@@ -33,7 +34,7 @@
 	role="group"
 	data-slot="button-group"
 	data-orientation={orientation}
-	class={cn(buttonGroupVariants({ orientation }), className)}
+	class={cn(buttonGroupVariants(/** @type {any} */ ({ orientation })), className)}
 	{...restProps}
 >
 	{@render children?.()}

@@ -3,8 +3,8 @@
 	import { Menubar as MenubarPrimitive } from "bits-ui";
 	let {
 		ref = $bindable(null),
-		inset,
-		class: className,
+		inset = undefined,
+		class: className = undefined,
 		...restProps
 	} = $props();
 </script>

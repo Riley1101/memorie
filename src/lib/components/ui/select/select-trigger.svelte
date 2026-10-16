@@ -5,8 +5,8 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		children,
+		class: className = undefined,
+		children = undefined,
 		size = "default",
 		...restProps
 	} = $props();

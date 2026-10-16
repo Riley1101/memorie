@@ -1,7 +1,7 @@
 <script>
 	import * as Dialog from "$lib/components/ui/dialog/index.js";
 	import { cn } from "$lib/utils";
-	let { data, class: className } = $props();
+	let { data = undefined, class: className = undefined } = $props();
 
 	let ratio = $state(1);
 	let src = $derived(data.url ?? "");

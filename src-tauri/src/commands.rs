@@ -35,11 +35,17 @@ fn relative_dir_segments(name: &str) -> Vec<String> {
 pub async fn create_file(
     name: String,
     content: String,
+    exclusive: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
     crate::codex::ensure_not_reserved(&name, true)?;
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
+    // `create_file` doubles as autosave, so overwriting is normal; callers that
+    // mean "make a new writing" pass `exclusive` and get a clash instead.
+    if exclusive.unwrap_or(false) && path.exists() {
+        return Err(crate::error::FileError::AlreadyExists(name.clone()).to_string());
+    }
     let relative_dir = relative_dir_segments(&name);
     let result = fs::create_file(&path, &content, relative_dir).map_err(|e| e.to_string())?;
 
@@ -57,7 +63,7 @@ pub async fn update_file(
     state: State<'_, AppState>,
 ) -> Result<File, String> {
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
 
     let last_modified = std::fs::metadata(&path)
         .and_then(|m: std::fs::Metadata| m.modified())
@@ -89,7 +95,7 @@ pub async fn update_file(
 #[tauri::command]
 pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(), String> {
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
 
     let last_modified = std::fs::metadata(&path)
         .and_then(|m: std::fs::Metadata| m.modified())
@@ -160,7 +166,7 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     drop(undo_tree);
 
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
     let last_modified = std::fs::metadata(&path)
         .and_then(|m: std::fs::Metadata| m.modified())
         .ok()
@@ -194,8 +200,8 @@ pub async fn read_files(
 
     let files: Vec<File> = names
         .into_iter()
-        .map(|name| {
-            let path = content_dir.join(&name);
+        .filter_map(|name| {
+            let path = fs::resolve_in(&content_dir, &name).ok()?;
             let last_modified = std::fs::metadata(&path)
                 .and_then(|m| m.modified())
                 .ok()
@@ -203,12 +209,12 @@ pub async fn read_files(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
-            File {
+            Some(File {
                 path,
                 name,
                 last_modified,
                 folder,
-            }
+            })
         })
         .collect();
 
@@ -512,10 +518,12 @@ pub async fn create_document_context(
         .await
         .map_err(|e| e.to_string())?;
     match document_context {
-        Some(document) => {
-            let result = memory.get_dirty_document_chunk(document.id.unwrap()).await;
-            Ok(Response::success(result))
-        }
+        Some(document) => match document.get_thing_id() {
+            Some(id) => Ok(Response::success(memory.get_dirty_document_chunk(id).await)),
+            // Stored without an id: nothing to attach chunks to, and the
+            // editor only needs an empty list to carry on.
+            None => Ok(Response::success(Vec::new())),
+        },
         None => Ok(Response::success(Vec::new())),
     }
 }
@@ -542,7 +550,7 @@ pub async fn get_document_context(
                 Ok(Response::success(Vec::new()))
             }
         }
-        Err(_) => todo!(),
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -552,7 +560,7 @@ pub async fn get_document_context(
 #[tauri::command]
 pub async fn get_config(state: State<'_, AppState>) -> Result<super::config::AppConfig, String> {
     let config = state.config.lock().await;
-    Ok(serde_json::from_str(&serde_json::to_string(&*config).unwrap()).unwrap())
+    Ok(config.clone())
 }
 
 #[tauri::command]

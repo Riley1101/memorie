@@ -106,10 +106,7 @@ class AppState {
    * Increases the font size by 2px.
    */
   increaseFontSize() {
-    this.ui = {
-      ...this.ui,
-      fontSize: Math.min(this.ui.fontSize + 2, 40),
-    };
+    this.ui.fontSize = Math.min(this.ui.fontSize + 2, 40);
     if (typeof window !== 'undefined') {
       localStorage.setItem('fontSize', this.ui.fontSize.toString());
     }
@@ -121,10 +118,7 @@ class AppState {
    * Decreases the font size by 2px.
    */
   decreaseFontSize() {
-    this.ui = {
-      ...this.ui,
-      fontSize: Math.max(this.ui.fontSize - 2, 12),
-    };
+    this.ui.fontSize = Math.max(this.ui.fontSize - 2, 12);
     if (typeof window !== 'undefined') {
       localStorage.setItem('fontSize', this.ui.fontSize.toString());
     }
@@ -137,10 +131,7 @@ class AppState {
    * @param {number} size
    */
   setFontSize(size) {
-    this.ui = {
-      ...this.ui,
-      fontSize: size,
-    };
+    this.ui.fontSize = size;
     if (typeof window !== 'undefined') {
       localStorage.setItem('fontSize', size.toString());
     }
@@ -154,11 +145,7 @@ class AppState {
    * @returns {void}
    */
   toggleAiChat(state) {
-    console.debug('[DEBUG toggleAiChat] setting isChatOpen=%s', state);
-    this.ui = {
-      ...this.ui,
-      isChatOpen: state,
-    };
+    this.ui.isChatOpen = state;
   }
 
   /**
@@ -167,10 +154,7 @@ class AppState {
    * Toggles the chat history panel visibility.
    */
   toggleChatHistory() {
-    this.ui = {
-      ...this.ui,
-      isHistoryOpen: !this.ui.isHistoryOpen,
-    };
+    this.ui.isHistoryOpen = !this.ui.isHistoryOpen;
   }
 
   /**
@@ -180,10 +164,7 @@ class AppState {
    * @param {boolean} [state]
    */
   toggleOutline(state) {
-    this.ui = {
-      ...this.ui,
-      isOutlineOpen: state ?? !this.ui.isOutlineOpen,
-    };
+    this.ui.isOutlineOpen = state ?? !this.ui.isOutlineOpen;
     if (typeof window !== 'undefined') {
       localStorage.setItem('outlineOpen', String(this.ui.isOutlineOpen));
     }
@@ -195,10 +176,7 @@ class AppState {
    * @param {boolean} state - The desired state of the sidebar (open or closed).
    */
   toggleSidebar(state) {
-    this.ui = {
-      ...this.ui,
-      isSidebarOpen: state,
-    };
+    this.ui.isSidebarOpen = state;
   }
 
   /**
@@ -207,17 +185,11 @@ class AppState {
    * @param {boolean} state - The desired state of the command menu (open or closed).
    */
   toggleCommandMenu(state) {
-    this.ui = {
-      ...this.ui,
-      isCommandMenuOpen: state,
-    };
+    this.ui.isCommandMenuOpen = state;
   }
 
   toggleHelpModal(state) {
-    this.ui = {
-      ...this.ui,
-      isHelpModalOpen: state,
-    };
+    this.ui.isHelpModalOpen = state;
   }
 
   /**
@@ -239,34 +211,22 @@ class AppState {
 
   /** @param {boolean} state */
   toggleProjectSearch(state) {
-    this.ui = {
-      ...this.ui,
-      isProjectSearchOpen: state,
-    };
+    this.ui.isProjectSearchOpen = state;
   }
 
   /** @param {{ fileName: string | null, dir: string } | null} target - null closes the dialog. */
   openExport(target) {
-    this.ui = {
-      ...this.ui,
-      exportTarget: target,
-    };
+    this.ui.exportTarget = target;
   }
 
   /** @param {{ dir: string } | null} target - null closes the dialog. */
   openImport(target) {
-    this.ui = {
-      ...this.ui,
-      importTarget: target,
-    };
+    this.ui.importTarget = target;
   }
 
   /** @param {boolean} state */
   toggleNewPicker(state) {
-    this.ui = {
-      ...this.ui,
-      isNewPickerOpen: state,
-    };
+    this.ui.isNewPickerOpen = state;
   }
 
   /**
@@ -275,11 +235,8 @@ class AppState {
    */
   setTheme(preference) {
     const next = ['dark', 'light', 'system'].includes(preference) ? preference : 'system';
-    this.ui = {
-      ...this.ui,
-      themePreference: next,
-      theme: next === 'system' ? AppState.systemTheme() : next,
-    };
+    this.ui.themePreference = next;
+    this.ui.theme = next === 'system' ? AppState.systemTheme() : next;
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme', next);
     }
@@ -290,7 +247,7 @@ class AppState {
     if (this.ui.themePreference !== 'system') return;
     const resolved = AppState.systemTheme();
     if (resolved !== this.ui.theme) {
-      this.ui = { ...this.ui, theme: resolved };
+      this.ui.theme = resolved;
     }
   }
 
@@ -306,10 +263,7 @@ class AppState {
   setStyleFlavour(flavour) {
     const valid = AppState.STYLE_FLAVOURS.some((f) => f.id === flavour);
     const next = valid ? flavour : 'paper';
-    this.ui = {
-      ...this.ui,
-      styleFlavour: next,
-    };
+    this.ui.styleFlavour = next;
     if (typeof window !== 'undefined') {
       localStorage.setItem('styleFlavour', next);
     }
@@ -322,10 +276,7 @@ class AppState {
     const next = /** @type {(typeof AppState.THEME_PALETTES)[number]} */ (
       AppState.THEME_PALETTES.some((p) => p === palette) ? palette : 'default'
     );
-    this.ui = {
-      ...this.ui,
-      themePalette: next,
-    };
+    this.ui.themePalette = next;
     if (typeof window !== 'undefined') {
       localStorage.setItem('themePalette', next);
     }
@@ -338,11 +289,8 @@ class AppState {
     const next = /** @type {(typeof AppState.DENSITY_MODES)[number]} */ (
       AppState.DENSITY_MODES.some((d) => d === density) ? density : 'default'
     );
-    this.ui = {
-      ...this.ui,
-      density: next,
-      fontSize: AppState.DENSITY_FONT_SIZE[next],
-    };
+    this.ui.density = next;
+    this.ui.fontSize = AppState.DENSITY_FONT_SIZE[next];
     if (typeof window !== 'undefined') {
       localStorage.setItem('density', next);
       localStorage.setItem('fontSize', this.ui.fontSize.toString());
@@ -355,10 +303,7 @@ class AppState {
    * Increments the editor version to force a re-mount.
    */
   incrementEditorVersion() {
-    this.ui = {
-      ...this.ui,
-      editorVersion: this.ui.editorVersion + 1,
-    };
+    this.ui.editorVersion += 1;
   }
 }
 

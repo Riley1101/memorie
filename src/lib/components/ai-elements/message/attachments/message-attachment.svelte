@@ -6,7 +6,7 @@
 	import X from "@lucide/svelte/icons/x";
 	import MessageAttachmentPreview from "./message-attachment-preview.svelte";
 
-	let { data, class: className, onRemove, ...restProps } = $props();
+	let { data = undefined, class: className = undefined, onRemove = undefined, ...restProps } = $props();
 
 	let filename = $derived(data.filename || "");
 	let isImage = $derived(!!data.url && !!data.mediaType?.startsWith("image/"));

@@ -241,6 +241,8 @@
   onkeydown={onKeydown}
 >
   <div class="flex items-start gap-3">
+    <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+    <!-- svelte-ignore a11y_autofocus -->
     <input
       bind:value={draft.name}
       placeholder="Name"

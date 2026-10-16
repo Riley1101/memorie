@@ -145,6 +145,7 @@ class FileManager {
     } catch (err) {
       console.error(err);
       this.errorMessage = `Failed to discover binders: ${err}`;
+      toast.error('Could not load binders', err);
     }
   }
 
@@ -159,6 +160,7 @@ class FileManager {
     } catch (err) {
       console.error(err);
       this.errorMessage = `Failed to discover folders: ${err}`;
+      toast.error('Could not load folders', err);
     }
   }
 
@@ -264,7 +266,7 @@ class FileManager {
     this.errorMessage = '';
 
     try {
-      await invoke('create_file', { name: finalFileName, content });
+      await invoke('create_file', { name: finalFileName, content, exclusive: true });
       await this.getRecents();
       if (subPath.length) await this.getFolders();
       return finalFileName;
@@ -317,7 +319,9 @@ class FileManager {
    * @returns {Promise<void>}
    */
   async createFileAt(fullName, content) {
-    await invoke('create_file', { name: fullName, content });
+    // `exclusive`: a new writing must never land on top of an existing one,
+    // even if our last listing missed it (a sync pulled it in, say).
+    await invoke('create_file', { name: fullName, content, exclusive: true });
     await this.getRecents();
     if (dirOf(fullName)) await this.getFolders();
   }
@@ -406,6 +410,9 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to undo last change for file "${fileName}": ${err}`;
       console.error(err);
+      toast.error('Could not go back a version', err);
+    } finally {
+      this.isLoading = false;
     }
   }
 
@@ -424,6 +431,9 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to redo last undone change for file "${fileName}": ${err}`;
       console.error(err);
+      toast.error('Could not go forward a version', err);
+    } finally {
+      this.isLoading = false;
     }
   }
 
@@ -439,6 +449,10 @@ class FileManager {
 
     try {
       await invoke('delete_file', { name: fileName });
+      if (this.currentFile?.name === fileName) {
+        this.currentFile = null;
+        this.currentContent = '';
+      }
       await this.getRecents();
     } catch (err) {
       this.errorMessage = `Failed to delete file "${fileName}": ${err}`;
@@ -519,8 +533,23 @@ class FileManager {
       return null;
     }
 
-    await this.renameBinder(oldPath, newPath);
-    return this.folders.includes(newPath) ? newPath : null;
+    // Same backend call as a rename, but the writer asked for a move, so say so.
+    this.isLoading = true;
+    this.errorMessage = '';
+    try {
+      await invoke('rename_binder', { oldName: oldPath, newName: newPath });
+      await this.getBinders();
+      await this.getRecents();
+      await this.getFolders();
+      return this.folders.includes(newPath) ? newPath : null;
+    } catch (err) {
+      this.errorMessage = `Failed to move "${oldPath}": ${err}`;
+      console.error(err);
+      toast.error(`Could not move "${base}"`, err);
+      return null;
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   /**
@@ -559,7 +588,10 @@ class FileManager {
       for (const f of this.filesUnder(path)) {
         await invoke('delete_file', { name: f.name });
       }
-      const nested = this.foldersUnder(path).sort((a, b) => b.length - a.length);
+      // Deepest first, so a folder is only removed once it is empty. Depth is
+      // the segment count; string length is not a stand-in for it.
+      const depth = (p) => p.split('/').length;
+      const nested = this.foldersUnder(path).sort((a, b) => depth(b) - depth(a));
       for (const f of nested) {
         await invoke('delete_folder', { relativePath: f });
       }

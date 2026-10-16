@@ -4,12 +4,14 @@
 	let {
 		defaultBranch = 0,
 		onBranchChange,
-		class: className,
-		children,
+		class: className = undefined,
+		children = undefined,
 		...restProps
 	} = $props();
 
-	// Create the branch context class
+	// Create the branch context class. `defaultBranch` is a starting value by
+	// definition, so reading it once here is the intent.
+	// svelte-ignore state_referenced_locally
 	const branchContext = new MessageBranchClass(defaultBranch);
 
 	// Set up the context
@@ -17,6 +19,7 @@
 
 	// Watch for branch changes and call the callback
 	// Using $derived to track changes without $effect
+	// svelte-ignore state_referenced_locally
 	let previousBranch = $state(defaultBranch);
 
 	$effect.pre(() => {

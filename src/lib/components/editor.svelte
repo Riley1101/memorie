@@ -255,9 +255,17 @@
 
       return () => {
         flushScan();
-        if (editorInstance) {
+        const dying = editorInstance;
+        if (dying) {
           editorInstance = null;
           isReady = false;
+          // Milkdown holds a ProseMirror view, plugin state and DOM listeners;
+          // without this they outlive every document switch and every remount
+          // (font size, style flavour, restore from history).
+          Promise.resolve(dying.destroy()).catch((e) =>
+            console.error('Editor teardown failed:', e)
+          );
+          if (editorState.editor === dying) editorState.setEditor(null);
         }
         if (editorState.flushSave === flushSave) {
           editorState.flushSave = null;
@@ -299,10 +307,16 @@
   class:large-doc={largeDoc}
   style="font-size: {appState.ui.fontSize}px;"
 >
+  <!--
+    ProseMirror mounts its own focusable contenteditable inside this div, so the
+    wrapper must not be a tab stop or claim a textbox role of its own. The click
+    handler only intercepts links; keyboard users follow them from the caret, so
+    there is no keyboard handler to pair with it.
+  -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     use:editorAttachment={defaultValue}
-    role="textbox"
-    tabindex="0"
     spellcheck={writingState.spellcheck}
     class="outline-none focus:outline-none focus-visible:outline-none"
     onclick={(e) => {
@@ -325,10 +339,6 @@
     position: relative;
     padding-top: var(--writer-editor-pt, 0.5rem);
     padding-bottom: var(--writer-editor-pb, 50vh);
-  }
-
-  main :global([role='textbox']) {
-    outline: none;
   }
 
   main :global(.milkdown) {

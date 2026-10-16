@@ -6,7 +6,7 @@
 		api = $bindable(null),
 		ref = $bindable(null),
 		value = $bindable(""),
-		class: className,
+		class: className = undefined,
 		...restProps
 	} = $props();
 </script>

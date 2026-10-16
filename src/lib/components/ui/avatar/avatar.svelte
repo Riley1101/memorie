@@ -8,7 +8,7 @@
 
   let {
     ref = $bindable(null),
-    class: className,
+    class: className = undefined,
     ...restProps
   }: AvatarPrimitive.RootProps = $props();
 </script>

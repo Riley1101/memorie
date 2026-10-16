@@ -17,7 +17,7 @@ pub enum SyncProvider {
     Dropbox,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AppConfig {
     pub content_directory: PathBuf,
     pub undotree_dir: PathBuf,

@@ -6,8 +6,8 @@
 		ref = $bindable(null),
 		checked = $bindable(false),
 		indeterminate = $bindable(false),
-		class: className,
-		inset,
+		class: className = undefined,
+		inset = undefined,
 		children: childrenProp,
 		...restProps
 	} = $props();

@@ -310,7 +310,10 @@
     invoke('read_files', { names })
       .then((/** @type {[string, { Ok?: string } | string][]} */ results) => {
         if (cancelled) return;
+        // Built here, then assigned to `statusOf` in one go: the assignment is
+        // what readers react to, so a reactive Map would only add overhead.
         /** @type {Map<string, string>} */
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         const next = new Map();
         for (const [name, result] of results) {
           const content = typeof result === 'string' ? result : result?.Ok;
@@ -329,7 +332,9 @@
 
   /** Statuses in use in this scope, with how many writings have each. */
   let statusCounts = $derived.by(() => {
+    // Local to this $derived.by and returned as a sorted array, never as a Map.
     /** @type {Map<string, { label: string, count: number }>} */
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const counts = new Map();
     for (const status of statusOf.values()) {
       const key = status.toLowerCase();
@@ -362,6 +367,9 @@
 
   /** @param {string} path */
   function toggleExcluded(path) {
+    // Copy-on-write: `excluded` is replaced, not mutated, and that replacement
+    // is what notifies readers.
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const next = new Set(excluded);
     if (next.has(path)) next.delete(path);
     else next.add(path);

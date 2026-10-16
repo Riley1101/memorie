@@ -1,7 +1,7 @@
 <script>
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import { cn } from '$lib/utils.js';
-  let { ref = $bindable(null), class: className, children, ...restProps } = $props();
+  let { ref = $bindable(null), class: className = undefined, children = undefined, ...restProps } = $props();
 </script>
 
 <li

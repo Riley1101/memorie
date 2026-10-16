@@ -26,13 +26,14 @@
 	import { cn } from "$lib/utils.js";
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: className = undefined,
 		child,
 		variant,
 		size,
 		...restProps
 	} = $props();
 
+	/** @type {any} */
 	const mergedProps = $derived({
 		class: cn(itemVariants({ variant, size }), className),
 		"data-slot": "item",

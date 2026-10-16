@@ -42,9 +42,44 @@ pub struct AppState {
     workers: LlmEventService,
 }
 
+/// How long the exit path waits for the editor to write out unsaved text.
+/// Long enough for a large document, short enough that a wedged webview can
+/// never hold the window open.
+const FLUSH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Asks the frontend to write out anything still sitting in the autosave
+/// debounce, and waits for it to confirm. Without this, quitting inside the
+/// debounce window loses the last few seconds of typing — and the auto-push
+/// below would then commit the stale file.
+async fn flush_unsaved(app_handle: &tauri::AppHandle) {
+    use tauri::{Emitter, Listener};
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let tx = std::sync::Mutex::new(Some(tx));
+    let handler = app_handle.once("memoire://flushed", move |_| {
+        if let Ok(mut slot) = tx.lock() {
+            if let Some(tx) = slot.take() {
+                let _ = tx.send(());
+            }
+        }
+    });
+
+    if app_handle.emit("memoire://flush-before-exit", ()).is_err() {
+        app_handle.unlisten(handler);
+        return;
+    }
+
+    if tokio::time::timeout(FLUSH_TIMEOUT, rx).await.is_err() {
+        eprintln!("Editor did not confirm its last save before exit; continuing.");
+        app_handle.unlisten(handler);
+    }
+}
+
 /// Pushes writing to the preferred remote when auto-push on exit is turned on.
 /// Runs when the main window closes, and before an update is installed.
 async fn run_exit_tasks(app_handle: &tauri::AppHandle) {
+    flush_unsaved(app_handle).await;
+
     let state = app_handle.state::<AppState>();
     // Only the preferred storage pushes on exit, so closing
     // the app never fans the same writing out to two remotes.
@@ -106,57 +141,117 @@ fn restart_app(app_handle: tauri::AppHandle) {
     app_handle.restart();
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub async fn run() {
-    let home_dir = utils::get_app_dir()
-        .expect("Failed to get home directory")
+/// Everything `setup` needs that can fail before there is a window to report
+/// the failure in.
+struct Startup {
+    config: AppConfig,
+    undo_tree: UndoTree,
+    model: Model,
+    memory: Memory,
+    manifest: std::path::PathBuf,
+}
+
+/// Loads the config, version history and note database. Returns a message fit
+/// to show the user rather than panicking: a corrupt config or database used
+/// to kill the process with no window and no explanation.
+async fn load_startup() -> Result<Startup, String> {
+    let config_path = utils::get_app_dir()
+        .map_err(|e| format!("Could not find your application data folder: {e}"))?
         .join("config.yaml");
 
-    let config_path_str = home_dir.to_str().expect("Config path is not valid UTF-8");
+    let config_path_str = config_path
+        .to_str()
+        .ok_or_else(|| format!("The config path {} is not valid UTF-8.", config_path.display()))?;
 
-    if let Err(e) = config::AppConfig::init_default_config(config_path_str) {
-        eprintln!("Failed to initialize config: {}", e);
-        panic!("Failed to initialize config: {}", e);
-    }
+    config::AppConfig::init_default_config(config_path_str)
+        .map_err(|e| format!("Could not create {}: {e}", config_path.display()))?;
 
-    let app_config = config::AppConfig::load(config_path_str)
-        .expect("Failed to load config after initialization");
+    let config = config::AppConfig::load(config_path_str)
+        .map_err(|e| format!("Could not read {}: {e}", config_path.display()))?;
 
-    let memory_instance = Memory::new()
+    let memory = Memory::new()
         .await
-        .expect("Failed to initialize memory database");
+        .map_err(|e| format!("Could not open the note database: {e}"))?;
 
-    #[cfg(debug_assertions)]
-    let devtools = tauri_plugin_devtools::init();
-
-    let watch_dir = app_config.content_directory.clone();
-
-    let undo_tree = UndoTree::load(&app_config.undotree_dir).unwrap_or_else(|e| {
+    // History is the one piece we can do without: carry on, saying so.
+    let undo_tree = UndoTree::load(&config.undotree_dir).unwrap_or_else(|e| {
         eprintln!(
             "Could not open version history at {}: {e}. History will not be kept this session.",
-            app_config.undotree_dir.display()
+            config.undotree_dir.display()
         );
         UndoTree::new()
     });
 
-    let default_model_path = app_config.default_llm_model.clone();
+    let manifest = utils::get_app_dir()
+        .map_err(|e| format!("Could not find your application data folder: {e}"))?
+        .join("db/index-manifest.json");
 
-    let model = Model::new(default_model_path);
+    let model = Model::new(config.default_llm_model.clone());
+
+    Ok(Startup {
+        config,
+        undo_tree,
+        model,
+        memory,
+        manifest,
+    })
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub async fn run() {
+    let startup = load_startup().await;
+
+    #[cfg(debug_assertions)]
+    let devtools = tauri_plugin_devtools::init();
+
+    let watch_dir = startup
+        .as_ref()
+        .ok()
+        .map(|s| s.config.content_directory.clone());
+
+    let mut startup = Some(startup);
 
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
+            let startup = match startup.take().expect("setup runs once") {
+                Ok(startup) => startup,
+                Err(message) => {
+                    // The dialog plugin is up by now, so the writer gets a
+                    // reason instead of an icon that bounces and vanishes.
+                    eprintln!("Startup failed: {message}");
+
+                    // No state was managed, so the window has nothing to talk
+                    // to; close it rather than show an empty frame.
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.close();
+                    }
+
+                    // `blocking_show` freezes whatever thread it is on, and
+                    // setup runs on the main one, so the dialog gets its own.
+                    let handle = app.handle().clone();
+                    std::thread::spawn(move || {
+                        use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+                        handle
+                            .dialog()
+                            .message(format!("{message}\n\nMemoire cannot start."))
+                            .kind(MessageDialogKind::Error)
+                            .title("Memoire could not start")
+                            .blocking_show();
+                        std::process::exit(1);
+                    });
+                    return Ok(());
+                }
+            };
+
             let app_handle = app.handle().clone();
             let app_state = AppState {
-                config: Mutex::new(app_config),
-                undotree: Mutex::new(undo_tree),
-                model: Mutex::new(model),
-                memory: memory_instance,
-                indexer: indexer::Indexer::new(
-                    utils::get_app_dir()
-                        .expect("Failed to get app directory")
-                        .join("db/index-manifest.json"),
-                ),
+                config: Mutex::new(startup.config),
+                undotree: Mutex::new(startup.undo_tree),
+                model: Mutex::new(startup.model),
+                memory: startup.memory,
+                indexer: indexer::Indexer::new(startup.manifest),
                 workers: LlmEventService::new(app_handle),
             };
             app.manage(app_state);
@@ -183,13 +278,14 @@ pub async fn run() {
 
             // Keeps the note index current when notes change on disk. The frontend
             // asks for a first pass on startup.
-            let watch_dir = watch_dir; // moved in: setup outlives `run`'s locals
-            if let Err(e) = app
-                .state::<AppState>()
-                .indexer
-                .watch(app.handle(), &watch_dir)
-            {
-                eprintln!("Could not watch {} for changes: {e}", watch_dir.display());
+            if let Some(watch_dir) = watch_dir.clone() {
+                if let Err(e) = app
+                    .state::<AppState>()
+                    .indexer
+                    .watch(app.handle(), &watch_dir)
+                {
+                    eprintln!("Could not watch {} for changes: {e}", watch_dir.display());
+                }
             }
 
             if let Some(window) = app.get_webview_window("main") {
@@ -208,6 +304,11 @@ pub async fn run() {
                         let app_handle = app_handle.clone();
                         let window = window_for_close.clone();
                         tauri::async_runtime::spawn(async move {
+                            // The push can take seconds on a slow network; let
+                            // the window say so instead of just sitting there.
+                            use tauri::Emitter;
+                            let _ = app_handle.emit("memoire://closing", ());
+
                             run_exit_tasks(&app_handle).await;
 
                             let _ = window.close();
@@ -227,7 +328,6 @@ pub async fn run() {
     builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_recents,
             commands::create_file,

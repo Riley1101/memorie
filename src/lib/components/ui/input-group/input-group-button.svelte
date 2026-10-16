@@ -21,9 +21,10 @@
   import { cn } from '$lib/utils.js';
   import { Button } from '$lib/components/ui/button/index.js';
 
+  /** @type {{ class?: any, children?: any, type?: any, variant?: any, size?: "xs" | "sm" | "icon-xs" | "icon-sm", [key: string]: any }} */
   let {
-    class: className,
-    children,
+    class: className = undefined,
+    children = undefined,
     type = 'button',
     variant = 'ghost',
     size = 'xs',
@@ -33,7 +34,7 @@
 
 <Button
   {type}
-  data-size={size}
+  data-size={/** @type {any} */ (size)}
   {variant}
   class={cn(inputGroupButtonVariants({ size }), className)}
   {...restProps}

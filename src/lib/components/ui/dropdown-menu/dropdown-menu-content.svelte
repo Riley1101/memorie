@@ -5,8 +5,8 @@
 	let {
 		ref = $bindable(null),
 		sideOffset = 4,
-		portalProps,
-		class: className,
+		portalProps = undefined,
+		class: className = undefined,
 		...restProps
 	} = $props();
 </script>

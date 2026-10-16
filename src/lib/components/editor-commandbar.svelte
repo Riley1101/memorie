@@ -224,9 +224,11 @@
       key: '',
     },
     {
-      cmd: ':b',
-      description: 'Go Home',
-      action: 'sidebar',
+      cmd: ':home',
+      // ":b" was the old name, from when this toggled a sidebar.
+      aliases: ['b'],
+      description: 'Go home',
+      action: 'home',
       shortcutLabel: `${MOD_KEY}⇧H`,
       key: 'h',
       shift: true,
@@ -267,11 +269,13 @@
       const term = input.toLowerCase();
       const searchTerm = term.startsWith(':') ? term.slice(1) : term;
 
-      // Tier 1: Direct matches (command string starts with term or searchTerm)
+      // Tier 1: Direct matches (command string starts with term or searchTerm).
+      // Old names count too, so ":b" and ":push" still find what they renamed to.
       const directMatches = commands.filter(
         (cmd) =>
           cmd.cmd.toLowerCase().startsWith(term) ||
-          cmd.cmd.toLowerCase().slice(1).startsWith(searchTerm)
+          cmd.cmd.toLowerCase().slice(1).startsWith(searchTerm) ||
+          cmd.aliases?.some((a) => a.toLowerCase().startsWith(searchTerm))
       );
 
       // Tier 2: Description matches (description contains searchTerm)
@@ -360,7 +364,9 @@
         writingState.setAutoPair(!writingState.autoPair);
         toast.info(writingState.autoPair ? 'Auto-closing brackets on' : 'Auto-closing brackets off');
         break;
-      case 'sidebar':
+      case 'home':
+        // Leaving the document: make sure the last words are on disk first.
+        await onSave();
         goto(resolve('/'));
         break;
       case 'aichat':
@@ -521,6 +527,16 @@
         }
       }
 
+      // Shortcuts belong to the document. In a text field (the chat box, the
+      // title, a dialog's input) the writer is typing, not driving panels —
+      // only Save is still meant to work there.
+      const inTextField =
+        !inEditor &&
+        !!target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable);
+
       // 2. Handle Shortcuts
       if (isMod(e) && !isCommandMode) {
         // Trigger Command Mode with Cmd/Ctrl+Shift+P (standard command palette shortcut)
@@ -541,6 +557,7 @@
             !!c.shift === e.shiftKey &&
             !!c.alt === e.altKey
         );
+        if (match && inTextField && match.action !== 'save') return;
         if (match) {
           e.preventDefault();
           e.stopPropagation();

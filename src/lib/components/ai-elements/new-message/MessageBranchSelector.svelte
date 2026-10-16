@@ -2,7 +2,7 @@
 	import { cn } from "$lib/utils";
 	import { getMessageBranchContext } from "./message-context.svelte.js";
 	import * as ButtonGroup from "$lib/components/ui/button-group/index.js";
-	let { class: className, children, ...restProps } = $props();
+	let { class: className = undefined, children = undefined, ...restProps } = $props();
 
 	const branchContext = getMessageBranchContext();
 

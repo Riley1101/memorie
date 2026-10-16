@@ -2,7 +2,7 @@
 	import { cn } from "$lib/utils";
 	// import * as Select from "$lib/components/ui/select/index.js";
 
-	let { class: className, placeholder, value, ...props } = $props();
+	let { class: className = undefined, placeholder, value = undefined, ...props } = $props();
 </script>
 
 <!-- There is no Select Value in Shadcn Svelte so it convert into a div with placeholder content inside it -->

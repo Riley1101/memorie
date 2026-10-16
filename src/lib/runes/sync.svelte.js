@@ -112,7 +112,10 @@ export async function publish() {
     return true;
   }
 
-  await gitManager.commitAndPush(`Update writing — ${new Date().toLocaleString()}`);
+  // A timestamp for the commit message, read once and thrown away.
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
+  const stamp = new Date().toLocaleString();
+  await gitManager.commitAndPush(`Update writing — ${stamp}`);
   if (gitManager.pushResult === 'error') {
     toast.error('Publish failed', gitManager.error);
     return false;

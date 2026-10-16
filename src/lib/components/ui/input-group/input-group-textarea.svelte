@@ -1,7 +1,7 @@
 <script>
   import { cn } from '$lib/utils.js';
   import { Textarea } from '$lib/components/ui/textarea/index.js';
-  let { value = $bindable(), class: className, ...props } = $props();
+  let { value = $bindable(), class: className = undefined, ...props } = $props();
 </script>
 
 <Textarea

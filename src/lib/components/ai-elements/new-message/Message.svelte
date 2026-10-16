@@ -1,6 +1,6 @@
 <script>
 	import { cn } from "$lib/utils";
-	let { from, class: className, children, ...restProps } = $props();
+	let { from, class: className = undefined, children = undefined, ...restProps } = $props();
 </script>
 
 <div

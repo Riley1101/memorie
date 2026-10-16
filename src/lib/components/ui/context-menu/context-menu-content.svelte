@@ -4,8 +4,8 @@
 	import ContextMenuPortal from "./context-menu-portal.svelte";
 	let {
 		ref = $bindable(null),
-		portalProps,
-		class: className,
+		portalProps = undefined,
+		class: className = undefined,
 		...restProps
 	} = $props();
 </script>

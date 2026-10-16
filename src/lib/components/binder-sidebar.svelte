@@ -244,6 +244,8 @@
     <div class="px-2 pb-1.5 shrink-0">
       <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem]">
         <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           bind:value={newBinderName}
           type="text"

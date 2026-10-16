@@ -219,6 +219,8 @@
     {#if isRenamingFolder}
       <span class="size-4 shrink-0"></span>
       <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+      <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         value={folderRenameValue}
         oninput={(e) => (folderRenameValue = e.currentTarget.value)}
@@ -367,6 +369,8 @@
         >
           <span class="size-4 shrink-0"></span>
           <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+          <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+          <!-- svelte-ignore a11y_autofocus -->
           <input
             value={draft.name}
             oninput={(e) => onDraftInput(e.currentTarget.value)}
@@ -425,6 +429,8 @@
       <div class="flex items-center gap-2 flex-1 min-w-0">
         <span class="size-4 shrink-0"></span>
         <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           value={renameValue}
           oninput={(e) => (renameValue = e.currentTarget.value)}

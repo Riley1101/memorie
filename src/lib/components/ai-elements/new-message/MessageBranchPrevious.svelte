@@ -3,7 +3,7 @@
 	import { getMessageBranchContext } from "./message-context.svelte.js";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
-	let { class: className, children, ...restProps } = $props();
+	let { class: className = undefined, children = undefined, ...restProps } = $props();
 
 	const branchContext = getMessageBranchContext();
 

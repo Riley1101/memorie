@@ -18,10 +18,12 @@
 
 <script>
 	import { cn } from "$lib/utils.js";
+	/** @type {{ ref?: any, class?: any, children?: any, variant?: "default" | "icon" | "image", [key: string]: any }} */
 	let {
 		ref = $bindable(null),
-		class: className,
-		children,
+		class: className = undefined,
+		children = undefined,
+		/** @type {"default" | "icon" | "image"} */
 		variant = "default",
 		...restProps
 	} = $props();
@@ -31,7 +33,7 @@
 	bind:this={ref}
 	data-slot="item-media"
 	data-variant={variant}
-	class={cn(itemMediaVariants({ variant }), className)}
+	class={cn(itemMediaVariants(/** @type {any} */ ({ variant })), className)}
 	{...restProps}
 >
 	{@render children?.()}

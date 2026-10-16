@@ -444,6 +444,8 @@
           <div class="flex items-center gap-2 py-2.5">
             <span class="size-4 shrink-0"></span>
             <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+            <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+            <!-- svelte-ignore a11y_autofocus -->
             <input
               value={draft.name}
               oninput={(e) => handleDraftInput(e.currentTarget.value)}
@@ -522,6 +524,8 @@
                   <div class="size-10 rounded-xl {tint.tile} flex items-center justify-center shrink-0">
                     <FileIcon class="size-4" strokeWidth={1.5} />
                   </div>
+                  <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+                  <!-- svelte-ignore a11y_autofocus -->
                   <input
                     value={renameValue}
                     oninput={(e) => (renameValue = e.currentTarget.value)}

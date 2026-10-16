@@ -5,7 +5,7 @@
   let {
     ref = $bindable(null),
     this: paneGroup = $bindable(),
-    class: className,
+    class: className = undefined,
     ...restProps
   } = $props();
 </script>
@@ -14,5 +14,5 @@
   bind:this={paneGroup}
   data-slot="resizable-pane-group"
   class={cn('flex h-full w-full data-[direction=vertical]:flex-col', className)}
-  {...restProps}
+  {.../** @type {any} */ (restProps)}
 />
