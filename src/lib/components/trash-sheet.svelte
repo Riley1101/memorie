@@ -63,7 +63,7 @@
       <Dialog.Title class="text-xl font-normal font-writer tracking-tight">
         Recently deleted
       </Dialog.Title>
-      <Dialog.Description class="text-sm text-muted-foreground/70">
+      <Dialog.Description class="text-sm text-muted-foreground">
         Deleted writings stay here for {RETENTION_DAYS} days, then go for good.
       </Dialog.Description>
     </Dialog.Header>
@@ -71,14 +71,14 @@
     <div class="max-h-[60vh]">
       <ScrollArea class="max-h-[60vh]">
         {#if !trashManager.hasLoaded && trashManager.isLoading}
-          <p class="px-6 py-10 text-center text-sm text-muted-foreground/60">Reading the trash…</p>
+          <p class="px-6 py-10 text-center text-sm text-muted-foreground">Reading the trash…</p>
         {:else if trashManager.entries.length === 0}
           <div class="flex flex-col items-center gap-3 px-6 py-14 text-center">
             <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center">
               <Trash2Icon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
             </div>
             <p class="font-writer text-lg">Nothing deleted</p>
-            <p class="max-w-xs text-sm text-muted-foreground/60">
+            <p class="max-w-xs text-sm text-muted-foreground">
               Anything you delete waits here, so a mis-click is never the end of a draft.
             </p>
           </div>
@@ -88,13 +88,13 @@
               {@const where = dirOf(entry.original_path)}
               <li class="flex items-center gap-3 rounded-lg px-4 py-2.5 hover:bg-muted/30">
                 {#if entry.kind === 'folder'}
-                  <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground/50" />
+                  <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground" />
                 {:else}
-                  <FileIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground/50" />
+                  <FileIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground" />
                 {/if}
                 <div class="min-w-0 flex-1">
                   <p class="truncate font-writer text-base">{label(entry.original_path)}</p>
-                  <p class="flex items-center gap-2 font-mono text-[0.6875rem] text-metadata">
+                  <p class="flex items-center gap-2 tabular-nums text-[0.6875rem] text-metadata">
                     {#if where}<span class="truncate">{where}</span><span class="opacity-30">•</span>{/if}
                     {#if entry.kind === 'folder'}
                       <span>{entry.item_count} writing{entry.item_count === 1 ? '' : 's'}</span>
@@ -132,7 +132,7 @@
 
     {#if trashManager.entries.length > 0}
       <div class="flex items-center justify-between gap-3 border-t border-border/20 px-6 py-3">
-        <p class="text-xs text-muted-foreground/60">
+        <p class="text-xs text-muted-foreground">
           {trashManager.entries.length} item{trashManager.entries.length === 1 ? '' : 's'}
         </p>
         <Button variant="ghost" size="sm" onclick={emptyAll} disabled={isEmptying}>

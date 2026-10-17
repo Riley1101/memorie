@@ -185,18 +185,18 @@
                   class="mt-2 flex-1 text-left font-writer text-sm leading-snug rounded-md -mx-1 px-1 hover:bg-muted/40"
                 >
                   {#if !card && loading}
-                    <span class="text-muted-foreground/50">…</span>
+                    <span class="text-muted-foreground">…</span>
                   {:else if card?.meta.synopsis}
                     <span class="line-clamp-5 whitespace-pre-line">{card.meta.synopsis}</span>
                   {:else if card?.excerpt}
-                    <span class="line-clamp-4 italic text-muted-foreground/70">{card.excerpt}</span>
+                    <span class="line-clamp-4 italic text-muted-foreground">{card.excerpt}</span>
                   {:else}
-                    <span class="text-muted-foreground/50">Add a synopsis</span>
+                    <span class="text-muted-foreground">Add a synopsis</span>
                   {/if}
                 </button>
               {/if}
 
-              <div class="mt-2 flex items-center justify-between font-mono text-[0.6875rem] text-metadata tabular-nums">
+              <div class="mt-2 flex items-center justify-between text-[0.6875rem] text-metadata tabular-nums">
                 <span class="flex items-center gap-1.5">
                   {#if card}
                     <span>{formatDate(card.modified)}</span>

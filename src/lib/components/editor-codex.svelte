@@ -59,13 +59,13 @@
       {/each}
     </div>
   {:else}
-    <p class="px-1 text-[0.75rem] text-muted-foreground/60">
+    <p class="px-1 text-[0.75rem] text-muted-foreground">
       {entities.length ? 'No codex entries mentioned yet.' : 'No codex entries yet.'}
     </p>
   {/if}
   <button
     onclick={() => openCodex({ binder, new: 'character' })}
-    class="mt-2 flex items-center gap-1 px-1 text-[0.75rem] text-muted-foreground/70 hover:text-foreground"
+    class="mt-2 flex items-center gap-1 px-1 text-[0.75rem] text-muted-foreground hover:text-foreground"
   >
     <PlusIcon strokeWidth={1.5} class="size-3" /> New entry
   </button>

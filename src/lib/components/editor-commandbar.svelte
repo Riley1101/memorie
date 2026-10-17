@@ -16,6 +16,7 @@
   import UndoIcon from '@lucide/svelte/icons/undo-2';
   import RedoIcon from '@lucide/svelte/icons/redo-2';
   import HouseIcon from '@lucide/svelte/icons/house';
+  import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import HelpIcon from '@lucide/svelte/icons/help-circle';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import { startNewWriting } from '$lib/new-writing.js';
@@ -634,9 +635,6 @@
 </script>
 
 <div class="relative bg-titlebar-background z-40 command-bar">
-  <div
-    class="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-border to-transparent"
-  ></div>
 
   {#if isCommandMode && suggestions.length > 0}
     <div
@@ -664,7 +662,7 @@
             </div>
             {#if suggestion.shortcutLabel}
               <kbd
-                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[0.625rem] font-medium text-muted-foreground opacity-100"
+                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 tabular-nums text-[0.6875rem] font-medium text-muted-foreground opacity-100"
               >
                 {suggestion.shortcutLabel}
               </kbd>
@@ -691,24 +689,29 @@
       />
     </div>
   {:else}
-    <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] font-mono">
+    <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] tabular-nums">
       <!-- File/version state -->
-      <div class="flex items-center gap-3 px-3.5 text-muted-foreground/80 shrink-0">
-        <span class="tracking-wide">
-          {isDraft ? 'DRAFT' : appState.ui.isHistoryOpen ? 'HISTORY' : `v${currentVersion}`}
-        </span>
+      <div class="flex items-center gap-3 px-3.5 text-muted-foreground shrink-0">
+        <!-- 0 means no saved version yet; "v0" read as a bug, not a state. -->
+        {#if isDraft}
+          <span>Draft</span>
+        {:else if appState.ui.isHistoryOpen}
+          <span>History</span>
+        {:else if currentVersion > 0}
+          <span title="Saved versions are in the history panel ({MOD_KEY}U)">Version {currentVersion}</span>
+        {/if}
         {#if fileName}
           <EditorStats {fileName} {isDraft} />
         {/if}
         {#if zoomPercent !== 100}
-          <span class="tracking-wide">{zoomPercent}%</span>
+          <span>{zoomPercent}%</span>
         {/if}
       </div>
 
       <div class="flex-1"></div>
 
       <!-- Shortcut icons: hover for label + keys -->
-      <div class="hidden md:flex items-center gap-1 px-2 text-muted-foreground/60 shrink-0">
+      <div class="hidden md:flex items-center gap-1 px-2 text-muted-foreground shrink-0">
         <Tooltip.Root>
           <Tooltip.Trigger>
             {#snippet child({ props })}
@@ -824,7 +827,7 @@
         <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
           <Dialog.Header class="">
             <Dialog.Title class="text-xl font-normal font-writer">Set up local AI</Dialog.Title>
-            <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+            <Dialog.Description class="text-base text-muted-foreground pt-2">
               Memoire runs AI entirely on your machine. The first time it needs to download a
               language model (about 1.5 GB). Nothing you write leaves this device.
             </Dialog.Description>
@@ -855,8 +858,9 @@
               variant="ghost"
               size="icon"
               class="h-7 w-7 rounded-none md:hidden shrink-0"
+              aria-label="More commands"
             >
-              <HouseIcon strokeWidth={1.5} class="size-3.5" />
+              <EllipsisIcon strokeWidth={1.5} class="size-3.5" />
             </Button>
           {/snippet}
         </DropdownMenu.Trigger>
@@ -866,7 +870,7 @@
               <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)} class="" inset={false}>
                 <div class="flex items-center gap-2 flex-1">
                   <qCmd.icon strokeWidth={1.5} class="size-3.5" />
-                  <span class="font-mono text-sm">{qCmd.description}</span>
+                  <span class="tabular-nums text-sm">{qCmd.description}</span>
                 </div>
                 <DropdownMenu.Shortcut class="">{qCmd.shortcutLabel}</DropdownMenu.Shortcut>
               </DropdownMenu.Item>

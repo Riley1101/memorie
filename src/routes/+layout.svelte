@@ -200,7 +200,7 @@
       ? `theme-${appState.ui.themePalette}`
       : ''} style-{appState.ui.styleFlavour} density-{appState.ui.density} {onMacOS
       ? 'platform-mac'
-      : ''} font-sans font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
+      : ''} font-sans font-normal w-full h-dvh bg-background text-foreground overflow-hidden relative"
   >
     {#if onMacOS}
       <!-- Overlay title bar: this strip is what the user grabs to move the window. -->
@@ -212,7 +212,7 @@
     {@render children()}
     {#if isClosing}
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-background"
         role="status"
         aria-live="polite"
       >

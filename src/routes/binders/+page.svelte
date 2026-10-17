@@ -128,7 +128,7 @@
           {#each fileManager.binders as binder (binder)}
             {@const count = binderWritingCount(binder)}
             <div class="flex items-center gap-3 p-4 rounded-lg bg-muted/20 border border-border/50">
-              <FolderIcon strokeWidth={1.5} class="size-4 text-muted-foreground/50 shrink-0" />
+              <FolderIcon strokeWidth={1.5} class="size-4 text-muted-foreground shrink-0" />
 
               {#if renamingBinder === binder}
                 <Input
@@ -179,7 +179,7 @@
           {:else}
             <div class="flex flex-col items-center justify-center py-32 text-center gap-3">
               <FolderIcon strokeWidth={1.5} class="size-10 text-muted-foreground/30" />
-              <p class="text-muted-foreground/60">No binders yet. Create one above.</p>
+              <p class="text-muted-foreground">No binders yet. Create one above.</p>
             </div>
           {/each}
         </div>
@@ -192,7 +192,7 @@
   <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
       <Dialog.Title class="text-xl font-normal font-writer">Delete Binder</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+      <Dialog.Description class="text-base text-muted-foreground pt-2">
         {#if binderToDelete && binderWritingCount(binderToDelete) > 0}
           <span class="font-bold text-foreground">"{binderToDelete}"</span> still has {binderWritingCount(binderToDelete)}
           writing{binderWritingCount(binderToDelete) === 1 ? '' : 's'} in it. Move or delete

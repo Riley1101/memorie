@@ -144,7 +144,7 @@
         >
           <p
             class={cn(
-              'flex items-center gap-1 font-mono text-[10px] leading-4.5',
+              'flex items-center gap-1 tabular-nums text-[0.6875rem] leading-4.5',
               row.isCurrent ? 'text-primary' : 'text-metadata'
             )}
           >

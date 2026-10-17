@@ -145,7 +145,7 @@
           style="width: {percent(activeGoal.value, activeGoal.goal)}%"
         ></span>
       </span>
-      <span class="text-muted-foreground/60 tabular-nums">
+      <span class="text-muted-foreground tabular-nums">
         {percent(activeGoal.value, activeGoal.goal)}%
       </span>
     {/if}

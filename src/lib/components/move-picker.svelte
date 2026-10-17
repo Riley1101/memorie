@@ -54,7 +54,7 @@
 <Command.Dialog bind:open {title} description="Choose a destination" portalProps={{}}>
   <Command.Input placeholder={subject ? `Move “${subject}” to…` : 'Move to…'} class="border-border/20 bg-muted/10" />
   <Command.List class="p-2">
-    <Command.Empty class="py-10 text-muted-foreground/60 font-sans">No such place.</Command.Empty>
+    <Command.Empty class="py-10 text-muted-foreground font-sans">No such place.</Command.Empty>
 
     <Command.Group heading="Destination" class="" value="">
       {#if allowTopLevel}
@@ -66,7 +66,7 @@
         >
           <FileIcon strokeWidth={1.5} class="size-4 mr-1" />
           <span class="font-writer text-base">Top level</span>
-          <span class="ml-auto text-[0.6875rem] text-muted-foreground/50 font-mono">
+          <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums">
             {currentDir === '' ? 'already here' : 'no binder'}
           </span>
         </Command.Item>
@@ -85,7 +85,7 @@
             <FolderIcon strokeWidth={1.5} class="size-4 mr-1" />
           {/if}
           <span class="font-writer text-base truncate">{loc.label}</span>
-          <span class="ml-auto text-[0.6875rem] text-muted-foreground/50 font-mono truncate">
+          <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums truncate">
             {loc.isCurrent ? 'already here' : loc.parent}
           </span>
         </Command.Item>

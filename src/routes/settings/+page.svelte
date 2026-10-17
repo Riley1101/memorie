@@ -360,7 +360,7 @@
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Content Directory</span>
+                    <span class="text-sm font-medium text-muted-foreground">Content directory</span>
                   </div>
                   <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.content_directory || 'Loading...'}
@@ -373,7 +373,7 @@
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">History Directory</span>
+                    <span class="text-sm font-medium text-muted-foreground">History directory</span>
                   </div>
                   <code class="text-sm break-all font-mono text-foreground/90">
                     {configManager.config?.undotree_dir || 'Loading...'}
@@ -626,7 +626,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">AI Provider</span>
+                    <span class="text-sm font-medium text-muted-foreground">AI provider</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Choose whether chat, autocomplete, and grammar checks run locally on your
@@ -654,7 +654,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">OpenRouter</span>
+                    <span class="text-sm font-medium text-muted-foreground">OpenRouter</span>
                   </div>
 
                   {#if configManager.hasOpenRouterApiKey}
@@ -672,7 +672,7 @@
                     {#if configManager.isLoadingOpenRouterModels}
                       <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                         <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.625rem] text-muted-foreground uppercase tracking-widest">Loading models…</span>
+                        <span class="text-[0.6875rem] text-muted-foreground">Loading models…</span>
                       </div>
                     {:else if configManager.openRouterModels.length > 0}
                       <select
@@ -712,7 +712,7 @@
                 <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Supported models (Kalosm)</span>
+                    <span class="text-sm font-medium text-muted-foreground">Supported models (Kalosm)</span>
                   </div>
 
                   {#if llmManager.error}
@@ -733,7 +733,7 @@
                             <span class="text-sm font-medium truncate">{model.name}</span>
                             <div class="flex items-center gap-2 mt-1">
                               <span
-                                class="inline-flex px-2 py-0.5 rounded text-[0.625rem] font-medium uppercase tracking-wider {model.model_type === 'chat'
+                                class="inline-flex px-2 py-0.5 rounded text-[0.6875rem] font-medium {model.model_type === 'chat'
                                   ? 'bg-success/10 text-success border border-success/20'
                                   : model.model_type === 'reasoning'
                                     ? 'bg-primary/10 text-primary border border-primary/20'
@@ -747,7 +747,7 @@
                             {#if model.downloaded}
                               <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20">
                                 <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
-                                <span class="text-[0.625rem] uppercase tracking-wider font-bold text-info">Downloaded</span>
+                                <span class="text-[0.6875rem] font-bold text-info">Downloaded</span>
                               </div>
                               {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
                               {#if !isDefault}
@@ -760,7 +760,7 @@
                                   Set as default
                                 </Button>
                               {:else}
-                                <span class="text-[0.625rem] uppercase tracking-wider font-medium text-muted-foreground">Default</span>
+                                <span class="text-[0.6875rem] font-medium text-muted-foreground">Default</span>
                               {/if}
                             {:else}
                               {@const isDownloading = llmManager.downloadingModelId === model.id}
@@ -787,7 +787,7 @@
                     {:else}
                       <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                         <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.625rem] text-muted-foreground uppercase tracking-widest">Loading supported models…</span>
+                        <span class="text-[0.6875rem] text-muted-foreground">Loading supported models…</span>
                       </div>
                     {/if}
                   </div>
@@ -801,7 +801,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Note Search</span>
+                    <span class="text-sm font-medium text-muted-foreground">Note search</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Your notes are indexed on this device so the assistant can search them. Saved
@@ -844,7 +844,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">System Prompt</span>
+                    <span class="text-sm font-medium text-muted-foreground">System prompt</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Set the instructions that guide the behavior of the AI in the sidebar chat.
@@ -877,7 +877,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Preferred storage</span>
+                    <span class="text-sm font-medium text-muted-foreground">Preferred storage</span>
                   </div>
                   <p class="text-sm text-muted-foreground">
                     Where your writing is synced. One backend is active at a time; the other keeps
@@ -917,7 +917,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Account</span>
+                    <span class="text-sm font-medium text-muted-foreground">Account</span>
                   </div>
 
                   {#if gitManager.error}
@@ -1006,7 +1006,7 @@
                   <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                     <div class="flex items-center gap-2 text-muted-foreground mb-1">
                       <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                      <span class="text-xs font-mono uppercase tracking-widest text-metadata">Repository</span>
+                      <span class="text-sm font-medium text-muted-foreground">Repository</span>
                     </div>
                     <p class="text-sm text-muted-foreground">
                       Writing in your content directory is committed &amp; pushed to this GitHub repository.
@@ -1054,7 +1054,7 @@
                     <div class="flex items-center justify-between mb-1">
                       <div class="flex items-center gap-2 text-muted-foreground">
                         <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                        <span class="text-xs font-mono uppercase tracking-widest text-metadata">Changes</span>
+                        <span class="text-sm font-medium text-muted-foreground">Changes</span>
                       </div>
                       <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => gitManager.refreshStatus()}>
                         Refresh
@@ -1073,7 +1073,7 @@
                         {#each gitManager.status as file (file.path)}
                           <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
                             <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.625rem] uppercase tracking-wider text-muted-foreground shrink-0">{file.status}</span>
+                            <span class="text-[0.6875rem] text-muted-foreground shrink-0">{file.status}</span>
                           </div>
                         {/each}
                       </div>
@@ -1111,7 +1111,7 @@
                 <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <DropboxIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-xs font-mono uppercase tracking-widest text-metadata">Account</span>
+                    <span class="text-sm font-medium text-muted-foreground">Account</span>
                   </div>
 
                   {#if dropboxManager.error}
@@ -1200,7 +1200,7 @@
                   <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
                     <div class="flex items-center gap-2 text-muted-foreground mb-1">
                       <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                      <span class="text-xs font-mono uppercase tracking-widest text-metadata">Folder</span>
+                      <span class="text-sm font-medium text-muted-foreground">Folder</span>
                     </div>
                     <p class="text-sm text-muted-foreground">
                       Writing in your content directory is uploaded to this Dropbox folder, which is
@@ -1253,7 +1253,7 @@
                     <div class="flex items-center justify-between mb-1">
                       <div class="flex items-center gap-2 text-muted-foreground">
                         <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                        <span class="text-xs font-mono uppercase tracking-widest text-metadata">Changes</span>
+                        <span class="text-sm font-medium text-muted-foreground">Changes</span>
                       </div>
                       <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => dropboxManager.refreshStatus()}>
                         Refresh
@@ -1272,7 +1272,7 @@
                         {#each dropboxManager.status as file (file.path)}
                           <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
                             <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.625rem] uppercase tracking-wider shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
+                            <span class="text-[0.6875rem] shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
                           </div>
                         {/each}
                       </div>
@@ -1384,7 +1384,7 @@
                   {/if}
 
                   {#if updaterManager.lastChecked}
-                    <p class="text-xs font-mono text-metadata">
+                    <p class="text-xs tabular-nums text-metadata">
                       Last checked {updaterManager.lastChecked.toLocaleString()}
                     </p>
                   {/if}

@@ -306,7 +306,7 @@
               {#each groups as group (group.kind.id)}
                 <div class="flex flex-col gap-0.5">
                   <div class="flex items-center justify-between px-2 pb-1">
-                    <span class="text-[0.6875rem] font-medium text-muted-foreground/60">
+                    <span class="text-[0.6875rem] font-medium text-muted-foreground">
                       {group.kind.plural}
                       <span class="tabular-nums opacity-70">{group.items.length || ''}</span>
                     </span>
@@ -314,7 +314,7 @@
                       type="button"
                       onclick={() => startNew(group.kind.id)}
                       aria-label="New {group.kind.label.toLowerCase()}"
-                      class="text-muted-foreground/50 hover:text-foreground"
+                      class="text-muted-foreground hover:text-foreground"
                     >
                       <PlusIcon strokeWidth={1.5} class="size-3" />
                     </button>
@@ -331,7 +331,7 @@
                       <span class="size-1.5 rounded-full shrink-0 {kindIcons[entity.kind]}"></span>
                       <span class="truncate flex-1">{entity.name}</span>
                       {#if !entity.scope && binder}
-                        <span class="text-[0.625rem] text-muted-foreground/50" title="Shared by every binder">shared</span>
+                        <span class="text-[0.6875rem] text-muted-foreground" title="Shared by every binder">shared</span>
                       {/if}
                     </button>
                   {/each}
@@ -377,7 +377,7 @@
                   type="button"
                   onclick={() => (renamed = null)}
                   aria-label="Dismiss"
-                  class="text-muted-foreground/60 hover:text-foreground"
+                  class="text-muted-foreground hover:text-foreground"
                 >
                   <XIcon strokeWidth={1.5} class="size-3.5" />
                 </button>
@@ -398,7 +398,7 @@
             {:else}
               <div class="flex flex-col items-center justify-center py-24 text-center gap-3 font-sans">
                 <BookUserIcon strokeWidth={1.5} class="size-10 text-muted-foreground/30" />
-                <p class="text-muted-foreground/70 max-w-sm">
+                <p class="text-muted-foreground max-w-sm">
                   {entities.length
                     ? 'Pick an entry, or start a new one.'
                     : `Keep sheets for the people, places, groups and things in ${binder || 'your stories'}. The assistant reads the ones a scene mentions.`}

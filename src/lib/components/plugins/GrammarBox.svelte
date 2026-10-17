@@ -149,7 +149,7 @@
 <div class="w-max max-w-sm flex flex-col gap-3 not-prose select-none animate-in fade-in slide-in-from-top-2 duration-300">
   
   {#if aiEnabled && (llmManager.editActionContent || llmManager.editActionInProgress)}
-    <div class="group relative bg-muted/40 backdrop-blur-sm border border-border/40 rounded-xl p-4 shadow-sm transition-all hover:shadow-md hover:bg-muted/50">
+    <div class="group relative bg-muted/50 rounded-xl p-4 transition-colors hover:bg-muted/70">
       <div class="flex items-start gap-4">
         <div class="mt-1 p-1.5 rounded-full bg-primary/10 text-primary">
           <SparklesIcon strokeWidth={1.5} class={cn("size-4", llmManager.editActionInProgress ? "animate-pulse" : "")} />
@@ -164,7 +164,7 @@
             {#if llmManager.editActionContent}
               {llmManager.editActionContent}
             {:else}
-              <span class="text-muted-foreground/60">Thinking...</span>
+              <span class="text-muted-foreground">Thinking…</span>
             {/if}
           </div>
           
@@ -175,7 +175,7 @@
                 onclick={handleAccept} 
                 size="sm" 
                 disabled={false}
-                class="h-8 px-4 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full text-xs font-medium shadow-sm transition-all active:scale-95"
+                class="h-8 px-4 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full text-xs font-medium transition-[background-color,transform] active:scale-95"
               >
                 <CheckIcon strokeWidth={1.5} class="size-3.5 mr-1.5" />
                 Apply changes
@@ -213,7 +213,7 @@
           aria-label={label}
           onmousedown={(e) => e.preventDefault()}
           onclick={() => applyMark(markName)}
-          class="size-6 rounded-full text-muted-foreground/80 hover:text-foreground hover:bg-muted/50"
+          class="size-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
         >
           <Icon strokeWidth={1.5} class="size-3.5" />
         </Button>
@@ -225,7 +225,7 @@
         aria-label="Add selection to codex"
         onmousedown={(e) => e.preventDefault()}
         onclick={addToCodex}
-        class="size-6 rounded-full text-muted-foreground/80 hover:text-foreground hover:bg-muted/50"
+        class="size-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
       >
         <BookUserIcon strokeWidth={1.5} class="size-3.5" />
       </Button>
@@ -240,7 +240,7 @@
               variant="ghost"
               size="sm"
               disabled={props.disabled ?? false}
-              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground/80 hover:text-foreground transition-all shadow-sm group"
+              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground hover:text-foreground transition-colors group"
             >
               <AiSparkleIcon strokeWidth={1.5} class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
               AI Suggestions
@@ -249,12 +249,12 @@
           {/snippet}
         </DropdownMenu.Trigger>
       
-        <DropdownMenu.Content portalProps={{}} class="w-72 {appState.ui.theme} p-2 border border-border/40 shadow-2xl rounded-xl backdrop-blur-xl bg-background/95" align="start">
+        <DropdownMenu.Content portalProps={{}} class="w-72 {appState.ui.theme} p-2 border border-border/40 shadow-lg rounded-xl bg-popover" align="start">
           <div class="flex flex-col gap-2.5 p-1">
             <div class="relative group">
               <Textarea
                 placeholder="Custom instructions..."
-                class="min-h-[80px] text-xs resize-none bg-muted/20 border-border/20 focus:border-primary/30 focus:ring-primary/10 rounded-lg p-3 transition-all"
+                class="min-h-[80px] text-xs resize-none bg-muted/20 border-border/20 focus:border-primary/30 focus:ring-primary/10 rounded-lg p-3 transition-colors"
                 bind:value={customPrompt}
    />
               <Button
@@ -262,7 +262,7 @@
                 variant="default"
                 onclick={() => handleSend('PromptExpansion')}
                 disabled={!customPrompt.trim()}
-                class="absolute bottom-2 right-2 size-7 rounded-md shadow-sm transition-all active:scale-90"
+                class="absolute bottom-2 right-2 size-7 rounded-md transition-[background-color,transform] active:scale-90"
               >
                 <SendIcon strokeWidth={1.5} class="size-3.5" />
               </Button>
@@ -273,7 +273,7 @@
             <div class="max-h-[300px] overflow-y-auto pr-1">
               {#each suggestionCategories as category (category.name)}
                 <div class="mt-2 first:mt-0">
-                  <div class="px-1 text-[0.625rem] font-mono font-medium text-metadata uppercase tracking-widest pl-2 mb-1">
+                  <div class="px-1 text-[0.75rem] font-medium text-muted-foreground pl-2 mb-1">
                     {category.name}
                   </div>
                   <div class="grid grid-cols-1 gap-0.5">

@@ -209,7 +209,7 @@
     class="border-border/20 bg-muted/10"
  />
   <Command.List class="p-2">
-    <Command.Empty class="py-10 text-muted-foreground/60 font-sans">
+    <Command.Empty class="py-10 text-muted-foreground font-sans">
       {#if creatableTitle}
         Press Enter to create “{creatableTitle}”.
       {:else}
@@ -228,7 +228,7 @@
           <CirclePlusIcon strokeWidth={1.5} class="size-3.5 mr-2" />
           <span class="font-writer text-base">
             Create “{creatableTitle}”
-            <span class="text-muted-foreground/60 text-sm">in {targetLabel}</span>
+            <span class="text-muted-foreground text-sm">in {targetLabel}</span>
           </span>
           <Command.Shortcut class="">↵</Command.Shortcut>
         </Command.Item>
@@ -243,7 +243,7 @@
       >
         <div class="flex flex-col gap-0.5 min-w-0 font-writer">
           <span class="text-base font-normal truncate">{formatFileName(baseOf(file.name))}</span>
-          <div class="flex items-center gap-2 text-[0.6875rem] text-metadata font-mono">
+          <div class="flex items-center gap-2 text-[0.6875rem] text-metadata tabular-nums">
             {#if file.folder}
               <span class="flex items-center gap-1">
                 <FolderIcon strokeWidth={1.5} class="size-2.5" />
@@ -268,7 +268,7 @@
     {#if query.length >= MIN_CONTENT_QUERY && (contentOnly.length > 0 || isSearchingContent)}
       <Command.Group heading="In your writing" class="" value="">
         {#if contentOnly.length === 0}
-          <p class="px-3 py-2 text-sm text-muted-foreground/50 font-sans">Searching…</p>
+          <p class="px-3 py-2 text-sm text-muted-foreground font-sans">Searching…</p>
         {/if}
         <!-- cmdk filters on `value`; a content hit's title usually does not
              contain the query, so the query goes in the value to keep it. -->
@@ -282,11 +282,11 @@
               <span class="font-writer text-base font-normal truncate">
                 {formatFileName(baseOf(hit.name))}
               </span>
-              <span class="truncate text-[0.75rem] text-muted-foreground/70 font-sans">
+              <span class="truncate text-[0.75rem] text-muted-foreground font-sans">
                 {hit.preview}
               </span>
             </div>
-            <Command.Shortcut class="font-mono text-[0.625rem]">line {hit.line}</Command.Shortcut>
+            <Command.Shortcut class="tabular-nums text-[0.6875rem]">line {hit.line}</Command.Shortcut>
           </Command.Item>
         {/each}
       </Command.Group>

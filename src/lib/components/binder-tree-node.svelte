@@ -290,7 +290,7 @@
   >
     {#if isRenamingFolder}
       <span class="size-4 shrink-0"></span>
-      <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+      <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
       <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
       <!-- svelte-ignore a11y_autofocus -->
       <input
@@ -316,26 +316,26 @@
         aria-expanded={open}
       >
         <ChevronRightIcon
-          class="size-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 {open ? 'rotate-90' : ''}"
+          class="size-4 shrink-0 text-muted-foreground transition-transform duration-150 {open ? 'rotate-90' : ''}"
           strokeWidth={1.5}
         />
         {#if open}
-          <FolderOpenIcon class="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
+          <FolderOpenIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         {:else}
-          <FolderIcon class="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
+          <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         {/if}
         <span class="truncate font-writer font-medium">{node.name}</span>
-        <span class="ml-1 text-xs tabular-nums text-muted-foreground/50 shrink-0">
+        <span class="ml-1 text-xs tabular-nums text-muted-foreground shrink-0">
           {node.fileCount}
         </span>
         {#if node.lastModified}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata font-mono group-hover/folder:opacity-0 transition-opacity">
+          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata tabular-nums group-hover/folder:opacity-0 transition-opacity">
             <span>{formatDate(node.lastModified)}</span>
             <span class="opacity-30">•</span>
             <span>{formatTime(node.lastModified)}</span>
           </span>
         {:else}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:inline text-xs text-muted-foreground/40 italic group-hover/folder:opacity-0 transition-opacity">
+          <span class="ml-auto pl-3 shrink-0 hidden sm:inline text-xs text-muted-foreground italic group-hover/folder:opacity-0 transition-opacity">
             empty
           </span>
         {/if}
@@ -440,7 +440,7 @@
           style="padding-left: {(depth + 1) * 1.25}rem"
         >
           <span class="size-4 shrink-0"></span>
-          <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+          <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
           <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
           <!-- svelte-ignore a11y_autofocus -->
           <input
@@ -459,7 +459,7 @@
       {/if}
       {#if node.children.length === 0 && !isDraftHere}
         <div
-          class="py-2 text-sm text-muted-foreground/40 italic select-none"
+          class="py-2 text-sm text-muted-foreground italic select-none"
           style="padding-left: {(depth + 1) * 1.25 + 1.375}rem"
         >
           Empty. Drop writings here, or use +.
@@ -512,7 +512,7 @@
     {#if isRenaming}
       <div class="flex items-center gap-2 flex-1 min-w-0">
         <span class="size-4 shrink-0"></span>
-        <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        <FileIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
         <!-- svelte-ignore a11y_autofocus -->
         <input
@@ -545,7 +545,7 @@
           ></span>
         {/if}
         <span class="truncate font-writer" title={synopsis || undefined}>{formatFileName(node.name)}</span>
-        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata font-mono group-hover/file:opacity-0 transition-opacity">
+        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata tabular-nums group-hover/file:opacity-0 transition-opacity">
           {#if words !== null && words > 0}
             <span>{wordLabel}</span>
             <span class="opacity-30">•</span>

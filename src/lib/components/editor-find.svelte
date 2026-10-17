@@ -237,7 +237,7 @@
   <div
     role="search"
     aria-label="Find in this writing"
-    class="find-bar absolute right-4 top-2 z-30 grid gap-1.5 rounded-lg border border-border/60 bg-popover/95 p-1.5 font-sans text-popover-foreground shadow-lg backdrop-blur-md"
+    class="find-bar absolute right-4 top-2 z-30 grid gap-1.5 rounded-lg border border-border/60 bg-popover p-1.5 font-sans text-popover-foreground shadow-lg"
   >
     <div class="flex items-center gap-1">
       <button

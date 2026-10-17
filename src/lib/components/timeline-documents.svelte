@@ -491,7 +491,7 @@
         class="min-h-full pb-20 pr-2 rounded-lg transition-colors {isRootDragOver ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''}"
       >
         <div class="flex items-center justify-between gap-2 mb-4 py-1">
-          <span class="text-[0.6875rem] font-mono text-metadata tabular-nums">
+          <span class="text-[0.6875rem] text-metadata tabular-nums">
             {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
               · drop to move to {activeBinder}{/if}
           </span>
@@ -500,7 +500,7 @@
             <button
               type="button"
               onclick={() => clearOrder(activeBinder ?? '')}
-              class="text-[0.6875rem] font-mono text-metadata hover:text-foreground transition-colors"
+              class="text-[0.6875rem] tabular-nums text-metadata hover:text-foreground transition-colors"
               title="Sort by name again"
             >
               manual order · reset
@@ -511,7 +511,7 @@
               <Button
                 variant="ghost"
                 size="sm"
-                class="text-muted-foreground/70 hover:text-foreground gap-1.5"
+                class="text-muted-foreground hover:text-foreground gap-1.5"
                 onclick={() => handleTreeCreateFolder([])}
                 disabled={false}
               >
@@ -545,7 +545,7 @@
         {#if draft && draft.subPath.length === 0}
           <div class="flex items-center gap-2 py-2.5">
             <span class="size-4 shrink-0"></span>
-            <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+            <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
             <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
             <!-- svelte-ignore a11y_autofocus -->
             <input
@@ -573,7 +573,7 @@
               <FolderIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
             </div>
             <h3 class="font-writer text-xl font-normal">{activeBinder} is empty</h3>
-            <p class="text-muted-foreground/60 max-w-xs text-sm">
+            <p class="text-muted-foreground max-w-xs text-sm">
               Start writing here, or add a folder to group chapters and scenes.
             </p>
             <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4 gap-1.5" disabled={false}>
@@ -612,7 +612,7 @@
               <button
                 {...props}
                 type="button"
-                class="flex items-center gap-1.5 h-7 px-2 rounded-md text-[0.6875rem] font-mono text-metadata hover:text-foreground hover:bg-muted/40 transition-colors"
+                class="flex items-center gap-1.5 h-7 px-2 rounded-md text-[0.6875rem] tabular-nums text-metadata hover:text-foreground hover:bg-muted/40 transition-colors"
               >
                 <ArrowDownWideNarrowIcon class="size-3.5" strokeWidth={1.5} />
                 {sortLabel}
@@ -637,8 +637,8 @@
       {/if}
       {#each groupedFiles as group (group.id)}
         <div class="relative">
-          <div class="flex items-center mb-1 sticky top-0 py-1 bg-background/95 backdrop-blur-sm">
-              <h3 class="text-[0.6875rem] font-medium font-mono uppercase tracking-wider text-metadata bg-background pr-3">
+          <div class="flex items-center mb-1 sticky top-0 py-1 bg-background">
+              <h3 class="text-[0.8125rem] font-medium text-muted-foreground bg-background pr-3">
                   {group.label}
               </h3>
           </div>
@@ -688,7 +688,7 @@
                     <div class="truncate font-writer text-base text-foreground/90 group-hover/item:text-foreground transition-colors">
                       {formatFileName(item.name.split('/').pop())}
                     </div>
-                    <div class="mt-0.5 flex items-center gap-1.5 text-[0.6875rem] font-mono text-metadata">
+                    <div class="mt-0.5 flex items-center gap-1.5 text-[0.6875rem] tabular-nums text-metadata">
                       {#if item.folder && activeBinder === null}
                         <span class="flex items-center gap-1">
                           <span class="size-1.5 rounded-full {tint.dot}"></span>
@@ -746,7 +746,7 @@
                   <FileIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
               </div>
               <h3 class="font-writer text-xl font-normal">Nothing here yet</h3>
-              <p class="text-muted-foreground/60 max-w-xs text-sm">
+              <p class="text-muted-foreground max-w-xs text-sm">
                   Start writing and Memoire names the file from your first line. You can rename it any time.
               </p>
               <div class="mt-4 flex gap-2">
@@ -771,7 +771,7 @@
   <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
       <Dialog.Title class="text-xl font-normal font-writer">Delete Writing</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+      <Dialog.Description class="text-base text-muted-foreground pt-2">
         Are you sure you want to delete
         <span class="font-bold text-foreground">"{itemToDelete ? formatFileName(itemToDelete.name.split('/').pop()) : ''}"</span>{#if itemToDelete?.folder}
           from <span class="text-foreground">{itemToDelete.folder}</span>{/if}?
@@ -791,7 +791,7 @@
       <Dialog.Title class="text-xl font-normal font-writer">
         {folderToDeleteIsEmpty ? 'Delete folder' : 'Remove folder'}
       </Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+      <Dialog.Description class="text-base text-muted-foreground pt-2">
         {#if folderToDeleteIsEmpty}
           <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
           is empty. Delete it?

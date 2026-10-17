@@ -143,7 +143,7 @@
       activeText: 'text-accent-foreground',
     },
     muted: {
-      icon: 'text-muted-foreground/60',
+      icon: 'text-muted-foreground',
       activeBg: 'bg-muted',
       activeText: 'text-muted-foreground',
     },
@@ -209,7 +209,7 @@
   >
     <SearchIcon strokeWidth={1.5} class="size-3.5 shrink-0" />
     <span class="flex-1 truncate">Search</span>
-    <span class="text-[0.625rem] font-mono text-disabled shrink-0">{MOD_KEY}K</span>
+    <span class="text-[0.6875rem] tabular-nums text-disabled shrink-0">{MOD_KEY}K</span>
   </button>
 {/snippet}
 
@@ -244,18 +244,18 @@
       class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left transition-colors {activeBinder ===
       null
         ? 'bg-primary/10 text-primary font-medium'
-        : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
+        : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
     >
       <FileIcon strokeWidth={1.5} class="size-4 shrink-0" />
       <span class="truncate flex-1">All Writings</span>
-      <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{fileManager.files.length}</span>
+      <span class="text-[0.6875rem] text-muted-foreground tabular-nums">{fileManager.files.length}</span>
     </button>
     <div class="my-1 border-t border-border/30"></div>
     {#each fileManager.binders as binder (binder)}
       {@const tint = binderTint(binder)}
       {#if renamingBinder === binder}
         <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem]">
-          <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground/60" />
+          <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground" />
           <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
           <!-- svelte-ignore a11y_autofocus -->
           <input
@@ -283,11 +283,11 @@
               class="flex w-full items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left transition-colors {activeBinder ===
               binder
                 ? `${tint.activeBg} ${tint.activeText} font-medium`
-                : 'text-muted-foreground/80 hover:bg-muted/30 hover:text-foreground'}"
+                : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
             >
               <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 {activeBinder === binder ? '' : tint.icon}" />
               <span class="truncate flex-1">{binder}</span>
-              <span class="text-[0.6875rem] text-muted-foreground/50 tabular-nums">{binderCount(binder)}</span>
+              <span class="text-[0.6875rem] text-muted-foreground tabular-nums">{binderCount(binder)}</span>
             </button>
           </ContextMenu.Trigger>
           <ContextMenu.Content class="w-48">
@@ -340,7 +340,7 @@
             onSelect?.();
             openCodex({ binder });
           }}
-          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground transition-colors"
+          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
           style="padding-left: 1.25rem"
         >
           <BookUserIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
@@ -354,7 +354,7 @@
               onSelect?.();
             }}
             title={folder.path}
-            class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground transition-colors"
+            class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
             style="padding-left: {0.5 + folder.depth * 0.75}rem"
           >
             <CornerDownRightIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
@@ -370,14 +370,14 @@
   <div class="flex items-center justify-between px-2 pb-1.5 shrink-0">
     <button
       onclick={goToManageBinders}
-      class="text-[0.6875rem] font-medium text-muted-foreground/50 hover:text-foreground transition-colors"
+      class="text-[0.6875rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
     >
       Binders
     </button>
     <button
       onclick={startCreateBinder}
       aria-label="New Binder"
-      class="text-muted-foreground/50 hover:text-foreground transition-colors"
+      class="text-muted-foreground hover:text-foreground transition-colors"
     >
       <PlusIcon class="size-3 shrink-0" strokeWidth={1.5} />
     </button>
@@ -385,7 +385,7 @@
   {#if isCreatingBinder}
     <div class="px-2 pb-1.5 shrink-0">
       <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem]">
-        <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
         <!-- svelte-ignore a11y_autofocus -->
         <input
@@ -428,10 +428,12 @@
 
 <!-- Wide desktop only: overlaps the page container instead of taking layout space.
      Needs the centered content's side gutter to exceed the sidebar's own footprint
-     (~12rem) or it'd sit on top of text, so this only kicks in at xl (1280px+).
+     or it'd sit on top of text. That is 48rem of page plus 2 × (15rem sidebar +
+     2rem margin) = 82rem, and at the default density's 18px root that is ~1476px.
+     Media queries don't follow the root size, so the breakpoint is in pixels.
      Narrower windows (tablet, tiled/split desktop, phone) use the sheet trigger below. -->
 <aside
-  class="hidden xl:flex xl:absolute xl:top-0 xl:left-0 xl:z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
+  class="hidden min-[1480px]:flex min-[1480px]:absolute min-[1480px]:top-0 min-[1480px]:left-0 min-[1480px]:z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
 >
   <div class="pt-8 flex items-center gap-2">
     {@render topActions()}
@@ -440,11 +442,11 @@
   {@render binderPanel()}
 </aside>
 
-<!-- Below xl: trigger opens binders as a slide-in sheet (covers phone, tablet, and
+<!-- Narrower: trigger opens binders as a slide-in sheet (covers phone, tablet, and
      shrunk/tiled desktop windows where there isn't room for the overlay). -->
 <button
   onclick={() => (isMobileSheetOpen = true)}
-  class="xl:hidden fixed top-4 left-[max(1rem,var(--titlebar-inset-left,0px))] z-30 flex items-center justify-center size-9 rounded-full bg-background/90 backdrop-blur-sm border border-border/40 shadow-sm text-muted-foreground hover:text-foreground transition-colors"
+  class="min-[1480px]:hidden fixed top-4 left-[max(1rem,var(--titlebar-inset-left,0px))] z-30 flex items-center justify-center size-9 rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
 >
   <MenuIcon strokeWidth={1.5} class="size-4" />
   <span class="sr-only">Open binders</span>
@@ -491,7 +493,7 @@
   <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
     <Dialog.Header class="">
       <Dialog.Title class="text-xl font-normal font-writer">Delete binder</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+      <Dialog.Description class="text-base text-muted-foreground pt-2">
         <span class="font-bold text-foreground">"{binderToDelete}"</span>
         {#if binderToDelete && binderTotal(binderToDelete) > 0}
           holds {binderTotal(binderToDelete)} writing{binderTotal(binderToDelete) === 1 ? '' : 's'}.
