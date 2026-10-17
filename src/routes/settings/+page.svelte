@@ -15,6 +15,7 @@
   import PaletteIcon from '@lucide/svelte/icons/palette';
   import CloudIcon from '@lucide/svelte/icons/cloud';
   import PenLineIcon from '@lucide/svelte/icons/pen-line';
+  import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -450,9 +451,40 @@
 
                 <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
+                    <p class="text-lg font-normal">Focus mode goes full screen</p>
+                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
+                      Off, focus mode just hides the app's own chrome. On, it takes the whole
+                      screen — which on macOS moves the window to its own Space.
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                    <Button
+                      variant={writingState.focusFullscreen ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setFocusFullscreen(true)}
+                      disabled={false}
+                    >
+                      On
+                    </Button>
+                    <Button
+                      variant={!writingState.focusFullscreen ? 'default' : 'ghost'}
+                      size="sm"
+                      class="px-3 h-8 text-xs font-medium"
+                      onclick={() => writingState.setFocusFullscreen(false)}
+                      disabled={false}
+                    >
+                      Off
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
                     <p class="text-lg font-normal">Highlight codex names</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Dotted underline under characters, places and things from the binder's codex. Hover one for its summary.
+                      Dotted underline under characters, places and things from the binder's codex.
+                      Hover one for its summary, or {MOD_KEY}-click to open its entry.
                     </p>
                   </div>
                   <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">

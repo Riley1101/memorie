@@ -7,6 +7,7 @@
   import FileInputIcon from '@lucide/svelte/icons/file-input';
   import BookUserIcon from '@lucide/svelte/icons/book-user';
   import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+  import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import { updaterManager } from '$lib/runes/updater.svelte.js';
   import { openCodex } from '$lib/runes/codex.svelte.js';
   import * as Command from '$lib/components/ui/command/index.js';
@@ -17,14 +18,120 @@
   import { startNewWriting, sanitizeTitle } from '$lib/new-writing.js';
   import { toast } from '$lib/toast.js';
   import { goto } from '$app/navigation';
+  import { invoke } from '@tauri-apps/api/core';
+  import { editorState } from '$lib/runes/editor.svelte.js';
   import { resolve } from '$app/paths';
 
   let search = $state('');
+
+  /**
+   * Writings listed with an empty box. The palette used to render every
+   * writing in the project, which is a long scroll and a lot of DOM once a
+   * novel is underway; what a writer wants on open is what they touched last.
+   */
+  const RECENT_LIMIT = 8;
+  /** Title matches shown at once, so a common word can't flood the list. */
+  const TITLE_LIMIT = 40;
+  /** Writings shown under "In your writing". */
+  const CONTENT_LIMIT = 8;
+  /** Shorter than this and a content search is all noise. */
+  const MIN_CONTENT_QUERY = 3;
+  /** Typing pause before the content search runs. */
+  const SEARCH_DEBOUNCE_MS = 180;
 
   // Where a writing created from the palette goes: the binder open on the
   // home screen, or the top level.
   let targetDir = $derived(appState.ui.activeBinder ?? '');
   let targetLabel = $derived(appState.ui.activeBinder ?? 'top level');
+
+  let query = $derived(search.trim());
+
+  /** `fileManager.files` comes back newest first, so this is just the head. */
+  let recentFiles = $derived(fileManager.files.slice(0, RECENT_LIMIT));
+
+  /**
+   * Writings whose title or folder matches what's typed. cmdk does its own
+   * filtering on `value`, so this only has to keep the list to a sane length.
+   */
+  let titleMatches = $derived.by(() => {
+    if (!query) return [];
+    const term = query.toLowerCase();
+    return fileManager.files
+      .filter((f) => `${formatFileName(baseOf(f.name))} ${f.folder ?? ''}`.toLowerCase().includes(term))
+      .slice(0, TITLE_LIMIT);
+  });
+
+  /**
+   * Content hits from the backend. Writers look for the scene where something
+   * happened, not for a filename, and this used to mean leaving the palette
+   * for a separate find-in-all-writings dialog.
+   * @type {{ name: string, line: number, preview: string }[]}
+   */
+  let contentMatches = $state([]);
+  let isSearchingContent = $state(false);
+
+  $effect(() => {
+    const term = query;
+    if (term.length < MIN_CONTENT_QUERY || !appState.ui.isCommandMenuOpen) {
+      contentMatches = [];
+      isSearchingContent = false;
+      return;
+    }
+
+    let cancelled = false;
+    isSearchingContent = true;
+    const timer = setTimeout(async () => {
+      try {
+        /** @type {{ files: { name: string, matches: { line: number, preview: string, meta: boolean }[] }[] }} */
+        const results = await invoke('search_project', {
+          query: term,
+          options: { caseSensitive: false, wholeWord: false, regex: false },
+        });
+        if (cancelled) return;
+        // One line per writing: the palette is for getting somewhere, and
+        // every match in context is what ⌘⇧F is for.
+        contentMatches = results.files
+          .map((file) => {
+            const hit = file.matches.find((m) => !m.meta) ?? file.matches[0];
+            return hit ? { name: file.name, line: hit.line, preview: hit.preview } : null;
+          })
+          .filter((hit) => hit !== null)
+          .slice(0, CONTENT_LIMIT);
+      } catch (e) {
+        if (!cancelled) {
+          console.error('Palette content search failed:', e);
+          contentMatches = [];
+        }
+      } finally {
+        if (!cancelled) isSearchingContent = false;
+      }
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  });
+
+  /** Content hits that a title match already covers. */
+  let contentOnly = $derived.by(() => {
+    const titled = new Set(titleMatches.map((f) => f.name));
+    return contentMatches.filter((hit) => !titled.has(hit.name));
+  });
+
+  /**
+   * Opens a writing and asks the editor to select the matched text once it
+   * mounts, the same way find-in-all-writings does.
+   * @param {{ name: string }} hit
+   */
+  function handleSelectContent(hit) {
+    editorState.pendingReveal = {
+      query,
+      options: { caseSensitive: false, wholeWord: false, regex: false },
+      occurrence: 0,
+    };
+    handleSelect(hit.name);
+  }
 
   /** Typed text as a usable title, if it doesn't already name a writing. */
   let creatableTitle = $derived.by(() => {
@@ -128,31 +235,62 @@
       </Command.Group>
     {/if}
 
-    <Command.Group heading="Writings" class="" value="">
-      {#each fileManager.files as file (file.name)}
-        <Command.Item
-            value={`${formatFileName(baseOf(file.name))} ${file.folder ?? ''}`}
-            onSelect={() => handleSelect(file.name)}
-            class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
-        >
-          <div class="flex flex-col gap-0.5 min-w-0 font-writer">
-            <span class="text-base font-normal truncate">{formatFileName(baseOf(file.name))}</span>
-            <div class="flex items-center gap-2 text-[0.6875rem] text-metadata font-mono">
-              {#if file.folder}
-                <span class="flex items-center gap-1">
-                  <FolderIcon strokeWidth={1.5} class="size-2.5" />
-                  {file.folder}
-                </span>
-                <span class="opacity-30">•</span>
-              {/if}
-              <span>{formatDate(file.last_modified)}</span>
+{#snippet writingRow(file)}
+      <Command.Item
+        value={`${formatFileName(baseOf(file.name))} ${file.folder ?? ''}`}
+        onSelect={() => handleSelect(file.name)}
+        class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
+      >
+        <div class="flex flex-col gap-0.5 min-w-0 font-writer">
+          <span class="text-base font-normal truncate">{formatFileName(baseOf(file.name))}</span>
+          <div class="flex items-center gap-2 text-[0.6875rem] text-metadata font-mono">
+            {#if file.folder}
+              <span class="flex items-center gap-1">
+                <FolderIcon strokeWidth={1.5} class="size-2.5" />
+                {file.folder}
+              </span>
               <span class="opacity-30">•</span>
-              <span>{formatTime(file.last_modified)}</span>
-            </div>
+            {/if}
+            <span>{formatDate(file.last_modified)}</span>
+            <span class="opacity-30">•</span>
+            <span>{formatTime(file.last_modified)}</span>
           </div>
-        </Command.Item>
+        </div>
+      </Command.Item>
+    {/snippet}
+
+    <Command.Group heading={query ? 'Writings' : 'Recent'} class="" value="">
+      {#each query ? titleMatches : recentFiles as file (file.name)}
+        {@render writingRow(file)}
       {/each}
     </Command.Group>
+
+    {#if query.length >= MIN_CONTENT_QUERY && (contentOnly.length > 0 || isSearchingContent)}
+      <Command.Group heading="In your writing" class="" value="">
+        {#if contentOnly.length === 0}
+          <p class="px-3 py-2 text-sm text-muted-foreground/50 font-sans">Searching…</p>
+        {/if}
+        <!-- cmdk filters on `value`; a content hit's title usually does not
+             contain the query, so the query goes in the value to keep it. -->
+        {#each contentOnly as hit (hit.name)}
+          <Command.Item
+            value={`${search} ${hit.name}`}
+            onSelect={() => handleSelectContent(hit)}
+            class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
+          >
+            <div class="flex flex-col gap-0.5 min-w-0">
+              <span class="font-writer text-base font-normal truncate">
+                {formatFileName(baseOf(hit.name))}
+              </span>
+              <span class="truncate text-[0.75rem] text-muted-foreground/70 font-sans">
+                {hit.preview}
+              </span>
+            </div>
+            <Command.Shortcut class="font-mono text-[0.625rem]">line {hit.line}</Command.Shortcut>
+          </Command.Item>
+        {/each}
+      </Command.Group>
+    {/if}
 
     <Command.Group heading="Actions" class="" value="">
       <Command.Item value="new writing blank create" onSelect={handleCreateBlank} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
@@ -183,6 +321,10 @@
       <Command.Item value="codex characters locations factions items lore" onSelect={handleOpenCodex} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <BookUserIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Open codex{appState.ui.activeBinder ? ` for ${appState.ui.activeBinder}` : ''}</span>
+      </Command.Item>
+      <Command.Item value="trash deleted restore recover undo bin" onSelect={() => { close(); appState.toggleTrash(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+        <Trash2Icon strokeWidth={1.5} class="size-3.5 mr-2" />
+        <span>Recently deleted</span>
       </Command.Item>
       <Command.Item value="settings preferences" onSelect={handleOpenSettings} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <SettingsIcon strokeWidth={1.5} class="size-3.5 mr-2" />

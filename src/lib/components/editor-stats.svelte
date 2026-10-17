@@ -66,6 +66,23 @@
     return goal ? Math.min(100, Math.round((value / goal) * 100)) : 0;
   }
 
+  let sceneGoal = $derived(isDraft ? 0 : writingState.sceneGoal(fileName));
+
+  /**
+   * The one goal worth showing in the status bar. The scene in front of you
+   * beats the day's total, which beats nothing.
+   * @type {{ label: string, value: number, goal: number } | null}
+   */
+  let activeGoal = $derived.by(() => {
+    if (sceneGoal) {
+      return { label: 'This writing', value: writingState.docWords, goal: sceneGoal };
+    }
+    if (writingState.dailyGoal) {
+      return { label: 'Today', value: writingState.todayWords, goal: writingState.dailyGoal };
+    }
+    return null;
+  });
+
   let label = $derived(
     writingState.selectionWords
       ? `${format.format(writingState.selectionWords)} of ${format.format(writingState.docWords)} words`
@@ -113,12 +130,23 @@
     aria-label="Word count and goals"
   >
     <span>{label}</span>
-    {#if writingState.dailyGoal}
+    {#if activeGoal}
+      <!-- A goal you have to open a popover to see is a goal you forget. The
+           bar is small and quiet on purpose: progress, not a scoreboard. -->
       <span
-        class="text-muted-foreground/60"
-        title="Today: {format.format(writingState.todayWords)} of {format.format(writingState.dailyGoal)}"
+        class="h-1 w-10 rounded-full bg-muted overflow-hidden"
+        title="{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)}"
       >
-        · {percent(writingState.todayWords, writingState.dailyGoal)}% today
+        <span
+          class="block h-full rounded-full transition-[width] duration-300 {activeGoal.value >=
+          activeGoal.goal
+            ? 'bg-success'
+            : 'bg-primary'}"
+          style="width: {percent(activeGoal.value, activeGoal.goal)}%"
+        ></span>
+      </span>
+      <span class="text-muted-foreground/60 tabular-nums">
+        {percent(activeGoal.value, activeGoal.goal)}%
       </span>
     {/if}
   </Popover.Trigger>
@@ -160,6 +188,25 @@
         {@render goalBar(writingState.todayWords, writingState.dailyGoal)}
       {/if}
     </div>
+
+    {#if !isDraft}
+      <div class="pt-4 mt-4 border-t border-border/50 space-y-2">
+        <div class="flex items-center justify-between gap-3">
+          <label for="scene-goal" class="font-medium">This writing</label>
+          {@render goalInput('scene-goal', sceneGoal, (n) => writingState.setSceneGoal(fileName, n))}
+        </div>
+        <p class="text-xs text-muted-foreground tabular-nums">
+          {#if sceneGoal}
+            {format.format(writingState.docWords)} of {format.format(sceneGoal)} words
+          {:else}
+            A target for the scene in front of you
+          {/if}
+        </p>
+        {#if sceneGoal}
+          {@render goalBar(writingState.docWords, sceneGoal)}
+        {/if}
+      </div>
+    {/if}
 
     {#if binder && !isDraft}
       <div class="pt-4 mt-4 border-t border-border/50 space-y-2">

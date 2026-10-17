@@ -16,6 +16,8 @@
   import FileInputIcon from '@lucide/svelte/icons/file-input';
   import ListTreeIcon from '@lucide/svelte/icons/list-tree';
   import LayoutGridIcon from '@lucide/svelte/icons/layout-grid';
+  import ArrowDownWideNarrowIcon from '@lucide/svelte/icons/arrow-down-wide-narrow';
+  import CheckIcon from '@lucide/svelte/icons/check';
   import BinderCards from './binder-cards.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
   import { formatFileName, formatDate, formatTime } from '@/utils';
@@ -32,8 +34,34 @@
   import { baseOf, dirOf } from '@/runes/fs.svelte';
   import { DRAG_MIME, readDragPayload } from '$lib/tree-dnd.js';
   import { toast } from '$lib/toast.js';
+  import { offerUndo, RETENTION_DAYS } from '$lib/runes/trash.svelte.js';
+  import { sceneCache } from '@/runes/scenes.svelte.js';
+  import { compareByOrder, dirIsOrdered, clearOrder } from '@/runes/ordering.svelte.js';
+  import { naturalCollator } from '@/utils';
+
+  /**
+   * Tailwind can't build class names at runtime, so each colour's classes are
+   * written out here for the compiler to find.
+   * @type {Record<string, { tile: string, dot: string }>}
+   */
+  const TINTS = {
+    teal: { tile: 'bg-teal/15 text-teal', dot: 'bg-teal' },
+    primary: { tile: 'bg-primary/10 text-primary', dot: 'bg-primary' },
+    info: { tile: 'bg-info/15 text-info', dot: 'bg-info' },
+    success: { tile: 'bg-success/15 text-success', dot: 'bg-success' },
+    warning: { tile: 'bg-warning/20 text-warning', dot: 'bg-warning' },
+    accent: { tile: 'bg-accent/20 text-accent-foreground', dot: 'bg-accent' },
+    muted: { tile: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground/50' },
+  };
 
   let { activeBinder = null } = $props();
+
+  // Fills the shared scene cache so tree rows can show status and word count.
+  // Unchanged writings cost nothing, so this is safe to re-run on any change.
+  $effect(() => {
+    const files = activeBinder ? fileManager.filesUnder(activeBinder) : fileManager.files;
+    sceneCache.load(files).catch((e) => console.error('Could not read scene metadata:', e));
+  });
 
   // --- Move (picker + drag and drop) ---
 
@@ -144,6 +172,9 @@
   /** Tree or corkboard-style cards for a binder. Remembered across launches. */
   let binderView = $state(/** @type {'tree' | 'cards'} */ (readBinderView()));
 
+  /** True when the writer has dragged writings into an order of their own. */
+  let isOrdered = $derived(Boolean(activeBinder) && dirIsOrdered(activeBinder ?? ''));
+
   function readBinderView() {
     try {
       return localStorage.getItem('binderView') === 'cards' ? 'cards' : 'tree';
@@ -162,7 +193,7 @@
     }
   }
   let fileTree = $derived.by(() =>
-    showTree ? buildFileTree(favourites, activeBinder, fileManager.folders) : []
+    showTree ? buildFileTree(favourites, activeBinder, fileManager.folders, (a, b) => compareByOrder(a.name, b.name, (x, y) => naturalCollator.compare(baseOf(x), baseOf(y)))) : []
   );
 
   // Inline create draft, folders only. New writings open a blank editor
@@ -252,11 +283,9 @@
 
   async function confirmDeleteFolderAll() {
     isDeletingFolder = true;
-    const name = baseOf(folderToDeleteFull);
-    const n = folderToDeleteFiles;
     try {
-      const ok = await fileManager.deleteFolderRecursive(folderToDeleteFull);
-      if (ok) toast.success(`Deleted “${name}”`, `${n} writing${n === 1 ? '' : 's'} removed.`);
+      const entry = await fileManager.deleteFolderRecursive(folderToDeleteFull);
+      if (entry) offerUndo(entry);
     } finally {
       isDeletingFolder = false;
       isDeleteFolderDialogOpen = false;
@@ -264,8 +293,67 @@
     }
   }
 
+  /**
+   * How the flat list is ordered. Date keeps the "Today / This Week" grouping;
+   * the others are plain sorted lists, because grouping by date and sorting by
+   * name at the same time reads as neither.
+   * @type {{ id: 'date' | 'name' | 'words' | 'status', label: string }[]}
+   */
+  const SORTS = [
+    { id: 'date', label: 'Last edited' },
+    { id: 'name', label: 'Name' },
+    { id: 'words', label: 'Word count' },
+    { id: 'status', label: 'Status' },
+  ];
+
+  let sortBy = $state(/** @type {'date' | 'name' | 'words' | 'status'} */ (readSort()));
+
+  function readSort() {
+    try {
+      const saved = localStorage.getItem('timelineSort');
+      return SORTS.some((s) => s.id === saved) ? saved : 'date';
+    } catch {
+      return 'date';
+    }
+  }
+
+  /** @param {'date' | 'name' | 'words' | 'status'} next */
+  function setSort(next) {
+    sortBy = next;
+    try {
+      localStorage.setItem('timelineSort', next);
+    } catch {
+      // Not remembered; fine.
+    }
+  }
+
+  let sortLabel = $derived(SORTS.find((s) => s.id === sortBy)?.label ?? 'Last edited');
+
+  /** The flat list under a sort other than date: one list, no date headings. */
+  let sortedFiles = $derived.by(() => {
+    const files = [...filteredFiles];
+    if (sortBy === 'name') {
+      files.sort((a, b) => naturalCollator.compare(baseOf(a.name), baseOf(b.name)));
+    } else if (sortBy === 'words') {
+      // Unread writings have no count yet; they sort last rather than as zero.
+      files.sort((a, b) => (sceneCache.wordsOf(b.name) ?? -1) - (sceneCache.wordsOf(a.name) ?? -1));
+    } else if (sortBy === 'status') {
+      files.sort((a, b) => {
+        const sa = sceneCache.statusOf(a.name);
+        const sb = sceneCache.statusOf(b.name);
+        if (sa === sb) return naturalCollator.compare(baseOf(a.name), baseOf(b.name));
+        // Writings with no status go last; they are the ones not yet triaged.
+        if (!sa) return 1;
+        if (!sb) return -1;
+        return naturalCollator.compare(sa, sb);
+      });
+    }
+    return files;
+  });
+
   let groupedFiles = $derived.by(() => {
     const files = filteredFiles;
+    if (sortBy !== 'date') return [{ id: sortBy, label: sortLabel, files: sortedFiles }];
     const groups = [
       { id: 'today', label: 'Today', files: [] },
       { id: 'yesterday', label: 'Yesterday', files: [] },
@@ -331,7 +419,8 @@
 
   async function handleConfirmDelete() {
     if (itemToDelete) {
-      await fileManager.deleteFile(itemToDelete.name);
+      const entry = await fileManager.deleteFile(itemToDelete.name);
+      if (entry) offerUndo(entry);
       isDeleteDialogOpen = false;
       itemToDelete = null;
     }
@@ -342,13 +431,15 @@
     itemToDelete = null;
   }
 
-  /** Deterministic tile tint per binder. "Work" is always teal (spec); everything
-   *  else cycles through neutral/clay tints so folders stay visually distinct
-   *  without every binder needing an assigned color. */
+  /**
+   * Tile tint for a binder: the colour the writer picked, or one derived from
+   * the name. It used to special-case the literal binder "Work" and give every
+   * other binder the same tint, which made them indistinguishable.
+   * @param {string | null} folder
+   */
   function folderTint(folder) {
     if (!folder) return { tile: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground/50' };
-    if (folder.toLowerCase() === 'work') return { tile: 'bg-teal/15 text-teal', dot: 'bg-teal' };
-    return { tile: 'bg-primary/10 text-primary', dot: 'bg-primary' };
+    return TINTS[appState.binderColour(folder)] ?? TINTS.primary;
   }
 </script>
 
@@ -404,6 +495,17 @@
             {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
               · drop to move to {activeBinder}{/if}
           </span>
+          {#if isOrdered}
+            <!-- Say the order is manual, and give one click back to by-name. -->
+            <button
+              type="button"
+              onclick={() => clearOrder(activeBinder ?? '')}
+              class="text-[0.6875rem] font-mono text-metadata hover:text-foreground transition-colors"
+              title="Sort by name again"
+            >
+              manual order · reset
+            </button>
+          {/if}
           <div class="flex items-center gap-1">
             {#if binderView === 'tree'}
               <Button
@@ -501,6 +603,35 @@
       </div>
     {:else}
     <div class="space-y-6 pb-20 pr-2">
+      <!-- The list was always by date; the other orders are the ones a writer
+           reaches for when triaging rather than picking up where they left. -->
+      <div class="flex items-center justify-end -mb-2">
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            {#snippet child({ props })}
+              <button
+                {...props}
+                type="button"
+                class="flex items-center gap-1.5 h-7 px-2 rounded-md text-[0.6875rem] font-mono text-metadata hover:text-foreground hover:bg-muted/40 transition-colors"
+              >
+                <ArrowDownWideNarrowIcon class="size-3.5" strokeWidth={1.5} />
+                {sortLabel}
+              </button>
+            {/snippet}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content class="w-44" align="end" portalProps={{}}>
+            {#each SORTS as option (option.id)}
+              <DropdownMenu.Item class="" inset={false} onclick={() => setSort(option.id)}>
+                <span class="flex-1">{option.label}</span>
+                {#if sortBy === option.id}
+                  <CheckIcon class="size-3.5" strokeWidth={1.75} />
+                {/if}
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </div>
+
       {#if !fileManager.hasLoadedFiles}
         {@render loadingRows()}
       {/if}
@@ -644,7 +775,7 @@
         Are you sure you want to delete
         <span class="font-bold text-foreground">"{itemToDelete ? formatFileName(itemToDelete.name.split('/').pop()) : ''}"</span>{#if itemToDelete?.folder}
           from <span class="text-foreground">{itemToDelete.folder}</span>{/if}?
-        <br/>This action cannot be undone.
+        <br/>It goes to the trash, and you can put it back for {RETENTION_DAYS} days.
       </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer class="mt-6 flex gap-2">
@@ -667,7 +798,7 @@
         {:else}
           <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
           holds {folderToDeleteFiles} writing{folderToDeleteFiles === 1 ? '' : 's'}{#if folderToDeleteFolders > 0}&nbsp;and {folderToDeleteFolders} folder{folderToDeleteFolders === 1 ? '' : 's'}{/if}.
-          Keep them and remove only the folder, or delete everything.
+          Keep them and remove only the folder, or send the whole thing to the trash.
         {/if}
       </Dialog.Description>
     </Dialog.Header>
@@ -681,7 +812,7 @@
           {isDeletingFolder ? 'Working…' : 'Remove folder, keep writings'}
         </Button>
         <Button variant="destructive" onclick={confirmDeleteFolderAll} disabled={isDeletingFolder} class="w-full">
-          Delete folder and {folderToDeleteFiles} writing{folderToDeleteFiles === 1 ? '' : 's'}
+          Trash folder and {folderToDeleteFiles} writing{folderToDeleteFiles === 1 ? '' : 's'}
         </Button>
       {/if}
       <Button

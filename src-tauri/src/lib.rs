@@ -20,6 +20,7 @@ mod reranker;
 mod responses;
 mod rtf;
 mod search;
+mod trash;
 mod undotree;
 mod utils;
 mod workers;
@@ -91,8 +92,7 @@ async fn run_exit_tasks(app_handle: &tauri::AppHandle) {
                 && config.auto_push_on_exit
                 && config.github_repo.is_some(),
             config.content_directory.clone(),
-            (provider == SyncProvider::Dropbox
-                && config.dropbox_auto_push_on_exit)
+            (provider == SyncProvider::Dropbox && config.dropbox_auto_push_on_exit)
                 .then(|| config.dropbox_folder.clone())
                 .flatten(),
         )
@@ -101,10 +101,8 @@ async fn run_exit_tasks(app_handle: &tauri::AppHandle) {
     if should_push {
         if let Ok(Some(token)) = git::load_token() {
             if let Ok(user) = git::fetch_github_user(&token).await {
-                let author_name =
-                    user.name.unwrap_or_else(|| user.login.clone());
-                let author_email =
-                    format!("{}@users.noreply.github.com", user.login);
+                let author_name = user.name.unwrap_or_else(|| user.login.clone());
+                let author_email = format!("{}@users.noreply.github.com", user.login);
                 let message = format!(
                     "Auto-sync on exit — {}",
                     chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
@@ -159,9 +157,12 @@ async fn load_startup() -> Result<Startup, String> {
         .map_err(|e| format!("Could not find your application data folder: {e}"))?
         .join("config.yaml");
 
-    let config_path_str = config_path
-        .to_str()
-        .ok_or_else(|| format!("The config path {} is not valid UTF-8.", config_path.display()))?;
+    let config_path_str = config_path.to_str().ok_or_else(|| {
+        format!(
+            "The config path {} is not valid UTF-8.",
+            config_path.display()
+        )
+    })?;
 
     config::AppConfig::init_default_config(config_path_str)
         .map_err(|e| format!("Could not create {}: {e}", config_path.display()))?;
@@ -278,6 +279,19 @@ pub async fn run() {
 
             // Keeps the note index current when notes change on disk. The frontend
             // asks for a first pass on startup.
+            if let Some(dir) = watch_dir.clone() {
+                match trash::purge_expired(&dir) {
+                    Ok(n) if n > 0 => {
+                        println!(
+                            "Removed {n} item(s) from the trash after {} days.",
+                            trash::RETENTION_DAYS
+                        )
+                    }
+                    Err(e) => eprintln!("Could not tidy the trash: {e}"),
+                    _ => {}
+                }
+            }
+
             if let Some(watch_dir) = watch_dir.clone() {
                 if let Err(e) = app
                     .state::<AppState>()
@@ -342,6 +356,11 @@ pub async fn run() {
             commands::create_folder,
             commands::list_folders,
             commands::delete_folder,
+            commands::delete_folder_to_trash,
+            commands::list_trash,
+            commands::restore_from_trash,
+            commands::purge_from_trash,
+            commands::empty_trash,
             commands::check_models,
             commands::get_supported_models,
             commands::download_model,

@@ -340,6 +340,9 @@ pub fn update_file(file: &File, content: &str) -> Result<File, FileError> {
     Ok(file.clone())
 }
 
+/// Removes a writing from disk for good. Deleting from the app goes through
+/// `trash::send_to_trash` instead; this is the final step behind it.
+#[allow(dead_code)]
 pub fn delete_file(file: &File) -> Result<(), FileError> {
     fs::remove_file(&file.path)?;
     Ok(())

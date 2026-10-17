@@ -6,10 +6,12 @@
   import ExportDialog from '$lib/components/export-dialog.svelte';
   import ProjectSearch from '$lib/components/project-search.svelte';
   import ImportDialog from '$lib/components/import-dialog.svelte';
+  import TrashSheet from '$lib/components/trash-sheet.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { startNewWriting } from '$lib/new-writing.js';
+  import { ensureWelcomeWriting } from '$lib/onboarding.js';
   import { dirOf } from '$lib/runes/fs.svelte.js';
 
   import { appState, THEME_PALETTES, DENSITY_MODES, STYLE_FLAVOURS } from '@/runes/app.svelte.js';
@@ -132,13 +134,20 @@
       }
     });
 
+    appState.loadBinderColours();
+
+    const lastWriting = localStorage.getItem('lastWriting');
+    if (lastWriting) appState.setLastWriting(lastWriting);
+
     writingState.load();
     if (localStorage.getItem('outlineOpen') === 'true') {
       appState.toggleOutline(true);
     }
-    fileManager.getRecents();
-    fileManager.getBinders();
-    fileManager.getFolders();
+    // The listings have to be in before the welcome writing can tell whether
+    // this is a first run or an existing library.
+    Promise.all([fileManager.getRecents(), fileManager.getBinders(), fileManager.getFolders()])
+      .then(ensureWelcomeWriting)
+      .catch((e) => console.error('Startup listing failed:', e));
 
     configManager.getConfig().then(() => {
       if (configManager.config?.ai_enabled) {
@@ -215,6 +224,7 @@
     <ExportDialog />
     <ProjectSearch />
     <ImportDialog />
+    <TrashSheet />
     <ShortcutsHelp />
     <Toaster
       theme={appState.ui.theme}

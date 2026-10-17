@@ -51,9 +51,11 @@ class AppState {
    *   isHelpModalOpen: boolean,
    *   isNewPickerOpen: boolean,
    *   isProjectSearchOpen: boolean,
+   *   isTrashOpen: boolean,
    *   exportTarget: { fileName: string | null, dir: string } | null,
    *   importTarget: { dir: string } | null,
    *   activeBinder: string | null,
+   *   lastWriting: string | null,
    *   theme: 'dark' | 'light',
    *   themePreference: 'light' | 'dark' | 'system',
    *   themePalette: string,
@@ -75,6 +77,8 @@ class AppState {
     isNewPickerOpen: false,
     /** Find and replace across all writings (⌘⇧F). */
     isProjectSearchOpen: false,
+    /** "Recently deleted": restore or purge trashed writings. */
+    isTrashOpen: false,
     /**
      * Export dialog. `fileName` is the writing it was opened from (null from
      * the home screen), `dir` the folder or binder offered as the default scope.
@@ -88,6 +92,12 @@ class AppState {
     importTarget: null,
     /** Binder selected on the home screen; null = All Writings. Survives navigation. */
     activeBinder: /** @type {string | null} */ (null),
+    /**
+     * The last writing opened, across launches. A writer's first move is
+     * almost always "back to what I was writing", and the app used to open on
+     * the home screen with no way back but hunting for it.
+     */
+    lastWriting: /** @type {string | null} */ (null),
     theme: 'dark',
     /** What the user picked: 'light' | 'dark' | 'system'. `theme` is the resolved value. */
     themePreference: 'system',
@@ -214,6 +224,22 @@ class AppState {
     this.ui.isProjectSearchOpen = state;
   }
 
+  /** @param {boolean} state */
+  toggleTrash(state) {
+    this.ui.isTrashOpen = state;
+  }
+
+  /**
+   * Remembers the writing on screen so the home screen can offer it back.
+   * @param {string | null} name - Content-relative path; null forgets it.
+   */
+  setLastWriting(name) {
+    this.ui.lastWriting = name;
+    if (typeof window === 'undefined') return;
+    if (name) localStorage.setItem('lastWriting', name);
+    else localStorage.removeItem('lastWriting');
+  }
+
   /** @param {{ fileName: string | null, dir: string } | null} target - null closes the dialog. */
   openExport(target) {
     this.ui.exportTarget = target;
@@ -270,6 +296,54 @@ class AppState {
   }
 
   /**
+   * Colour chosen per binder, keyed by name. Loaded in `loadBinderColours`.
+   * @type {Record<string, string>}
+   */
+  binderColours = $state({});
+
+  /** Palette offered for binders. Names match the tint classes in app.css. */
+  static BINDER_COLOURS = ['teal', 'primary', 'info', 'success', 'warning', 'accent'];
+
+  loadBinderColours() {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('binderColours') ?? '{}');
+      if (saved && typeof saved === 'object') this.binderColours = saved;
+    } catch {
+      // Nothing saved, or unreadable; the fallback colour covers it.
+    }
+  }
+
+  /**
+   * @param {string} binder
+   * @param {string | null} colour - null goes back to the colour from the name.
+   */
+  setBinderColour(binder, colour) {
+    const next = { ...this.binderColours };
+    if (colour) next[binder] = colour;
+    else delete next[binder];
+    this.binderColours = next;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('binderColours', JSON.stringify(next));
+    }
+  }
+
+  /**
+   * The colour for a binder: the writer's choice, or one derived from the
+   * name so binders stay distinguishable without anyone picking anything.
+   * @param {string | null} binder
+   */
+  binderColour(binder) {
+    if (!binder) return 'muted';
+    const chosen = this.binderColours[binder];
+    if (chosen) return chosen;
+    // Stable hash, so a binder keeps its colour between launches.
+    let hash = 0;
+    for (let i = 0; i < binder.length; i++) hash = (hash * 31 + binder.charCodeAt(i)) >>> 0;
+    return AppState.BINDER_COLOURS[hash % AppState.BINDER_COLOURS.length];
+  }
+
+  /**
    * @param {string} palette - One of default, zinc, slate, rose, blue, green, violet
    */
   setThemePalette(palette) {
@@ -312,3 +386,4 @@ export const THEME_PALETTES = AppState.THEME_PALETTES;
 export const STYLE_FLAVOURS = AppState.STYLE_FLAVOURS;
 export const DENSITY_MODES = AppState.DENSITY_MODES;
 export const DENSITY_FONT_SIZE = AppState.DENSITY_FONT_SIZE;
+export const BINDER_COLOURS = AppState.BINDER_COLOURS;

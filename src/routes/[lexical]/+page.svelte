@@ -15,7 +15,7 @@
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte';
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
   import { goto, afterNavigate } from '$app/navigation';
@@ -24,6 +24,7 @@
   import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte';
   import { configManager } from '$lib/runes/config.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
+  import { syncTarget, publish, refreshSyncStatus } from '$lib/runes/sync.svelte.js';
   import { getCurrentWindow } from '@tauri-apps/api/window';
 
   let { data } = $props();
@@ -61,12 +62,34 @@
 
   onMount(() => {
     const timer = setInterval(() => (now = Date.now()), 30_000);
+    // Opening straight into a writing never mounts the home sidebar, so the
+    // sync session would otherwise be unknown here.
+    refreshSyncStatus().catch((e) => console.error('Could not read sync status:', e));
     return () => clearInterval(timer);
   });
 
   // Grammar chunks are only meaningful with local AI on; wait for config to arrive.
   $effect(() => {
     if (configManager.config?.ai_enabled && !isDraft) syncGrammarChecks(fileName);
+  });
+
+  // Remembered across launches so the home screen can offer the way back in.
+  // A draft has nothing on disk to return to yet.
+  $effect(() => {
+    if (!isDraft && fileName) appState.setLastWriting(fileName);
+  });
+
+  // Deleted from somewhere else (the palette, another window, the trash being
+  // emptied): leaving the writer on a path that no longer exists means every
+  // later save fails. Step back home instead.
+  $effect(() => {
+    if (isDraft || !fileManager.hasLoadedFiles) return;
+    const stillThere = fileManager.files.some((f) => f.name === fileName);
+    if (stillThere) return;
+    untrack(() => {
+      appState.setLastWriting(null);
+      goto(resolve('/'));
+    });
   });
 
   let body = $derived(content || '');
@@ -109,6 +132,21 @@
     }
   });
 
+  // Where this writing stands with the cloud, if the writer turned it on.
+  let sync = $derived(syncTarget());
+  let syncLabel = $derived.by(() => {
+    if (sync.provider === 'none') return '';
+    if (sync.busy) return 'Publishing…';
+    if (!sync.ready) return `${sync.label} not set up`;
+    if (sync.pending === 0) return `Published to ${sync.label}`;
+    return `${sync.pending} to publish`;
+  });
+
+  async function publishNow() {
+    if (editorState.flushSave) await editorState.flushSave();
+    await publish();
+  }
+
   let saveTone = $derived(
     editorState.saveStatus.status === 'error'
       ? 'text-destructive'
@@ -140,10 +178,11 @@
     }
   }
 
-  // Focus mode takes the window full screen and gives it back afterwards,
-  // including when the writer leaves the editor while still focused.
+  // Focus mode takes the window full screen only if the writer asked it to,
+  // and gives it back afterwards — including when they leave the editor while
+  // still focused.
   $effect(() => {
-    setFocusFullscreen(focusMode);
+    setFocusFullscreen(focusMode && writingState.focusFullscreen);
   });
 
   onMount(() => () => {
@@ -223,8 +262,25 @@
           </button>
         {/if}
       </div>
-      <span class="{saveTone} tracking-wide shrink-0 transition-colors" aria-live="polite">
-        {saveLabel}
+      <!-- One line for the state of the work: saved on disk, and whether it
+           has left the machine. They used to be separate signals in separate
+           places, and the second is the one that actually worries people. -->
+      <span class="flex items-center gap-1.5 shrink-0 tracking-wide" aria-live="polite">
+        <span class="{saveTone} transition-colors">{saveLabel}</span>
+        {#if syncLabel}
+          <span class="opacity-30">•</span>
+          <button
+            type="button"
+            onclick={publishNow}
+            disabled={sync.busy}
+            title="Publish to {sync.label}"
+            class="transition-colors hover:text-foreground disabled:opacity-60 {sync.pending
+              ? 'text-warning'
+              : 'text-muted-foreground/70'}"
+          >
+            {syncLabel}
+          </button>
+        {/if}
       </span>
       <button
         onclick={() => appState.toggleOutline()}

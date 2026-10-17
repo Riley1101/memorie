@@ -55,19 +55,23 @@ export function sanitizeMarkdown(md) {
  * Builds a nested folder/file tree for the files inside one binder, from the
  * flat `FileEntry[]` list the backend returns (each entry's `name` carries its
  * full path, e.g. "Novel/Chapter 1/Scene 1.md"). Used to render chapters/scenes
- * as a real tree instead of a flat list. Folders sort before files, both
- * alphabetically.
+ * as a real tree instead of a flat list. Folders sort before files.
+ *
+ * Writings sort by `compare`, which the caller supplies so a manually ordered
+ * manuscript can override the alphabetical default without this function
+ * having to know about front matter.
  *
  * @param {Array<{name: string, folder: string|null}>} files
  * @param {string} binder
  * @param {string[]} [folders] - `/`-joined relative folder paths (e.g. "Novel/Chapter 2"),
  *   from `fileManager.folders`. Passed so folders with no writings in them yet still show up.
+ * @param {(a: object, b: object) => number} [compare] - Orders two file nodes' `file` entries.
  * @returns {Array<{type: 'folder', name: string, path: string[], children: Array} | {type: 'file', file: object}>}
  */
 /** "Chapter 2" before "Chapter 10", case-insensitive. */
 export const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-export function buildFileTree(files, binder, folders = []) {
+export function buildFileTree(files, binder, folders = [], compare) {
   const root = [];
 
   const getOrCreateFolder = (level, path, folderName) => {
@@ -112,6 +116,7 @@ export function buildFileTree(files, binder, folders = []) {
   const finish = (nodes) => {
     nodes.sort((a, b) => {
       if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      if (a.type === 'file' && compare) return compare(a.file, b.file);
       return naturalCollator.compare(a.name, b.name);
     });
     let count = 0;

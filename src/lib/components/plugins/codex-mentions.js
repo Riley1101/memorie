@@ -99,7 +99,12 @@ function blockDecorations(node, pos, matcher) {
     Decoration.inline(pos + 1 + from, pos + 1 + to, {
       class: 'codex-mention',
       'data-codex-kind': entity.kind,
-      title: entity.summary ? `${entity.name}: ${entity.summary}` : entity.name,
+      // The editor opens the entry from this on ⌘-click; the mention was
+      // marked with `cursor: help` but led nowhere.
+      'data-codex-path': entity.path,
+      title: entity.summary
+        ? `${entity.name} — ${entity.summary}`
+        : `${entity.name} (${entity.kind})`,
     })
   );
 }

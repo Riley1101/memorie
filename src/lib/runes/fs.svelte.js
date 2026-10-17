@@ -438,26 +438,29 @@ class FileManager {
   }
 
   /**
-   * Deletes a file and refreshes the file list.
+   * Moves a writing to the trash, where it can be put back for a month.
    * @async
    * @param {string} fileName - The name of the file to delete.
-   * @returns {Promise<void>}
+   * @returns {Promise<import('$lib/runes/trash.svelte.js').TrashEntry | null>}
+   *   The trash entry, so the caller can offer an undo; null on failure.
    */
   async deleteFile(fileName) {
     this.isLoading = true;
     this.errorMessage = '';
 
     try {
-      await invoke('delete_file', { name: fileName });
+      const entry = await invoke('delete_file', { name: fileName });
       if (this.currentFile?.name === fileName) {
         this.currentFile = null;
         this.currentContent = '';
       }
       await this.getRecents();
+      return entry;
     } catch (err) {
       this.errorMessage = `Failed to delete file "${fileName}": ${err}`;
       console.error(err);
       toast.error(`Could not delete "${baseOf(fileName)}"`, err);
+      return null;
     } finally {
       this.isLoading = false;
     }
@@ -576,32 +579,21 @@ class FileManager {
   }
 
   /**
-   * Deletes a folder and everything inside it. Version history for the
-   * deleted writings is left untouched on disk.
+   * Moves a folder and everything inside it to the trash, in one step, so one
+   * undo brings the whole thing back. Version history is left on disk.
    * @param {string} path
-   * @returns {Promise<boolean>}
+   * @returns {Promise<import('$lib/runes/trash.svelte.js').TrashEntry | null>}
    */
   async deleteFolderRecursive(path) {
     this.isLoading = true;
     this.errorMessage = '';
     try {
-      for (const f of this.filesUnder(path)) {
-        await invoke('delete_file', { name: f.name });
-      }
-      // Deepest first, so a folder is only removed once it is empty. Depth is
-      // the segment count; string length is not a stand-in for it.
-      const depth = (p) => p.split('/').length;
-      const nested = this.foldersUnder(path).sort((a, b) => depth(b) - depth(a));
-      for (const f of nested) {
-        await invoke('delete_folder', { relativePath: f });
-      }
-      await invoke('delete_folder', { relativePath: path });
-      return true;
+      return await invoke('delete_folder_to_trash', { relativePath: path });
     } catch (err) {
       this.errorMessage = `Failed to delete folder "${path}": ${err}`;
       console.error(err);
       toast.error(`Could not delete "${baseOf(path)}"`, err);
-      return false;
+      return null;
     } finally {
       this.isLoading = false;
       await this.getRecents();

@@ -19,6 +19,7 @@
   import { appState } from '@/runes/app.svelte.js';
   import { beforeNavigate } from '$app/navigation';
   import { isMod } from '$lib/keyboard.svelte.js';
+  import { openCodexEntry } from '$lib/runes/codex.svelte.js';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { TextSelection } from '@milkdown/kit/prose/state';
 
@@ -320,6 +321,15 @@
     spellcheck={writingState.spellcheck}
     class="outline-none focus:outline-none focus-visible:outline-none"
     onclick={(e) => {
+      // A codex mention opens its entry, the same ⌘-click a web link takes.
+      const mention = /** @type {HTMLElement} */ (e.target).closest('[data-codex-path]');
+      if (mention && isMod(e)) {
+        e.preventDefault();
+        const path = mention.getAttribute('data-codex-path');
+        if (path) openCodexEntry(path);
+        return;
+      }
+
       const link = /** @type {HTMLElement} */ (e.target).closest('a[href]');
       if (!link) return;
       e.preventDefault();
@@ -356,7 +366,8 @@
     text-decoration-color: color-mix(in oklab, var(--primary) 55%, transparent);
     text-decoration-thickness: 1.5px;
     text-underline-offset: 0.2em;
-    cursor: help;
+    /* ⌘-click opens the entry, so the cursor should promise a destination. */
+    cursor: pointer;
   }
 
   main :global(.find-match) {

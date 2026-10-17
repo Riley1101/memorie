@@ -92,40 +92,94 @@ pub async fn update_file(
     result
 }
 
+/// Deletes a writing by moving it to the trash, where it can be put back.
+/// Returns the trash entry so the caller can offer an undo.
 #[tauri::command]
-pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn delete_file(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<crate::trash::TrashEntry, String> {
     let config = state.config.lock().await;
-    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
-
-    let last_modified = std::fs::metadata(&path)
-        .and_then(|m: std::fs::Metadata| m.modified())
-        .ok()
-        .and_then(|t: std::time::SystemTime| {
-            t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok()
-        })
-        .map(|d: std::time::Duration| d.as_secs())
-        .unwrap_or(0);
-    let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
-    let file_to_delete = File {
-        path,
-        name,
-        last_modified,
-        folder,
-    };
-
-    fs::delete_file(&file_to_delete).map_err(|e| e.to_string())?;
+    let entry = crate::trash::send_to_trash(
+        &config.content_directory,
+        &name,
+        crate::trash::TrashKind::File,
+    )
+    .map_err(|e| e.to_string())?;
     drop(config);
 
-    // The file is already gone; a leftover index entry only affects search, so log
-    // instead of reporting the delete itself as failed.
+    // The writing is out of the way; a leftover index entry only affects
+    // search, so log instead of reporting the delete itself as failed.
     let memory = &state.memory;
-    if let Err(e) = memory.delete_document(&file_to_delete.name).await {
-        eprintln!(
-            "Failed to remove '{}' from the note index: {e}",
-            file_to_delete.name
-        );
+    if let Err(e) = memory.delete_document(&name).await {
+        eprintln!("Failed to remove '{name}' from the note index: {e}");
     }
-    Ok(())
+    Ok(entry)
+}
+
+/// Moves a folder and everything in it to the trash in one step, so a mistake
+/// is one undo away instead of a file-by-file rebuild.
+#[tauri::command]
+pub async fn delete_folder_to_trash(
+    relative_path: String,
+    state: State<'_, AppState>,
+) -> Result<crate::trash::TrashEntry, String> {
+    let config = state.config.lock().await;
+    let content_dir = config.content_directory.clone();
+    let inside: Vec<String> = fs::discover_files(&content_dir)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|f| f.name)
+        .filter(|n| n.starts_with(&format!("{relative_path}/")))
+        .collect();
+
+    let entry = crate::trash::send_to_trash(
+        &content_dir,
+        &relative_path,
+        crate::trash::TrashKind::Folder,
+    )
+    .map_err(|e| e.to_string())?;
+    drop(config);
+
+    let memory = &state.memory;
+    for name in inside {
+        if let Err(e) = memory.delete_document(&name).await {
+            eprintln!("Failed to remove '{name}' from the note index: {e}");
+        }
+    }
+    Ok(entry)
+}
+
+/// Everything currently in the trash, most recently deleted first.
+#[tauri::command]
+pub async fn list_trash(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::trash::TrashEntry>, String> {
+    let config = state.config.lock().await;
+    crate::trash::list(&config.content_directory).map_err(|e| e.to_string())
+}
+
+/// Puts a deleted writing or folder back, returning the path it landed at.
+#[tauri::command]
+pub async fn restore_from_trash(id: String, state: State<'_, AppState>) -> Result<String, String> {
+    let config = state.config.lock().await;
+    crate::trash::restore(&config.content_directory, &id).map_err(|e| e.to_string())
+}
+
+/// Deletes one trashed item for good.
+#[tauri::command]
+pub async fn purge_from_trash(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+    crate::trash::purge(&config.content_directory, &id)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Empties the trash. Returns how many items were removed.
+#[tauri::command]
+pub async fn empty_trash(state: State<'_, AppState>) -> Result<usize, String> {
+    let config = state.config.lock().await;
+    crate::trash::purge_all(&config.content_directory).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

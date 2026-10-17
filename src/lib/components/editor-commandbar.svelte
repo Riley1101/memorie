@@ -24,6 +24,7 @@
   import SearchIcon from '@lucide/svelte/icons/search';
   import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
   import FocusIcon from '@lucide/svelte/icons/focus';
+  import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import SpellCheckIcon from '@lucide/svelte/icons/spell-check';
   import FileOutputIcon from '@lucide/svelte/icons/file-output';
   import FileInputIcon from '@lucide/svelte/icons/file-input';
@@ -243,6 +244,15 @@
       icon: AiSparkleIcon,
     },
     {
+      cmd: ':trash',
+      description: 'Recently deleted — put a writing back',
+      aliases: ['deleted', 'restore'],
+      action: 'trash',
+      shortcutLabel: '',
+      key: '',
+      icon: Trash2Icon,
+    },
+    {
       cmd: ':sync',
       // "push" in the description keeps `:push` (the old name) findable.
       description: 'Publish (push) writing to your cloud sync — set in Settings',
@@ -363,6 +373,9 @@
       case 'toggleAutoPair':
         writingState.setAutoPair(!writingState.autoPair);
         toast.info(writingState.autoPair ? 'Auto-closing brackets on' : 'Auto-closing brackets off');
+        break;
+      case 'trash':
+        appState.toggleTrash(true);
         break;
       case 'home':
         // Leaving the document: make sure the last words are on disk first.
