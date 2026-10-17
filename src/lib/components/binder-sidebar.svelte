@@ -128,24 +128,25 @@
   /** "Work" is always teal (spec); other binders share the clay accent. */
   /**
    * Tailwind needs these class names written out, so the colours live in a
-   * table rather than being built from the colour name.
+   * table rather than being built from the colour name. The active label stays
+   * in full ink: the tint colours as text fall well under 4.5:1 on the page.
    * @type {Record<string, { icon: string, activeBg: string, activeText: string }>}
    */
   const TINTS = {
-    teal: { icon: 'text-teal', activeBg: 'bg-teal/10', activeText: 'text-teal' },
-    primary: { icon: 'text-primary', activeBg: 'bg-primary/10', activeText: 'text-primary' },
-    info: { icon: 'text-info', activeBg: 'bg-info/10', activeText: 'text-info' },
-    success: { icon: 'text-success', activeBg: 'bg-success/10', activeText: 'text-success' },
-    warning: { icon: 'text-warning', activeBg: 'bg-warning/15', activeText: 'text-warning' },
+    teal: { icon: 'text-teal', activeBg: 'bg-teal/10', activeText: 'text-foreground' },
+    primary: { icon: 'text-primary', activeBg: 'bg-primary/10', activeText: 'text-foreground' },
+    info: { icon: 'text-info', activeBg: 'bg-info/10', activeText: 'text-foreground' },
+    success: { icon: 'text-success', activeBg: 'bg-success/10', activeText: 'text-foreground' },
+    warning: { icon: 'text-warning', activeBg: 'bg-warning/15', activeText: 'text-foreground' },
     accent: {
       icon: 'text-accent-foreground',
       activeBg: 'bg-accent/20',
-      activeText: 'text-accent-foreground',
+      activeText: 'text-foreground',
     },
     muted: {
       icon: 'text-muted-foreground',
       activeBg: 'bg-muted',
-      activeText: 'text-muted-foreground',
+      activeText: 'text-foreground',
     },
   };
 

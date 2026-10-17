@@ -22,6 +22,21 @@
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { resolve } from '$app/paths';
 
+  /**
+   * The binder's colour as the home list shows it, so a writing reads the same
+   * here as it does there. Class names are written out for Tailwind to find.
+   * @type {Record<string, string>}
+   */
+  const BINDER_DOTS = {
+    teal: 'bg-teal',
+    primary: 'bg-primary',
+    info: 'bg-info',
+    success: 'bg-success',
+    warning: 'bg-warning',
+    accent: 'bg-accent',
+    muted: 'bg-muted-foreground/50',
+  };
+
   let search = $state('');
 
   /**
@@ -206,7 +221,7 @@
   <Command.Input
     bind:value={search}
     placeholder="Search or create…"
-    class="border-border/20 bg-muted/10"
+    class=""
  />
   <Command.List class="p-2">
     <Command.Empty class="py-10 text-muted-foreground font-sans">
@@ -246,7 +261,7 @@
           <div class="flex items-center gap-2 text-[0.6875rem] text-metadata tabular-nums">
             {#if file.folder}
               <span class="flex items-center gap-1">
-                <FolderIcon strokeWidth={1.5} class="size-2.5" />
+                <span class="size-1.5 rounded-full {BINDER_DOTS[appState.binderColour(file.folder)] ?? 'bg-primary'}"></span>
                 {file.folder}
               </span>
               <span class="opacity-30">•</span>

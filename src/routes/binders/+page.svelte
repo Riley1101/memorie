@@ -10,8 +10,7 @@
   import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import HomeIcon from '@lucide/svelte/icons/home';
-  import { goto } from '$app/navigation';
+  import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
   import { codexManager } from '$lib/runes/codex.svelte.js';
   import { resolve } from '$app/paths';
 
@@ -86,17 +85,15 @@
 </script>
 
 <div class="page-container w-full h-full flex flex-col overflow-hidden">
-  <div class="flex items-center justify-between mb-8">
-    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Binders</h2>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="text-muted-foreground hover:text-foreground rounded-full transition-colors"
-      onclick={() => goto(resolve('/'))}
-      disabled={false}
+  <div class="mb-8 shrink-0">
+    <a
+      href={resolve('/')}
+      class="inline-flex items-center gap-1.5 -ml-1 mb-2 h-7 px-1 rounded-md text-[0.8125rem] text-muted-foreground hover:text-foreground transition-colors"
     >
-      <HomeIcon strokeWidth={1.5} class="size-5" />
-    </Button>
+      <ArrowLeftIcon strokeWidth={1.5} class="size-3.5" />
+      Writings
+    </a>
+    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Binders</h2>
   </div>
 
   <div class="flex-1 min-h-0 flex flex-col gap-6">
@@ -110,7 +107,7 @@
           if (e.key === 'Enter') handleCreateBinder();
         }}
  />
-      <Button variant="default" class="gap-2" onclick={handleCreateBinder} disabled={false}>
+      <Button variant="default" class="gap-2 rounded-full" onclick={handleCreateBinder} disabled={false}>
         <FolderPlusIcon strokeWidth={1.5} class="size-3.5" />
         Create
       </Button>
@@ -127,7 +124,7 @@
         <div class="flex flex-col gap-2 pr-4 pb-4">
           {#each fileManager.binders as binder (binder)}
             {@const count = binderWritingCount(binder)}
-            <div class="flex items-center gap-3 p-4 rounded-lg bg-muted/20 border border-border/50">
+            <div class="flex items-center gap-3 p-4 rounded-lg bg-muted/40">
               <FolderIcon strokeWidth={1.5} class="size-4 text-muted-foreground shrink-0" />
 
               {#if renamingBinder === binder}

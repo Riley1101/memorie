@@ -9,7 +9,8 @@
   import SunIcon from '@lucide/svelte/icons/sun';
   import MoonIcon from '@lucide/svelte/icons/moon';
   import MonitorIcon from '@lucide/svelte/icons/monitor';
-  import HomeIcon from '@lucide/svelte/icons/home';
+  import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+  import CheckIcon from '@lucide/svelte/icons/check';
   import AlignJustifyIcon from '@lucide/svelte/icons/align-justify';
   import Rows3Icon from '@lucide/svelte/icons/rows-3';
   import PaletteIcon from '@lucide/svelte/icons/palette';
@@ -19,7 +20,6 @@
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { llmManager } from '$lib/runes/llm.svelte.js';
   import { memoryManager } from '$lib/runes/memory.svelte.js';
@@ -177,17 +177,15 @@
 </script>
 
 <div class="page-container max-w-5xl w-full h-full flex flex-col overflow-hidden">
-  <div class="flex items-center justify-between mb-8">
-    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Settings</h2>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="text-muted-foreground hover:text-foreground rounded-full transition-colors"
-      onclick={() => goto(resolve('/'))}
-      disabled={false}
+  <div class="mb-8 shrink-0">
+    <a
+      href={resolve('/')}
+      class="inline-flex items-center gap-1.5 -ml-1 mb-2 h-7 px-1 rounded-md text-[0.8125rem] text-muted-foreground hover:text-foreground transition-colors"
     >
-      <HomeIcon strokeWidth={1.5} class="size-5" />
-    </Button>
+      <ArrowLeftIcon strokeWidth={1.5} class="size-3.5" />
+      Writings
+    </a>
+    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Settings</h2>
   </div>
 
   <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-6 md:gap-10">
@@ -218,11 +216,11 @@
                 <h3 class="font-writer text-2xl font-normal">Appearance</h3>
               </div>
               <div class="grid grid-cols-1 gap-8">
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="p-6 rounded-lg bg-muted/40">
                   <p class="text-lg font-normal">Style</p>
                   <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
-                    How the page itself looks — typeface, spacing, and the paper effect. Separate from
-                    the accent color below.
+                    How the page itself looks: typeface, spacing and the paper effect. The accent
+                    color is set separately below.
                   </p>
                   <div class="grid gap-2 sm:grid-cols-2">
                     {#each STYLE_FLAVOURS as flavour (flavour.id)}
@@ -230,26 +228,31 @@
                         type="button"
                         onclick={() => appState.setStyleFlavour(flavour.id)}
                         aria-pressed={appState.ui.styleFlavour === flavour.id}
-                        class="text-left p-4 rounded-lg border transition-colors
+                        class="text-left p-4 rounded-lg transition-colors
                           {appState.ui.styleFlavour === flavour.id
-                            ? 'border-primary bg-primary/5 shadow-[0_0_0_3px_var(--color-primary)/12%]'
-                            : 'border-border/60 hover:border-border hover:bg-muted/30'}"
+                            ? 'bg-primary/10'
+                            : 'hover:bg-background/60'}"
                       >
-                        <span class="text-sm font-medium">{flavour.label}</span>
+                        <span class="flex items-center gap-1.5 text-sm font-medium">
+                          {flavour.label}
+                          {#if appState.ui.styleFlavour === flavour.id}
+                            <CheckIcon strokeWidth={2} class="size-3.5 text-primary" />
+                          {/if}
+                        </span>
                         <p class="text-xs text-muted-foreground mt-1 leading-snug">{flavour.description}</p>
                       </button>
                     {/each}
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Theme</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Light, dark, or follow your system setting.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={appState.ui.themePreference === 'system' ? 'default' : 'ghost'}
                       size="sm"
@@ -283,14 +286,14 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Density</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Overall text size and spacing across the app.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={appState.ui.density === 'default' ? 'default' : 'ghost'}
                       size="sm"
@@ -314,7 +317,7 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="p-6 rounded-lg bg-muted/40">
                   <p class="text-lg font-normal">Color palette</p>
                   <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
                     Accent and primary colors (shadcn-style).
@@ -331,7 +334,7 @@
                       >
                         <span
                           class="size-3.5 rounded-full shrink-0
-                            {palette === 'default' ? 'bg-neutral-500' : ''}
+                            {palette === 'default' ? 'bg-[#7d5129]' : ''}
                             {palette === 'zinc' ? 'bg-zinc-500' : ''}
                             {palette === 'slate' ? 'bg-slate-500' : ''}
                             {palette === 'rose' ? 'bg-rose-500' : ''}
@@ -357,7 +360,7 @@
               </div>
 
               <div class="grid grid-cols-1 gap-8">
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">Content directory</span>
@@ -370,7 +373,7 @@
                   </p>
                 </div>
 
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">History directory</span>
@@ -390,7 +393,7 @@
                 <h3 class="font-writer text-2xl font-normal">Writing</h3>
               </div>
               <div class="grid grid-cols-1 gap-8">
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Paragraph style</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -398,7 +401,7 @@
                       the style export uses for "Standard manuscript format".
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={writingState.paragraphStyle === 'spaced' ? 'default' : 'ghost'}
                       size="sm"
@@ -420,14 +423,14 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Spellcheck</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Underline misspelled words while you write.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={writingState.spellcheck ? 'default' : 'ghost'}
                       size="sm"
@@ -449,7 +452,7 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Focus mode goes full screen</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -457,7 +460,7 @@
                       screen — which on macOS moves the window to its own Space.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={writingState.focusFullscreen ? 'default' : 'ghost'}
                       size="sm"
@@ -479,7 +482,7 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Highlight codex names</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -487,7 +490,7 @@
                       Hover one for its summary, or {MOD_KEY}-click to open its entry.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={writingState.codexHighlight ? 'default' : 'ghost'}
                       size="sm"
@@ -509,14 +512,14 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Smart punctuation</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Curly quotes, em dashes from <code>--</code> and ellipses from <code>...</code> as you type. Backspace right after undoes one.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={writingState.smartPunctuation ? 'default' : 'ghost'}
                       size="sm"
@@ -538,14 +541,14 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p class="text-lg font-normal">Auto-close brackets</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
                       Typing an opening bracket adds its closing pair; with text selected, it wraps the selection.
                     </p>
                   </div>
-                  <div class="flex flex-wrap shrink-0 bg-muted/40 p-1 rounded-md border border-border/50 w-fit max-w-full">
+                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
                     <Button
                       variant={writingState.autoPair ? 'default' : 'ghost'}
                       size="sm"
@@ -567,7 +570,7 @@
                   </div>
                 </div>
 
-                <div class="p-6 rounded-lg bg-muted/20 border border-border/50 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <label for="settings-daily-goal" class="text-lg font-normal">Daily word goal</label>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -597,7 +600,7 @@
 
               <div class="grid grid-cols-1 gap-8">
                 <!-- Enable AI -->
-                <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/40">
                   <div>
                     <p class="text-lg font-normal">Enable AI</p>
                     <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -623,7 +626,7 @@
 
                 {#if configManager.config?.ai_enabled}
                 <!-- Provider selector -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">AI provider</span>
@@ -651,7 +654,7 @@
                 </div>
 
                 {#if configManager.config?.provider === 'openrouter'}
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">OpenRouter</span>
@@ -676,7 +679,7 @@
                       </div>
                     {:else if configManager.openRouterModels.length > 0}
                       <select
-                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         value={configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}
                         onchange={(e) => configManager.setOpenRouterModel(e.currentTarget.value)}
                       >
@@ -696,7 +699,7 @@
                     <div class="flex gap-2 mt-2">
                       <input
                         type="password"
-                        class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         placeholder="sk-or-..."
                         bind:value={openRouterKeyInput}
                       />
@@ -709,7 +712,7 @@
                 {/if}
 
                 {#if (configManager.config?.provider ?? 'local') === 'local'}
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">Supported models (Kalosm)</span>
@@ -798,7 +801,7 @@
                 </div>
                 {/if}
 
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">Note search</span>
@@ -841,7 +844,7 @@
                   {/if}
                 </div>
 
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">System prompt</span>
@@ -852,7 +855,7 @@
 
                   <div class="flex flex-col gap-2 mt-2">
                     <textarea
-                      class="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      class="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="e.g. You are a helpful AI assistant..."
                       value={configManager.config?.system_prompt ?? ''}
                       onchange={(e) => {
@@ -874,7 +877,7 @@
 
               <div class="grid grid-cols-1 gap-8">
                 <!-- Preferred storage -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <CloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">Preferred storage</span>
@@ -914,7 +917,7 @@
 
                 {#if syncProvider === 'github'}
                 <!-- Account -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">Account</span>
@@ -978,7 +981,7 @@
 
                 {#if gitManager.user}
                   <!-- Auto push on exit -->
-                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/40">
                     <div>
                       <p class="text-lg font-normal">Auto-push on exit</p>
                       <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -1003,7 +1006,7 @@
                   </div>
 
                   <!-- Repository -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                     <div class="flex items-center gap-2 text-muted-foreground mb-1">
                       <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
                       <span class="text-sm font-medium text-muted-foreground">Repository</span>
@@ -1017,7 +1020,7 @@
                         type="text"
                         bind:value={repoInput}
                         placeholder="owner/repo"
-                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
  />
                       <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveRepo}>
                         Save
@@ -1050,7 +1053,7 @@
                   </div>
 
                   <!-- Status & push -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                     <div class="flex items-center justify-between mb-1">
                       <div class="flex items-center gap-2 text-muted-foreground">
                         <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
@@ -1080,7 +1083,7 @@
                     {/if}
 
                     <textarea
-                      class="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
+                      class="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
                       placeholder="Commit message"
                       bind:value={commitMessage}
                     ></textarea>
@@ -1108,7 +1111,7 @@
                 {/if}
                 {:else if syncProvider === 'dropbox'}
                 <!-- Dropbox account -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-center gap-2 text-muted-foreground mb-1">
                     <DropboxIcon strokeWidth={1.5} class="size-4 opacity-50" />
                     <span class="text-sm font-medium text-muted-foreground">Account</span>
@@ -1170,7 +1173,7 @@
 
                 {#if dropboxManager.account}
                   <!-- Auto push on exit -->
-                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/40">
                     <div>
                       <p class="text-lg font-normal">Auto-push on exit</p>
                       <p class="text-sm text-muted-foreground mt-1 tracking-tight">
@@ -1197,7 +1200,7 @@
                   </div>
 
                   <!-- Folder -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                     <div class="flex items-center gap-2 text-muted-foreground mb-1">
                       <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
                       <span class="text-sm font-medium text-muted-foreground">Folder</span>
@@ -1212,7 +1215,7 @@
                         type="text"
                         bind:value={dropboxFolderInput}
                         placeholder="/Memoire"
-                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
  />
                       <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveDropboxFolder}>
                         Save
@@ -1249,7 +1252,7 @@
                   </div>
 
                   <!-- Status & push -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/20 border border-border/50">
+                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
                     <div class="flex items-center justify-between mb-1">
                       <div class="flex items-center gap-2 text-muted-foreground">
                         <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
@@ -1304,7 +1307,7 @@
                   </div>
                 {/if}
                 {:else}
-                <div class="flex flex-col gap-2 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-2 p-6 rounded-lg bg-muted/40">
                   <p class="text-lg font-normal">This machine only</p>
                   <p class="text-sm text-muted-foreground tracking-tight">
                     Nothing leaves your machine. Pick GitHub or Dropbox above to sync your writing —
@@ -1321,7 +1324,7 @@
                 <h3 class="font-writer text-2xl font-normal">Updates</h3>
               </div>
               <div class="grid grid-cols-1 gap-8">
-                <div class="flex flex-col gap-4 p-6 rounded-lg bg-muted/20 border border-border/50">
+                <div class="flex flex-col gap-4 p-6 rounded-lg bg-muted/40">
                   <div class="flex items-start justify-between gap-6">
                     <div>
                       <p class="text-lg font-normal">Memoire {updaterManager.currentVersion ?? ''}</p>

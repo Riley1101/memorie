@@ -357,8 +357,8 @@
     const groups = [
       { id: 'today', label: 'Today', files: [] },
       { id: 'yesterday', label: 'Yesterday', files: [] },
-      { id: 'this-week', label: 'This Week', files: [] },
-      { id: 'this-month', label: 'This Month', files: [] },
+      { id: 'this-week', label: 'This week', files: [] },
+      { id: 'this-month', label: 'This month', files: [] },
       { id: 'older', label: 'Older', files: [] }
     ];
 

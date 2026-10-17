@@ -18,7 +18,7 @@ class AppState {
     {
       id: 'paper',
       label: 'Paper',
-      description: 'A warm page with a soft shadow and ornamental quotes — reads like a printed manuscript.',
+      description: 'A warm page with a soft shadow and ornamental quotes. Reads like a printed manuscript.',
     },
     {
       id: 'default',

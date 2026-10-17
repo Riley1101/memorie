@@ -664,7 +664,7 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
 
 /* Keyboard focus is visible on every interactive element, including
    hand-rolled buttons and links that don't go through the Button component. */
-:where(button, a, [role='button'], [role='option'], input, textarea):focus-visible {
+:where(button, a, [role='button'], [role='option'], input, textarea, select):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: var(--radius-md, 0.25rem);
