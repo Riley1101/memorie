@@ -1,8 +1,7 @@
 import { check } from '@tauri-apps/plugin-updater';
 import { getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
-import { toast as sonner } from 'svelte-sonner';
-import { errorText } from '$lib/toast.js';
+import { toast, errorText } from '$lib/toast.js';
 
 /** How often a running app looks for a new release. */
 const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -73,7 +72,7 @@ class UpdaterManager {
       this.lastChecked = new Date();
       if (!update) {
         this.status = 'up-to-date';
-        if (!silent) sonner("You're on the latest version.");
+        if (!silent) toast.info("You're on the latest version.");
         return;
       }
       this.available = { version: update.version, notes: update.body, date: update.date };
@@ -82,7 +81,7 @@ class UpdaterManager {
       console.error('Update check failed:', err);
       this.status = 'error';
       this.error = errorText(err);
-      if (!silent) sonner.error("Couldn't check for updates.", { description: this.error });
+      if (!silent) toast.error("Couldn't check for updates.", this.error);
     }
   }
 
@@ -110,11 +109,11 @@ class UpdaterManager {
 
   _announceReady() {
     if (!this.available) return;
-    sonner(`Memoire ${this.available.version} is ready`, {
+    toast.persistentWithAction(`Memoire ${this.available.version} is ready`, {
       id: READY_TOAST_ID,
       description: 'Restart to finish updating. Your writing is saved.',
-      duration: Number.POSITIVE_INFINITY,
-      action: { label: 'Restart', onClick: () => this.installAndRestart() },
+      label: 'Restart',
+      onClick: () => this.installAndRestart(),
     });
   }
 
@@ -122,7 +121,7 @@ class UpdaterManager {
   async installAndRestart() {
     if (!this._update || this.status === 'installing') return;
     this.status = 'installing';
-    sonner.dismiss(READY_TOAST_ID);
+    toast.dismiss(READY_TOAST_ID);
     try {
       // Same auto-push the window-close handler does; on Windows `install()`
       // quits the app straight away, so it has to happen first.
@@ -133,7 +132,7 @@ class UpdaterManager {
       console.error('Update install failed:', err);
       this.status = 'error';
       this.error = errorText(err);
-      sonner.error("Couldn't install the update.", { description: this.error });
+      toast.error("Couldn't install the update.", this.error);
     }
   }
 }

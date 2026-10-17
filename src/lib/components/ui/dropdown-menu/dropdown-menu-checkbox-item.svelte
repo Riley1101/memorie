@@ -7,7 +7,7 @@
 		ref = $bindable(null),
 		checked = $bindable(false),
 		indeterminate = $bindable(false),
-		class: className,
+		class: className = undefined,
 		children: childrenProp,
 		...restProps
 	} = $props();

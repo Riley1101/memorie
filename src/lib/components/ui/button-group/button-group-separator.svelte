@@ -3,7 +3,7 @@
 	import { cn } from "$lib/utils.js";
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: className = undefined,
 		orientation = "vertical",
 		...restProps
 	} = $props();

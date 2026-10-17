@@ -84,6 +84,40 @@ impl File {
     }
 }
 
+/// Resolves a content-relative name (e.g. `"Novel/Chapter 1/Scene.md"`) against
+/// the content directory, refusing anything that would land outside it.
+///
+/// Names reach this from the frontend, from imports and from model output, so
+/// absolute paths, Windows drive prefixes and `..` segments are all rejected
+/// rather than normalised away. The check is lexical: the target does not have
+/// to exist yet.
+pub fn resolve_in(directory: &Path, relative: &str) -> Result<PathBuf, FileError> {
+    use std::path::Component;
+
+    let trimmed = relative.trim();
+    if trimmed.is_empty() {
+        return Err(FileError::InvalidPath(relative.to_string()));
+    }
+
+    let mut resolved = directory.to_path_buf();
+    for component in Path::new(trimmed).components() {
+        match component {
+            Component::Normal(part) => resolved.push(part),
+            // "./" is harmless noise; everything else escapes or re-roots.
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(FileError::InvalidPath(relative.to_string()));
+            }
+        }
+    }
+
+    if resolved == directory || !resolved.starts_with(directory) {
+        return Err(FileError::InvalidPath(relative.to_string()));
+    }
+
+    Ok(resolved)
+}
+
 /// Recursively scans `directory` for `.md` files at any depth. Top-level
 /// subdirectories are binders; folders nested further (chapters, scenes, ...)
 /// are just part of the tree inside a binder. Dotfiles/dirs are skipped.
@@ -195,7 +229,7 @@ pub fn create_file(
 /// Creates an empty folder (binder subdirectory, chapter, scene grouping, ...)
 /// at `relative_path` under `directory`, creating any missing parents.
 pub fn create_folder(directory: &Path, relative_path: &str) -> Result<(), FileError> {
-    fs::create_dir_all(directory.join(relative_path))?;
+    fs::create_dir_all(resolve_in(directory, relative_path)?)?;
     Ok(())
 }
 
@@ -262,19 +296,22 @@ pub fn list_binders(directory: &Path) -> Result<Vec<String>, FileError> {
 }
 
 pub fn create_binder(directory: &Path, name: &str) -> Result<(), FileError> {
-    fs::create_dir_all(directory.join(name))?;
+    fs::create_dir_all(resolve_in(directory, name)?)?;
     Ok(())
 }
 
 pub fn rename_binder(directory: &Path, old_name: &str, new_name: &str) -> Result<(), FileError> {
-    fs::rename(directory.join(old_name), directory.join(new_name))?;
+    fs::rename(
+        resolve_in(directory, old_name)?,
+        resolve_in(directory, new_name)?,
+    )?;
     Ok(())
 }
 
 /// Deletes binder `name` inside `directory`. Refuses if the binder contains
 /// any writings (files), so a binder can only be deleted while empty.
 pub fn delete_binder(directory: &Path, name: &str) -> Result<(), FileError> {
-    let path = directory.join(name);
+    let path = resolve_in(directory, name)?;
 
     if fs::read_dir(&path)?.next().is_some() {
         return Err(FileError::BinderNotEmpty(name.to_string()));
@@ -288,7 +325,7 @@ pub fn delete_binder(directory: &Path, name: &str) -> Result<(), FileError> {
 /// binder) inside `directory`. Refuses if it contains anything, same rule as
 /// `delete_binder`.
 pub fn delete_folder(directory: &Path, relative_path: &str) -> Result<(), FileError> {
-    let path = directory.join(relative_path);
+    let path = resolve_in(directory, relative_path)?;
 
     if fs::read_dir(&path)?.next().is_some() {
         return Err(FileError::BinderNotEmpty(relative_path.to_string()));
@@ -303,6 +340,9 @@ pub fn update_file(file: &File, content: &str) -> Result<File, FileError> {
     Ok(file.clone())
 }
 
+/// Removes a writing from disk for good. Deleting from the app goes through
+/// `trash::send_to_trash` instead; this is the final step behind it.
+#[allow(dead_code)]
 pub fn delete_file(file: &File) -> Result<(), FileError> {
     fs::remove_file(&file.path)?;
     Ok(())
@@ -311,8 +351,8 @@ pub fn delete_file(file: &File) -> Result<(), FileError> {
 /// Moves a writing to any content-relative path, creating parent folders as
 /// needed. Refuses to overwrite an existing file.
 pub fn move_file(directory: &Path, old_name: &str, new_name: &str) -> Result<File, FileError> {
-    let old_path = directory.join(old_name);
-    let new_path = directory.join(new_name);
+    let old_path = resolve_in(directory, old_name)?;
+    let new_path = resolve_in(directory, new_name)?;
     // A case-only change ("scene.md" -> "Scene.md") resolves to the same file on
     // case-insensitive filesystems (macOS, Windows), so it is not a clash.
     let case_only = old_name != new_name && old_name.to_lowercase() == new_name.to_lowercase();

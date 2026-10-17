@@ -228,7 +228,7 @@
     'h-8 w-full rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50';
   const areaClass =
     'w-full rounded-md border border-border/60 bg-transparent px-2 py-1.5 text-sm outline-none field-sizing-content focus-visible:ring-2 focus-visible:ring-ring/50';
-  const sectionClass = 'text-[0.6875rem] font-mono uppercase tracking-wider text-metadata';
+  const sectionClass = 'text-[0.8125rem] font-medium text-muted-foreground';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -241,6 +241,8 @@
   onkeydown={onKeydown}
 >
   <div class="flex items-start gap-3">
+    <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+    <!-- svelte-ignore a11y_autofocus -->
     <input
       bind:value={draft.name}
       placeholder="Name"
@@ -331,7 +333,7 @@
       <SparklesIcon strokeWidth={1.5} class="size-3 mt-1 shrink-0 text-primary/60" />
       <span class="flex-1 min-w-0">{value}</span>
       <button type="button" onclick={use} class="text-xs text-primary hover:underline shrink-0">Use</button>
-      <button type="button" onclick={drop} aria-label="Dismiss suggestion" class="text-muted-foreground/60 hover:text-foreground shrink-0">
+      <button type="button" onclick={drop} aria-label="Dismiss suggestion" class="text-muted-foreground hover:text-foreground shrink-0">
         <XIcon strokeWidth={1.5} class="size-3" />
       </button>
     </div>
@@ -364,7 +366,7 @@
           type="button"
           onclick={() => draft.fields.splice(i, 1)}
           aria-label="Remove {field.key || 'field'}"
-          class="size-8 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground"
+          class="size-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
         >
           <XIcon strokeWidth={1.5} class="size-3.5" />
         </button>
@@ -402,7 +404,7 @@
           type="button"
           onclick={() => draft.relationships.splice(i, 1)}
           aria-label="Remove relationship"
-          class="size-8 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground"
+          class="size-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
         >
           <XIcon strokeWidth={1.5} class="size-3.5" />
         </button>
@@ -453,7 +455,7 @@
           {/each}
         </div>
       {:else}
-        <p class="text-sm text-muted-foreground/70">Not mentioned by name or alias in any writing yet.</p>
+        <p class="text-sm text-muted-foreground">Not mentioned by name or alias in any writing yet.</p>
       {/if}
     </section>
   {/if}
@@ -463,7 +465,7 @@
   <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
       <Dialog.Title class="text-xl font-normal font-writer">Delete “{entity.name}”?</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground/80 pt-2">
+      <Dialog.Description class="text-base text-muted-foreground pt-2">
         This deletes the sheet's file. Your writings aren't changed.
       </Dialog.Description>
     </Dialog.Header>

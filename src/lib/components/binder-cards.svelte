@@ -1,23 +1,20 @@
 <script>
-  import { invoke } from '@tauri-apps/api/core';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { SvelteMap } from 'svelte/reactivity';
+  import { sceneCache } from '$lib/runes/scenes.svelte.js';
+  import { compareByOrder } from '$lib/runes/ordering.svelte.js';
+  import { naturalCollator } from '$lib/utils.js';
+  import { serializeWriting } from '$lib/front-matter.js';
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
   import { buildFileTree, formatFileName, formatDate } from '$lib/utils.js';
-  import { parseWriting, serializeWriting } from '$lib/front-matter.js';
-  import { countWords, markdownToPlainText } from '$lib/runes/writing.svelte.js';
   import { toast } from '$lib/toast.js';
   import PencilIcon from '@lucide/svelte/icons/pencil';
 
   /** @type {{ binder: string }} */
   let { binder } = $props();
 
-  /**
-   * Parsed writings by name, refreshed when a file's modification time changes.
-   * @type {SvelteMap<string, { modified: number, meta: import('$lib/front-matter.js').SceneMeta, extra: string[], body: string, original: { meta: import('$lib/front-matter.js').SceneMeta, raw: string }, excerpt: string, words: number }>}
-   */
-  const cache = new SvelteMap();
+  // Shared with the tree view, so a status set here shows up there too.
+  const cache = sceneCache.entries;
   let loading = $state(true);
 
   const format = new Intl.NumberFormat();
@@ -25,32 +22,10 @@
   let files = $derived(fileManager.filesUnder(binder));
 
   $effect(() => {
-    const stale = files.filter((f) => cache.get(f.name)?.modified !== f.last_modified);
-    if (stale.length === 0) {
-      loading = false;
-      return;
-    }
+    const wanted = files;
     let cancelled = false;
-    invoke('read_files', { names: stale.map((f) => f.name) })
-      .then((/** @type {[string, { Ok?: string } | string][]} */ results) => {
-        if (cancelled) return;
-        const modified = new Map(stale.map((f) => [f.name, f.last_modified]));
-        for (const [name, result] of results) {
-          const content = typeof result === 'string' ? result : result?.Ok;
-          if (typeof content !== 'string') continue;
-          const { meta, extra, body, raw } = parseWriting(content);
-          const plain = markdownToPlainText(body).replace(/\s+/g, ' ').trim();
-          cache.set(name, {
-            modified: modified.get(name) ?? 0,
-            meta,
-            extra,
-            body,
-            original: { meta, raw },
-            excerpt: plain.length > 220 ? `${plain.slice(0, 220)}…` : plain,
-            words: countWords(plain),
-          });
-        }
-      })
+    sceneCache
+      .load(wanted)
       .catch((e) => toast.error('Could not load cards', e))
       .finally(() => {
         if (!cancelled) loading = false;
@@ -65,7 +40,7 @@
    * @type {{ path: string, depth: number, files: { name: string }[] }[]}
    */
   let sections = $derived.by(() => {
-    const tree = buildFileTree(fileManager.files, binder, fileManager.folders);
+    const tree = buildFileTree(fileManager.files, binder, fileManager.folders, (a, b) => compareByOrder(a.name, b.name, (x, y) => naturalCollator.compare(baseOf(x), baseOf(y))));
     /** @type {{ path: string, depth: number, files: { name: string }[] }[]} */
     const out = [];
     const walk = (/** @type {any[]} */ nodes, /** @type {string[]} */ path) => {
@@ -112,7 +87,12 @@
     if (synopsis === (entry.meta.synopsis ?? '')) return;
     const meta = { ...entry.meta, synopsis: synopsis || undefined };
     try {
-      await fileManager.saveFile(name, serializeWriting(meta, entry.extra, entry.body, entry.original));
+      await fileManager.saveFile(
+        name,
+        // `original` lets the serializer leave untouched front matter exactly
+        // as it was on disk; the synopsis changed, so it has to be rewritten.
+        serializeWriting(meta, entry.extra, entry.body, { meta: entry.meta, raw: entry.raw })
+      );
       // Show it right away; the refreshed file list will re-read the file.
       cache.set(name, { ...entry, meta });
     } catch (e) {
@@ -205,18 +185,18 @@
                   class="mt-2 flex-1 text-left font-writer text-sm leading-snug rounded-md -mx-1 px-1 hover:bg-muted/40"
                 >
                   {#if !card && loading}
-                    <span class="text-muted-foreground/50">…</span>
+                    <span class="text-muted-foreground">…</span>
                   {:else if card?.meta.synopsis}
                     <span class="line-clamp-5 whitespace-pre-line">{card.meta.synopsis}</span>
                   {:else if card?.excerpt}
-                    <span class="line-clamp-4 italic text-muted-foreground/70">{card.excerpt}</span>
+                    <span class="line-clamp-4 italic text-muted-foreground">{card.excerpt}</span>
                   {:else}
-                    <span class="text-muted-foreground/50">Add a synopsis</span>
+                    <span class="text-muted-foreground">Add a synopsis</span>
                   {/if}
                 </button>
               {/if}
 
-              <div class="mt-2 flex items-center justify-between font-mono text-[0.6875rem] text-metadata tabular-nums">
+              <div class="mt-2 flex items-center justify-between text-[0.6875rem] text-metadata tabular-nums">
                 <span class="flex items-center gap-1.5">
                   {#if card}
                     <span>{formatDate(card.modified)}</span>

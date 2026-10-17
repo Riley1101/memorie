@@ -36,4 +36,22 @@ export const toast = {
   successWithAction(message, label, onClick, description) {
     sonner.success(message, { description, action: { label, onClick } });
   },
+  /**
+   * A toast that stays until it is acted on or dismissed, e.g. "an update is
+   * ready — restart". `id` lets a later call replace or dismiss the same one.
+   * @param {string} message
+   * @param {{ id?: string, description?: string, label: string, onClick: () => void }} opts
+   */
+  persistentWithAction(message, { id, description, label, onClick }) {
+    sonner(message, {
+      id,
+      description,
+      duration: Number.POSITIVE_INFINITY,
+      action: { label, onClick },
+    });
+  },
+  /** @param {string} id - Dismisses the toast previously shown with this id. */
+  dismiss(id) {
+    sonner.dismiss(id);
+  },
 };

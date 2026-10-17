@@ -15,7 +15,7 @@
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte';
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
   import { goto, afterNavigate } from '$app/navigation';
@@ -24,6 +24,7 @@
   import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte';
   import { configManager } from '$lib/runes/config.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
+  import { syncTarget, publish, refreshSyncStatus } from '$lib/runes/sync.svelte.js';
   import { getCurrentWindow } from '@tauri-apps/api/window';
 
   let { data } = $props();
@@ -61,12 +62,34 @@
 
   onMount(() => {
     const timer = setInterval(() => (now = Date.now()), 30_000);
+    // Opening straight into a writing never mounts the home sidebar, so the
+    // sync session would otherwise be unknown here.
+    refreshSyncStatus().catch((e) => console.error('Could not read sync status:', e));
     return () => clearInterval(timer);
   });
 
   // Grammar chunks are only meaningful with local AI on; wait for config to arrive.
   $effect(() => {
     if (configManager.config?.ai_enabled && !isDraft) syncGrammarChecks(fileName);
+  });
+
+  // Remembered across launches so the home screen can offer the way back in.
+  // A draft has nothing on disk to return to yet.
+  $effect(() => {
+    if (!isDraft && fileName) appState.setLastWriting(fileName);
+  });
+
+  // Deleted from somewhere else (the palette, another window, the trash being
+  // emptied): leaving the writer on a path that no longer exists means every
+  // later save fails. Step back home instead.
+  $effect(() => {
+    if (isDraft || !fileManager.hasLoadedFiles) return;
+    const stillThere = fileManager.files.some((f) => f.name === fileName);
+    if (stillThere) return;
+    untrack(() => {
+      appState.setLastWriting(null);
+      goto(resolve('/'));
+    });
   });
 
   let body = $derived(content || '');
@@ -109,12 +132,27 @@
     }
   });
 
+  // Where this writing stands with the cloud, if the writer turned it on.
+  let sync = $derived(syncTarget());
+  let syncLabel = $derived.by(() => {
+    if (sync.provider === 'none') return '';
+    if (sync.busy) return 'Publishing…';
+    if (!sync.ready) return `${sync.label} not set up`;
+    if (sync.pending === 0) return `Published to ${sync.label}`;
+    return `${sync.pending} to publish`;
+  });
+
+  async function publishNow() {
+    if (editorState.flushSave) await editorState.flushSave();
+    await publish();
+  }
+
   let saveTone = $derived(
     editorState.saveStatus.status === 'error'
       ? 'text-destructive'
       : editorState.saveStatus.status === 'unsaved'
         ? 'text-warning'
-        : 'text-muted-foreground/70'
+        : 'text-muted-foreground'
   );
 
   let binderLabel = $derived(dirOf(fileName));
@@ -140,10 +178,11 @@
     }
   }
 
-  // Focus mode takes the window full screen and gives it back afterwards,
-  // including when the writer leaves the editor while still focused.
+  // Focus mode takes the window full screen only if the writer asked it to,
+  // and gives it back afterwards — including when they leave the editor while
+  // still focused.
   $effect(() => {
-    setFocusFullscreen(focusMode);
+    setFocusFullscreen(focusMode && writingState.focusFullscreen);
   });
 
   onMount(() => () => {
@@ -152,16 +191,16 @@
   });
 </script>
 
-<div class="flex h-screen w-full bg-background" class:focus-mode={focusMode}>
+<div class="flex h-dvh w-full bg-background" class:focus-mode={focusMode}>
   <aside
-    class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md
+    class="transition-[width] duration-300 ease-in-out h-dvh bg-background
     {appState.ui.isHistoryOpen && !focusMode ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isHistoryOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <div class="flex items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
-          <h2 class="text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">History</h2>
-          <span class="truncate text-[0.6875rem] font-mono text-metadata" title={baseOf(fileName)}>
+          <h2 class="text-[0.8125rem] font-medium text-muted-foreground">History</h2>
+          <span class="truncate text-[0.6875rem] tabular-nums text-metadata" title={baseOf(fileName)}>
             {baseOf(fileName)}
           </span>
         </div>
@@ -181,10 +220,9 @@
   <div class="w-full h-full flex flex-1 flex-col min-w-0">
     <header
       data-tauri-drag-region
-      class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-[0.6875rem] font-mono shrink-0
+      class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-[0.6875rem] tabular-nums shrink-0
         {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
     >
-      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-border to-transparent"></div>
       <button
         onclick={() => goto(resolve('/'))}
         aria-label="Go home"
@@ -200,14 +238,14 @@
             disabled={!prevWriting}
             aria-label="Previous writing"
             title={prevWriting ? formatFileName(baseOf(prevWriting.name)) : ''}
-            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
             <ChevronLeftIcon strokeWidth={1.5} class="size-3" />
           </button>
         {/if}
         <span class="text-muted-foreground select-none truncate max-w-xs">
           {#if binderLabel}
-            <span class="text-muted-foreground/50">{binderLabel.replaceAll('/', ' / ')} /</span>
+            <span class="text-muted-foreground">{binderLabel.replaceAll('/', ' / ')} /</span>
           {/if}
           {editorState.name}
         </span>
@@ -217,14 +255,31 @@
             disabled={!nextWriting}
             aria-label="Next writing"
             title={nextWriting ? formatFileName(baseOf(nextWriting.name)) : ''}
-            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
             <ChevronRightIcon strokeWidth={1.5} class="size-3" />
           </button>
         {/if}
       </div>
-      <span class="{saveTone} tracking-wide shrink-0 transition-colors" aria-live="polite">
-        {saveLabel}
+      <!-- One line for the state of the work: saved on disk, and whether it
+           has left the machine. They used to be separate signals in separate
+           places, and the second is the one that actually worries people. -->
+      <span class="flex items-center gap-1.5 shrink-0 tracking-wide" aria-live="polite">
+        <span class="{saveTone} transition-colors">{saveLabel}</span>
+        {#if syncLabel}
+          <span class="opacity-30">•</span>
+          <button
+            type="button"
+            onclick={publishNow}
+            disabled={sync.busy}
+            title="Publish to {sync.label}"
+            class="transition-colors hover:text-foreground disabled:opacity-60 {sync.pending
+              ? 'text-warning'
+              : 'text-muted-foreground'}"
+          >
+            {syncLabel}
+          </button>
+        {/if}
       </span>
       <button
         onclick={() => appState.toggleOutline()}
@@ -255,23 +310,23 @@
   </div>
 
   <aside
-    class="transition-all duration-300 ease-in-out h-dvh bg-background/90 backdrop-blur-md shrink-0
+    class="transition-[width] duration-300 ease-in-out h-dvh bg-background shrink-0
     {appState.ui.isOutlineOpen && !focusMode ? 'w-65 border-l border-border/40' : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isOutlineOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <ScrollFade class="flex-1 h-full">
           <ScrollArea class="h-full" type="scroll">
-            <h2 class="px-4 py-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">Scene</h2>
+            <h2 class="px-4 py-3 text-[0.8125rem] font-medium text-muted-foreground">Scene</h2>
             {#key fileName}
               <EditorSceneInfo {fileName} {isDraft} />
             {/key}
-            <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">In this scene</h2>
+            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">In this scene</h2>
             <EditorCodex {fileName} content={body} />
-            <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">Contents</h2>
+            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">Contents</h2>
             <EditorOutline />
             {#if !isDraft}
-              <h2 class="px-4 pt-4 pb-3 text-[0.6875rem] font-mono uppercase tracking-wider text-metadata border-t border-border/40">
+              <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">
                 Referenced by
               </h2>
               <EditorBacklinks {fileName} />

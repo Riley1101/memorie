@@ -18,7 +18,7 @@ class AppState {
     {
       id: 'paper',
       label: 'Paper',
-      description: 'A warm page with a soft shadow and ornamental quotes — reads like a printed manuscript.',
+      description: 'A warm page with a soft shadow and ornamental quotes. Reads like a printed manuscript.',
     },
     {
       id: 'default',
@@ -51,9 +51,11 @@ class AppState {
    *   isHelpModalOpen: boolean,
    *   isNewPickerOpen: boolean,
    *   isProjectSearchOpen: boolean,
+   *   isTrashOpen: boolean,
    *   exportTarget: { fileName: string | null, dir: string } | null,
    *   importTarget: { dir: string } | null,
    *   activeBinder: string | null,
+   *   lastWriting: string | null,
    *   theme: 'dark' | 'light',
    *   themePreference: 'light' | 'dark' | 'system',
    *   themePalette: string,
@@ -75,6 +77,8 @@ class AppState {
     isNewPickerOpen: false,
     /** Find and replace across all writings (⌘⇧F). */
     isProjectSearchOpen: false,
+    /** "Recently deleted": restore or purge trashed writings. */
+    isTrashOpen: false,
     /**
      * Export dialog. `fileName` is the writing it was opened from (null from
      * the home screen), `dir` the folder or binder offered as the default scope.
@@ -88,6 +92,12 @@ class AppState {
     importTarget: null,
     /** Binder selected on the home screen; null = All Writings. Survives navigation. */
     activeBinder: /** @type {string | null} */ (null),
+    /**
+     * The last writing opened, across launches. A writer's first move is
+     * almost always "back to what I was writing", and the app used to open on
+     * the home screen with no way back but hunting for it.
+     */
+    lastWriting: /** @type {string | null} */ (null),
     theme: 'dark',
     /** What the user picked: 'light' | 'dark' | 'system'. `theme` is the resolved value. */
     themePreference: 'system',
@@ -106,10 +116,7 @@ class AppState {
    * Increases the font size by 2px.
    */
   increaseFontSize() {
-    this.ui = {
-      ...this.ui,
-      fontSize: Math.min(this.ui.fontSize + 2, 40),
-    };
+    this.ui.fontSize = Math.min(this.ui.fontSize + 2, 40);
     if (typeof window !== 'undefined') {
       localStorage.setItem('fontSize', this.ui.fontSize.toString());
     }
@@ -121,10 +128,7 @@ class AppState {
    * Decreases the font size by 2px.
    */
   decreaseFontSize() {
-    this.ui = {
-      ...this.ui,
-      fontSize: Math.max(this.ui.fontSize - 2, 12),
-    };
+    this.ui.fontSize = Math.max(this.ui.fontSize - 2, 12);
     if (typeof window !== 'undefined') {
       localStorage.setItem('fontSize', this.ui.fontSize.toString());
     }
@@ -137,10 +141,7 @@ class AppState {
    * @param {number} size
    */
   setFontSize(size) {
-    this.ui = {
-      ...this.ui,
-      fontSize: size,
-    };
+    this.ui.fontSize = size;
     if (typeof window !== 'undefined') {
       localStorage.setItem('fontSize', size.toString());
     }
@@ -154,11 +155,7 @@ class AppState {
    * @returns {void}
    */
   toggleAiChat(state) {
-    console.debug('[DEBUG toggleAiChat] setting isChatOpen=%s', state);
-    this.ui = {
-      ...this.ui,
-      isChatOpen: state,
-    };
+    this.ui.isChatOpen = state;
   }
 
   /**
@@ -167,10 +164,7 @@ class AppState {
    * Toggles the chat history panel visibility.
    */
   toggleChatHistory() {
-    this.ui = {
-      ...this.ui,
-      isHistoryOpen: !this.ui.isHistoryOpen,
-    };
+    this.ui.isHistoryOpen = !this.ui.isHistoryOpen;
   }
 
   /**
@@ -180,10 +174,7 @@ class AppState {
    * @param {boolean} [state]
    */
   toggleOutline(state) {
-    this.ui = {
-      ...this.ui,
-      isOutlineOpen: state ?? !this.ui.isOutlineOpen,
-    };
+    this.ui.isOutlineOpen = state ?? !this.ui.isOutlineOpen;
     if (typeof window !== 'undefined') {
       localStorage.setItem('outlineOpen', String(this.ui.isOutlineOpen));
     }
@@ -195,10 +186,7 @@ class AppState {
    * @param {boolean} state - The desired state of the sidebar (open or closed).
    */
   toggleSidebar(state) {
-    this.ui = {
-      ...this.ui,
-      isSidebarOpen: state,
-    };
+    this.ui.isSidebarOpen = state;
   }
 
   /**
@@ -207,17 +195,11 @@ class AppState {
    * @param {boolean} state - The desired state of the command menu (open or closed).
    */
   toggleCommandMenu(state) {
-    this.ui = {
-      ...this.ui,
-      isCommandMenuOpen: state,
-    };
+    this.ui.isCommandMenuOpen = state;
   }
 
   toggleHelpModal(state) {
-    this.ui = {
-      ...this.ui,
-      isHelpModalOpen: state,
-    };
+    this.ui.isHelpModalOpen = state;
   }
 
   /**
@@ -239,34 +221,38 @@ class AppState {
 
   /** @param {boolean} state */
   toggleProjectSearch(state) {
-    this.ui = {
-      ...this.ui,
-      isProjectSearchOpen: state,
-    };
+    this.ui.isProjectSearchOpen = state;
+  }
+
+  /** @param {boolean} state */
+  toggleTrash(state) {
+    this.ui.isTrashOpen = state;
+  }
+
+  /**
+   * Remembers the writing on screen so the home screen can offer it back.
+   * @param {string | null} name - Content-relative path; null forgets it.
+   */
+  setLastWriting(name) {
+    this.ui.lastWriting = name;
+    if (typeof window === 'undefined') return;
+    if (name) localStorage.setItem('lastWriting', name);
+    else localStorage.removeItem('lastWriting');
   }
 
   /** @param {{ fileName: string | null, dir: string } | null} target - null closes the dialog. */
   openExport(target) {
-    this.ui = {
-      ...this.ui,
-      exportTarget: target,
-    };
+    this.ui.exportTarget = target;
   }
 
   /** @param {{ dir: string } | null} target - null closes the dialog. */
   openImport(target) {
-    this.ui = {
-      ...this.ui,
-      importTarget: target,
-    };
+    this.ui.importTarget = target;
   }
 
   /** @param {boolean} state */
   toggleNewPicker(state) {
-    this.ui = {
-      ...this.ui,
-      isNewPickerOpen: state,
-    };
+    this.ui.isNewPickerOpen = state;
   }
 
   /**
@@ -275,11 +261,8 @@ class AppState {
    */
   setTheme(preference) {
     const next = ['dark', 'light', 'system'].includes(preference) ? preference : 'system';
-    this.ui = {
-      ...this.ui,
-      themePreference: next,
-      theme: next === 'system' ? AppState.systemTheme() : next,
-    };
+    this.ui.themePreference = next;
+    this.ui.theme = next === 'system' ? AppState.systemTheme() : next;
     if (typeof window !== 'undefined') {
       localStorage.setItem('theme', next);
     }
@@ -290,7 +273,7 @@ class AppState {
     if (this.ui.themePreference !== 'system') return;
     const resolved = AppState.systemTheme();
     if (resolved !== this.ui.theme) {
-      this.ui = { ...this.ui, theme: resolved };
+      this.ui.theme = resolved;
     }
   }
 
@@ -306,13 +289,58 @@ class AppState {
   setStyleFlavour(flavour) {
     const valid = AppState.STYLE_FLAVOURS.some((f) => f.id === flavour);
     const next = valid ? flavour : 'paper';
-    this.ui = {
-      ...this.ui,
-      styleFlavour: next,
-    };
+    this.ui.styleFlavour = next;
     if (typeof window !== 'undefined') {
       localStorage.setItem('styleFlavour', next);
     }
+  }
+
+  /**
+   * Colour chosen per binder, keyed by name. Loaded in `loadBinderColours`.
+   * @type {Record<string, string>}
+   */
+  binderColours = $state({});
+
+  /** Palette offered for binders. Names match the tint classes in app.css. */
+  static BINDER_COLOURS = ['teal', 'primary', 'info', 'success', 'warning', 'accent'];
+
+  loadBinderColours() {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('binderColours') ?? '{}');
+      if (saved && typeof saved === 'object') this.binderColours = saved;
+    } catch {
+      // Nothing saved, or unreadable; the fallback colour covers it.
+    }
+  }
+
+  /**
+   * @param {string} binder
+   * @param {string | null} colour - null goes back to the colour from the name.
+   */
+  setBinderColour(binder, colour) {
+    const next = { ...this.binderColours };
+    if (colour) next[binder] = colour;
+    else delete next[binder];
+    this.binderColours = next;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('binderColours', JSON.stringify(next));
+    }
+  }
+
+  /**
+   * The colour for a binder: the writer's choice, or one derived from the
+   * name so binders stay distinguishable without anyone picking anything.
+   * @param {string | null} binder
+   */
+  binderColour(binder) {
+    if (!binder) return 'muted';
+    const chosen = this.binderColours[binder];
+    if (chosen) return chosen;
+    // Stable hash, so a binder keeps its colour between launches.
+    let hash = 0;
+    for (let i = 0; i < binder.length; i++) hash = (hash * 31 + binder.charCodeAt(i)) >>> 0;
+    return AppState.BINDER_COLOURS[hash % AppState.BINDER_COLOURS.length];
   }
 
   /**
@@ -322,10 +350,7 @@ class AppState {
     const next = /** @type {(typeof AppState.THEME_PALETTES)[number]} */ (
       AppState.THEME_PALETTES.some((p) => p === palette) ? palette : 'default'
     );
-    this.ui = {
-      ...this.ui,
-      themePalette: next,
-    };
+    this.ui.themePalette = next;
     if (typeof window !== 'undefined') {
       localStorage.setItem('themePalette', next);
     }
@@ -338,11 +363,8 @@ class AppState {
     const next = /** @type {(typeof AppState.DENSITY_MODES)[number]} */ (
       AppState.DENSITY_MODES.some((d) => d === density) ? density : 'default'
     );
-    this.ui = {
-      ...this.ui,
-      density: next,
-      fontSize: AppState.DENSITY_FONT_SIZE[next],
-    };
+    this.ui.density = next;
+    this.ui.fontSize = AppState.DENSITY_FONT_SIZE[next];
     if (typeof window !== 'undefined') {
       localStorage.setItem('density', next);
       localStorage.setItem('fontSize', this.ui.fontSize.toString());
@@ -355,10 +377,7 @@ class AppState {
    * Increments the editor version to force a re-mount.
    */
   incrementEditorVersion() {
-    this.ui = {
-      ...this.ui,
-      editorVersion: this.ui.editorVersion + 1,
-    };
+    this.ui.editorVersion += 1;
   }
 }
 
@@ -367,3 +386,4 @@ export const THEME_PALETTES = AppState.THEME_PALETTES;
 export const STYLE_FLAVOURS = AppState.STYLE_FLAVOURS;
 export const DENSITY_MODES = AppState.DENSITY_MODES;
 export const DENSITY_FONT_SIZE = AppState.DENSITY_FONT_SIZE;
+export const BINDER_COLOURS = AppState.BINDER_COLOURS;

@@ -8,4 +8,4 @@
 	} = $props();
 </script>
 
-<SelectPrimitive.Root bind:open bind:value={value} {...restProps} />
+<SelectPrimitive.Root bind:open bind:value={value} {.../** @type {any} */ (restProps)} />

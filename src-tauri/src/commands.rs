@@ -35,11 +35,17 @@ fn relative_dir_segments(name: &str) -> Vec<String> {
 pub async fn create_file(
     name: String,
     content: String,
+    exclusive: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<File, String> {
     crate::codex::ensure_not_reserved(&name, true)?;
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
+    // `create_file` doubles as autosave, so overwriting is normal; callers that
+    // mean "make a new writing" pass `exclusive` and get a clash instead.
+    if exclusive.unwrap_or(false) && path.exists() {
+        return Err(crate::error::FileError::AlreadyExists(name.clone()).to_string());
+    }
     let relative_dir = relative_dir_segments(&name);
     let result = fs::create_file(&path, &content, relative_dir).map_err(|e| e.to_string())?;
 
@@ -57,7 +63,7 @@ pub async fn update_file(
     state: State<'_, AppState>,
 ) -> Result<File, String> {
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
 
     let last_modified = std::fs::metadata(&path)
         .and_then(|m: std::fs::Metadata| m.modified())
@@ -86,40 +92,94 @@ pub async fn update_file(
     result
 }
 
+/// Deletes a writing by moving it to the trash, where it can be put back.
+/// Returns the trash entry so the caller can offer an undo.
 #[tauri::command]
-pub async fn delete_file(name: String, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn delete_file(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<crate::trash::TrashEntry, String> {
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
-
-    let last_modified = std::fs::metadata(&path)
-        .and_then(|m: std::fs::Metadata| m.modified())
-        .ok()
-        .and_then(|t: std::time::SystemTime| {
-            t.duration_since(std::time::SystemTime::UNIX_EPOCH).ok()
-        })
-        .map(|d: std::time::Duration| d.as_secs())
-        .unwrap_or(0);
-    let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
-    let file_to_delete = File {
-        path,
-        name,
-        last_modified,
-        folder,
-    };
-
-    fs::delete_file(&file_to_delete).map_err(|e| e.to_string())?;
+    let entry = crate::trash::send_to_trash(
+        &config.content_directory,
+        &name,
+        crate::trash::TrashKind::File,
+    )
+    .map_err(|e| e.to_string())?;
     drop(config);
 
-    // The file is already gone; a leftover index entry only affects search, so log
-    // instead of reporting the delete itself as failed.
+    // The writing is out of the way; a leftover index entry only affects
+    // search, so log instead of reporting the delete itself as failed.
     let memory = &state.memory;
-    if let Err(e) = memory.delete_document(&file_to_delete.name).await {
-        eprintln!(
-            "Failed to remove '{}' from the note index: {e}",
-            file_to_delete.name
-        );
+    if let Err(e) = memory.delete_document(&name).await {
+        eprintln!("Failed to remove '{name}' from the note index: {e}");
     }
-    Ok(())
+    Ok(entry)
+}
+
+/// Moves a folder and everything in it to the trash in one step, so a mistake
+/// is one undo away instead of a file-by-file rebuild.
+#[tauri::command]
+pub async fn delete_folder_to_trash(
+    relative_path: String,
+    state: State<'_, AppState>,
+) -> Result<crate::trash::TrashEntry, String> {
+    let config = state.config.lock().await;
+    let content_dir = config.content_directory.clone();
+    let inside: Vec<String> = fs::discover_files(&content_dir)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|f| f.name)
+        .filter(|n| n.starts_with(&format!("{relative_path}/")))
+        .collect();
+
+    let entry = crate::trash::send_to_trash(
+        &content_dir,
+        &relative_path,
+        crate::trash::TrashKind::Folder,
+    )
+    .map_err(|e| e.to_string())?;
+    drop(config);
+
+    let memory = &state.memory;
+    for name in inside {
+        if let Err(e) = memory.delete_document(&name).await {
+            eprintln!("Failed to remove '{name}' from the note index: {e}");
+        }
+    }
+    Ok(entry)
+}
+
+/// Everything currently in the trash, most recently deleted first.
+#[tauri::command]
+pub async fn list_trash(
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::trash::TrashEntry>, String> {
+    let config = state.config.lock().await;
+    crate::trash::list(&config.content_directory).map_err(|e| e.to_string())
+}
+
+/// Puts a deleted writing or folder back, returning the path it landed at.
+#[tauri::command]
+pub async fn restore_from_trash(id: String, state: State<'_, AppState>) -> Result<String, String> {
+    let config = state.config.lock().await;
+    crate::trash::restore(&config.content_directory, &id).map_err(|e| e.to_string())
+}
+
+/// Deletes one trashed item for good.
+#[tauri::command]
+pub async fn purge_from_trash(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let config = state.config.lock().await;
+    crate::trash::purge(&config.content_directory, &id)
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Empties the trash. Returns how many items were removed.
+#[tauri::command]
+pub async fn empty_trash(state: State<'_, AppState>) -> Result<usize, String> {
+    let config = state.config.lock().await;
+    crate::trash::purge_all(&config.content_directory).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -160,7 +220,7 @@ pub async fn read_file(name: String, state: State<'_, AppState>) -> Result<Strin
     drop(undo_tree);
 
     let config = state.config.lock().await;
-    let path = config.content_directory.join(&name);
+    let path = fs::resolve_in(&config.content_directory, &name).map_err(|e| e.to_string())?;
     let last_modified = std::fs::metadata(&path)
         .and_then(|m: std::fs::Metadata| m.modified())
         .ok()
@@ -194,8 +254,8 @@ pub async fn read_files(
 
     let files: Vec<File> = names
         .into_iter()
-        .map(|name| {
-            let path = content_dir.join(&name);
+        .filter_map(|name| {
+            let path = fs::resolve_in(&content_dir, &name).ok()?;
             let last_modified = std::fs::metadata(&path)
                 .and_then(|m| m.modified())
                 .ok()
@@ -203,12 +263,12 @@ pub async fn read_files(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let folder = name.split_once('/').map(|(dir, _)| dir.to_string());
-            File {
+            Some(File {
                 path,
                 name,
                 last_modified,
                 folder,
-            }
+            })
         })
         .collect();
 
@@ -512,10 +572,12 @@ pub async fn create_document_context(
         .await
         .map_err(|e| e.to_string())?;
     match document_context {
-        Some(document) => {
-            let result = memory.get_dirty_document_chunk(document.id.unwrap()).await;
-            Ok(Response::success(result))
-        }
+        Some(document) => match document.get_thing_id() {
+            Some(id) => Ok(Response::success(memory.get_dirty_document_chunk(id).await)),
+            // Stored without an id: nothing to attach chunks to, and the
+            // editor only needs an empty list to carry on.
+            None => Ok(Response::success(Vec::new())),
+        },
         None => Ok(Response::success(Vec::new())),
     }
 }
@@ -542,7 +604,7 @@ pub async fn get_document_context(
                 Ok(Response::success(Vec::new()))
             }
         }
-        Err(_) => todo!(),
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -552,7 +614,7 @@ pub async fn get_document_context(
 #[tauri::command]
 pub async fn get_config(state: State<'_, AppState>) -> Result<super::config::AppConfig, String> {
     let config = state.config.lock().await;
-    Ok(serde_json::from_str(&serde_json::to_string(&*config).unwrap()).unwrap())
+    Ok(config.clone())
 }
 
 #[tauri::command]

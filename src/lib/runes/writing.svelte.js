@@ -92,6 +92,14 @@ class WritingState {
   projectGoals = $state({});
 
   /**
+   * Target word count per writing, keyed by content-relative path. The scene
+   * is the unit a writer actually sits down to, so it is the unit that most
+   * often wants a target.
+   * @type {Record<string, number>}
+   */
+  sceneGoals = $state({});
+
+  /**
    * Net words written per local day.
    * @type {Record<string, number>}
    */
@@ -99,6 +107,14 @@ class WritingState {
 
   /** Distraction-free writing: chrome hidden, current paragraph highlighted, caret centred. */
   focusMode = $state(false);
+
+  /**
+   * Whether focus mode also takes the window full screen. Off by default: on
+   * macOS that animates the window onto its own Space, hides the menu bar and
+   * takes every other window with it — a lot to impose on someone who asked
+   * only to hide the app's own chrome.
+   */
+  focusFullscreen = $state(false);
 
   /** @type {(typeof PARAGRAPH_STYLES)[number]} */
   paragraphStyle = $state('spaced');
@@ -141,6 +157,10 @@ class WritingState {
       if (saved.projectGoals && typeof saved.projectGoals === 'object') {
         this.projectGoals = saved.projectGoals;
       }
+      if (saved.sceneGoals && typeof saved.sceneGoals === 'object') {
+        this.sceneGoals = saved.sceneGoals;
+      }
+      if (typeof saved.focusFullscreen === 'boolean') this.focusFullscreen = saved.focusFullscreen;
       if (saved.log && typeof saved.log === 'object') this.log = saved.log;
       if (PARAGRAPH_STYLES.includes(saved.paragraphStyle)) this.paragraphStyle = saved.paragraphStyle;
     } catch (e) {
@@ -159,6 +179,8 @@ class WritingState {
           codexHighlight: this.codexHighlight,
           dailyGoal: this.dailyGoal,
           projectGoals: this.projectGoals,
+          sceneGoals: this.sceneGoals,
+          focusFullscreen: this.focusFullscreen,
           log: this.log,
           paragraphStyle: this.paragraphStyle,
         })
@@ -223,6 +245,30 @@ class WritingState {
     if (value) next[binder] = value;
     else delete next[binder];
     this.projectGoals = next;
+    this.#persist();
+  }
+
+  /**
+   * @param {string} name - Content-relative path.
+   * @param {number} words - 0 clears the goal.
+   */
+  setSceneGoal(name, words) {
+    const next = { ...this.sceneGoals };
+    const value = Math.max(0, Math.round(words) || 0);
+    if (value) next[name] = value;
+    else delete next[name];
+    this.sceneGoals = next;
+    this.#persist();
+  }
+
+  /** @param {string} name @returns {number} 0 when the writing has no goal. */
+  sceneGoal(name) {
+    return this.sceneGoals[name] ?? 0;
+  }
+
+  /** @param {boolean} enabled */
+  setFocusFullscreen(enabled) {
+    this.focusFullscreen = enabled;
     this.#persist();
   }
 

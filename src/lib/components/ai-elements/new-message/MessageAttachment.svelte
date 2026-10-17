@@ -5,7 +5,7 @@
 	import Paperclip from "@lucide/svelte/icons/paperclip";
 	import X from "@lucide/svelte/icons/x";
 	// FileUIPart type from AI SDK
-	let { data, class: className, onRemove, ...restProps } = $props();
+	let { data = undefined, class: className = undefined, onRemove = undefined, ...restProps } = $props();
 
 	let filename = $derived(data.filename || "");
 	let mediaType = $derived(data.mediaType?.startsWith("image/") && data.url ? "image" : "file");

@@ -164,9 +164,38 @@ pub async fn fetch_github_user(token: &str) -> Result<GitHubUser, GitError> {
 }
 
 pub fn ensure_repo(path: &Path) -> Result<Repository, GitError> {
-    match Repository::open(path) {
-        Ok(repo) => Ok(repo),
-        Err(_) => Ok(Repository::init(path)?),
+    let repo = match Repository::open(path) {
+        Ok(repo) => repo,
+        Err(_) => Repository::init(path)?,
+    };
+    ensure_gitignore(path);
+    Ok(repo)
+}
+
+/// Keeps deleted writings out of the repository.
+///
+/// `commit_and_push` adds everything under the content directory, so without
+/// this the trash would be committed and pushed — publishing drafts the writer
+/// had just thrown away. Written once; a line the writer removes stays removed.
+fn ensure_gitignore(path: &Path) {
+    let gitignore = path.join(".gitignore");
+    let entry = format!("{}/", crate::trash::TRASH_DIR);
+
+    let existing = std::fs::read_to_string(&gitignore).unwrap_or_default();
+    if existing.lines().any(|line| line.trim() == entry) {
+        return;
+    }
+
+    let mut next = existing;
+    if !next.is_empty() && !next.ends_with('\n') {
+        next.push('\n');
+    }
+    next.push_str("# Deleted writings, kept locally so they can be restored.\n");
+    next.push_str(&entry);
+    next.push('\n');
+
+    if let Err(e) = std::fs::write(&gitignore, next) {
+        eprintln!("Could not write {}: {e}", gitignore.display());
     }
 }
 

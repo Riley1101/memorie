@@ -2,7 +2,7 @@
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import { cn } from '$lib/utils.js';
 
-  let { ref = $bindable(null), class: className, ...restProps } = $props();
+  let { ref = $bindable(null), class: className = undefined, ...restProps } = $props();
 </script>
 
 <span

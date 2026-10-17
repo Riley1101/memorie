@@ -110,7 +110,7 @@
 
       <div class="space-y-1">
         <h3 class="font-writer text-lg font-normal">Your writing assistant</h3>
-        <p class="text-sm text-muted-foreground/70 max-w-xs">
+        <p class="text-sm text-muted-foreground max-w-xs">
           {configManager.config?.provider === "openrouter"
             ? "Answers via OpenRouter. Note search stays on this device."
             : "Runs entirely on this device."}
@@ -133,13 +133,13 @@
       </ul>
 
       {#if memoryManager.indexProgress}
-        <p class="text-xs text-muted-foreground/60">
+        <p class="text-xs text-muted-foreground">
           {memoryManager.indexProgress.total
             ? `Indexing notes… ${memoryManager.indexProgress.done} of ${memoryManager.indexProgress.total}`
             : "Indexing notes…"}
         </p>
       {:else if memoryManager.indexStatus}
-        <p class="text-xs text-muted-foreground/60">
+        <p class="text-xs text-muted-foreground">
           {memoryManager.indexStatus.documents === 1
             ? "1 note searchable"
             : `${memoryManager.indexStatus.documents} notes searchable`}
@@ -159,11 +159,11 @@
             </button>
           {/each}
         </div>
-        <p class="text-xs text-muted-foreground/50">
+        <p class="text-xs text-muted-foreground">
           It works out what you mean. Start with <code>/search</code> or <code>/doc</code> to choose. Searches stay in the open binder; <code>/search-all</code> looks everywhere.
         </p>
       {:else}
-        <p class="text-xs text-muted-foreground/60">
+        <p class="text-xs text-muted-foreground">
           {#if configManager.config?.provider === "openrouter"}
             No OpenRouter API key set. Add one in Settings → AI.
           {:else if llmManager.isLoadModelsInProgress}
@@ -195,7 +195,7 @@
               onOpen={openNote}
             />
           {:else if message.role === "assistant" && message.route?.intent === "current_document"}
-            <div class="flex items-center gap-1.5 text-xs text-muted-foreground/70 font-sans">
+            <div class="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
               <FileText strokeWidth={1.5} class="size-3" />
               <span class="truncate">Read “{noteLabel(message.route.documentTitle)}”</span>
             </div>
@@ -203,7 +203,7 @@
 
           {#if message.role === "assistant" && message.codex?.length}
             <div class="flex flex-wrap items-center gap-1.5 font-sans" aria-label="Codex entries used">
-              <span class="flex items-center gap-1 text-xs text-muted-foreground/70 mr-0.5">
+              <span class="flex items-center gap-1 text-xs text-muted-foreground mr-0.5">
                 <BookUserIcon strokeWidth={1.5} class="size-3" />
                 Using
               </span>
@@ -213,7 +213,7 @@
                 <span
                   class="group/codex flex items-center rounded-full border text-xs transition-colors
                     {excluded
-                    ? 'border-border/40 text-muted-foreground/50 line-through'
+                    ? 'border-border/40 text-muted-foreground line-through'
                     : pinned
                       ? 'border-primary/40 bg-primary/10 text-primary'
                       : ref.full
@@ -274,7 +274,7 @@
 
               {#if message.references && message.references.length > 0}
                 <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-3 font-sans">
-                  <span class="text-[0.625rem] uppercase font-semibold text-muted-foreground/60 tracking-wider mr-1">
+                  <span class="text-[0.6875rem] font-semibold text-muted-foreground mr-1">
                     {message.references.length > 1 ? "Sources" : "Source"}
                   </span>
                   {#each message.references as ref (ref.title)}

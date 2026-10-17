@@ -2,7 +2,12 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 
-const PLACEHOLDER_TEXT = 'Start writing…';
+/**
+ * The empty page is the one surface every writer sees, so it is also the only
+ * place guaranteed to teach the command bar — the app's main way of getting
+ * anything done, and otherwise mentioned nowhere but the README.
+ */
+const PLACEHOLDER_TEXT = 'Start writing…  type : for commands';
 
 /**
  * A Milkdown plugin that shows placeholder text when the document is empty.

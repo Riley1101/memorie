@@ -2,7 +2,7 @@
 	import { cn } from "$lib/utils";
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 
-	let { class: className, children, onSelect, ...props } = $props();
+	let { class: className = undefined, children = undefined, onSelect, ...props } = $props();
 </script>
 
 <DropdownMenu.Item class={cn(className)} {onSelect} {...props}>

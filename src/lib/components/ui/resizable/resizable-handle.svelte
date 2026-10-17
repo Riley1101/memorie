@@ -3,7 +3,7 @@
   import * as ResizablePrimitive from 'paneforge';
   import { cn } from '$lib/utils.js';
 
-  let { ref = $bindable(null), class: className, withHandle = false, ...restProps } = $props();
+  let { ref = $bindable(null), class: className = undefined, withHandle = false, ...restProps } = $props();
 </script>
 
 <ResizablePrimitive.PaneResizer

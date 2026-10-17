@@ -2,13 +2,14 @@
 	import { cn } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+	/** @type {{ tooltip?: any, label?: any, variant?: "link" | "default" | "outline" | "secondary" | "ghost" | "destructive", size?: "icon" | "default" | "xs" | "sm" | "lg" | "icon-xs" | "icon-sm" | "icon-lg", class?: any, children?: any, [key: string]: any }} */
 	let {
 		tooltip,
 		label,
 		variant = "ghost",
 		size = "icon",
-		class: className,
-		children,
+		class: className = undefined,
+		children = undefined,
 		...restProps
 	} = $props();
 </script>

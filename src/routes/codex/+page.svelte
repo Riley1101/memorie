@@ -9,7 +9,8 @@
   import { page } from '$app/state';
   import { goto, replaceState, beforeNavigate, afterNavigate } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import HomeIcon from '@lucide/svelte/icons/home';
+  import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import SearchIcon from '@lucide/svelte/icons/search';
   import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
@@ -234,32 +235,34 @@
 </script>
 
 {#snippet binderSelect(/** @type {string} */ width)}
-  <select
-    value={binder}
-    onchange={(e) => switchBinder(e.currentTarget.value)}
-    aria-label="Binder"
-    class="h-8 {width} rounded-md border border-border bg-background px-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50 shrink-0"
-  >
-    <option value="">Shared only</option>
-    {#each fileManager.binders as b (b)}
-      <option value={b}>{b}</option>
-    {/each}
-  </select>
+  <!-- Styled to match the search field below; the native control stays for
+       its keyboard and screen reader behaviour. -->
+  <span class="relative {width} shrink-0">
+    <select
+      value={binder}
+      onchange={(e) => switchBinder(e.currentTarget.value)}
+      aria-label="Binder"
+      class="appearance-none w-full h-8 rounded-lg border border-border bg-input/40 pl-2.5 pr-8 text-sm text-foreground"
+    >
+      <option value="">Shared only</option>
+      {#each fileManager.binders as b (b)}
+        <option value={b}>{b}</option>
+      {/each}
+    </select>
+    <ChevronDownIcon strokeWidth={1.5} class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+  </span>
 {/snippet}
 
 <div class="page-container w-full h-full flex flex-col overflow-hidden">
-  <div class="flex items-center justify-between gap-4 mb-6 shrink-0">
-    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Codex</h2>
-    <Button
-      variant="ghost"
-      size="icon"
-      class="text-muted-foreground hover:text-foreground rounded-full transition-colors"
-      onclick={() => goto(resolve('/'))}
-      aria-label="Home"
-      disabled={false}
+  <div class="mb-6 shrink-0">
+    <a
+      href={resolve('/')}
+      class="inline-flex items-center gap-1.5 -ml-1 mb-2 h-7 px-1 rounded-md text-[0.8125rem] text-muted-foreground hover:text-foreground transition-colors"
     >
-      <HomeIcon strokeWidth={1.5} class="size-5" />
-    </Button>
+      <ArrowLeftIcon strokeWidth={1.5} class="size-3.5" />
+      Writings
+    </a>
+    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Codex</h2>
   </div>
 
   <div class="flex items-center gap-1 mb-6 shrink-0 font-sans text-sm" role="tablist">
@@ -306,7 +309,7 @@
               {#each groups as group (group.kind.id)}
                 <div class="flex flex-col gap-0.5">
                   <div class="flex items-center justify-between px-2 pb-1">
-                    <span class="text-[0.6875rem] font-medium text-muted-foreground/60">
+                    <span class="text-[0.6875rem] font-medium text-muted-foreground">
                       {group.kind.plural}
                       <span class="tabular-nums opacity-70">{group.items.length || ''}</span>
                     </span>
@@ -314,7 +317,7 @@
                       type="button"
                       onclick={() => startNew(group.kind.id)}
                       aria-label="New {group.kind.label.toLowerCase()}"
-                      class="text-muted-foreground/50 hover:text-foreground"
+                      class="text-muted-foreground hover:text-foreground"
                     >
                       <PlusIcon strokeWidth={1.5} class="size-3" />
                     </button>
@@ -331,7 +334,7 @@
                       <span class="size-1.5 rounded-full shrink-0 {kindIcons[entity.kind]}"></span>
                       <span class="truncate flex-1">{entity.name}</span>
                       {#if !entity.scope && binder}
-                        <span class="text-[0.625rem] text-muted-foreground/50" title="Shared by every binder">shared</span>
+                        <span class="text-[0.6875rem] text-muted-foreground" title="Shared by every binder">shared</span>
                       {/if}
                     </button>
                   {/each}
@@ -377,7 +380,7 @@
                   type="button"
                   onclick={() => (renamed = null)}
                   aria-label="Dismiss"
-                  class="text-muted-foreground/60 hover:text-foreground"
+                  class="text-muted-foreground hover:text-foreground"
                 >
                   <XIcon strokeWidth={1.5} class="size-3.5" />
                 </button>
@@ -398,7 +401,7 @@
             {:else}
               <div class="flex flex-col items-center justify-center py-24 text-center gap-3 font-sans">
                 <BookUserIcon strokeWidth={1.5} class="size-10 text-muted-foreground/30" />
-                <p class="text-muted-foreground/70 max-w-sm">
+                <p class="text-muted-foreground max-w-sm">
                   {entities.length
                     ? 'Pick an entry, or start a new one.'
                     : `Keep sheets for the people, places, groups and things in ${binder || 'your stories'}. The assistant reads the ones a scene mentions.`}

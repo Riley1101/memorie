@@ -24,22 +24,24 @@
   import SheetOverlay from './sheet-overlay.svelte';
   import { cn } from '$lib/utils.js';
 
+  /** @type {{ ref?: any, class?: any, side?: "top" | "right" | "bottom" | "left", portalProps?: any, children?: any, [key: string]: any }} */
   let {
     ref = $bindable(null),
-    class: className,
+    class: className = undefined,
+    /** @type {'top' | 'right' | 'bottom' | 'left'} */
     side = 'right',
-    portalProps,
-    children,
+    portalProps = undefined,
+    children = undefined,
     ...restProps
   } = $props();
 </script>
 
 <SheetPrimitive.Portal {...portalProps}>
-  <SheetOverlay />
+  <SheetOverlay class={undefined} />
   <SheetPrimitive.Content
     bind:ref
     data-slot="sheet-content"
-    class={cn(sheetVariants({ side }), className)}
+    class={cn(sheetVariants(/** @type {any} */ ({ side })), className)}
     {...restProps}
   >
     {@render children?.()}

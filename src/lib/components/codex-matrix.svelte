@@ -140,13 +140,13 @@
   {#if loading && !matrix}
     <p class="text-sm text-muted-foreground">Reading {binder}…</p>
   {:else if !rows.length}
-    <p class="text-sm text-muted-foreground/70">No {kind === 'all' ? 'entries' : KINDS.find((k) => k.id === kind)?.plural.toLowerCase()} in this binder's codex yet.</p>
+    <p class="text-sm text-muted-foreground">No {kind === 'all' ? 'entries' : KINDS.find((k) => k.id === kind)?.plural.toLowerCase()} in this binder's codex yet.</p>
   {:else if !scenes.length}
-    <p class="text-sm text-muted-foreground/70">{binder} has no writings yet.</p>
+    <p class="text-sm text-muted-foreground">{binder} has no writings yet.</p>
   {:else}
     <section class="grid gap-3">
       <div class="flex items-baseline justify-between gap-4 flex-wrap">
-        <h3 class="text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">Mentions per writing</h3>
+        <h3 class="text-[0.8125rem] font-medium text-muted-foreground">Mentions per writing</h3>
         <div class="flex items-center gap-2 text-[0.6875rem] text-muted-foreground" aria-label="Legend: mentions per writing">
           <span>Mentions</span>
           <span class="flex items-center gap-1"><span class="size-3 rounded-[3px] bg-muted/40 border border-border/40"></span>0</span>
@@ -166,7 +166,7 @@
                   <th colspan={chapter.span} class="p-0 text-left font-normal" title={chapter.label || binder}>
                     <!-- Fixed width, so a long folder name can't widen the columns under it. -->
                     <div
-                      class="truncate border-l border-border/60 pl-1 text-[0.625rem] text-muted-foreground/70"
+                      class="truncate border-l border-border/60 pl-1 text-[0.6875rem] text-muted-foreground"
                       style="width: {chapter.span * (CELL + GAP) - GAP}px"
                     >
                       {chapter.label || '·'}
@@ -209,14 +209,14 @@
           </tbody>
         </table>
       </div>
-      <p class="text-xs text-muted-foreground/70">
+      <p class="text-xs text-muted-foreground">
         Columns are writings in binder order. The number on the right is how many writings mention the entry. Click a square to open the writing.
       </p>
     </section>
 
     {#if kind !== 'all' || rows.length > 1}
       <section class="grid gap-3 max-w-2xl">
-        <h3 class="text-[0.6875rem] font-mono uppercase tracking-wider text-metadata">Often together</h3>
+        <h3 class="text-[0.8125rem] font-medium text-muted-foreground">Often together</h3>
         {#if pairs.length}
           <table class="w-full text-sm">
             <thead class="sr-only">
@@ -227,7 +227,7 @@
                 <tr class="border-b border-border/30 last:border-0">
                   <td class="py-1.5 pr-3 whitespace-nowrap">
                     <button type="button" class="hover:text-primary" onclick={() => onopen(pair.a)}>{pair.a.name}</button>
-                    <span class="text-muted-foreground/60">&amp;</span>
+                    <span class="text-muted-foreground">&amp;</span>
                     <button type="button" class="hover:text-primary" onclick={() => onopen(pair.b)}>{pair.b.name}</button>
                   </td>
                   <td class="py-1.5 w-full">
@@ -243,9 +243,9 @@
               {/each}
             </tbody>
           </table>
-          <p class="text-xs text-muted-foreground/70">Bars count writings that mention both. The right column shows relationships set on their sheets.</p>
+          <p class="text-xs text-muted-foreground">Bars count writings that mention both. The right column shows relationships set on their sheets.</p>
         {:else}
-          <p class="text-sm text-muted-foreground/70">No two entries share a writing yet.</p>
+          <p class="text-sm text-muted-foreground">No two entries share a writing yet.</p>
         {/if}
       </section>
     {/if}

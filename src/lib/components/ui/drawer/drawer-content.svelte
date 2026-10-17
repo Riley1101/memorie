@@ -5,9 +5,9 @@
 	import DrawerPortal from "./drawer-portal.svelte";
 	let {
 		ref = $bindable(null),
-		class: className,
-		portalProps,
-		children,
+		class: className = undefined,
+		portalProps = undefined,
+		children = undefined,
 		...restProps
 	} = $props();
 </script>

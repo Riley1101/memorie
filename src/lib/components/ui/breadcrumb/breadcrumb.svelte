@@ -1,5 +1,5 @@
 <script>
-  let { ref = $bindable(null), class: className, children, ...restProps } = $props();
+  let { ref = $bindable(null), class: className = undefined, children = undefined, ...restProps } = $props();
 </script>
 
 <nav

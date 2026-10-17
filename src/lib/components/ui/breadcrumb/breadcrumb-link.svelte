@@ -3,10 +3,10 @@
 
   let {
     ref = $bindable(null),
-    class: className,
+    class: className = undefined,
     href = undefined,
     child,
-    children,
+    children = undefined,
     ...restProps
   } = $props();
 

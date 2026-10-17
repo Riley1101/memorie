@@ -4,7 +4,7 @@
 	import ChevronRight from "@lucide/svelte/icons/chevron-right";
 	import { getMessageBranchContext } from "../context/message-context.svelte.js";
 
-	let { class: className, children, ...restProps } = $props();
+	let { class: className = undefined, children = undefined, ...restProps } = $props();
 
 	const branchContext = getMessageBranchContext();
 

@@ -3,6 +3,7 @@
   import * as Calendar from './index.js';
   import { cn } from '$lib/utils.js';
   import { isEqualMonth } from '@internationalized/date';
+  /** @type {{ ref?: any, value?: any, placeholder?: any, class?: any, weekdayFormat?: "short" | "long" | "narrow", buttonVariant?: any, captionLayout?: any, locale?: any, months?: any, years?: any, monthFormat?: "numeric" | "2-digit" | ((year: number) => string), yearFormat?: "numeric" | "2-digit" | ((year: number) => string), day?: any, disableDaysOutsideMonth?: any, [key: string]: any }} */
   let {
     ref = $bindable(null),
     value = $bindable(),
@@ -47,7 +48,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {locale}
   {monthFormat}
   {yearFormat}
-  {...restProps}
+  {.../** @type {any} */ (restProps)}
 >
   {#snippet children({ months, weekdays })}
     <Calendar.Months>

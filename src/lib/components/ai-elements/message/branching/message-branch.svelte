@@ -7,8 +7,8 @@
 	let {
 		defaultBranch = 0,
 		onBranchChange,
-		class: className,
-		children,
+		class: className = undefined,
+		children = undefined,
 		...restProps
 	} = $props();
 

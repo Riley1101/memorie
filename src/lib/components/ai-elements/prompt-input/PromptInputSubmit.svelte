@@ -6,6 +6,7 @@
 	import SquareIcon from "./SquareIcon.svelte";
 	import XIcon from "./XIcon.svelte";
 
+	/** @type {{ class?: any, variant?: "link" | "default" | "outline" | "secondary" | "ghost" | "destructive", size?: "icon" | "default" | "xs" | "sm" | "lg" | "icon-xs" | "icon-sm" | "icon-lg", status?: any, children?: any, [key: string]: any }} */
 	let {
 		class: className = undefined,
 		variant = "default",

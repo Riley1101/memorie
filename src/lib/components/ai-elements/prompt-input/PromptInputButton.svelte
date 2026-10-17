@@ -1,6 +1,7 @@
 <script>
 	import { cn } from "$lib/utils";
 	import { Button } from "$lib/components/ui/button";
+	/** @type {{ variant?: "link" | "default" | "outline" | "secondary" | "ghost" | "destructive", class?: any, size?: "icon" | "default" | "xs" | "sm" | "lg" | "icon-xs" | "icon-sm" | "icon-lg", children?: any, [key: string]: any }} */
 	let { variant = "ghost", class: className = undefined, size = undefined, children = undefined, ...props } = $props();
 
 	let hasMultipleChildren = $derived.by(() => {
@@ -9,7 +10,7 @@
 	});
 
 	let newSize = $derived.by(() => {
-		return (size ?? hasMultipleChildren) ? "default" : "icon";
+		return /** @type {"default" | "icon"} */ ((size ?? hasMultipleChildren) ? "default" : "icon");
 	});
 </script>
 

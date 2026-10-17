@@ -5,7 +5,7 @@
 	import { cn } from "$lib/utils.js";
 	let {
 		ref = $bindable(null),
-		class: className,
+		class: className = undefined,
 		checked = $bindable(false),
 		indeterminate = $bindable(false),
 		children: childrenProp,

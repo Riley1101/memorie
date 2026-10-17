@@ -4,8 +4,8 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
-		inset,
+		class: className = undefined,
+		inset = undefined,
 		variant = "default",
 		...restProps
 	} = $props();

@@ -39,7 +39,7 @@
 >
   <Command.Input placeholder="New writing in…" class="border-border/20 bg-muted/10" />
   <Command.List class="p-2">
-    <Command.Empty class="py-10 text-muted-foreground/60 font-sans">No such place.</Command.Empty>
+    <Command.Empty class="py-10 text-muted-foreground font-sans">No such place.</Command.Empty>
 
     <Command.Group heading="Location" class="" value="">
       <Command.Item
@@ -49,7 +49,7 @@
       >
         <FileIcon strokeWidth={1.5} class="size-4 mr-1" />
         <span class="font-writer text-base">Top level</span>
-        <span class="ml-auto text-[0.6875rem] text-muted-foreground/50 font-mono">no binder</span>
+        <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums">no binder</span>
       </Command.Item>
       {#each locations as loc (loc.dir)}
         <Command.Item
@@ -65,7 +65,7 @@
           {/if}
           <span class="font-writer text-base truncate">{loc.label}</span>
           {#if loc.parent}
-            <span class="ml-auto text-[0.6875rem] text-muted-foreground/50 font-mono truncate">{loc.parent}</span>
+            <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums truncate">{loc.parent}</span>
           {/if}
         </Command.Item>
       {/each}

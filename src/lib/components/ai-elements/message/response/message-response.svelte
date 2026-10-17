@@ -10,7 +10,7 @@
 	import githubDarkDefault from "@shikijs/themes/github-dark-default";
 	import githubLightDefault from "@shikijs/themes/github-light-default";
 	import { cn } from "$lib/utils";
-	let { content, class: className, ...rest } = $props();
+	let { content = undefined, class: className = undefined, ...rest } = $props();
 	let currentTheme = $derived(
 		mode.current === "dark" ? "github-dark-default" : "github-light-default"
 	);

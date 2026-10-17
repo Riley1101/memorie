@@ -11,14 +11,20 @@
  * strings, which are valid YAML, so quotes and new lines survive.
  */
 
-/** Keys the app understands, in the order they are written. */
-export const META_KEYS = /** @type {const} */ (['synopsis', 'status', 'label']);
+/**
+ * Keys the app understands, in the order they are written.
+ *
+ * `order` is how a writer sequences a manuscript. Without it the tree can only
+ * sort by name, which forces "01 ", "02 " prefixes onto every scene — and
+ * those then fight the title that follows the first line.
+ */
+export const META_KEYS = /** @type {const} */ (['synopsis', 'status', 'label', 'order']);
 
 /** Scrivener's default statuses, offered as presets. Any text is allowed. */
 export const STATUS_PRESETS = ['To Do', 'First Draft', 'Revised Draft', 'Final Draft', 'Done'];
 
 /**
- * @typedef {{ synopsis?: string, status?: string, label?: string }} SceneMeta
+ * @typedef {{ synopsis?: string, status?: string, label?: string, order?: string }} SceneMeta
  * @typedef {{ meta: SceneMeta, extra: string[], body: string, raw: string }} ParsedWriting
  *   `raw` is the front matter exactly as it was in the file ('' if none).
  */

@@ -3,7 +3,7 @@
 	import { getMessageBranchContext } from "./message-context.svelte.js";
 	import { watch } from "runed";
 
-	let { children, content, renderItem, class: className, ...restProps } = $props();
+	let { children = undefined, content = undefined, renderItem, class: className = undefined, ...restProps } = $props();
 
 	const branchContext = getMessageBranchContext();
 

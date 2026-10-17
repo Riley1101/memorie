@@ -16,11 +16,11 @@
   --card-foreground: oklch(0.17 0.005 85);
   --popover: oklch(0.995 0.002 85);
   --popover-foreground: oklch(0.17 0.005 85);
-  --primary: #d97757;
-  --primary-hover: #cf6a48;
-  --primary-foreground: #1c0f08;
+  --primary: #7d5129;
+  --primary-hover: #6b4522;
+  --primary-foreground: #fdf8f0;
   --placeholder: oklch(0.6 0.006 85);
-  --metadata: oklch(0.5 0.006 85);
+  --metadata: oklch(0.46 0.006 85);
   --disabled: oklch(0.75 0.006 85);
   --teal: #4c8794;
   --secondary: oklch(0.94 0.003 85);
@@ -39,8 +39,8 @@
   --info-foreground: oklch(0.98 0 0);
   --border: oklch(0.905 0.004 85);
   --input: oklch(0.93 0.004 85);
-  --ring: #d97757;
-  --chart-1: #d97757;
+  --ring: #7d5129;
+  --chart-1: #7d5129;
   --chart-2: #4c8794;
   --chart-3: oklch(0.72 0 0);
   --chart-4: oklch(0.92 0 0);
@@ -85,15 +85,15 @@
   --card-foreground: #ece6da;
   --popover: #171512;
   --popover-foreground: #ece6da;
-  --primary: #d97757;
-  --primary-hover: #e08868;
+  --primary: #c99462;
+  --primary-hover: #d4a373;
   --primary-foreground: #1c0f08;
   --secondary: #211e1a;
   --secondary-foreground: #ece6da;
   --muted: #1c1a17;
   --muted-foreground: #9a9384;
   --placeholder: #877f70;
-  --metadata: #6b6457;
+  --metadata: #857d6e;
   --disabled: #4e483d;
   --accent: #211e1a;
   --accent-foreground: #ece6da;
@@ -108,20 +108,20 @@
   --info-foreground: oklch(0.15 0.02 264);
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #d97757;
-  --chart-1: #d97757;
+  --ring: #c99462;
+  --chart-1: #c99462;
   --chart-2: #6fa8b5;
   --chart-3: oklch(0.56 0 0);
   --chart-4: oklch(0.44 0 0);
   --chart-5: oklch(0.92 0 0);
   --sidebar: #171512;
   --sidebar-foreground: #ece6da;
-  --sidebar-primary: #d97757;
+  --sidebar-primary: #c99462;
   --sidebar-primary-foreground: #1c0f08;
   --sidebar-accent: rgba(255, 255, 255, 0.06);
   --sidebar-accent-foreground: #ece6da;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #d97757;
+  --sidebar-ring: #c99462;
   --font-sans: 'Public Sans', ui-sans-serif, sans-serif;
   --font-serif: 'Source Serif 4', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -389,7 +389,7 @@
   --paper-page: #f4eee0;
   --paper-ink: #2e2419;
   --paper-body: #3a2f24;
-  --paper-meta: #7a6a58;
+  --paper-meta: #6e5f4e;
   --paper-ornament: #8a5a2f;
   --paper-rule: #d9cdb6;
   --paper-selection: #e3cfae;
@@ -567,6 +567,19 @@
   position: relative;
   font-size: 1.05em;
 }
+/* The ornament is the opening mark, so the typography plugin's own curly
+   quotes would double it. The paragraph's margins also pushed the text a
+   line below the ornament and left a wide gap after the quote. */
+.style-paper .markdown blockquote p:first-of-type::before,
+.style-paper .markdown blockquote p:last-of-type::after {
+  content: none;
+}
+.style-paper .markdown blockquote > p:first-child {
+  margin-top: 0;
+}
+.style-paper .markdown blockquote > p:last-child {
+  margin-bottom: 0;
+}
 .style-paper .markdown blockquote::before {
   content: '\201C';
   font-family: var(--font-writer-heading);
@@ -651,7 +664,7 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
 
 /* Keyboard focus is visible on every interactive element, including
    hand-rolled buttons and links that don't go through the Button component. */
-:where(button, a, [role='button'], [role='option'], input, textarea):focus-visible {
+:where(button, a, [role='button'], [role='option'], input, textarea, select):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: var(--radius-md, 0.25rem);

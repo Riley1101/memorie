@@ -22,6 +22,9 @@ pub enum FileError {
 
     #[error("\"{0}\" already exists")]
     AlreadyExists(String),
+
+    #[error("\"{0}\" is not a valid name inside your writing folder")]
+    InvalidPath(String),
 }
 
 #[derive(Error, Debug)]

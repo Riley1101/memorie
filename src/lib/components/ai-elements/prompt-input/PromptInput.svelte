@@ -22,6 +22,9 @@
 
 	let anchorRef = $state(null);
 	let formRef = $state(null);
+	// Attachment limits configure the controller once, at construction; they
+	// are not meant to be re-read as they change.
+	// svelte-ignore state_referenced_locally
 	let attachmentsContext = new AttachmentsContext(
 		accept,
 		multiple,

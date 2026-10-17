@@ -3,13 +3,15 @@
   import { Scrollbar } from './index.js';
   import { cn } from '$lib/utils.js';
 
+  /** @type {{ ref?: any, class?: any, orientation?: "vertical" | "horizontal" | "both", scrollbarXClasses?: any, scrollbarYClasses?: any, children?: any, [key: string]: any }} */
   let {
     ref = $bindable(null),
     class: className = undefined,
+    /** @type {'vertical' | 'horizontal' | 'both'} */
     orientation = 'vertical',
     scrollbarXClasses = '',
     scrollbarYClasses = '',
-    children,
+    children = undefined,
     ...restProps
   } = $props();
 </script>

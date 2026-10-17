@@ -6,10 +6,12 @@
   import ExportDialog from '$lib/components/export-dialog.svelte';
   import ProjectSearch from '$lib/components/project-search.svelte';
   import ImportDialog from '$lib/components/import-dialog.svelte';
+  import TrashSheet from '$lib/components/trash-sheet.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { startNewWriting } from '$lib/new-writing.js';
+  import { ensureWelcomeWriting } from '$lib/onboarding.js';
   import { dirOf } from '$lib/runes/fs.svelte.js';
 
   import { appState, THEME_PALETTES, DENSITY_MODES, STYLE_FLAVOURS } from '@/runes/app.svelte.js';
@@ -20,6 +22,8 @@
   import { updaterManager } from '$lib/runes/updater.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { onDestroy, onMount } from 'svelte';
+  import { emit, listen } from '@tauri-apps/api/event';
+  import { editorState } from '$lib/runes/editor.svelte.js';
   import { isMod, isMac } from '$lib/keyboard.svelte.js';
   import { Toaster } from 'svelte-sonner';
 
@@ -28,6 +32,13 @@
   let { children } = $props();
 
   const onMacOS = isMac();
+
+  /**
+   * The backend holds the window open while it saves and syncs on exit. That
+   * can take a few seconds on a slow network, so say what is happening instead
+   * of leaving a window that looks wedged.
+   */
+  let isClosing = $state(false);
 
   /**
    * ⌘B: back to the previous screen. While typing (editor or a text field) ⌘B
@@ -102,13 +113,41 @@
         appState.setFontSize(size);
       }
     }
+    const stopClosing = listen('memoire://closing', () => {
+      isClosing = true;
+    });
+
+    // Quitting is the one exit `beforeNavigate` never sees, and the autosave
+    // debounce can be holding the last few seconds of typing. The backend waits
+    // for our answer before it syncs and closes, so answer even when no editor
+    // is open — otherwise every quit from the home screen waits out its timeout.
+    const stopFlush = listen('memoire://flush-before-exit', async () => {
+      try {
+        // Only when there is something to write: a needless save would bump
+        // the file's timestamp, add a version and give the exit sync a commit
+        // to make out of nothing.
+        if (editorState.saveStatus.status === 'unsaved') await editorState.flushSave?.();
+      } catch (e) {
+        console.error('Save before exit failed:', e);
+      } finally {
+        await emit('memoire://flushed');
+      }
+    });
+
+    appState.loadBinderColours();
+
+    const lastWriting = localStorage.getItem('lastWriting');
+    if (lastWriting) appState.setLastWriting(lastWriting);
+
     writingState.load();
     if (localStorage.getItem('outlineOpen') === 'true') {
       appState.toggleOutline(true);
     }
-    fileManager.getRecents();
-    fileManager.getBinders();
-    fileManager.getFolders();
+    // The listings have to be in before the welcome writing can tell whether
+    // this is a first run or an existing library.
+    Promise.all([fileManager.getRecents(), fileManager.getBinders(), fileManager.getFolders()])
+      .then(ensureWelcomeWriting)
+      .catch((e) => console.error('Startup listing failed:', e));
 
     configManager.getConfig().then(() => {
       if (configManager.config?.ai_enabled) {
@@ -122,7 +161,11 @@
       }
     });
 
-    return () => media.removeEventListener('change', onSystemThemeChange);
+    return () => {
+      media.removeEventListener('change', onSystemThemeChange);
+      stopClosing.then((off) => off()).catch(() => {});
+      stopFlush.then((off) => off()).catch(() => {});
+    };
   });
 
   $effect(() => {
@@ -157,7 +200,7 @@
       ? `theme-${appState.ui.themePalette}`
       : ''} style-{appState.ui.styleFlavour} density-{appState.ui.density} {onMacOS
       ? 'platform-mac'
-      : ''} font-sans font-normal w-full h-screen bg-background text-foreground overflow-hidden relative"
+      : ''} font-sans font-normal w-full h-dvh bg-background text-foreground overflow-hidden relative"
   >
     {#if onMacOS}
       <!-- Overlay title bar: this strip is what the user grabs to move the window. -->
@@ -167,11 +210,21 @@
       ></div>
     {/if}
     {@render children()}
+    {#if isClosing}
+      <div
+        class="fixed inset-0 z-50 flex items-center justify-center bg-background"
+        role="status"
+        aria-live="polite"
+      >
+        <p class="text-sm text-muted-foreground">Saving and syncing your writing…</p>
+      </div>
+    {/if}
     <Cmdk />
     <NewWritingPicker />
     <ExportDialog />
     <ProjectSearch />
     <ImportDialog />
+    <TrashSheet />
     <ShortcutsHelp />
     <Toaster
       theme={appState.ui.theme}
@@ -205,7 +258,13 @@
     }
 
     // The editor claims ⌘K for links when text is selected or the caret is in one.
-    if (e.key === 'k' && isMod(e) && !e.defaultPrevented) {
+    if (
+      e.key.toLowerCase() === 'k' &&
+      isMod(e) &&
+      !e.shiftKey &&
+      !e.altKey &&
+      !e.defaultPrevented
+    ) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
     }
@@ -219,12 +278,22 @@
       }
     }
 
+    // The shortcuts sheet used to be reachable only from the editor's command
+    // bar, which made every shortcut in it unreachable from the home screen.
+    if (e.key === '/' && isMod(e) && !e.altKey && !e.defaultPrevented) {
+      e.preventDefault();
+      appState.toggleHelpModal(!appState.ui.isHelpModalOpen);
+    }
+
     if (e.key.toLowerCase() === 'f' && isMod(e) && e.shiftKey && !e.altKey) {
       e.preventDefault();
       appState.toggleProjectSearch(true);
     }
 
-    if (e.key.toLowerCase() === 'p' && e.ctrlKey && e.shiftKey) {
+    // ⌘⇧P belongs to the editor's ":" command bar, which takes it on capture
+    // and stops it reaching here. Outside the editor there is no command bar,
+    // so the palette answers instead and the chord always does something.
+    if (e.key.toLowerCase() === 'p' && isMod(e) && e.shiftKey && !e.altKey) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);
     }

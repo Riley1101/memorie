@@ -14,10 +14,14 @@
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FolderInputIcon from '@lucide/svelte/icons/folder-input';
   import { formatFileName, formatDate, formatTime } from '@/utils';
-  import { fileManager } from '@/runes/fs.svelte';
+  import { fileManager, dirOf } from '@/runes/fs.svelte';
+  import { reorderWithin } from '@/runes/ordering.svelte.js';
   import { treeState } from '@/runes/tree.svelte.js';
   import { DRAG_MIME, readDragPayload } from '$lib/tree-dnd.js';
+  import { sceneCache, statusTone } from '@/runes/scenes.svelte.js';
   import BinderTreeNode from './binder-tree-node.svelte';
+
+  const wordFormat = new Intl.NumberFormat();
 
   /**
    * Handlers all receive content-relative info. `onDrop(payload, targetDir)`
@@ -42,6 +46,16 @@
 
   /** Full folder path for this node (folders only), e.g. "Novel/Part 1/Chapter 3". */
   let folderPath = $derived(node.type === 'folder' ? [binder, ...node.path].join('/') : '');
+
+  // Scene metadata, from the cache the corkboard fills. A row shows what it
+  // has; nothing flickers in, because an unread writing just shows no dot.
+  let scene = $derived(node.type === 'file' ? sceneCache.get(node.file.name) : undefined);
+  let status = $derived(scene?.meta.status?.trim() ?? '');
+  let synopsis = $derived(scene?.meta.synopsis?.trim() ?? '');
+  let words = $derived(scene?.words ?? null);
+  let wordLabel = $derived(
+    words === null ? '' : words === 1 ? '1 word' : `${wordFormat.format(words)} words`
+  );
   let open = $derived(node.type === 'folder' ? treeState.isOpen(folderPath) : true);
 
   let isRenaming = $state(false);
@@ -196,6 +210,64 @@
     const payload = readDragPayload(e);
     if (payload) onDrop(payload, folderPath);
   }
+
+  // --- Dropping between writings, to set the order ---
+
+  /** Which edge of this row a drag is hovering: 'before', 'after' or null. */
+  let dropEdge = $state(/** @type {'before' | 'after' | null} */ (null));
+
+  /** Writings reorder; a folder dropped on a writing still means "move here". */
+  function canReorder(e) {
+    return node.type === 'file' && e.dataTransfer.types.includes(DRAG_MIME);
+  }
+
+  /** @param {DragEvent} e */
+  function handleFileDragOver(e) {
+    if (!canReorder(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    // Top half means "put it above this one", bottom half "below".
+    const box = /** @type {HTMLElement} */ (e.currentTarget).getBoundingClientRect();
+    dropEdge = e.clientY - box.top < box.height / 2 ? 'before' : 'after';
+  }
+
+  /** @param {DragEvent} e */
+  function handleFileDragLeave(e) {
+    const to = /** @type {Node | null} */ (e.relatedTarget);
+    if (to && /** @type {HTMLElement} */ (e.currentTarget).contains(to)) return;
+    dropEdge = null;
+  }
+
+  /** @param {DragEvent} e */
+  async function handleFileDrop(e) {
+    if (!canReorder(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const side = dropEdge ?? 'after';
+    dropEdge = null;
+
+    const payload = readDragPayload(e);
+    if (!payload) return;
+
+    const targetDir = dirOf(node.file.name);
+    if (payload.kind === 'folder') {
+      // A folder can't sit between writings; treat it as a move into this
+      // writing's folder, which is what the drop looks like.
+      if (dirOf(payload.path) !== targetDir) onDrop(payload, targetDir);
+      return;
+    }
+    if (payload.name === node.file.name) return;
+
+    if (dirOf(payload.name) !== targetDir) {
+      // From elsewhere: move it in first, then place it.
+      const moved = await fileManager.moveFile(payload.name, targetDir);
+      if (!moved) return;
+      await reorderWithin(targetDir, moved, node.file.name, side);
+      return;
+    }
+    await reorderWithin(targetDir, payload.name, node.file.name, side);
+  }
 </script>
 
 {#if node.type === 'folder'}
@@ -218,7 +290,9 @@
   >
     {#if isRenamingFolder}
       <span class="size-4 shrink-0"></span>
-      <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+      <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+      <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+      <!-- svelte-ignore a11y_autofocus -->
       <input
         value={folderRenameValue}
         oninput={(e) => (folderRenameValue = e.currentTarget.value)}
@@ -242,26 +316,26 @@
         aria-expanded={open}
       >
         <ChevronRightIcon
-          class="size-4 shrink-0 text-muted-foreground/50 transition-transform duration-150 {open ? 'rotate-90' : ''}"
+          class="size-4 shrink-0 text-muted-foreground transition-transform duration-150 {open ? 'rotate-90' : ''}"
           strokeWidth={1.5}
         />
         {#if open}
-          <FolderOpenIcon class="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
+          <FolderOpenIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         {:else}
-          <FolderIcon class="size-4 shrink-0 text-muted-foreground/70" strokeWidth={1.5} />
+          <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         {/if}
         <span class="truncate font-writer font-medium">{node.name}</span>
-        <span class="ml-1 text-xs tabular-nums text-muted-foreground/50 shrink-0">
+        <span class="ml-1 text-xs tabular-nums text-muted-foreground shrink-0">
           {node.fileCount}
         </span>
         {#if node.lastModified}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata font-mono group-hover/folder:opacity-0 transition-opacity">
+          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata tabular-nums group-hover/folder:opacity-0 transition-opacity">
             <span>{formatDate(node.lastModified)}</span>
             <span class="opacity-30">•</span>
             <span>{formatTime(node.lastModified)}</span>
           </span>
         {:else}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:inline text-xs text-muted-foreground/40 italic group-hover/folder:opacity-0 transition-opacity">
+          <span class="ml-auto pl-3 shrink-0 hidden sm:inline text-xs text-muted-foreground italic group-hover/folder:opacity-0 transition-opacity">
             empty
           </span>
         {/if}
@@ -366,7 +440,9 @@
           style="padding-left: {(depth + 1) * 1.25}rem"
         >
           <span class="size-4 shrink-0"></span>
-          <FolderIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+          <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+          <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+          <!-- svelte-ignore a11y_autofocus -->
           <input
             value={draft.name}
             oninput={(e) => onDraftInput(e.currentTarget.value)}
@@ -383,7 +459,7 @@
       {/if}
       {#if node.children.length === 0 && !isDraftHere}
         <div
-          class="py-2 text-sm text-muted-foreground/40 italic select-none"
+          class="py-2 text-sm text-muted-foreground italic select-none"
           style="padding-left: {(depth + 1) * 1.25 + 1.375}rem"
         >
           Empty. Drop writings here, or use +.
@@ -417,14 +493,28 @@
     draggable={!isRenaming}
     ondragstart={handleDragStart}
     ondragend={handleDragEnd}
+    ondragover={handleFileDragOver}
+    ondragleave={handleFileDragLeave}
+    ondrop={handleFileDrop}
     class="group/file relative flex items-center gap-2 py-2 pr-1 rounded-md hover:bg-muted/20 transition-colors
       {isDragging ? 'opacity-40' : ''} {menuOpen ? 'bg-muted/20' : ''}"
     style="padding-left: {depth * 1.25}rem"
   >
+    <!-- Where the writing would land. Without this the drop target in a
+         nested tree is a guess. -->
+    {#if dropEdge}
+      <div
+        class="pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-primary
+          {dropEdge === 'before' ? '-top-px' : '-bottom-px'}"
+        aria-hidden="true"
+      ></div>
+    {/if}
     {#if isRenaming}
       <div class="flex items-center gap-2 flex-1 min-w-0">
         <span class="size-4 shrink-0"></span>
-        <FileIcon class="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.5} />
+        <FileIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+        <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+        <!-- svelte-ignore a11y_autofocus -->
         <input
           value={renameValue}
           oninput={(e) => (renameValue = e.currentTarget.value)}
@@ -447,8 +537,19 @@
       >
         <span class="size-4 shrink-0"></span>
         <FileIcon class="size-4 shrink-0" strokeWidth={1.5} />
-        <span class="truncate font-writer">{formatFileName(node.name)}</span>
-        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata font-mono group-hover/file:opacity-0 transition-opacity">
+        {#if status}
+          <span
+            class="size-1.5 shrink-0 rounded-full {statusTone(status).dot}"
+            title={status}
+            aria-label="Status: {status}"
+          ></span>
+        {/if}
+        <span class="truncate font-writer" title={synopsis || undefined}>{formatFileName(node.name)}</span>
+        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata tabular-nums group-hover/file:opacity-0 transition-opacity">
+          {#if words !== null && words > 0}
+            <span>{wordLabel}</span>
+            <span class="opacity-30">•</span>
+          {/if}
           <span>{formatDate(node.file.last_modified)}</span>
           <span class="opacity-30">•</span>
           <span>{formatTime(node.file.last_modified)}</span>

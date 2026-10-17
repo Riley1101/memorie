@@ -20,7 +20,8 @@
 
 <script>
   import { cn } from '$lib/utils.js';
-  let { class: className, children, align = 'inline-start', ...restProps } = $props();
+  /** @type {{ class?: any, children?: any, align?: 'inline-start' | 'inline-end' | 'block-start' | 'block-end', [key: string]: any }} */
+  let { class: className = undefined, children = undefined, align = 'inline-start', ...restProps } = $props();
 </script>
 
 <div
@@ -29,7 +30,7 @@
   data-align={align}
   class={cn(inputGroupAddonVariants({ align }), className)}
   onclick={(e) => {
-    if (e.target.closest('button')) {
+    if (/** @type {any} */ (e.target).closest('button')) {
       return;
     }
     e.currentTarget.parentElement?.querySelector('input')?.focus();

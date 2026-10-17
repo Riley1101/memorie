@@ -2,7 +2,7 @@
   import { cn } from '$lib/utils.js';
   import { Input } from '$lib/components/ui/input/index.js';
 
-  let { value = $bindable(), class: className, ...props } = $props();
+  let { value = $bindable(), class: className = undefined, ...props } = $props();
 </script>
 
 <Input
@@ -12,5 +12,5 @@
     className
   )}
   bind:value
-  {...props}
+  {.../** @type {any} */ (props)}
 />

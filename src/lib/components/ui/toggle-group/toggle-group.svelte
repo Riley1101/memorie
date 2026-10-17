@@ -16,15 +16,21 @@
   let {
     ref = $bindable(null),
     value = $bindable(),
-    class: className,
+    class: className = undefined,
     size = 'default',
     variant = 'default',
     ...restProps
   } = $props();
 
+  // Getters, so a later change to `variant` or `size` reaches the items
+  // instead of freezing at the value they had when the group mounted.
   setToggleGroupCtx({
-    variant,
-    size,
+    get variant() {
+      return variant;
+    },
+    get size() {
+      return size;
+    },
   });
 </script>
 
@@ -42,5 +48,5 @@ get along, so we shut typescript up by casting `value` to `never`.
     'group/toggle-group data-[variant=outline]:shadow-xs flex w-fit items-center rounded-md',
     className
   )}
-  {...restProps}
+  {.../** @type {any} */ (restProps)}
 />

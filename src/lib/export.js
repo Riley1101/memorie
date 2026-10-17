@@ -1,5 +1,6 @@
-import { buildFileTree, formatFileName } from '$lib/utils.js';
+import { buildFileTree, formatFileName, naturalCollator } from '$lib/utils.js';
 import { baseOf } from '$lib/runes/fs.svelte.js';
+import { compareByOrder } from '$lib/runes/ordering.svelte.js';
 
 /**
  * @typedef {{ kind: 'heading', level: number, text: string }
@@ -18,7 +19,11 @@ import { baseOf } from '$lib/runes/fs.svelte.js';
  */
 export function manuscriptOutline(files, folders, dir) {
   const [binder, ...inner] = dir.split('/');
-  let nodes = buildFileTree(files, binder, folders);
+  // An exported manuscript must read in the order the writer arranged, not
+  // alphabetically; that is the whole point of the manual order.
+  let nodes = buildFileTree(files, binder, folders, (a, b) =>
+    compareByOrder(a.name, b.name, (x, y) => naturalCollator.compare(baseOf(x), baseOf(y)))
+  );
   for (const segment of inner) {
     const folder = nodes.find((n) => n.type === 'folder' && n.name === segment);
     if (!folder) return [];

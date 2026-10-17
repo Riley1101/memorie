@@ -5,7 +5,7 @@
   import { toast } from '$lib/toast.js';
   import { deriveTitle, sanitizeTitle, isUntitled, UNTITLED } from '$lib/new-writing.js';
   import Editor from './editor.svelte';
-  import { invalidateAll, goto } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { editorViewCtx } from '@milkdown/kit/core';
@@ -52,15 +52,15 @@
   });
 
   /** The path we are currently saving to. Follows the prop, and any rename we perform. */
-  let currentName = $state(fileName);
-  let draft = $state(isDraft);
+  let currentName = $state(untrack(() => fileName));
+  let draft = $state(untrack(() => isDraft));
 
   /** Display-only title (no .md, no folders); user edits this */
   let displayTitle = $state('');
   /** Once the writer edits the title, we stop deriving it from the body. */
   let titleTouched = $state(false);
   /** Drafts keep following the first line until the title is touched. */
-  let autoTitle = $state(isDraft);
+  let autoTitle = $state(untrack(() => isDraft));
   let isRenaming = $state(false);
   let titleInput = $state(/** @type {HTMLInputElement | null} */ (null));
 
@@ -168,25 +168,72 @@
   }
 
   /**
-   * Keeps an auto-titled file's name in step with its first line.
+   * How long the first line has to hold still before an auto-titled writing is
+   * renamed to match it. Renaming moves the file, its history and its index
+   * entry, so it should not happen on every autosave while the line is still
+   * being typed.
+   */
+  const AUTO_RENAME_IDLE_MS = 4000;
+
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let autoRenameTimer = null;
+  /** The rename waiting on the timer, with the path it was queued against. */
+  let pendingRename = /** @type {{ name: string, markdown: string, key: number } | null} */ (null);
+
+  /**
+   * Queues an auto-rename for when typing stops. Any further save pushes it
+   * back; leaving the document runs it instead of dropping it, so a writing
+   * named from its first line still gets that name.
    * @param {string} markdown
    */
-  async function maybeAutoRename(markdown) {
+  function scheduleAutoRename(markdown) {
     if (!autoTitle || isRenaming) return;
-    const startKey = docKey;
+    if (autoRenameTimer) clearTimeout(autoRenameTimer);
+    pendingRename = { name: currentName, markdown, key: docKey };
+    autoRenameTimer = setTimeout(flushAutoRename, AUTO_RENAME_IDLE_MS);
+  }
+
+  /** Runs the queued rename now, if there is one. */
+  function flushAutoRename() {
+    if (autoRenameTimer) clearTimeout(autoRenameTimer);
+    autoRenameTimer = null;
+    const pending = pendingRename;
+    pendingRename = null;
+    // A title typed since this was queued already renamed the file, which
+    // leaves `pending.name` pointing at a path that no longer exists.
+    if (pending && autoTitle) maybeAutoRename(pending.markdown, pending.name, pending.key);
+  }
+
+  $effect(() => {
+    void docKey;
+    return flushAutoRename;
+  });
+
+  /**
+   * Keeps an auto-titled file's name in step with its first line. `name` and
+   * `startKey` are the path and document this was queued for, so a rename
+   * flushed on the way out still targets the writing it was meant for.
+   * @param {string} markdown
+   * @param {string} name
+   * @param {number} startKey
+   */
+  async function maybeAutoRename(markdown, name, startKey) {
+    if (isRenaming) return;
     const derived = deriveTitle(markdown);
-    const currentBase = stripMd(baseOf(currentName));
+    const currentBase = stripMd(baseOf(name));
     if (!derived) return;
     if (derived === currentBase) return;
     // "Untitled 3" -> "Untitled" is not an improvement worth a rename.
     if (isUntitled(derived) && isUntitled(currentBase)) return;
 
-    const base = fileManager.uniqueName(dirOf(currentName), derived);
+    const base = fileManager.uniqueName(dirOf(name), derived);
     if (base === currentBase) return;
 
     isRenaming = true;
     try {
-      const renamed = await fileManager.renameFile(currentName, base);
+      const renamed = await fileManager.renameFile(name, base);
+      // `followUrl` is a no-op once the writer has moved on, which is what we
+      // want when this ran on the way out of the document.
       if (renamed) await followUrl(renamed, startKey);
     } finally {
       isRenaming = false;
@@ -272,8 +319,11 @@
         return;
       }
       await fileManager.saveFile(currentName, fileContent(markdown));
-      await maybeAutoRename(markdown);
-      invalidateAll();
+      scheduleAutoRename(markdown);
+      // Re-running the route load re-reads the file and its whole version
+      // history; only the history sidebar needs that, so only pay for it
+      // while the sidebar is showing. The writings list refreshes itself.
+      if (appState.ui.isHistoryOpen) await invalidateAll();
     } catch (e) {
       toast.error('Save failed', e);
       throw e;
@@ -295,7 +345,7 @@
     spellcheck="false"
     autocomplete="off"
   />
-  <p class="writing-area__byline" aria-hidden="true">{byline}</p>
+  <p class="writing-area__byline">{byline}</p>
   <div class="writing-area__ornament" aria-hidden="true">❧</div>
   <div class="writing-area__body">
     {#key `${docKey}:${appState.ui.editorVersion}`}

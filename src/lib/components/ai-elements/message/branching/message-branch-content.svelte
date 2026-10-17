@@ -4,7 +4,7 @@
 	import MessageContent from "../core/message-content.svelte";
 	import MessageResponse from "../response/message-response.svelte";
 
-	let { versions, class: className, ...restProps } = $props();
+	let { versions = undefined, class: className = undefined, ...restProps } = $props();
 
 	const branchContext = getMessageBranchContext();
 

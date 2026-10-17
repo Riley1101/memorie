@@ -3,8 +3,8 @@
 	import { cn } from "$lib/utils.js";
 	let {
 		ref = $bindable(null),
-		class: className,
-		inset,
+		class: className = undefined,
+		inset = undefined,
 		...restProps
 	} = $props();
 </script>

@@ -3,7 +3,7 @@
 	let {
 		ref = $bindable(null),
 		value = $bindable(),
-		class: className,
+		class: className = undefined,
 		"data-slot": dataSlot = "textarea",
 		...restProps
 	} = $props();

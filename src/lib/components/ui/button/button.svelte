@@ -32,6 +32,7 @@
 </script>
 
 <script>
+	/** @type {{ class?: any, variant?: "link" | "default" | "outline" | "secondary" | "ghost" | "destructive", size?: "icon" | "default" | "xs" | "sm" | "lg" | "icon-xs" | "icon-sm" | "icon-lg", ref?: any, href?: any, type?: "button" | "reset" | "submit", disabled?: any, children?: any, [key: string]: any }} */
 	let {
 		class: className = undefined,
 		variant = "default",
@@ -49,7 +50,7 @@
 	<a
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
+		class={cn(buttonVariants(/** @type {any} */ ({ variant, size })), className)}
 		href={disabled ? undefined : href}
 		aria-disabled={disabled}
 		role={disabled ? "link" : undefined}
@@ -62,8 +63,8 @@
 	<button
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
-		{type}
+		class={cn(buttonVariants(/** @type {any} */ ({ variant, size })), className)}
+		type={/** @type {any} */ (type)}
 		{disabled}
 		{...restProps}
 	>

@@ -145,6 +145,7 @@ class FileManager {
     } catch (err) {
       console.error(err);
       this.errorMessage = `Failed to discover binders: ${err}`;
+      toast.error('Could not load binders', err);
     }
   }
 
@@ -159,6 +160,7 @@ class FileManager {
     } catch (err) {
       console.error(err);
       this.errorMessage = `Failed to discover folders: ${err}`;
+      toast.error('Could not load folders', err);
     }
   }
 
@@ -264,7 +266,7 @@ class FileManager {
     this.errorMessage = '';
 
     try {
-      await invoke('create_file', { name: finalFileName, content });
+      await invoke('create_file', { name: finalFileName, content, exclusive: true });
       await this.getRecents();
       if (subPath.length) await this.getFolders();
       return finalFileName;
@@ -317,7 +319,9 @@ class FileManager {
    * @returns {Promise<void>}
    */
   async createFileAt(fullName, content) {
-    await invoke('create_file', { name: fullName, content });
+    // `exclusive`: a new writing must never land on top of an existing one,
+    // even if our last listing missed it (a sync pulled it in, say).
+    await invoke('create_file', { name: fullName, content, exclusive: true });
     await this.getRecents();
     if (dirOf(fullName)) await this.getFolders();
   }
@@ -406,6 +410,9 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to undo last change for file "${fileName}": ${err}`;
       console.error(err);
+      toast.error('Could not go back a version', err);
+    } finally {
+      this.isLoading = false;
     }
   }
 
@@ -424,26 +431,36 @@ class FileManager {
     } catch (err) {
       this.errorMessage = `Failed to redo last undone change for file "${fileName}": ${err}`;
       console.error(err);
+      toast.error('Could not go forward a version', err);
+    } finally {
+      this.isLoading = false;
     }
   }
 
   /**
-   * Deletes a file and refreshes the file list.
+   * Moves a writing to the trash, where it can be put back for a month.
    * @async
    * @param {string} fileName - The name of the file to delete.
-   * @returns {Promise<void>}
+   * @returns {Promise<import('$lib/runes/trash.svelte.js').TrashEntry | null>}
+   *   The trash entry, so the caller can offer an undo; null on failure.
    */
   async deleteFile(fileName) {
     this.isLoading = true;
     this.errorMessage = '';
 
     try {
-      await invoke('delete_file', { name: fileName });
+      const entry = await invoke('delete_file', { name: fileName });
+      if (this.currentFile?.name === fileName) {
+        this.currentFile = null;
+        this.currentContent = '';
+      }
       await this.getRecents();
+      return entry;
     } catch (err) {
       this.errorMessage = `Failed to delete file "${fileName}": ${err}`;
       console.error(err);
       toast.error(`Could not delete "${baseOf(fileName)}"`, err);
+      return null;
     } finally {
       this.isLoading = false;
     }
@@ -519,8 +536,23 @@ class FileManager {
       return null;
     }
 
-    await this.renameBinder(oldPath, newPath);
-    return this.folders.includes(newPath) ? newPath : null;
+    // Same backend call as a rename, but the writer asked for a move, so say so.
+    this.isLoading = true;
+    this.errorMessage = '';
+    try {
+      await invoke('rename_binder', { oldName: oldPath, newName: newPath });
+      await this.getBinders();
+      await this.getRecents();
+      await this.getFolders();
+      return this.folders.includes(newPath) ? newPath : null;
+    } catch (err) {
+      this.errorMessage = `Failed to move "${oldPath}": ${err}`;
+      console.error(err);
+      toast.error(`Could not move "${base}"`, err);
+      return null;
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   /**
@@ -547,29 +579,21 @@ class FileManager {
   }
 
   /**
-   * Deletes a folder and everything inside it. Version history for the
-   * deleted writings is left untouched on disk.
+   * Moves a folder and everything inside it to the trash, in one step, so one
+   * undo brings the whole thing back. Version history is left on disk.
    * @param {string} path
-   * @returns {Promise<boolean>}
+   * @returns {Promise<import('$lib/runes/trash.svelte.js').TrashEntry | null>}
    */
   async deleteFolderRecursive(path) {
     this.isLoading = true;
     this.errorMessage = '';
     try {
-      for (const f of this.filesUnder(path)) {
-        await invoke('delete_file', { name: f.name });
-      }
-      const nested = this.foldersUnder(path).sort((a, b) => b.length - a.length);
-      for (const f of nested) {
-        await invoke('delete_folder', { relativePath: f });
-      }
-      await invoke('delete_folder', { relativePath: path });
-      return true;
+      return await invoke('delete_folder_to_trash', { relativePath: path });
     } catch (err) {
       this.errorMessage = `Failed to delete folder "${path}": ${err}`;
       console.error(err);
       toast.error(`Could not delete "${baseOf(path)}"`, err);
-      return false;
+      return null;
     } finally {
       this.isLoading = false;
       await this.getRecents();

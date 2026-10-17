@@ -26,11 +26,14 @@
   import { Toggle as TogglePrimitive } from 'bits-ui';
   import { cn } from '$lib/utils.js';
 
+  /** @type {{ ref?: any, pressed?: any, class?: any, size?: "default" | "sm" | "lg", variant?: "default" | "outline", [key: string]: any }} */
   let {
     ref = $bindable(null),
     pressed = $bindable(false),
-    class: className,
+    class: className = undefined,
+    /** @type {'default' | 'sm' | 'lg'} */
     size = 'default',
+    /** @type {'default' | 'outline'} */
     variant = 'default',
     ...restProps
   } = $props();
@@ -40,6 +43,6 @@
   bind:ref
   bind:pressed
   data-slot="toggle"
-  class={cn(toggleVariants({ variant, size }), className)}
+  class={cn(toggleVariants(/** @type {any} */ ({ variant, size })), className)}
   {...restProps}
 />
