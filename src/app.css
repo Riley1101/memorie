@@ -531,9 +531,14 @@
 .style-paper .page-container {
   border-radius: 2px;
 }
-/* Drop cap on the first paragraph of a Paper document. Only while reading:
-   a floated ::first-letter inside contenteditable throws the caret around,
-   and on an empty paragraph it would grab the placeholder's first letter. */
+/* Drop cap on the first paragraph of a Paper document.
+   Where `initial-letter` is supported (WebKit, which the macOS app runs on, and
+   Chromium) the cap is laid out by the line box itself: no float, so the caret
+   behaves and the cap can stay while typing. Toggling it on focus used to
+   rewrap the whole first paragraph on every click into the text.
+   Elsewhere it falls back to the floated cap, shown only while not editing,
+   since a float inside contenteditable throws the caret around. Never on an
+   empty paragraph, where it would grab the placeholder's first letter. */
 .style-paper .markdown .ProseMirror:not(:focus) > p:first-of-type:not(.is-empty)::first-letter {
   font-family: var(--font-writer-heading);
   font-weight: 600;
@@ -543,6 +548,20 @@
   line-height: 0.85;
   padding-right: 0.08em;
   padding-top: 0.05em;
+}
+@supports (initial-letter: 2) or (-webkit-initial-letter: 2) {
+  .style-paper .markdown .ProseMirror > p:first-of-type:not(.is-empty)::first-letter {
+    font-family: var(--font-writer-heading);
+    font-weight: 600;
+    color: var(--paper-ornament);
+    float: none;
+    font-size: inherit;
+    line-height: inherit;
+    padding: 0;
+    -webkit-initial-letter: 2;
+    initial-letter: 2;
+    margin-right: 0.08em;
+  }
 }
 @media (max-width: 640px) {
   .style-paper {
@@ -844,8 +863,10 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   }
 
   /* Writing surface: single container for editor page */
+  /* The measure is capped in characters of the writing font, so it holds at any
+     font size or density: about 66 characters a line plus the page padding. */
   .writing-surface {
-    max-width: 48rem;
+    max-width: min(48rem, calc(66ch + 2 * var(--writer-padding-x)));
     margin-inline: auto;
     padding-inline: var(--writer-padding-x);
     padding-block: var(--writer-padding-y);

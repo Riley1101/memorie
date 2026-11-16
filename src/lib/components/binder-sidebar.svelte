@@ -248,7 +248,7 @@
         : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
     >
       <FileIcon strokeWidth={1.5} class="size-4 shrink-0" />
-      <span class="truncate flex-1">All Writings</span>
+      <span class="truncate flex-1">All writings</span>
       <span class="text-meta text-muted-foreground tabular-nums">{fileManager.files.length}</span>
     </button>
     <div class="my-1 border-t border-border/30"></div>
@@ -375,13 +375,21 @@
     >
       Binders
     </button>
-    <button
-      onclick={startCreateBinder}
-      aria-label="New Binder"
-      class="text-muted-foreground hover:text-foreground transition-colors"
-    >
-      <PlusIcon class="size-3 shrink-0" strokeWidth={1.5} />
-    </button>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <button
+            {...props}
+            onclick={startCreateBinder}
+            aria-label="New binder"
+            class="flex items-center justify-center size-7 -mr-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+          >
+            <PlusIcon class="size-3.5 shrink-0" strokeWidth={1.5} />
+          </button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content side="right" portalProps={{}}>New binder</Tooltip.Content>
+    </Tooltip.Root>
   </div>
   {#if isCreatingBinder}
     <div class="px-2 pb-1.5 shrink-0">

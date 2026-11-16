@@ -9,6 +9,7 @@
   import { buildFileTree, formatFileName, formatDate } from '$lib/utils.js';
   import { toast } from '$lib/toast.js';
   import PencilIcon from '@lucide/svelte/icons/pencil';
+  import { Button } from '$lib/components/ui/button/index.js';
 
   /** @type {{ binder: string }} */
   let { binder } = $props();
@@ -216,6 +217,9 @@
   {/each}
 
   {#if !loading && statusFilter && sections.every((s) => !s.files.some((f) => visible(f.name)))}
-    <p class="py-16 text-center text-sm text-muted-foreground">No writings with this status.</p>
+    <div class="flex flex-col items-center gap-3 py-16 text-center">
+      <p class="text-sm text-muted-foreground">No writings are marked “{statusFilter === '—' ? 'no status' : statusFilter}”.</p>
+      <Button variant="outline" size="sm" onclick={() => (statusFilter = '')} disabled={false}>Clear filter</Button>
+    </div>
   {/if}
 </div>

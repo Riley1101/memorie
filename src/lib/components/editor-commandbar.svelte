@@ -89,6 +89,7 @@
   let aiReady = $derived(
     aiProvider === 'openrouter' ? configManager.hasOpenRouterApiKey : llmManager.modelsLoaded
   );
+  let aiButtonLabel = $derived(aiReady ? 'Open assistant' : 'Set up AI');
   let defaultFontSize = $derived(DENSITY_FONT_SIZE[appState.ui.density]);
   let zoomPercent = $derived(Math.round((appState.ui.fontSize / defaultFontSize) * 100));
 
@@ -96,7 +97,7 @@
   const allCommands = [
     {
       cmd: ':c',
-      description: 'Create Writing Context',
+      description: 'Create writing context',
       action: 'createDocumentContext',
       shortcutLabel: '', // No global shortcut to avoid conflict with Cmd+C
       key: '',
@@ -204,7 +205,7 @@
     },
     {
       cmd: ':h',
-      description: 'Show shortcuts help',
+      description: 'Show keyboard shortcuts',
       action: 'help',
       shortcutLabel: `${MOD_KEY}/`,
       key: '/',
@@ -238,7 +239,7 @@
     },
     {
       cmd: ':ai',
-      description: 'Toggle AI Chat',
+      description: 'Open or close the assistant',
       action: 'aichat',
       shortcutLabel: `${MOD_KEY}L`,
       key: 'l',
@@ -683,7 +684,7 @@
         onkeydown={handleInputKeyDown}
         onblur={handleBlur}
         onfocus={handleFocus}
-        placeholder="Type command..."
+        placeholder="Type a command…"
         class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full px-2"
         aria-label="Command input"
       />
@@ -718,13 +719,14 @@
               <button
                 {...props}
                 onclick={() => executeCommand(':h')}
+                aria-label="Show keyboard shortcuts"
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <HelpIcon strokeWidth={1.5} class="size-3.5" />
               </button>
             {/snippet}
           </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>Shortcuts help · {MOD_KEY}H</Tooltip.Content>
+          <Tooltip.Content side="top" portalProps={{}}>Show keyboard shortcuts <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}/</kbd></Tooltip.Content>
         </Tooltip.Root>
 
         <Tooltip.Root>
@@ -736,6 +738,7 @@
                   isCommandMode = true;
                   input = ':';
                 }}
+                aria-label="Open command palette"
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <TerminalIcon strokeWidth={1.5} class="size-3.5" />
@@ -743,7 +746,7 @@
             {/snippet}
           </Tooltip.Trigger>
           <Tooltip.Content side="top" portalProps={{}}
-            >Command palette · {MOD_KEY}⇧P</Tooltip.Content
+            >Open command palette <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}⇧P</kbd></Tooltip.Content
           >
         </Tooltip.Root>
 
@@ -753,13 +756,14 @@
               <button
                 {...props}
                 onclick={() => appState.toggleCommandMenu(true)}
+                aria-label="Go to writing"
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <SearchIcon strokeWidth={1.5} class="size-3.5" />
               </button>
             {/snippet}
           </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>Search · {MOD_KEY}K</Tooltip.Content>
+          <Tooltip.Content side="top" portalProps={{}}>Go to writing <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}K</kbd></Tooltip.Content>
         </Tooltip.Root>
 
         {#if aiEnabled}
@@ -790,13 +794,14 @@
                     appState.toggleAiChat(!appState.ui.isChatOpen);
                   }
                 }}
+                aria-label={aiButtonLabel}
                 class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
+                <!-- Monochrome like its neighbours: the state is in the label, not a colour. -->
                 <AiSparkleIcon strokeWidth={1.5}
                   class={cn(
-                    'size-3.5 transition-colors',
-                    isThinking || llmManager.isLoadModelsInProgress ? 'animate-pulse' : '',
-                    !aiReady ? 'text-warning' : ''
+                    'size-3.5 transition-opacity',
+                    isThinking || llmManager.isLoadModelsInProgress ? 'opacity-50' : ''
                   )}
  />
               </button>
@@ -805,18 +810,18 @@
           <Tooltip.Content side="top" portalProps={{}}>
             {#if aiProvider === 'openrouter'}
               {#if !aiReady}
-                Click to add your OpenRouter API key
+                Set up AI: add your OpenRouter API key
               {:else}
-                AI chat (OpenRouter) · {MOD_KEY}L
+                Open assistant (OpenRouter) <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}L</kbd>
               {/if}
             {:else if llmManager.isLoadModelsInProgress}
               Loading AI model… {llmManager.loadingProgress}%
             {:else if llmManager.downloadingModelId}
               Downloading model… {llmManager.loadingProgress}%
             {:else if !llmManager.modelsLoaded}
-              Click to set up local AI
+              Set up local AI
             {:else}
-              AI chat · {MOD_KEY}L
+              Open assistant <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}L</kbd>
             {/if}
           </Tooltip.Content>
         </Tooltip.Root>
@@ -843,7 +848,7 @@
                 llmManager.loadModels();
               }}
             >
-              Download
+              Download model
             </Button>
           </Dialog.Footer>
         </Dialog.Content>
@@ -857,7 +862,7 @@
               {...props}
               variant="ghost"
               size="icon"
-              class="h-7 w-7 rounded-none md:hidden shrink-0"
+              class="size-8 md:hidden shrink-0"
               aria-label="More commands"
             >
               <EllipsisIcon strokeWidth={1.5} class="size-3.5" />

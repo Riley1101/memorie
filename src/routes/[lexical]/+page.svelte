@@ -13,6 +13,7 @@
   import EditorCodex from '$lib/components/editor-codex.svelte';
   import EditorFind from '$lib/components/editor-find.svelte';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
+  import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount, untrack } from 'svelte';
@@ -221,25 +222,39 @@
       class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-meta tabular-nums shrink-0
         {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
     >
+<Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
       <button
+        {...props}
         onclick={() => goto(resolve('/'))}
         aria-label="Go home"
-        title="Home"
         class="flex items-center justify-center size-7 -ml-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
       >
         <HouseIcon strokeWidth={1.5} class="size-3.5" />
       </button>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content side="bottom" portalProps={{}}>Go home</Tooltip.Content>
+      </Tooltip.Root>
       <div class="flex-1 flex items-center justify-center gap-1 min-w-0 pointer-events-none">
         {#if siblings.length > 1}
-          <button
+          <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
+<button
+            {...props}
             onclick={() => goToWriting(prevWriting)}
             disabled={!prevWriting}
             aria-label="Previous writing"
-            title={prevWriting ? formatFileName(baseOf(prevWriting.name)) : ''}
-            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            class="pointer-events-auto flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
-            <ChevronLeftIcon strokeWidth={1.5} class="size-3" />
+            <ChevronLeftIcon strokeWidth={1.5} class="size-3.5" />
           </button>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content side="bottom" portalProps={{}}>{prevWriting ? `Previous writing: ${formatFileName(baseOf(prevWriting.name))}` : 'Previous writing'}</Tooltip.Content>
+      </Tooltip.Root>
         {/if}
         <span class="text-muted-foreground select-none truncate max-w-xs">
           {#if binderLabel}
@@ -248,15 +263,22 @@
           {editorState.name}
         </span>
         {#if siblings.length > 1}
-          <button
+          <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
+<button
+            {...props}
             onclick={() => goToWriting(nextWriting)}
             disabled={!nextWriting}
             aria-label="Next writing"
-            title={nextWriting ? formatFileName(baseOf(nextWriting.name)) : ''}
-            class="pointer-events-auto flex items-center justify-center size-5 rounded text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            class="pointer-events-auto flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
-            <ChevronRightIcon strokeWidth={1.5} class="size-3" />
+            <ChevronRightIcon strokeWidth={1.5} class="size-3.5" />
           </button>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content side="bottom" portalProps={{}}>{nextWriting ? `Next writing: ${formatFileName(baseOf(nextWriting.name))}` : 'Next writing'}</Tooltip.Content>
+      </Tooltip.Root>
         {/if}
       </div>
       <!-- One line for the state of the work: saved on disk, and whether it
@@ -289,16 +311,23 @@
           </button>
         {/if}
       </span>
-      <button
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
+<button
+        {...props}
         onclick={() => appState.toggleOutline()}
         aria-label={appState.ui.isOutlineOpen ? 'Hide table of contents' : 'Show table of contents'}
         aria-pressed={appState.ui.isOutlineOpen}
-        title="Table of contents ({MOD_KEY}⇧O)"
         class="flex items-center justify-center size-7 ml-1.5 -mr-1.5 rounded-md transition-colors hover:text-foreground hover:bg-foreground/5
           {appState.ui.isOutlineOpen ? 'text-foreground' : 'text-muted-foreground'}"
       >
         <TableOfContentsIcon strokeWidth={1.5} class="size-3.5" />
       </button>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content side="bottom" portalProps={{}}>{appState.ui.isOutlineOpen ? 'Hide' : 'Show'} scene panel <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}⇧O</kbd></Tooltip.Content>
+      </Tooltip.Root>
     </header>
 
     <main class="relative h-full flex-1 overflow-hidden">

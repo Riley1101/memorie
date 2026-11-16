@@ -271,13 +271,11 @@
         type="button"
         role="tab"
         aria-selected={tab === t.id}
-        disabled={t.id === 'mentions' && !binder}
-        title={t.id === 'mentions' && !binder ? 'Pick a binder to see where entries are mentioned' : ''}
         onclick={async () => {
           if (t.id !== tab && !(await leaveSheet())) return;
           tab = t.id;
         }}
-        class="px-3 py-1.5 rounded-md transition-colors disabled:opacity-40 disabled:pointer-events-none
+        class="px-3 py-1.5 rounded-md transition-colors
           {tab === t.id ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'}"
       >
         {t.label}
@@ -285,12 +283,22 @@
     {/each}
   </div>
 
-  {#if tab === 'mentions' && binder}
+  {#if tab === 'mentions'}
     <ScrollFade class="flex-1 min-h-0">
       <ScrollArea type="scroll" class="w-full h-full">
         <div class="pr-4 pb-8 flex flex-col gap-4">
           {@render binderSelect('w-60 max-w-full')}
-          <CodexMatrix {binder} {matrix} loading={matrixLoading} onopen={open} />
+          {#if binder}
+            <CodexMatrix {binder} {matrix} loading={matrixLoading} onopen={open} />
+          {:else}
+            <!-- Mentions are counted per binder; say so here instead of disabling the tab. -->
+            <div class="flex flex-col gap-1 py-10">
+              <p class="font-writer text-lg">Pick a binder to see mentions</p>
+              <p class="text-sm text-muted-foreground max-w-sm">
+                Mentions show which entries each writing in a binder names. Choose a binder above.
+              </p>
+            </div>
+          {/if}
         </div>
       </ScrollArea>
     </ScrollFade>
@@ -407,10 +415,11 @@
                     : `Keep sheets for the people, places, groups and things in ${binder || 'your stories'}. The assistant reads the ones a scene mentions.`}
                 </p>
                 <div class="flex flex-wrap justify-center gap-2 pt-2">
-                  {#each KINDS as kind (kind.id)}
-                    <Button variant="outline" size="sm" class="gap-1.5" onclick={() => startNew(kind.id)} disabled={false}>
+                  <!-- One clear first step (most codexes start with people), the rest secondary. -->
+                  {#each KINDS as kind, i (kind.id)}
+                    <Button variant={i === 0 ? 'default' : 'ghost'} size="sm" class="gap-1.5" onclick={() => startNew(kind.id)} disabled={false}>
                       <PlusIcon strokeWidth={1.5} class="size-3" />
-                      {kind.label}
+                      New {kind.label.toLowerCase()}
                     </Button>
                   {/each}
                 </div>

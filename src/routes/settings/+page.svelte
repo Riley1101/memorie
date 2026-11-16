@@ -176,7 +176,8 @@
   }
 </script>
 
-<div class="page-container max-w-5xl w-full h-full flex flex-col overflow-hidden">
+<!-- Same width and left edge as every other page, so the header doesn't jump. -->
+<div class="page-container w-full h-full flex flex-col overflow-hidden">
   <div class="mb-8 shrink-0">
     <a
       href={resolve('/')}
@@ -190,10 +191,12 @@
 
   <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-6 md:gap-10">
     <!-- Side nav -->
-    <nav class="flex md:flex-col gap-1 shrink-0 md:w-44 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+    <!-- Wraps on narrow screens instead of scrolling sideways, so every section stays in sight. -->
+    <nav aria-label="Settings sections" class="flex flex-wrap md:flex-nowrap md:flex-col gap-1 shrink-0 md:w-40">
       {#each SECTIONS as section (section.id)}
         <button
           type="button"
+          aria-current={activeSection === section.id ? 'page' : undefined}
           onclick={() => (activeSection = section.id)}
           class="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors shrink-0
             {activeSection === section.id
@@ -228,10 +231,10 @@
                         type="button"
                         onclick={() => appState.setStyleFlavour(flavour.id)}
                         aria-pressed={appState.ui.styleFlavour === flavour.id}
-                        class="text-left p-4 rounded-lg transition-colors
+                        class="text-left p-4 rounded-lg border transition-colors
                           {appState.ui.styleFlavour === flavour.id
-                            ? 'bg-primary/10'
-                            : 'hover:bg-background/60'}"
+                            ? 'bg-primary/10 border-primary/60'
+                            : 'border-border hover:bg-background/60 hover:border-ring/40'}"
                       >
                         <span class="flex items-center gap-1.5 text-sm font-medium">
                           {flavour.label}
@@ -748,10 +751,10 @@
                           </div>
                           <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                             {#if model.downloaded}
-                              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20">
-                                <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
-                                <span class="text-meta font-medium text-info">Downloaded</span>
-                              </div>
+                              <span class="flex items-center gap-1 text-meta text-muted-foreground">
+                                <CheckIcon strokeWidth={1.75} class="size-3" />
+                                Downloaded
+                              </span>
                               {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
                               {#if !isDefault}
                                 <Button
