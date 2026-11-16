@@ -122,9 +122,10 @@
       case 'saving':
         return 'Saving…';
       case 'unsaved':
-        return 'Unsaved changes';
+        // Normal while typing; autosave is a beat behind. Say so quietly.
+        return 'Editing…';
       case 'error':
-        return 'Save failed';
+        return 'Couldn’t save · Try again';
       case 'saved':
         return lastSaved ? `Saved ${formatTimeAgo(lastSaved)}` : 'Saved';
       default:
@@ -147,12 +148,9 @@
     await publish();
   }
 
+  // Colour is kept for the one state that needs the writer: a failed save.
   let saveTone = $derived(
-    editorState.saveStatus.status === 'error'
-      ? 'text-destructive'
-      : editorState.saveStatus.status === 'unsaved'
-        ? 'text-warning'
-        : 'text-muted-foreground'
+    editorState.saveStatus.status === 'error' ? 'text-destructive' : 'text-muted-foreground'
   );
 
   let binderLabel = $derived(dirOf(fileName));
@@ -265,7 +263,17 @@
            has left the machine. They used to be separate signals in separate
            places, and the second is the one that actually worries people. -->
       <span class="flex items-center gap-1.5 shrink-0 tracking-wide" aria-live="polite">
-        <span class="{saveTone} transition-colors">{saveLabel}</span>
+        {#if editorState.saveStatus.status === 'error'}
+          <button
+            type="button"
+            onclick={() => editorState.flushSave?.()}
+            class="{saveTone} rounded px-1 -mx-1 hover:underline underline-offset-2"
+          >
+            {saveLabel}
+          </button>
+        {:else}
+          <span class="{saveTone} transition-colors">{saveLabel}</span>
+        {/if}
         {#if syncLabel}
           <span class="opacity-30">•</span>
           <button
@@ -274,7 +282,7 @@
             disabled={sync.busy}
             title="Publish to {sync.label}"
             class="transition-colors hover:text-foreground disabled:opacity-60 {sync.pending
-              ? 'text-warning'
+              ? 'text-foreground'
               : 'text-muted-foreground'}"
           >
             {syncLabel}

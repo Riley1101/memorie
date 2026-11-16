@@ -309,6 +309,8 @@
    * renamed to match their first line.
    * @param {string} markdown
    */
+  const SAVE_FAILED_TOAST = 'save-failed';
+
   async function onSave(markdown) {
     if (!editorState.editor) return;
     try {
@@ -324,8 +326,17 @@
       // history; only the history sidebar needs that, so only pay for it
       // while the sidebar is showing. The writings list refreshes itself.
       if (appState.ui.isHistoryOpen) await invalidateAll();
+      toast.dismiss(SAVE_FAILED_TOAST);
     } catch (e) {
-      toast.error('Save failed', e);
+      // A failed save is the one error a writer can't shrug off, so it stays
+      // on screen until a save goes through, says the text is safe, and
+      // offers a retry. The editor also retries on its own in the background.
+      toast.errorWithRetry(`Couldn’t save “${stripMd(baseOf(currentName)) || UNTITLED}”`, {
+        id: SAVE_FAILED_TOAST,
+        description: 'Your text is still here. Memoire will keep trying.',
+        onRetry: () => editorState.flushSave?.(),
+        err: e,
+      });
       throw e;
     }
   }

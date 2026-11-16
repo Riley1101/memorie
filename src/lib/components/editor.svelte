@@ -137,9 +137,12 @@
    */
   async function saveNow(markdown) {
     editorState.setSaveStatus({ status: 'saving' });
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
     try {
       // The backend watches the notes folder and re-indexes what was saved.
       if (onSave) await onSave(markdown);
+      retryAttempt = 0;
       editorState.setSaveStatus({
         lastSaved: new Date(),
         status: 'saved',
@@ -147,8 +150,22 @@
     } catch (e) {
       console.error('Auto-save failed:', e);
       editorState.setSaveStatus({ status: 'error' });
+      // Keep trying quietly, backing off, so a brief hiccup (a locked file,
+      // a sleeping disk) heals itself without the writer doing anything.
+      const delay = RETRY_DELAYS[Math.min(retryAttempt, RETRY_DELAYS.length - 1)];
+      retryAttempt += 1;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        flushSave();
+      }, delay);
     }
   }
+
+  /** Background save retries after a failure: 2s, 5s, 15s, then every 30s. */
+  const RETRY_DELAYS = [2000, 5000, 15000, 30000];
+  let retryAttempt = 0;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let retryTimer = null;
 
   /**
    * Trigger the auto-save mechanism with debouncing. Markdown is serialized
@@ -256,6 +273,8 @@
 
       return () => {
         flushScan();
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = null;
         const dying = editorInstance;
         if (dying) {
           editorInstance = null;
