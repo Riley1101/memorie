@@ -309,7 +309,7 @@
               {#each groups as group (group.kind.id)}
                 <div class="flex flex-col gap-0.5">
                   <div class="flex items-center justify-between px-2 pb-1">
-                    <span class="text-[0.6875rem] font-medium text-muted-foreground">
+                    <span class="text-meta font-medium text-muted-foreground">
                       {group.kind.plural}
                       <span class="tabular-nums opacity-70">{group.items.length || ''}</span>
                     </span>
@@ -334,7 +334,7 @@
                       <span class="size-1.5 rounded-full shrink-0 {kindIcons[entity.kind]}"></span>
                       <span class="truncate flex-1">{entity.name}</span>
                       {#if !entity.scope && binder}
-                        <span class="text-[0.6875rem] text-muted-foreground" title="Shared by every binder">shared</span>
+                        <span class="text-meta text-muted-foreground" title="Shared by every binder">shared</span>
                       {/if}
                     </button>
                   {/each}

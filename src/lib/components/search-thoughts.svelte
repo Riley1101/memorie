@@ -97,7 +97,7 @@
                 {/if}
               </span>
               <span class="line-clamp-2 pl-4 text-muted-foreground">{passage.excerpt}</span>
-              <span class="pl-4 text-[0.6875rem] text-muted-foreground">
+              <span class="pl-4 text-meta text-muted-foreground">
                 by {passage.foundBy.join(" + ") || "search"}
                 · {Math.round(passage.similarity * 100)}% similar{#if judged}<span title="Reranker score {passage.rerankScore.toFixed(1)}"> · {judged}</span>{/if}
               </span>

@@ -675,7 +675,7 @@
                     {#if configManager.isLoadingOpenRouterModels}
                       <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                         <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.6875rem] text-muted-foreground">Loading models…</span>
+                        <span class="text-meta text-muted-foreground">Loading models…</span>
                       </div>
                     {:else if configManager.openRouterModels.length > 0}
                       <select
@@ -736,7 +736,7 @@
                             <span class="text-sm font-medium truncate">{model.name}</span>
                             <div class="flex items-center gap-2 mt-1">
                               <span
-                                class="inline-flex px-2 py-0.5 rounded text-[0.6875rem] font-medium {model.model_type === 'chat'
+                                class="inline-flex px-2 py-0.5 rounded text-meta font-medium {model.model_type === 'chat'
                                   ? 'bg-success/10 text-success border border-success/20'
                                   : model.model_type === 'reasoning'
                                     ? 'bg-primary/10 text-primary border border-primary/20'
@@ -750,7 +750,7 @@
                             {#if model.downloaded}
                               <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20">
                                 <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
-                                <span class="text-[0.6875rem] font-bold text-info">Downloaded</span>
+                                <span class="text-meta font-medium text-info">Downloaded</span>
                               </div>
                               {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
                               {#if !isDefault}
@@ -763,7 +763,7 @@
                                   Set as default
                                 </Button>
                               {:else}
-                                <span class="text-[0.6875rem] font-medium text-muted-foreground">Default</span>
+                                <span class="text-meta font-medium text-muted-foreground">Default</span>
                               {/if}
                             {:else}
                               {@const isDownloading = llmManager.downloadingModelId === model.id}
@@ -790,7 +790,7 @@
                     {:else}
                       <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                         <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.6875rem] text-muted-foreground">Loading supported models…</span>
+                        <span class="text-meta text-muted-foreground">Loading supported models…</span>
                       </div>
                     {/if}
                   </div>
@@ -837,8 +837,8 @@
                   {#if memoryManager.indexProgress?.total}
                     <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
                       <div
-                        class="h-full bg-primary transition-[width] duration-300"
-                        style="width: {Math.round((memoryManager.indexProgress.done / memoryManager.indexProgress.total) * 100)}%"
+                        class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
+                        style="transform: scaleX({memoryManager.indexProgress.done / memoryManager.indexProgress.total})"
                       ></div>
                     </div>
                   {/if}
@@ -1076,7 +1076,7 @@
                         {#each gitManager.status as file (file.path)}
                           <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
                             <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.6875rem] text-muted-foreground shrink-0">{file.status}</span>
+                            <span class="text-meta text-muted-foreground shrink-0">{file.status}</span>
                           </div>
                         {/each}
                       </div>
@@ -1275,7 +1275,7 @@
                         {#each dropboxManager.status as file (file.path)}
                           <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
                             <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.6875rem] shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
+                            <span class="text-meta shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
                           </div>
                         {/each}
                       </div>
@@ -1365,8 +1365,8 @@
                   {#if updaterManager.status === 'downloading' && updaterManager.progress !== null}
                     <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                       <div
-                        class="h-full bg-primary transition-[width]"
-                        style="width: {Math.round(updaterManager.progress * 100)}%"
+                        class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
+                        style="transform: scaleX({updaterManager.progress})"
                       ></div>
                     </div>
                   {/if}

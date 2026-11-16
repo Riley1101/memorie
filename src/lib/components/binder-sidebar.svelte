@@ -210,7 +210,7 @@
   >
     <SearchIcon strokeWidth={1.5} class="size-3.5 shrink-0" />
     <span class="flex-1 truncate">Search</span>
-    <span class="text-[0.6875rem] tabular-nums text-disabled shrink-0">{MOD_KEY}K</span>
+    <span class="text-meta tabular-nums text-disabled shrink-0">{MOD_KEY}K</span>
   </button>
 {/snippet}
 
@@ -249,7 +249,7 @@
     >
       <FileIcon strokeWidth={1.5} class="size-4 shrink-0" />
       <span class="truncate flex-1">All Writings</span>
-      <span class="text-[0.6875rem] text-muted-foreground tabular-nums">{fileManager.files.length}</span>
+      <span class="text-meta text-muted-foreground tabular-nums">{fileManager.files.length}</span>
     </button>
     <div class="my-1 border-t border-border/30"></div>
     {#each fileManager.binders as binder (binder)}
@@ -288,7 +288,7 @@
             >
               <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 {activeBinder === binder ? '' : tint.icon}" />
               <span class="truncate flex-1">{binder}</span>
-              <span class="text-[0.6875rem] text-muted-foreground tabular-nums">{binderCount(binder)}</span>
+              <span class="text-meta text-muted-foreground tabular-nums">{binderCount(binder)}</span>
             </button>
           </ContextMenu.Trigger>
           <ContextMenu.Content class="w-48">
@@ -371,7 +371,7 @@
   <div class="flex items-center justify-between px-2 pb-1.5 shrink-0">
     <button
       onclick={goToManageBinders}
-      class="text-[0.6875rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
+      class="text-meta font-medium text-muted-foreground hover:text-foreground transition-colors"
     >
       Binders
     </button>
@@ -427,14 +427,15 @@
   {/if}
 {/snippet}
 
-<!-- Wide desktop only: overlaps the page container instead of taking layout space.
-     Needs the centered content's side gutter to exceed the sidebar's own footprint
-     or it'd sit on top of text. That is 48rem of page plus 2 × (15rem sidebar +
-     2rem margin) = 82rem, and at the default density's 18px root that is ~1476px.
-     Media queries don't follow the root size, so the breakpoint is in pixels.
+<!-- Laptop and up: the binder rail is always there. From 1024px it takes its own
+     column beside the page. From ~1480px the centered page's side gutter is wider
+     than the rail (48rem of page plus 2 × (15rem rail + 2rem margin) = 82rem, ~1476px
+     at the default density's 18px root), so it floats over that gutter instead and
+     the page stays centred in the window. Media queries don't follow the root
+     size, so the breakpoints are in pixels.
      Narrower windows (tablet, tiled/split desktop, phone) use the sheet trigger below. -->
 <aside
-  class="hidden min-[1480px]:flex min-[1480px]:absolute min-[1480px]:top-0 min-[1480px]:left-0 min-[1480px]:z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
+  class="hidden lg:flex lg:relative min-[1480px]:absolute min-[1480px]:top-0 min-[1480px]:left-0 z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
 >
   <div class="pt-8 flex items-center gap-2">
     {@render topActions()}
@@ -447,10 +448,10 @@
      shrunk/tiled desktop windows where there isn't room for the overlay). -->
 <button
   onclick={() => (isMobileSheetOpen = true)}
-  class="min-[1480px]:hidden fixed top-4 left-[max(1rem,var(--titlebar-inset-left,0px))] z-30 flex items-center justify-center size-9 rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
+  aria-label="Open binders"
+  class="lg:hidden fixed top-4 left-[max(1rem,var(--titlebar-inset-left,0px))] z-30 flex items-center justify-center size-9 rounded-md bg-muted text-muted-foreground hover:text-foreground transition-colors"
 >
   <MenuIcon strokeWidth={1.5} class="size-4" />
-  <span class="sr-only">Open binders</span>
 </button>
 
 <Sheet.Root bind:open={isMobileSheetOpen}>
@@ -495,7 +496,7 @@
     <Dialog.Header class="">
       <Dialog.Title class="text-xl font-normal font-writer">Delete binder</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground pt-2">
-        <span class="font-bold text-foreground">"{binderToDelete}"</span>
+        <span class="font-medium text-foreground">"{binderToDelete}"</span>
         {#if binderToDelete && binderTotal(binderToDelete) > 0}
           holds {binderTotal(binderToDelete)} writing{binderTotal(binderToDelete) === 1 ? '' : 's'}.
           They go to the trash together, and one undo brings them all back.

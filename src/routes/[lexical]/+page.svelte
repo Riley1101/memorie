@@ -191,14 +191,14 @@
 
 <div class="flex h-dvh w-full bg-background" class:focus-mode={focusMode}>
   <aside
-    class="transition-[width] duration-300 ease-in-out h-dvh bg-background
+    class="h-dvh bg-background
     {appState.ui.isHistoryOpen && !focusMode ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isHistoryOpen && !focusMode}
       <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
         <div class="flex items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
           <h2 class="text-[0.8125rem] font-medium text-muted-foreground">History</h2>
-          <span class="truncate text-[0.6875rem] tabular-nums text-metadata" title={baseOf(fileName)}>
+          <span class="truncate text-meta tabular-nums text-metadata" title={baseOf(fileName)}>
             {baseOf(fileName)}
           </span>
         </div>
@@ -218,7 +218,7 @@
   <div class="w-full h-full flex flex-1 flex-col min-w-0">
     <header
       data-tauri-drag-region
-      class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-[0.6875rem] tabular-nums shrink-0
+      class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-meta tabular-nums shrink-0
         {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
     >
       <button
@@ -318,7 +318,7 @@
   </div>
 
   <aside
-    class="transition-[width] duration-300 ease-in-out h-dvh bg-background shrink-0
+    class="h-dvh bg-background shrink-0
     {appState.ui.isOutlineOpen && !focusMode ? 'w-65 border-l border-border/40' : 'w-0'} overflow-hidden"
   >
     {#if appState.ui.isOutlineOpen && !focusMode}

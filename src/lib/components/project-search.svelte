@@ -359,7 +359,7 @@
               {#if dirOf(file.name)}
                 <span class="truncate text-xs text-muted-foreground">{dirOf(file.name)}</span>
               {/if}
-              <span class="ml-auto shrink-0 rounded-full bg-muted px-1.5 text-[0.6875rem] tabular-nums text-muted-foreground">
+              <span class="ml-auto shrink-0 rounded-full bg-muted px-1.5 text-meta tabular-nums text-muted-foreground">
                 {file.matches.length}
               </span>
             </button>
@@ -385,7 +385,7 @@
                     onclick={() => openMatch(file, i)}
                     class="w-full flex items-baseline gap-2 rounded-md pl-7 pr-2 py-1 text-left hover:bg-muted/60 focus-visible:bg-muted/60 outline-none"
                   >
-                    <span class="w-8 shrink-0 text-right text-[0.6875rem] tabular-nums text-muted-foreground">
+                    <span class="w-8 shrink-0 text-right text-meta tabular-nums text-muted-foreground">
                       {match.meta ? 'info' : match.line}
                     </span>
                     <span class="min-w-0 truncate font-writer text-sm text-muted-foreground">

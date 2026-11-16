@@ -153,7 +153,7 @@
                   {formatFileName(baseOf(file.name))}
                 </a>
                 {#if card?.meta.status}
-                  <span class="shrink-0 rounded-full px-2 py-0.5 font-sans text-[0.6875rem] {statusTone(card.meta.status)}">
+                  <span class="shrink-0 rounded-full px-2 py-0.5 font-sans text-meta {statusTone(card.meta.status)}">
                     {card.meta.status}
                   </span>
                 {/if}
@@ -196,7 +196,7 @@
                 </button>
               {/if}
 
-              <div class="mt-2 flex items-center justify-between text-[0.6875rem] text-metadata tabular-nums">
+              <div class="mt-2 flex items-center justify-between text-meta text-metadata tabular-nums">
                 <span class="flex items-center gap-1.5">
                   {#if card}
                     <span>{formatDate(card.modified)}</span>

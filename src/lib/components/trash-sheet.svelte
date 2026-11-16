@@ -100,7 +100,7 @@
                 {/if}
                 <div class="min-w-0 flex-1">
                   <p class="truncate font-writer text-base">{label(entry.original_path)}</p>
-                  <p class="flex items-center gap-2 tabular-nums text-[0.6875rem] text-metadata">
+                  <p class="flex items-center gap-2 tabular-nums text-meta text-metadata">
                     {#if where}<span class="truncate">{where}</span><span class="opacity-30">•</span>{/if}
                     {#if entry.kind === 'folder'}
                       <span>{entry.item_count} writing{entry.item_count === 1 ? '' : 's'}</span>

@@ -657,12 +657,12 @@
             aria-selected={index === selectedIndex}
           >
             <div class="flex items-center gap-2">
-              <span class="font-bold text-foreground">{suggestion.cmd}</span>
+              <span class="font-medium text-foreground">{suggestion.cmd}</span>
               <span class="text-xs opacity-80">{suggestion.description}</span>
             </div>
             {#if suggestion.shortcutLabel}
               <kbd
-                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 tabular-nums text-[0.6875rem] font-medium text-muted-foreground opacity-100"
+                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 tabular-nums text-meta font-medium text-muted-foreground opacity-100"
               >
                 {suggestion.shortcutLabel}
               </kbd>
@@ -689,7 +689,7 @@
       />
     </div>
   {:else}
-    <div class="flex items-stretch command-bar__inner h-9 text-[0.6875rem] tabular-nums">
+    <div class="flex items-stretch command-bar__inner h-9 text-meta tabular-nums">
       <!-- File/version state -->
       <div class="flex items-center gap-3 px-3.5 text-muted-foreground shrink-0">
         <!-- 0 means no saved version yet; "v0" read as a bug, not a state. -->

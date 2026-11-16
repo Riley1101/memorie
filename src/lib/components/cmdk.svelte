@@ -258,7 +258,7 @@
       >
         <div class="flex flex-col gap-0.5 min-w-0 font-writer">
           <span class="text-base font-normal truncate">{formatFileName(baseOf(file.name))}</span>
-          <div class="flex items-center gap-2 text-[0.6875rem] text-metadata tabular-nums">
+          <div class="flex items-center gap-2 text-meta text-metadata tabular-nums">
             {#if file.folder}
               <span class="flex items-center gap-1">
                 <span class="size-1.5 rounded-full {BINDER_DOTS[appState.binderColour(file.folder)] ?? 'bg-primary'}"></span>
@@ -301,7 +301,7 @@
                 {hit.preview}
               </span>
             </div>
-            <Command.Shortcut class="tabular-nums text-[0.6875rem]">line {hit.line}</Command.Shortcut>
+            <Command.Shortcut class="tabular-nums text-meta">line {hit.line}</Command.Shortcut>
           </Command.Item>
         {/each}
       </Command.Group>

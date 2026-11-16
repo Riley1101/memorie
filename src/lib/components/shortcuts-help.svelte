@@ -83,10 +83,10 @@
 
           <div class="flex gap-1.5 items-center shrink-0">
             {#each key.split(' / ') as part, i (part + i)}
-              {#if i > 0}<span class="text-[0.6875rem] text-muted-foreground">or</span>{/if}
+              {#if i > 0}<span class="text-meta text-muted-foreground">or</span>{/if}
               <div class="flex gap-1">
                 {#each part.split(' + ') as k, j (k + j)}
-                  <kbd class="min-w-[1.375rem] h-5.5 px-1.5 flex items-center justify-center rounded bg-muted text-muted-foreground font-sans text-[0.6875rem] font-medium">
+                  <kbd class="min-w-[1.375rem] h-5.5 px-1.5 flex items-center justify-center rounded bg-muted text-muted-foreground font-sans text-meta font-medium">
                     {k}
                   </kbd>
                 {/each}

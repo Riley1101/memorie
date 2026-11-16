@@ -274,7 +274,7 @@
 
               {#if message.references && message.references.length > 0}
                 <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-3 font-sans">
-                  <span class="text-[0.6875rem] font-semibold text-muted-foreground mr-1">
+                  <span class="text-meta font-semibold text-muted-foreground mr-1">
                     {message.references.length > 1 ? "Sources" : "Source"}
                   </span>
                   {#each message.references as ref (ref.title)}

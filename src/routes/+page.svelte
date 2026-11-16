@@ -40,7 +40,8 @@
   <BinderSidebar bind:activeBinder={appState.ui.activeBinder} />
 
   <div class="page-container flex-1 min-w-0 h-full flex flex-col overflow-hidden">
-    <div class="flex items-center justify-between gap-3 mb-4 md:mb-8">
+    <!-- Below lg the binders button floats top-left; keep the heading clear of it. -->
+    <div class="flex items-center justify-between gap-3 mb-4 md:mb-8 max-lg:pl-11">
       <h2 class="font-writer text-3xl md:text-5xl font-normal text-heading-foreground leading-normal pb-1 truncate">{appState.ui.activeBinder ?? 'Writings'}</h2>
       <div class="flex items-center gap-1 shrink-0">
         <!-- Back to whatever was open last: the first thing most writers want. -->

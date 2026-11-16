@@ -6,6 +6,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Type floor: the root font size follows density (15px compact, 18px default),
+   so rem-sized meta text could fall below 12px. `text-meta` and `text-xs`
+   never go under 12px whatever the density. */
+@theme {
+  --text-xs: max(0.75rem, 12px);
+  --text-meta: max(0.6875rem, 12px);
+  --text-meta--line-height: 1.4;
+}
+
 :root {
   --background: oklch(0.985 0.002 85);
   --titlebar-background: var(--background);
@@ -61,16 +70,16 @@
   --shadow-y: 1px;
   --shadow-blur: 2px;
   --shadow-spread: 0px;
-  --shadow-opacity: 0.18;
+  --shadow-opacity: 0.07;
   --shadow-color: hsl(0 0% 0%);
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 2px 4px -1px hsl(0 0% 0% / 0.18);
-  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 4px 6px -1px hsl(0 0% 0% / 0.18);
-  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 8px 10px -1px hsl(0 0% 0% / 0.18);
-  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.45);
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 1px 2px -1px hsl(0 0% 0% / 0.07);
+  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 1px 2px -1px hsl(0 0% 0% / 0.07);
+  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 2px 4px -1px hsl(0 0% 0% / 0.07);
+  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 4px 6px -1px hsl(0 0% 0% / 0.07);
+  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 8px 10px -1px hsl(0 0% 0% / 0.07);
+  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.08);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
@@ -130,16 +139,16 @@
   --shadow-y: 1px;
   --shadow-blur: 2px;
   --shadow-spread: 0px;
-  --shadow-opacity: 0.18;
+  --shadow-opacity: 0.07;
   --shadow-color: hsl(0 0% 0%);
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 2px 4px -1px hsl(0 0% 0% / 0.18);
-  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 4px 6px -1px hsl(0 0% 0% / 0.18);
-  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 8px 10px -1px hsl(0 0% 0% / 0.18);
-  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.45);
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 1px 2px -1px hsl(0 0% 0% / 0.07);
+  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 1px 2px -1px hsl(0 0% 0% / 0.07);
+  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 2px 4px -1px hsl(0 0% 0% / 0.07);
+  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 4px 6px -1px hsl(0 0% 0% / 0.07);
+  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 8px 10px -1px hsl(0 0% 0% / 0.07);
+  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.08);
 }
 
 /* Theme palettes (shadcn-style). Use .theme-{name}; .dark applies dark mode. */
@@ -401,7 +410,7 @@
   --writer-title-size: 2.25rem;
   --writer-title-size-md: 2.75rem;
   --writer-surface-bg: var(--paper-page);
-  --writer-surface-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.12), 0 14px 36px -8px oklch(0.3 0.03 60 / 0.28);
+  --writer-surface-shadow: 0 0 0 1px oklch(0.3 0.03 60 / 0.06), 0 1px 2px oklch(0.3 0.03 60 / 0.06), 0 12px 32px -10px oklch(0.3 0.03 60 / 0.16);
   --writer-placeholder-color: var(--paper-meta);
   --app-page-padding: 2.25rem;
 }
@@ -422,6 +431,17 @@
   --background: var(--paper-desk);
   --titlebar-background: var(--background);
 }
+/* Chrome surfaces (sidebar, popovers, cards) take the page's colours so they
+   read as part of the same desk rather than a white app on top of it. */
+.style-paper {
+  --sidebar: var(--paper-page);
+  --sidebar-foreground: var(--paper-ink);
+  --sidebar-border: var(--paper-rule);
+  --sidebar-accent: color-mix(in oklab, var(--paper-rule) 50%, transparent);
+  --sidebar-accent-foreground: var(--paper-ink);
+  --popover: var(--paper-page);
+  --card: var(--paper-page);
+}
 .style-paper .writing-surface {
   background: var(--writer-surface-bg);
   color: var(--paper-body);
@@ -431,7 +451,7 @@
 }
 .style-paper .writing-area .writing-area__title {
   font-family: var(--font-writer-heading);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
   text-align: center;
   color: var(--paper-ink);
@@ -516,7 +536,7 @@
    and on an empty paragraph it would grab the placeholder's first letter. */
 .style-paper .markdown .ProseMirror:not(:focus) > p:first-of-type:not(.is-empty)::first-letter {
   font-family: var(--font-writer-heading);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--paper-ornament);
   float: left;
   font-size: 3.4em;
@@ -548,7 +568,7 @@
   font-size: 0.875em;
 }
 .style-technical .writing-area .writing-area__title {
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.03em;
   font-size: 1.75rem;
 }
