@@ -53,7 +53,7 @@
                   {...props}
                   type="button"
                   onclick={resume}
-                  class="hidden md:flex items-center gap-1.5 h-8 px-3 mr-1 rounded-full text-[0.8125rem] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  class="hidden md:flex items-center gap-1.5 h-8 px-3 mr-1 rounded-md text-[0.8125rem] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 >
                   <CornerDownLeftIcon strokeWidth={1.75} class="size-3.5" />
                   <span class="max-w-[14ch] truncate">{resumeLabel}</span>
@@ -74,7 +74,7 @@
                   type="button"
                   onclick={() => appState.openExport({ fileName: null, dir: appState.ui.activeBinder ?? '' })}
                   aria-label="Export {appState.ui.activeBinder}"
-                  class="flex items-center justify-center size-8 mr-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  class="flex items-center justify-center size-8 mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                 >
                   <FileOutputIcon strokeWidth={1.75} class="size-3.5" />
                 </button>
@@ -85,7 +85,7 @@
         {/if}
 
         <!-- Primary action: one click, no naming, lands in the open binder. -->
-        <div class="flex items-center mr-1.5 rounded-full bg-primary hover:bg-primary-hover transition-colors">
+        <div class="flex items-center mr-1.5 rounded-md bg-primary hover:bg-primary-hover transition-colors">
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
@@ -93,7 +93,7 @@
                   {...props}
                   type="button"
                   onclick={() => startNewWriting(appState.ui.activeBinder ?? '')}
-                  class="flex items-center gap-1.5 h-8 pl-3 pr-2.5 rounded-l-full text-[0.8125rem] font-medium text-primary-foreground"
+                  class="flex items-center gap-1.5 h-8 pl-3 pr-2.5 rounded-l-md text-[0.8125rem] font-medium text-primary-foreground"
                 >
                   <PlusIcon strokeWidth={1.75} class="size-3.5" />
                   <span class="hidden sm:inline">{newLabel}</span>
@@ -111,7 +111,7 @@
                   type="button"
                   onclick={() => appState.toggleNewPicker(true)}
                   aria-label="New writing in another place"
-                  class="flex items-center justify-center h-8 w-7 rounded-r-full text-primary-foreground/70 hover:text-primary-foreground"
+                  class="flex items-center justify-center h-8 w-7 rounded-r-md text-primary-foreground/70 hover:text-primary-foreground"
                 >
                   <ChevronDownIcon strokeWidth={1.75} class="size-3.5" />
                 </button>

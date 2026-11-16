@@ -471,7 +471,7 @@
     </Dialog.Header>
     <Dialog.Footer class="mt-6 flex gap-2">
       <Button variant="ghost" onclick={() => (confirmDelete = false)} class="flex-1" disabled={false}>Cancel</Button>
-      <Button variant="destructive" onclick={remove} class="flex-1" disabled={false}>Delete</Button>
+      <Button variant="destructive" onclick={remove} class="flex-1" disabled={false}>Delete sheet</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

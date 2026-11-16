@@ -32,7 +32,7 @@
 
   let shortcuts = $derived(
     [
-      { key: `${MOD_KEY} + K`, description: 'Search writings', icon: SearchIcon },
+      { key: `${MOD_KEY} + K`, description: 'Go to writing', icon: SearchIcon },
       { key: `${MOD_KEY} + K`, description: 'Link selected text', editorOnly: true, icon: LinkIcon },
       { key: `${MOD_KEY} + Click`, description: 'Open link', editorOnly: true, icon: LinkIcon },
       { key: `${MOD_KEY} + ⇧ + F`, description: 'Find in all writings', icon: TextSearchIcon },
@@ -53,7 +53,7 @@
       { key: `${MOD_KEY} + ⌥ + Z`, description: 'Previous saved version', editorOnly: true, icon: UndoIcon },
       { key: `${MOD_KEY} + ⌥ + ⇧ + Z`, description: 'Next saved version', editorOnly: true, icon: RedoIcon },
       { key: `${MOD_KEY} + + / -`, description: 'Adjust font size', icon: TypeIcon },
-      { key: `${MOD_KEY} + ⇧ + P`, description: 'Command mode', icon: TerminalIcon },
+      { key: `${MOD_KEY} + ⇧ + P`, description: 'Command palette', icon: TerminalIcon },
       { key: `${MOD_KEY} + /`, description: 'This help', icon: KeyboardIcon },
       { key: 'F2', description: 'Rename selected writing', icon: PencilIcon },
     ].filter((s) => s && (inEditor || !s.editorOnly))

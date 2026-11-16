@@ -248,7 +248,7 @@
       closeButton
       toastOptions={{
         class:
-          'font-sans !bg-popover !text-popover-foreground !border-border !shadow-lg !rounded-xl',
+          'font-sans !bg-popover !text-popover-foreground !border-border !shadow-md !rounded-lg',
         descriptionClass: '!text-muted-foreground',
       }}
     />

@@ -28,12 +28,12 @@
    * @type {Record<string, string>}
    */
   const BINDER_DOTS = {
-    teal: 'bg-teal',
-    primary: 'bg-primary',
-    info: 'bg-info',
-    success: 'bg-success',
-    warning: 'bg-warning',
-    accent: 'bg-accent',
+    teal: 'bg-binder-teal',
+    primary: 'bg-binder-clay',
+    info: 'bg-binder-slate',
+    success: 'bg-binder-sage',
+    warning: 'bg-binder-ochre',
+    accent: 'bg-binder-plum',
     muted: 'bg-muted-foreground/50',
   };
 
@@ -220,7 +220,7 @@
 >
   <Command.Input
     bind:value={search}
-    placeholder="Search or create…"
+    placeholder="Go to a writing, or type a new title…"
     class=""
  />
   <Command.List class="p-2">
@@ -228,7 +228,7 @@
       {#if creatableTitle}
         Press Enter to create “{creatableTitle}”.
       {:else}
-        No results found.
+        No writing matches “{search}”.
       {/if}
     </Command.Empty>
 

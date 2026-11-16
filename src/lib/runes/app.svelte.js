@@ -387,3 +387,18 @@ export const STYLE_FLAVOURS = AppState.STYLE_FLAVOURS;
 export const DENSITY_MODES = AppState.DENSITY_MODES;
 export const DENSITY_FONT_SIZE = AppState.DENSITY_FONT_SIZE;
 export const BINDER_COLOURS = AppState.BINDER_COLOURS;
+
+/**
+ * What each binder colour is called in the menu. The stored keys are older
+ * than the palette (they once borrowed the status colours), so they stay as
+ * they are for saved choices and only the names and swatches changed.
+ * @type {Record<string, string>}
+ */
+export const BINDER_COLOUR_NAMES = {
+  teal: 'Teal',
+  primary: 'Clay',
+  info: 'Slate',
+  success: 'Sage',
+  warning: 'Ochre',
+  accent: 'Plum',
+};

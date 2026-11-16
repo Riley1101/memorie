@@ -259,11 +259,8 @@
                     <span class="text-sm">{label}</span>
                   </div>
                 {:else}
-                  <div class="flex items-center gap-1.5 h-5 py-1">
-                    <span class="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]"></span>
-                    <span class="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]"></span>
-                    <span class="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]"></span>
-                  </div>
+                  <!-- Plain words rather than bouncing dots: calmer, and it reads the same with motion off. -->
+                  <p class="text-sm text-muted-foreground" role="status">Thinking…</p>
                 {/if}
               {:else}
                 <MessageResponse

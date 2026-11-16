@@ -32,6 +32,15 @@
   --metadata: oklch(0.46 0.006 85);
   --disabled: oklch(0.75 0.006 85);
   --teal: #4c8794;
+  /* Binder colours: a muted categorical set tuned to the warm paper. Kept
+     apart from the status colours (success, warning, info) so a binder never
+     looks like an alert. */
+  --binder-teal: #4c8794;
+  --binder-clay: #9a5b3c;
+  --binder-slate: #5d6b80;
+  --binder-sage: #667a4f;
+  --binder-ochre: #a5782a;
+  --binder-plum: #7f5875;
   --secondary: oklch(0.94 0.003 85);
   --secondary-foreground: oklch(0.17 0.005 85);
   --muted: oklch(0.955 0.003 85);
@@ -107,6 +116,12 @@
   --accent: #211e1a;
   --accent-foreground: #ece6da;
   --teal: #6fa8b5;
+  --binder-teal: #6fa8b5;
+  --binder-clay: #c98a6a;
+  --binder-slate: #8f9cb2;
+  --binder-sage: #95a87c;
+  --binder-ochre: #c9a05a;
+  --binder-plum: #b48aa8;
   --destructive: oklch(0.69 0.2 23.91);
   --destructive-foreground: oklch(0 0 0);
   --success: oklch(0.72 0.19 145);
@@ -264,6 +279,12 @@
   --color-metadata: var(--metadata);
   --color-disabled: var(--disabled);
   --color-teal: var(--teal);
+  --color-binder-teal: var(--binder-teal);
+  --color-binder-clay: var(--binder-clay);
+  --color-binder-slate: var(--binder-slate);
+  --color-binder-sage: var(--binder-sage);
+  --color-binder-ochre: var(--binder-ochre);
+  --color-binder-plum: var(--binder-plum);
   --color-primary-hover: var(--primary-hover);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
