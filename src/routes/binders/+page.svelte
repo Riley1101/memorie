@@ -104,8 +104,8 @@
         id="new-binder-name"
         bind:value={newBinderName}
         type="text"
-        placeholder="e.g. Short stories"
-        class="max-w-xs"
+        placeholder="e.g. Poems"
+        class="flex-1 min-w-0 sm:max-w-xs"
         onkeydown={(e) => {
           if (e.key === 'Enter') handleCreateBinder();
         }}

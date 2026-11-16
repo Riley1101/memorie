@@ -338,7 +338,7 @@
             onSelect?.();
             openCodex({ binder });
           }}
-          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
+          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-xs text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
           style="padding-left: 1.25rem"
         >
           <BookUserIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
@@ -352,7 +352,7 @@
               onSelect?.();
             }}
             title={folder.path}
-            class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
+            class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-xs text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
             style="padding-left: {0.5 + folder.depth * 0.75}rem"
           >
             <CornerDownRightIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />

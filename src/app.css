@@ -885,9 +885,10 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
 
   /* Writing surface: single container for editor page */
   /* The measure is capped in characters of the writing font, so it holds at any
-     font size or density: about 66 characters a line plus the page padding. */
+     font size or density. `ch` is the width of a zero, wider than an average
+     letter, so 58ch of the surface font comes to about 66 characters of prose. */
   .writing-surface {
-    max-width: min(48rem, calc(66ch + 2 * var(--writer-padding-x)));
+    max-width: min(48rem, calc(58ch + 2 * var(--writer-padding-x)));
     margin-inline: auto;
     padding-inline: var(--writer-padding-x);
     padding-block: var(--writer-padding-y);

@@ -448,7 +448,7 @@
               type="button"
               onclick={() => goto(resolve(`/${encodeURIComponent(a.name)}`))}
               title={a.name}
-              class="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[0.75rem] text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary transition-colors"
+              class="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary transition-colors"
             >
               {a.label} <span class="opacity-50 tabular-nums">×{a.count}</span>
             </button>

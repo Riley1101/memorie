@@ -297,7 +297,7 @@
               <span class="font-writer text-base font-normal truncate">
                 {formatFileName(baseOf(hit.name))}
               </span>
-              <span class="truncate text-[0.75rem] text-muted-foreground font-sans">
+              <span class="truncate text-xs text-muted-foreground font-sans">
                 {hit.preview}
               </span>
             </div>

@@ -50,7 +50,7 @@
         <button
           onclick={() => goto(resolve(`/${encodeURIComponent(link.name)}`))}
           title={link.snippet ? `${link.name}\n${link.snippet}` : link.name}
-          class="max-w-full rounded-full border border-border bg-muted/30 px-2.5 py-1 text-left text-[0.75rem] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+          class="max-w-full rounded-full border border-border bg-muted/30 px-2.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
         >
           <span class="truncate block">
             {#if link.folder}<span class="text-muted-foreground">{link.folder} / </span>{/if}{link.title}
