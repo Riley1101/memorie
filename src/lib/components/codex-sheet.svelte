@@ -448,7 +448,7 @@
               type="button"
               onclick={() => goto(resolve(`/${encodeURIComponent(a.name)}`))}
               title={a.name}
-              class="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-[0.75rem] text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary transition-colors"
+              class="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary transition-colors"
             >
               {a.label} <span class="opacity-50 tabular-nums">×{a.count}</span>
             </button>
@@ -471,7 +471,7 @@
     </Dialog.Header>
     <Dialog.Footer class="mt-6 flex gap-2">
       <Button variant="ghost" onclick={() => (confirmDelete = false)} class="flex-1" disabled={false}>Cancel</Button>
-      <Button variant="destructive" onclick={remove} class="flex-1" disabled={false}>Delete</Button>
+      <Button variant="destructive" onclick={remove} class="flex-1" disabled={false}>Delete sheet</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

@@ -147,7 +147,7 @@
     <section class="grid gap-3">
       <div class="flex items-baseline justify-between gap-4 flex-wrap">
         <h3 class="text-[0.8125rem] font-medium text-muted-foreground">Mentions per writing</h3>
-        <div class="flex items-center gap-2 text-[0.6875rem] text-muted-foreground" aria-label="Legend: mentions per writing">
+        <div class="flex items-center gap-2 text-meta text-muted-foreground" aria-label="Legend: mentions per writing">
           <span>Mentions</span>
           <span class="flex items-center gap-1"><span class="size-3 rounded-[3px] bg-muted/40 border border-border/40"></span>0</span>
           {#each STEPS as step (step.min)}
@@ -166,7 +166,7 @@
                   <th colspan={chapter.span} class="p-0 text-left font-normal" title={chapter.label || binder}>
                     <!-- Fixed width, so a long folder name can't widen the columns under it. -->
                     <div
-                      class="truncate border-l border-border/60 pl-1 text-[0.6875rem] text-muted-foreground"
+                      class="truncate border-l border-border/60 pl-1 text-meta text-muted-foreground"
                       style="width: {chapter.span * (CELL + GAP) - GAP}px"
                     >
                       {chapter.label || '·'}

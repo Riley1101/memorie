@@ -9,6 +9,7 @@
   import { buildFileTree, formatFileName, formatDate } from '$lib/utils.js';
   import { toast } from '$lib/toast.js';
   import PencilIcon from '@lucide/svelte/icons/pencil';
+  import { Button } from '$lib/components/ui/button/index.js';
 
   /** @type {{ binder: string }} */
   let { binder } = $props();
@@ -153,7 +154,7 @@
                   {formatFileName(baseOf(file.name))}
                 </a>
                 {#if card?.meta.status}
-                  <span class="shrink-0 rounded-full px-2 py-0.5 font-sans text-[0.6875rem] {statusTone(card.meta.status)}">
+                  <span class="shrink-0 rounded-full px-2 py-0.5 font-sans text-meta {statusTone(card.meta.status)}">
                     {card.meta.status}
                   </span>
                 {/if}
@@ -196,7 +197,7 @@
                 </button>
               {/if}
 
-              <div class="mt-2 flex items-center justify-between text-[0.6875rem] text-metadata tabular-nums">
+              <div class="mt-2 flex items-center justify-between text-meta text-metadata tabular-nums">
                 <span class="flex items-center gap-1.5">
                   {#if card}
                     <span>{formatDate(card.modified)}</span>
@@ -216,6 +217,9 @@
   {/each}
 
   {#if !loading && statusFilter && sections.every((s) => !s.files.some((f) => visible(f.name)))}
-    <p class="py-16 text-center text-sm text-muted-foreground">No writings with this status.</p>
+    <div class="flex flex-col items-center gap-3 py-16 text-center">
+      <p class="text-sm text-muted-foreground">No writings are marked “{statusFilter === '—' ? 'no status' : statusFilter}”.</p>
+      <Button variant="outline" size="sm" onclick={() => (statusFilter = '')} disabled={false}>Clear filter</Button>
+    </div>
   {/if}
 </div>

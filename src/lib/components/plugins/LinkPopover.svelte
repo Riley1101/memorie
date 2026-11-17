@@ -131,7 +131,7 @@
       spellcheck="false"
       autocomplete="off"
     />
-    <p class="px-2 pb-0.5 text-[0.6875rem] text-muted-foreground">
+    <p class="px-2 pb-0.5 text-meta text-muted-foreground">
       Enter to apply{needsText ? '' : ', empty to remove'} · Esc to cancel
     </p>
   </div>

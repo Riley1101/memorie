@@ -181,6 +181,21 @@
     }
   });
 
+  // Dialogs, sheets and toasts are portaled to <body>, outside the app's root
+  // div, so the style flavour, palette and density classes have to sit on
+  // <body> too or overlays fall back to the base tokens (a white sheet on the
+  // Paper desk, say).
+  $effect(() => {
+    if (typeof document === 'undefined') return;
+    const classes = [
+      `style-${appState.ui.styleFlavour}`,
+      `density-${appState.ui.density}`,
+      ...(appState.ui.themePalette !== 'default' ? [`theme-${appState.ui.themePalette}`] : []),
+    ];
+    document.body.classList.add(...classes);
+    return () => document.body.classList.remove(...classes);
+  });
+
   $effect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.style.fontSize = appState.ui.density === 'compact' ? '15px' : '18px';
@@ -233,7 +248,7 @@
       closeButton
       toastOptions={{
         class:
-          'font-sans !bg-popover !text-popover-foreground !border-border !shadow-lg !rounded-xl',
+          'font-sans !bg-popover !text-popover-foreground !border-border !shadow-md !rounded-lg',
         descriptionClass: '!text-muted-foreground',
       }}
     />

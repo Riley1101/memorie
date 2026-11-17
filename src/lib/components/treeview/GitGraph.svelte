@@ -144,7 +144,7 @@
         >
           <p
             class={cn(
-              'flex items-center gap-1 tabular-nums text-[0.6875rem] leading-4.5',
+              'flex items-center gap-1 tabular-nums text-meta leading-4.5',
               row.isCurrent ? 'text-primary' : 'text-metadata'
             )}
           >
@@ -153,14 +153,14 @@
             {#if row.isCurrent}
               <span>· current</span>
             {:else if row.isBranchStart}
-              <span class="rounded border border-border px-1 py-px text-[9px] leading-none">
+              <span class="rounded border border-border px-1 py-px text-meta leading-none">
                 branch
               </span>
             {/if}
           </p>
           <p
             class={cn(
-              'truncate text-[11px] leading-4',
+              'truncate text-meta leading-4',
               row.isCurrent ? 'text-foreground' : 'text-muted-foreground'
             )}
           >

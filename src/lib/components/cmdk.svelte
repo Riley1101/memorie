@@ -28,12 +28,12 @@
    * @type {Record<string, string>}
    */
   const BINDER_DOTS = {
-    teal: 'bg-teal',
-    primary: 'bg-primary',
-    info: 'bg-info',
-    success: 'bg-success',
-    warning: 'bg-warning',
-    accent: 'bg-accent',
+    teal: 'bg-binder-teal',
+    primary: 'bg-binder-clay',
+    info: 'bg-binder-slate',
+    success: 'bg-binder-sage',
+    warning: 'bg-binder-ochre',
+    accent: 'bg-binder-plum',
     muted: 'bg-muted-foreground/50',
   };
 
@@ -220,7 +220,7 @@
 >
   <Command.Input
     bind:value={search}
-    placeholder="Search or create…"
+    placeholder="Go to a writing, or type a new title…"
     class=""
  />
   <Command.List class="p-2">
@@ -228,7 +228,7 @@
       {#if creatableTitle}
         Press Enter to create “{creatableTitle}”.
       {:else}
-        No results found.
+        No writing matches “{search}”.
       {/if}
     </Command.Empty>
 
@@ -258,7 +258,7 @@
       >
         <div class="flex flex-col gap-0.5 min-w-0 font-writer">
           <span class="text-base font-normal truncate">{formatFileName(baseOf(file.name))}</span>
-          <div class="flex items-center gap-2 text-[0.6875rem] text-metadata tabular-nums">
+          <div class="flex items-center gap-2 text-meta text-metadata tabular-nums">
             {#if file.folder}
               <span class="flex items-center gap-1">
                 <span class="size-1.5 rounded-full {BINDER_DOTS[appState.binderColour(file.folder)] ?? 'bg-primary'}"></span>
@@ -297,11 +297,11 @@
               <span class="font-writer text-base font-normal truncate">
                 {formatFileName(baseOf(hit.name))}
               </span>
-              <span class="truncate text-[0.75rem] text-muted-foreground font-sans">
+              <span class="truncate text-xs text-muted-foreground font-sans">
                 {hit.preview}
               </span>
             </div>
-            <Command.Shortcut class="tabular-nums text-[0.6875rem]">line {hit.line}</Command.Shortcut>
+            <Command.Shortcut class="tabular-nums text-meta">line {hit.line}</Command.Shortcut>
           </Command.Item>
         {/each}
       </Command.Group>

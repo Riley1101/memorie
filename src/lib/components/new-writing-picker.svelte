@@ -49,7 +49,7 @@
       >
         <FileIcon strokeWidth={1.5} class="size-4 mr-1" />
         <span class="font-writer text-base">Top level</span>
-        <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums">no binder</span>
+        <span class="ml-auto text-meta text-muted-foreground tabular-nums">no binder</span>
       </Command.Item>
       {#each locations as loc (loc.dir)}
         <Command.Item
@@ -65,7 +65,7 @@
           {/if}
           <span class="font-writer text-base truncate">{loc.label}</span>
           {#if loc.parent}
-            <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums truncate">{loc.parent}</span>
+            <span class="ml-auto text-meta text-muted-foreground tabular-nums truncate">{loc.parent}</span>
           {/if}
         </Command.Item>
       {/each}

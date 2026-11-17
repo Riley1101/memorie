@@ -176,7 +176,8 @@
   }
 </script>
 
-<div class="page-container max-w-5xl w-full h-full flex flex-col overflow-hidden">
+<!-- Same width and left edge as every other page, so the header doesn't jump. -->
+<div class="page-container w-full h-full flex flex-col overflow-hidden">
   <div class="mb-8 shrink-0">
     <a
       href={resolve('/')}
@@ -190,10 +191,12 @@
 
   <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-6 md:gap-10">
     <!-- Side nav -->
-    <nav class="flex md:flex-col gap-1 shrink-0 md:w-44 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
+    <!-- Wraps on narrow screens instead of scrolling sideways, so every section stays in sight. -->
+    <nav aria-label="Settings sections" class="flex flex-wrap md:flex-nowrap md:flex-col gap-1 shrink-0 md:w-40">
       {#each SECTIONS as section (section.id)}
         <button
           type="button"
+          aria-current={activeSection === section.id ? 'page' : undefined}
           onclick={() => (activeSection = section.id)}
           class="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors shrink-0
             {activeSection === section.id
@@ -228,10 +231,10 @@
                         type="button"
                         onclick={() => appState.setStyleFlavour(flavour.id)}
                         aria-pressed={appState.ui.styleFlavour === flavour.id}
-                        class="text-left p-4 rounded-lg transition-colors
+                        class="text-left p-4 rounded-lg border transition-colors
                           {appState.ui.styleFlavour === flavour.id
-                            ? 'bg-primary/10'
-                            : 'hover:bg-background/60'}"
+                            ? 'bg-primary/10 border-primary/60'
+                            : 'border-border hover:bg-background/60 hover:border-ring/40'}"
                       >
                         <span class="flex items-center gap-1.5 text-sm font-medium">
                           {flavour.label}
@@ -675,7 +678,7 @@
                     {#if configManager.isLoadingOpenRouterModels}
                       <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                         <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.6875rem] text-muted-foreground">Loading models…</span>
+                        <span class="text-meta text-muted-foreground">Loading models…</span>
                       </div>
                     {:else if configManager.openRouterModels.length > 0}
                       <select
@@ -736,7 +739,7 @@
                             <span class="text-sm font-medium truncate">{model.name}</span>
                             <div class="flex items-center gap-2 mt-1">
                               <span
-                                class="inline-flex px-2 py-0.5 rounded text-[0.6875rem] font-medium {model.model_type === 'chat'
+                                class="inline-flex px-2 py-0.5 rounded text-meta font-medium {model.model_type === 'chat'
                                   ? 'bg-success/10 text-success border border-success/20'
                                   : model.model_type === 'reasoning'
                                     ? 'bg-primary/10 text-primary border border-primary/20'
@@ -748,10 +751,10 @@
                           </div>
                           <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                             {#if model.downloaded}
-                              <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-info/10 border border-info/20">
-                                <div class="size-1.5 rounded-full bg-info animate-pulse"></div>
-                                <span class="text-[0.6875rem] font-bold text-info">Downloaded</span>
-                              </div>
+                              <span class="flex items-center gap-1 text-meta text-muted-foreground">
+                                <CheckIcon strokeWidth={1.75} class="size-3" />
+                                Downloaded
+                              </span>
                               {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
                               {#if !isDefault}
                                 <Button
@@ -763,7 +766,7 @@
                                   Set as default
                                 </Button>
                               {:else}
-                                <span class="text-[0.6875rem] font-medium text-muted-foreground">Default</span>
+                                <span class="text-meta font-medium text-muted-foreground">Default</span>
                               {/if}
                             {:else}
                               {@const isDownloading = llmManager.downloadingModelId === model.id}
@@ -790,7 +793,7 @@
                     {:else}
                       <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                         <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-[0.6875rem] text-muted-foreground">Loading supported models…</span>
+                        <span class="text-meta text-muted-foreground">Loading supported models…</span>
                       </div>
                     {/if}
                   </div>
@@ -837,8 +840,8 @@
                   {#if memoryManager.indexProgress?.total}
                     <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
                       <div
-                        class="h-full bg-primary transition-[width] duration-300"
-                        style="width: {Math.round((memoryManager.indexProgress.done / memoryManager.indexProgress.total) * 100)}%"
+                        class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
+                        style="transform: scaleX({memoryManager.indexProgress.done / memoryManager.indexProgress.total})"
                       ></div>
                     </div>
                   {/if}
@@ -1076,7 +1079,7 @@
                         {#each gitManager.status as file (file.path)}
                           <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
                             <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.6875rem] text-muted-foreground shrink-0">{file.status}</span>
+                            <span class="text-meta text-muted-foreground shrink-0">{file.status}</span>
                           </div>
                         {/each}
                       </div>
@@ -1275,7 +1278,7 @@
                         {#each dropboxManager.status as file (file.path)}
                           <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
                             <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-[0.6875rem] shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
+                            <span class="text-meta shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
                           </div>
                         {/each}
                       </div>
@@ -1365,8 +1368,8 @@
                   {#if updaterManager.status === 'downloading' && updaterManager.progress !== null}
                     <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                       <div
-                        class="h-full bg-primary transition-[width]"
-                        style="width: {Math.round(updaterManager.progress * 100)}%"
+                        class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
+                        style="transform: scaleX({updaterManager.progress})"
                       ></div>
                     </div>
                   {/if}

@@ -1,5 +1,5 @@
 <script>
-  import { defaultValueCtx, Editor, rootCtx, editorViewCtx } from '@milkdown/core';
+  import { defaultValueCtx, Editor, rootCtx, editorViewCtx, serializerCtx } from '@milkdown/core';
   import { editorState } from '$lib/runes/editor.svelte';
   import { grammarPlugin } from '$lib/components/plugins/grammar';
   import { exitCodeBlockPlugin } from '$lib/components/plugins/exit-code-block';
@@ -14,13 +14,18 @@
   import { findPlugin, findAll, buildFindRegex } from '$lib/components/plugins/find.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
-  import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
+  import { changesPlugin } from '$lib/components/plugins/changes.js';
+  import { revealElement } from '$lib/components/plugins/reveal.js';
+  import {
+    documentCounts,
+    serializeIncremental,
+    warmMarkdownCache,
+  } from '$lib/components/plugins/block-cache.js';
   import { clipboard } from '@milkdown/kit/plugin/clipboard';
   import { appState } from '@/runes/app.svelte.js';
   import { beforeNavigate } from '$app/navigation';
   import { isMod } from '$lib/keyboard.svelte.js';
   import { openCodexEntry } from '$lib/runes/codex.svelte.js';
-  import { getMarkdown } from '@milkdown/kit/utils';
   import { TextSelection } from '@milkdown/kit/prose/state';
 
   /**
@@ -53,7 +58,7 @@
     view.focus();
     const { node } = view.domAtPos(found.from);
     const el = node instanceof HTMLElement ? node : node.parentElement;
-    el?.scrollIntoView({ block: 'center' });
+    revealElement(el);
   }
 
   /**
@@ -108,9 +113,57 @@
   /** @type {import('@milkdown/kit/prose/model').Node | null} */
   let pendingScanDoc = null;
 
+  /**
+   * Word and character counts for the stats bar and today's progress.
+   * Counted per block and cached, so only edited blocks are recounted.
+   * @param {import('@milkdown/kit/prose/model').Node} doc
+   */
+  function reportCounts(doc) {
+    const { words, chars } = documentCounts(doc);
+    writingState.updateCounts(words, chars);
+  }
+
+  /**
+   * The document as Markdown. Unchanged blocks reuse their last
+   * serialization, so a save after typing in one paragraph of a novel only
+   * serializes that paragraph instead of the whole book.
+   * @returns {string}
+   */
+  function currentMarkdown() {
+    if (!editorInstance) return '';
+    return editorInstance.action((ctx) =>
+      serializeIncremental(ctx.get(editorViewCtx).state.doc, ctx.get(serializerCtx))
+    );
+  }
+
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let warmTimer = null;
+
+  /**
+   * Serializes a long document's blocks in small slices while the writer
+   * reads, so the first autosave doesn't serialize the whole book at once.
+   * Slices stay well under a frame and yield in between.
+   */
+  function warmSaveCache() {
+    warmTimer = null;
+    if (!editorInstance || !largeDoc) return;
+    const done = editorInstance.action((ctx) =>
+      warmMarkdownCache(ctx.get(editorViewCtx).state.doc, ctx.get(serializerCtx), 8)
+    );
+    if (!done) warmTimer = setTimeout(warmSaveCache, 16);
+  }
+
   /** @param {import('@milkdown/kit/prose/model').Node} doc */
-  function docText(doc) {
-    return doc.textBetween(0, doc.content.size, '\n', ' ');
+  function onDocChanged(doc) {
+    largeDoc = doc.content.size > LARGE_DOC_SIZE;
+    triggerAutoSave();
+    scheduleScan(doc);
+  }
+
+  /** @param {import('@milkdown/kit/prose/state').EditorState} state */
+  function onSelectionChanged(state) {
+    const { from, to } = state.selection;
+    writingState.updateSelection(from === to ? '' : state.doc.textBetween(from, to, '\n', ' '));
   }
 
   /** The outline and word count both walk the whole document, so batch them while typing. */
@@ -125,7 +178,7 @@
     scanTimer = null;
     if (pendingScanDoc) {
       editorState.setHeadings(collectHeadings(pendingScanDoc));
-      writingState.updateDocument(docText(pendingScanDoc));
+      reportCounts(pendingScanDoc);
     }
     pendingScanDoc = null;
   }
@@ -137,9 +190,12 @@
    */
   async function saveNow(markdown) {
     editorState.setSaveStatus({ status: 'saving' });
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = null;
     try {
       // The backend watches the notes folder and re-indexes what was saved.
       if (onSave) await onSave(markdown);
+      retryAttempt = 0;
       editorState.setSaveStatus({
         lastSaved: new Date(),
         status: 'saved',
@@ -147,8 +203,22 @@
     } catch (e) {
       console.error('Auto-save failed:', e);
       editorState.setSaveStatus({ status: 'error' });
+      // Keep trying quietly, backing off, so a brief hiccup (a locked file,
+      // a sleeping disk) heals itself without the writer doing anything.
+      const delay = RETRY_DELAYS[Math.min(retryAttempt, RETRY_DELAYS.length - 1)];
+      retryAttempt += 1;
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        flushSave();
+      }, delay);
     }
   }
+
+  /** Background save retries after a failure: 2s, 5s, 15s, then every 30s. */
+  const RETRY_DELAYS = [2000, 5000, 15000, 30000];
+  let retryAttempt = 0;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let retryTimer = null;
 
   /**
    * Trigger the auto-save mechanism with debouncing. Markdown is serialized
@@ -157,13 +227,16 @@
   function triggerAutoSave() {
     if (!isReady) return;
 
-    editorState.setSaveStatus({ status: 'unsaved' });
+    // Runs on every keystroke; only touch the status (and everything that
+    // renders it) when it actually changes.
+    if (editorState.saveStatus.status !== 'unsaved')
+      editorState.setSaveStatus({ status: 'unsaved' });
 
     if (saveTimer) clearTimeout(saveTimer);
 
     saveTimer = setTimeout(() => {
       saveTimer = null;
-      if (editorInstance) saveNow(editorInstance.action(getMarkdown()));
+      if (editorInstance) saveNow(currentMarkdown());
     }, saveDelay());
   }
 
@@ -178,8 +251,7 @@
       clearTimeout(saveTimer);
       saveTimer = null;
     }
-    const markdown = editorInstance.action(getMarkdown());
-    return saveNow(markdown);
+    return saveNow(currentMarkdown());
   }
 
   beforeNavigate(() => {
@@ -195,26 +267,17 @@
     $effect(() => {
       if (editorInstance) return;
 
+      // Decide before the first render, so a long document is laid out with
+      // offscreen blocks skipped from the start rather than all at once and
+      // then again. Markdown length is close to the document's size.
+      largeDoc = initialValue.length > LARGE_DOC_SIZE;
+
       let editorBuilder = Editor.make()
         .config((ctx) => {
-          // `updated` only fires when the doc actually changed; unlike
-          // `markdownUpdated` it doesn't serialize the whole doc each time.
-          ctx.get(listenerCtx).updated((ctx, doc) => {
-            largeDoc = doc.content.size > LARGE_DOC_SIZE;
-            triggerAutoSave();
-            scheduleScan(doc);
-          });
-          ctx.get(listenerCtx).selectionUpdated((ctx, selection) => {
-            const { from, to } = selection;
-            writingState.updateSelection(
-              from === to ? '' : ctx.get(editorViewCtx).state.doc.textBetween(from, to, '\n', ' ')
-            );
-          });
-
           ctx.set(rootCtx, dom);
           ctx.set(defaultValueCtx, initialValue);
         })
-        .use(listener);
+        .use(changesPlugin({ onDoc: onDocChanged, onSelection: onSelectionChanged }));
 
       editorBuilder
         .use(grammarPlugin)
@@ -245,9 +308,10 @@
               largeDoc = doc.content.size > LARGE_DOC_SIZE;
               editorState.setHeadings(collectHeadings(doc));
               writingState.resetBaseline();
-              writingState.updateDocument(docText(doc));
+              reportCounts(doc);
             });
             isReady = true;
+            if (largeDoc) warmTimer = setTimeout(warmSaveCache, 1000);
             if (autofocus) {
               editor.action((ctx) => ctx.get(editorViewCtx).focus());
             }
@@ -256,8 +320,12 @@
 
       return () => {
         flushScan();
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = null;
         const dying = editorInstance;
         if (dying) {
+          if (warmTimer) clearTimeout(warmTimer);
+          warmTimer = null;
           editorInstance = null;
           isReady = false;
           // Milkdown holds a ProseMirror view, plugin state and DOM listeners;
@@ -353,6 +421,16 @@
 
   main :global(.milkdown) {
     overflow: visible !important;
+  }
+
+  /* In a book-length document the browser would otherwise lay out and
+     paint every paragraph on each keystroke. Offscreen blocks are skipped
+     until they scroll near the viewport; `auto` remembers each block's real
+     height once it has been seen, so the scrollbar settles as you read.
+     Measured in Chromium at 500k words: about 80 ms to 45 ms per key. */
+  main.large-doc :global(.ProseMirror > *) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 6em;
   }
 
   main :global(.slash-menu-portal:not([data-show='true'])),

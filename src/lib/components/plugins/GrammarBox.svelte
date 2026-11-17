@@ -146,7 +146,7 @@
   ];
 </script>
 
-<div class="w-max max-w-sm flex flex-col gap-3 not-prose select-none animate-in fade-in slide-in-from-top-2 duration-300">
+<div class="w-max max-w-sm flex flex-col gap-3 not-prose select-none animate-in fade-in slide-in-from-top-2 duration-200">
   
   {#if aiEnabled && (llmManager.editActionContent || llmManager.editActionInProgress)}
     <div class="group relative bg-muted/50 rounded-xl p-4 transition-colors hover:bg-muted/70">
@@ -240,7 +240,7 @@
               variant="ghost"
               size="sm"
               disabled={props.disabled ?? false}
-              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] rounded-full text-[0.6875rem] font-medium tracking-wide text-muted-foreground hover:text-foreground transition-colors group"
+              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] rounded-full text-meta font-medium tracking-wide text-muted-foreground hover:text-foreground transition-colors group"
             >
               <AiSparkleIcon strokeWidth={1.5} class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
               AI Suggestions
@@ -273,7 +273,7 @@
             <div class="max-h-[300px] overflow-y-auto pr-1">
               {#each suggestionCategories as category (category.name)}
                 <div class="mt-2 first:mt-0">
-                  <div class="px-1 text-[0.75rem] font-medium text-muted-foreground pl-2 mb-1">
+                  <div class="px-1 text-xs font-medium text-muted-foreground pl-2 mb-1">
                     {category.name}
                   </div>
                   <div class="grid grid-cols-1 gap-0.5">

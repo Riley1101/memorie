@@ -206,7 +206,7 @@
     aria-label={title}
     aria-pressed={pressed}
     {onclick}
-    class="h-6 min-w-6 px-1 rounded font-mono text-[0.6875rem] transition-colors
+    class="h-6 min-w-6 px-1 rounded font-mono text-meta transition-colors
       {pressed
       ? 'bg-primary/15 text-primary'
       : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
@@ -269,7 +269,7 @@
       {@render toggle('ab', 'Whole word', wholeWord, () => (wholeWord = !wholeWord))}
       {@render toggle('.*', 'Regular expression', useRegex, () => (useRegex = !useRegex))}
       <span
-        class="w-20 text-center text-[0.6875rem] tabular-nums {error
+        class="w-20 text-center text-meta tabular-nums {error
           ? 'text-destructive'
           : 'text-muted-foreground'}"
         aria-live="polite"

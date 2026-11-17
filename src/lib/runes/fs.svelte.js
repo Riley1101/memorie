@@ -126,7 +126,7 @@ class FileManager {
       this.files = await rs_commands.getRecents();
     } catch (err) {
       console.error(err);
-      this.errorMessage = `Failed to discover recent files: ${err}`;
+      this.errorMessage = 'Couldn’t load your writings.';
       toast.error('Could not load writings', err);
     } finally {
       this.isLoading = false;
@@ -144,7 +144,7 @@ class FileManager {
       this.binders = await rs_commands.getBinders();
     } catch (err) {
       console.error(err);
-      this.errorMessage = `Failed to discover binders: ${err}`;
+      this.errorMessage = 'Couldn’t load your binders.';
       toast.error('Could not load binders', err);
     }
   }
@@ -159,7 +159,7 @@ class FileManager {
       this.folders = await rs_commands.getFolders();
     } catch (err) {
       console.error(err);
-      this.errorMessage = `Failed to discover folders: ${err}`;
+      this.errorMessage = 'Couldn’t load your folders.';
       toast.error('Could not load folders', err);
     }
   }
@@ -172,7 +172,7 @@ class FileManager {
    */
   async createBinder(binderName) {
     if (!binderName || !binderName.trim()) {
-      this.errorMessage = 'Binder name cannot be empty.';
+      this.errorMessage = 'Give the binder a name.';
       return;
     }
 
@@ -184,7 +184,7 @@ class FileManager {
       await this.getBinders();
       await this.getFolders();
     } catch (err) {
-      this.errorMessage = `Failed to create binder "${binderName}": ${err}`;
+      this.errorMessage = `Couldn’t create binder "${binderName}".`;
       console.error(err);
       toast.error(`Could not create binder "${binderName}"`, err);
     } finally {
@@ -211,7 +211,7 @@ class FileManager {
       await this.getRecents();
       await this.getFolders();
     } catch (err) {
-      this.errorMessage = `Failed to rename binder "${oldName}": ${err}`;
+      this.errorMessage = `Couldn’t rename binder "${oldName}".`;
       console.error(err);
       toast.error(`Could not rename "${oldName}"`, err);
     } finally {
@@ -235,7 +235,7 @@ class FileManager {
       await this.getBinders();
       await this.getFolders();
     } catch (err) {
-      this.errorMessage = `Failed to delete binder "${binderName}": ${err}`;
+      this.errorMessage = `Couldn’t delete binder "${binderName}".`;
       console.error(err);
       toast.error(`Could not delete binder "${binderName}"`, err);
     } finally {
@@ -254,7 +254,7 @@ class FileManager {
    */
   async createNewFile(fileName, content = '', binder = null, subPath = []) {
     if (!fileName || !fileName.trim()) {
-      this.errorMessage = 'File name cannot be empty.';
+      this.errorMessage = 'Give the writing a name.';
       return null;
     }
 
@@ -271,7 +271,7 @@ class FileManager {
       if (subPath.length) await this.getFolders();
       return finalFileName;
     } catch (err) {
-      this.errorMessage = `Failed to create file "${finalFileName}": ${err}`;
+      this.errorMessage = `Couldn’t create file "${finalFileName}".`;
       console.error(err);
       toast.error(`Could not create "${baseOf(finalFileName)}"`, err);
       return null;
@@ -351,7 +351,7 @@ class FileManager {
    */
   async createFolder(binder, subPath, folderName) {
     if (!folderName || !folderName.trim()) {
-      this.errorMessage = 'Folder name cannot be empty.';
+      this.errorMessage = 'Give the folder a name.';
       return;
     }
 
@@ -364,7 +364,7 @@ class FileManager {
       await invoke('create_folder', { relativePath });
       await this.getFolders();
     } catch (err) {
-      this.errorMessage = `Failed to create folder "${relativePath}": ${err}`;
+      this.errorMessage = `Couldn’t create folder "${relativePath}".`;
       console.error(err);
       toast.error(`Could not create folder "${folderName.trim()}"`, err);
     } finally {
@@ -387,7 +387,7 @@ class FileManager {
       await invoke('delete_folder', { relativePath });
       await this.getFolders();
     } catch (err) {
-      this.errorMessage = `Failed to delete folder "${relativePath}": ${err}`;
+      this.errorMessage = `Couldn’t delete folder "${relativePath}".`;
       console.error(err);
       toast.error(`Could not delete folder "${baseOf(relativePath)}"`, err);
     } finally {
@@ -408,7 +408,7 @@ class FileManager {
     try {
       await invoke('undo_file', { name: fileName });
     } catch (err) {
-      this.errorMessage = `Failed to undo last change for file "${fileName}": ${err}`;
+      this.errorMessage = `Couldn’t undo last change for file "${fileName}".`;
       console.error(err);
       toast.error('Could not go back a version', err);
     } finally {
@@ -429,7 +429,7 @@ class FileManager {
     try {
       await invoke('redo_file', { name: fileName });
     } catch (err) {
-      this.errorMessage = `Failed to redo last undone change for file "${fileName}": ${err}`;
+      this.errorMessage = `Couldn’t redo last undone change for file "${fileName}".`;
       console.error(err);
       toast.error('Could not go forward a version', err);
     } finally {
@@ -457,7 +457,7 @@ class FileManager {
       await this.getRecents();
       return entry;
     } catch (err) {
-      this.errorMessage = `Failed to delete file "${fileName}": ${err}`;
+      this.errorMessage = `Couldn’t delete file "${fileName}".`;
       console.error(err);
       toast.error(`Could not delete "${baseOf(fileName)}"`, err);
       return null;
@@ -503,7 +503,7 @@ class FileManager {
       await this.getFolders();
       return newName;
     } catch (err) {
-      this.errorMessage = `Failed to move "${oldName}": ${err}`;
+      this.errorMessage = `Couldn’t move "${oldName}".`;
       console.error(err);
       toast.error(`Could not move "${formatBase(base)}"`, err);
       return null;
@@ -546,7 +546,7 @@ class FileManager {
       await this.getFolders();
       return this.folders.includes(newPath) ? newPath : null;
     } catch (err) {
-      this.errorMessage = `Failed to move "${oldPath}": ${err}`;
+      this.errorMessage = `Couldn’t move "${oldPath}".`;
       console.error(err);
       toast.error(`Could not move "${base}"`, err);
       return null;
@@ -590,7 +590,7 @@ class FileManager {
     try {
       return await invoke('delete_folder_to_trash', { relativePath: path });
     } catch (err) {
-      this.errorMessage = `Failed to delete folder "${path}": ${err}`;
+      this.errorMessage = `Couldn’t delete folder "${path}".`;
       console.error(err);
       toast.error(`Could not delete "${baseOf(path)}"`, err);
       return null;
@@ -612,7 +612,7 @@ class FileManager {
   async renameFile(oldName, newName) {
     const cleaned = (newName ?? '').trim().replace(/\//g, '');
     if (!cleaned) {
-      this.errorMessage = 'New file name cannot be empty.';
+      this.errorMessage = 'Give the writing a name.';
       return null;
     }
 
@@ -639,7 +639,7 @@ class FileManager {
       await this.getRecents();
       return finalNewName;
     } catch (err) {
-      this.errorMessage = `Failed to rename file from "${oldName}" to "${finalNewName}": ${err}`;
+      this.errorMessage = `Couldn’t rename file from "${oldName}" to "${finalNewName}".`;
       console.error(err);
       toast.error(`Could not rename "${baseOf(oldName)}"`, err);
       return null;

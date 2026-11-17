@@ -97,25 +97,36 @@
   </div>
 
   <div class="flex-1 min-h-0 flex flex-col gap-6">
-    <div class="flex items-center gap-2 shrink-0">
+    <div class="flex flex-col gap-1.5 shrink-0">
+    <label for="new-binder-name" class="text-sm text-muted-foreground">New binder</label>
+    <div class="flex items-center gap-2">
       <Input
+        id="new-binder-name"
         bind:value={newBinderName}
         type="text"
-        placeholder="New binder name"
-        class="max-w-xs"
+        placeholder="e.g. Poems"
+        class="flex-1 min-w-0 sm:max-w-xs"
         onkeydown={(e) => {
           if (e.key === 'Enter') handleCreateBinder();
         }}
  />
-      <Button variant="default" class="gap-2 rounded-full" onclick={handleCreateBinder} disabled={false}>
+      <Button variant="default" class="gap-2" onclick={handleCreateBinder} disabled={false}>
         <FolderPlusIcon strokeWidth={1.5} class="size-3.5" />
-        Create
+        Create binder
       </Button>
+    </div>
     </div>
 
     {#if fileManager.errorMessage}
       <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive shrink-0">
         {fileManager.errorMessage}
+        <button
+          type="button"
+          class="ml-2 underline underline-offset-2"
+          onclick={() => Promise.all([fileManager.getRecents(), fileManager.getBinders()])}
+        >
+          Try again
+        </button>
       </div>
     {/if}
 
@@ -128,20 +139,28 @@
               <FolderIcon strokeWidth={1.5} class="size-4 text-muted-foreground shrink-0" />
 
               {#if renamingBinder === binder}
-                <Input
-                  bind:value={renameValue}
-                  type="text"
-                  class="flex-1 h-9"
-                  autofocus
-                  onkeydown={(e) => {
-                    if (e.key === 'Enter') confirmRename();
-                    if (e.key === 'Escape') cancelRename();
-                  }}
- />
-                <Button variant="default" size="sm" class="text-xs h-9" onclick={confirmRename} disabled={false}
-                  >Save</Button
+                <!-- The name becomes the field in place; the count line stays, so the row keeps its height. -->
+                <div class="flex-1 min-w-0">
+                  <!-- svelte-ignore a11y_autofocus -->
+                  <input
+                    bind:value={renameValue}
+                    type="text"
+                    aria-label="Rename binder {binder}"
+                    autofocus
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') confirmRename();
+                      if (e.key === 'Escape') cancelRename();
+                    }}
+                    class="block w-full min-w-0 p-0 m-0 border-0 bg-transparent font-writer text-lg font-normal text-foreground outline-none rounded-none shadow-[0_1px_0_0_var(--ring)]"
+                  />
+                  <p class="text-sm text-muted-foreground">
+                    {count} writing{count === 1 ? '' : 's'}
+                  </p>
+                </div>
+                <Button variant="default" size="sm" class="h-9" onclick={confirmRename} disabled={false}
+                  >Save name</Button
                 >
-                <Button variant="ghost" size="sm" class="text-xs h-9" onclick={cancelRename} disabled={false}
+                <Button variant="ghost" size="sm" class="h-9" onclick={cancelRename} disabled={false}
                   >Cancel</Button
                 >
               {:else}
@@ -154,7 +173,7 @@
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-9 rounded-full text-muted-foreground hover:text-foreground"
+                  class="size-9 text-muted-foreground hover:text-foreground"
                   onclick={() => startRename(binder)}
                   disabled={false}
                 >
@@ -164,7 +183,7 @@
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-9 rounded-full text-muted-foreground hover:text-destructive"
+                  class="size-9 text-muted-foreground hover:text-destructive"
                   onclick={() => handleDeleteClick(binder)}
                   disabled={false}
                 >
@@ -188,18 +207,18 @@
 <Dialog.Root bind:open={isDeleteDialogOpen}>
   <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Delete Binder</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal font-writer">Delete binder</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground pt-2">
         {#if binderToDelete && binderWritingCount(binderToDelete) > 0}
-          <span class="font-bold text-foreground">"{binderToDelete}"</span> still has {binderWritingCount(binderToDelete)}
+          <span class="font-medium text-foreground">"{binderToDelete}"</span> still has {binderWritingCount(binderToDelete)}
           writing{binderWritingCount(binderToDelete) === 1 ? '' : 's'} in it. Move or delete
           {binderWritingCount(binderToDelete) === 1 ? 'it' : 'them'} first before deleting this binder.
         {:else if binderToDelete && binderCodexCount(binderToDelete) > 0}
-          <span class="font-bold text-foreground">"{binderToDelete}"</span> still has {binderCodexCount(binderToDelete)}
+          <span class="font-medium text-foreground">"{binderToDelete}"</span> still has {binderCodexCount(binderToDelete)}
           codex entr{binderCodexCount(binderToDelete) === 1 ? 'y' : 'ies'}. Delete
           {binderCodexCount(binderToDelete) === 1 ? 'it' : 'them'} from the codex first before deleting this binder.
         {:else}
-          Are you sure you want to delete <span class="font-bold text-foreground">"{binderToDelete}"</span>?
+          Are you sure you want to delete <span class="font-medium text-foreground">"{binderToDelete}"</span>?
           <br />This action cannot be undone.
         {/if}
       </Dialog.Description>
@@ -211,7 +230,7 @@
         onclick={confirmDelete}
         class="flex-1"
         disabled={binderToDelete ? binderBlocked(binderToDelete) : false}
-        >Delete</Button
+        >Delete binder</Button
       >
     </Dialog.Footer>
   </Dialog.Content>

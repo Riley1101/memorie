@@ -11,15 +11,27 @@
   import { baseOf, dirOf } from '$lib/runes/fs.svelte.js';
   import { formatDate, formatTime } from '$lib/utils.js';
 
-  /** Which row is waiting on a "delete for good" confirmation. */
-  let confirmingId = $state(/** @type {string | null} */ (null));
-  let isEmptying = $state(false);
+  /**
+   * What is waiting on a "delete forever" confirmation: one entry, or the
+   * whole trash. The only actions in the app that can't be undone, so both
+   * ask first and say exactly what goes.
+   * @type {{ kind: 'one', entry: import('$lib/runes/trash.svelte.js').TrashEntry } | { kind: 'all' } | null}
+   */
+  let confirming = $state(null);
+  let isPurging = $state(false);
+  /** @type {HTMLButtonElement | null} */
+  let cancelButton = $state(null);
+
+  $effect(() => {
+    // Cancel is the safe default: Enter or a stray click should not delete.
+    if (confirming) queueMicrotask(() => cancelButton?.focus());
+  });
 
   // The listing is only read while the sheet is open, so it is never stale
   // when shown and costs nothing when it isn't.
   $effect(() => {
     if (appState.ui.isTrashOpen) {
-      confirmingId = null;
+      confirming = null;
       trashManager.refresh();
     }
   });
@@ -34,22 +46,16 @@
     await trashManager.restoreWithToast(entry);
   }
 
-  /** @param {string} id */
-  async function purge(id) {
-    if (confirmingId !== id) {
-      confirmingId = id;
-      return;
-    }
-    confirmingId = null;
-    await trashManager.purge(id);
-  }
-
-  async function emptyAll() {
-    isEmptying = true;
+  async function confirmPurge() {
+    const target = confirming;
+    if (!target) return;
+    isPurging = true;
     try {
-      await trashManager.empty();
+      if (target.kind === 'all') await trashManager.empty();
+      else await trashManager.purge(target.entry.id);
     } finally {
-      isEmptying = false;
+      isPurging = false;
+      confirming = null;
     }
   }
 </script>
@@ -94,7 +100,7 @@
                 {/if}
                 <div class="min-w-0 flex-1">
                   <p class="truncate font-writer text-base">{label(entry.original_path)}</p>
-                  <p class="flex items-center gap-2 tabular-nums text-[0.6875rem] text-metadata">
+                  <p class="flex items-center gap-2 tabular-nums text-meta text-metadata">
                     {#if where}<span class="truncate">{where}</span><span class="opacity-30">•</span>{/if}
                     {#if entry.kind === 'folder'}
                       <span>{entry.item_count} writing{entry.item_count === 1 ? '' : 's'}</span>
@@ -114,13 +120,14 @@
                     Put back
                   </Button>
                   <Button
-                    variant={confirmingId === entry.id ? 'destructive' : 'ghost'}
+                    variant="ghost"
                     size="sm"
                     class="gap-1.5"
-                    onclick={() => purge(entry.id)}
+                    aria-label="Delete “{label(entry.original_path)}” forever"
+                    onclick={() => (confirming = { kind: 'one', entry })}
                   >
                     <Trash2Icon strokeWidth={1.75} class="size-3.5" />
-                    {confirmingId === entry.id ? 'Sure?' : 'Delete'}
+                    Delete forever
                   </Button>
                 </div>
               </li>
@@ -130,13 +137,46 @@
       </ScrollArea>
     </div>
 
-    {#if trashManager.entries.length > 0}
+    {#if confirming}
+      {@const count = trashManager.entries.length}
+      <!-- Confirmation sits in the sheet's footer rather than a second modal on top of this one. -->
+      <div
+        class="flex flex-col gap-3 border-t border-destructive/30 bg-destructive/5 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+        role="alertdialog"
+        aria-labelledby="trash-confirm-title"
+      >
+        <div class="min-w-0">
+          <p id="trash-confirm-title" class="text-sm font-medium text-foreground">
+            {#if confirming.kind === 'all'}
+              Delete {count} item{count === 1 ? '' : 's'} forever?
+            {:else}
+              Delete “{label(confirming.entry.original_path)}” forever?
+            {/if}
+          </p>
+          <p class="text-xs text-muted-foreground">This can’t be undone.</p>
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          <Button
+            bind:ref={cancelButton}
+            variant="ghost"
+            size="sm"
+            onclick={() => (confirming = null)}
+            disabled={isPurging}
+          >
+            Cancel
+          </Button>
+          <Button variant="destructive" size="sm" onclick={confirmPurge} disabled={isPurging}>
+            {isPurging ? 'Deleting…' : 'Delete forever'}
+          </Button>
+        </div>
+      </div>
+    {:else if trashManager.entries.length > 0}
       <div class="flex items-center justify-between gap-3 border-t border-border/20 px-6 py-3">
         <p class="text-xs text-muted-foreground">
           {trashManager.entries.length} item{trashManager.entries.length === 1 ? '' : 's'}
         </p>
-        <Button variant="ghost" size="sm" onclick={emptyAll} disabled={isEmptying}>
-          {isEmptying ? 'Emptying…' : 'Empty trash'}
+        <Button variant="ghost" size="sm" onclick={() => (confirming = { kind: 'all' })}>
+          Empty trash…
         </Button>
       </div>
     {/if}

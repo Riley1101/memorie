@@ -66,7 +66,7 @@
         >
           <FileIcon strokeWidth={1.5} class="size-4 mr-1" />
           <span class="font-writer text-base">Top level</span>
-          <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums">
+          <span class="ml-auto text-meta text-muted-foreground tabular-nums">
             {currentDir === '' ? 'already here' : 'no binder'}
           </span>
         </Command.Item>
@@ -85,7 +85,7 @@
             <FolderIcon strokeWidth={1.5} class="size-4 mr-1" />
           {/if}
           <span class="font-writer text-base truncate">{loc.label}</span>
-          <span class="ml-auto text-[0.6875rem] text-muted-foreground tabular-nums truncate">
+          <span class="ml-auto text-meta text-muted-foreground tabular-nums truncate">
             {loc.isCurrent ? 'already here' : loc.parent}
           </span>
         </Command.Item>

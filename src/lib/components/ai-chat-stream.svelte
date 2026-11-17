@@ -259,11 +259,8 @@
                     <span class="text-sm">{label}</span>
                   </div>
                 {:else}
-                  <div class="flex items-center gap-1.5 h-5 py-1">
-                    <span class="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]"></span>
-                    <span class="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]"></span>
-                    <span class="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]"></span>
-                  </div>
+                  <!-- Plain words rather than bouncing dots: calmer, and it reads the same with motion off. -->
+                  <p class="text-sm text-muted-foreground" role="status">Thinking…</p>
                 {/if}
               {:else}
                 <MessageResponse
@@ -274,7 +271,7 @@
 
               {#if message.references && message.references.length > 0}
                 <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-3 font-sans">
-                  <span class="text-[0.6875rem] font-semibold text-muted-foreground mr-1">
+                  <span class="text-meta font-semibold text-muted-foreground mr-1">
                     {message.references.length > 1 ? "Sources" : "Source"}
                   </span>
                   {#each message.references as ref (ref.title)}

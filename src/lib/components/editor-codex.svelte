@@ -50,7 +50,7 @@
           <button
             onclick={() => openCodex({ binder, entry: entity.path })}
             title={entity.summary ? `${entity.name}: ${entity.summary}` : entity.name}
-            class="max-w-full rounded-full border border-border bg-muted/30 px-2.5 py-1 text-left text-[0.75rem] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+            class="max-w-full rounded-full border border-border bg-muted/30 px-2.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
           >
             <span class="truncate">{entity.name}</span>
             <span class="opacity-50 tabular-nums">×{mention.count}</span>
@@ -59,13 +59,13 @@
       {/each}
     </div>
   {:else}
-    <p class="px-1 text-[0.75rem] text-muted-foreground">
+    <p class="px-1 text-xs text-muted-foreground">
       {entities.length ? 'No codex entries mentioned yet.' : 'No codex entries yet.'}
     </p>
   {/if}
   <button
     onclick={() => openCodex({ binder, new: 'character' })}
-    class="mt-2 flex items-center gap-1 px-1 text-[0.75rem] text-muted-foreground hover:text-foreground"
+    class="mt-2 flex items-center gap-1 px-1 text-xs text-muted-foreground hover:text-foreground"
   >
     <PlusIcon strokeWidth={1.5} class="size-3" /> New entry
   </button>

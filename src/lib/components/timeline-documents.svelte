@@ -45,13 +45,13 @@
    * @type {Record<string, { tile: string, dot: string }>}
    */
   const TINTS = {
-    teal: { tile: 'bg-teal/15 text-teal', dot: 'bg-teal' },
-    primary: { tile: 'bg-primary/10 text-primary', dot: 'bg-primary' },
-    info: { tile: 'bg-info/15 text-info', dot: 'bg-info' },
-    success: { tile: 'bg-success/15 text-success', dot: 'bg-success' },
-    warning: { tile: 'bg-warning/20 text-warning', dot: 'bg-warning' },
-    accent: { tile: 'bg-accent/20 text-accent-foreground', dot: 'bg-accent' },
-    muted: { tile: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground/50' },
+    teal: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-teal' },
+    primary: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-clay' },
+    info: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-slate' },
+    success: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-sage' },
+    warning: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-ochre' },
+    accent: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-plum' },
+    muted: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-muted-foreground/50' },
   };
 
   let { activeBinder = null } = $props();
@@ -491,7 +491,7 @@
         class="min-h-full pb-20 pr-2 rounded-lg transition-colors {isRootDragOver ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''}"
       >
         <div class="flex items-center justify-between gap-2 mb-4 py-1">
-          <span class="text-[0.6875rem] text-metadata tabular-nums">
+          <span class="text-meta text-metadata tabular-nums">
             {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
               · drop to move to {activeBinder}{/if}
           </span>
@@ -500,7 +500,7 @@
             <button
               type="button"
               onclick={() => clearOrder(activeBinder ?? '')}
-              class="text-[0.6875rem] tabular-nums text-metadata hover:text-foreground transition-colors"
+              class="text-meta tabular-nums text-metadata hover:text-foreground transition-colors"
               title="Sort by name again"
             >
               manual order · reset
@@ -612,7 +612,7 @@
               <button
                 {...props}
                 type="button"
-                class="flex items-center gap-1.5 h-7 px-2 rounded-md text-[0.6875rem] tabular-nums text-metadata hover:text-foreground hover:bg-muted/40 transition-colors"
+                class="flex items-center gap-1.5 h-7 px-2 rounded-md text-meta tabular-nums text-metadata hover:text-foreground hover:bg-muted/40 transition-colors"
               >
                 <ArrowDownWideNarrowIcon class="size-3.5" strokeWidth={1.5} />
                 {sortLabel}
@@ -648,26 +648,43 @@
             <ContextMenu.Root>
             <ContextMenu.Trigger>
             <div
-              class="group/item relative flex items-center gap-4 py-3.5 px-2 rounded-xl transition-colors hover:bg-muted/20 {menuOpenFor === item.name ? 'bg-muted/20' : ''}"
+              class="group/item relative flex items-center gap-4 py-3.5 px-2 rounded-md transition-colors hover:bg-muted/20 {menuOpenFor === item.name ? 'bg-muted/20' : ''}"
             >
               {#if renamingItem === item}
-                <div class="flex items-center gap-3 flex-1 min-w-0">
-                  <div class="size-10 rounded-xl {tint.tile} flex items-center justify-center shrink-0">
+                <!-- Same box as the row it replaces: the title becomes the field and the
+                     metadata line stays, so nothing below moves while renaming. -->
+                <div class="flex items-center gap-4 flex-1 min-w-0">
+                  <div class="size-10 rounded-md {tint.tile} flex items-center justify-center shrink-0">
                     <FileIcon class="size-4" strokeWidth={1.5} />
                   </div>
-                  <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
-                  <!-- svelte-ignore a11y_autofocus -->
-                  <input
-                    value={renameValue}
-                    oninput={(e) => (renameValue = e.currentTarget.value)}
-                    onkeydown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
-                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
-                    }}
-                    onblur={confirmRename}
-                    autofocus
-                    class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
- />
+                  <div class="flex-1 min-w-0">
+                    <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+                    <!-- svelte-ignore a11y_autofocus -->
+                    <input
+                      value={renameValue}
+                      oninput={(e) => (renameValue = e.currentTarget.value)}
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+                        if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                      }}
+                      onblur={confirmRename}
+                      autofocus
+                      aria-label="Rename writing"
+                      class="block w-full min-w-0 p-0 m-0 border-0 bg-transparent font-writer text-base leading-normal text-foreground outline-none rounded-none shadow-[0_1px_0_0_var(--ring)]"
+                    />
+                    <div class="mt-0.5 flex items-center gap-1.5 text-meta tabular-nums text-metadata">
+                      {#if item.folder && activeBinder === null}
+                        <span class="flex items-center gap-1">
+                          <span class="size-1.5 rounded-full {tint.dot}"></span>
+                          {item.folder}
+                        </span>
+                        <span class="opacity-30">•</span>
+                      {/if}
+                      <span>{formatDate(item.last_modified)}</span>
+                      <span class="opacity-30">•</span>
+                      <span>{formatTime(item.last_modified)}</span>
+                    </div>
+                  </div>
                 </div>
               {:else}
                 <a
@@ -681,14 +698,14 @@
                   }}
                   class="flex items-center gap-4 flex-1 min-w-0"
                 >
-                  <div class="size-10 rounded-xl {tint.tile} flex items-center justify-center shrink-0">
+                  <div class="size-10 rounded-md {tint.tile} flex items-center justify-center shrink-0">
                     <FileIcon class="size-4" strokeWidth={1.5} />
                   </div>
                   <div class="flex-1 min-w-0">
                     <div class="truncate font-writer text-base text-foreground/90 group-hover/item:text-foreground transition-colors">
                       {formatFileName(item.name.split('/').pop())}
                     </div>
-                    <div class="mt-0.5 flex items-center gap-1.5 text-[0.6875rem] tabular-nums text-metadata">
+                    <div class="mt-0.5 flex items-center gap-1.5 text-meta tabular-nums text-metadata">
                       {#if item.folder && activeBinder === null}
                         <span class="flex items-center gap-1">
                           <span class="size-1.5 rounded-full {tint.dot}"></span>
@@ -770,17 +787,16 @@
 <Dialog.Root bind:open={isDeleteDialogOpen}>
   <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Delete Writing</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal font-writer">Move writing to trash?</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground pt-2">
-        Are you sure you want to delete
-        <span class="font-bold text-foreground">"{itemToDelete ? formatFileName(itemToDelete.name.split('/').pop()) : ''}"</span>{#if itemToDelete?.folder}
-          from <span class="text-foreground">{itemToDelete.folder}</span>{/if}?
-        <br/>It goes to the trash, and you can put it back for {RETENTION_DAYS} days.
+        <span class="font-medium text-foreground">"{itemToDelete ? formatFileName(itemToDelete.name.split('/').pop()) : ''}"</span>{#if itemToDelete?.folder}
+          from <span class="text-foreground">{itemToDelete.folder}</span>{/if}
+        goes to the trash. You can put it back for {RETENTION_DAYS} days.
       </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer class="mt-6 flex gap-2">
       <Button variant="ghost" onclick={handleCancelDelete} class="flex-1" disabled={false}>Cancel</Button>
-      <Button variant="destructive" onclick={handleConfirmDelete} class="flex-1" disabled={false}>Delete</Button>
+      <Button variant="destructive" onclick={handleConfirmDelete} class="flex-1" disabled={false}>Move to trash</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
@@ -793,10 +809,10 @@
       </Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground pt-2">
         {#if folderToDeleteIsEmpty}
-          <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
+          <span class="font-medium text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
           is empty. Delete it?
         {:else}
-          <span class="font-bold text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
+          <span class="font-medium text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
           holds {folderToDeleteFiles} writing{folderToDeleteFiles === 1 ? '' : 's'}{#if folderToDeleteFolders > 0}&nbsp;and {folderToDeleteFolders} folder{folderToDeleteFolders === 1 ? '' : 's'}{/if}.
           Keep them and remove only the folder, or send the whole thing to the trash.
         {/if}
@@ -809,7 +825,7 @@
         </Button>
       {:else}
         <Button onclick={confirmDeleteFolderLift} disabled={isDeletingFolder} class="w-full">
-          {isDeletingFolder ? 'Working…' : 'Remove folder, keep writings'}
+          {isDeletingFolder ? 'Removing folder…' : 'Remove folder, keep writings'}
         </Button>
         <Button variant="destructive" onclick={confirmDeleteFolderAll} disabled={isDeletingFolder} class="w-full">
           Trash folder and {folderToDeleteFiles} writing{folderToDeleteFiles === 1 ? '' : 's'}

@@ -487,7 +487,7 @@
         Nothing to export yet. Write something first, or put this writing in a binder to export several together.
       </p>
       <Dialog.Footer class="">
-        <Button onclick={close} disabled={false}>OK</Button>
+        <Button onclick={close} disabled={false}>Close</Button>
       </Dialog.Footer>
     {:else}
     <form

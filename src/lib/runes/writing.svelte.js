@@ -294,9 +294,17 @@ class WritingState {
    * @param {string} text
    */
   updateDocument(text) {
-    const words = countWords(text);
+    this.updateCounts(countWords(text), text.replace(/\s/g, '').length);
+  }
+
+  /**
+   * Like `updateDocument`, for callers that already counted the text.
+   * @param {number} words
+   * @param {number} chars - Characters other than whitespace.
+   */
+  updateCounts(words, chars) {
     this.docWords = words;
-    this.docChars = text.replace(/\s/g, '').length;
+    this.docChars = chars;
 
     if (this.#baseline === null) {
       this.#baseline = words;

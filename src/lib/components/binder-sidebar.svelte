@@ -24,7 +24,7 @@
   import { MOD_KEY } from '$lib/keyboard.svelte.js';
   import { openCodex } from '$lib/runes/codex.svelte.js';
   import { offerUndo } from '$lib/runes/trash.svelte.js';
-  import { BINDER_COLOURS } from '$lib/runes/app.svelte.js';
+  import { BINDER_COLOURS, BINDER_COLOUR_NAMES } from '$lib/runes/app.svelte.js';
   import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import PencilIcon from '@lucide/svelte/icons/pencil';
@@ -130,21 +130,18 @@
    * Tailwind needs these class names written out, so the colours live in a
    * table rather than being built from the colour name. The active label stays
    * in full ink: the tint colours as text fall well under 4.5:1 on the page.
-   * @type {Record<string, { icon: string, activeBg: string, activeText: string }>}
+   * @type {Record<string, { icon: string, swatch: string, activeBg: string, activeText: string }>}
    */
   const TINTS = {
-    teal: { icon: 'text-teal', activeBg: 'bg-teal/10', activeText: 'text-foreground' },
-    primary: { icon: 'text-primary', activeBg: 'bg-primary/10', activeText: 'text-foreground' },
-    info: { icon: 'text-info', activeBg: 'bg-info/10', activeText: 'text-foreground' },
-    success: { icon: 'text-success', activeBg: 'bg-success/10', activeText: 'text-foreground' },
-    warning: { icon: 'text-warning', activeBg: 'bg-warning/15', activeText: 'text-foreground' },
-    accent: {
-      icon: 'text-accent-foreground',
-      activeBg: 'bg-accent/20',
-      activeText: 'text-foreground',
-    },
+    teal: { icon: 'text-binder-teal', swatch: 'bg-binder-teal', activeBg: 'bg-binder-teal/10', activeText: 'text-foreground' },
+    primary: { icon: 'text-binder-clay', swatch: 'bg-binder-clay', activeBg: 'bg-binder-clay/10', activeText: 'text-foreground' },
+    info: { icon: 'text-binder-slate', swatch: 'bg-binder-slate', activeBg: 'bg-binder-slate/10', activeText: 'text-foreground' },
+    success: { icon: 'text-binder-sage', swatch: 'bg-binder-sage', activeBg: 'bg-binder-sage/10', activeText: 'text-foreground' },
+    warning: { icon: 'text-binder-ochre', swatch: 'bg-binder-ochre', activeBg: 'bg-binder-ochre/10', activeText: 'text-foreground' },
+    accent: { icon: 'text-binder-plum', swatch: 'bg-binder-plum', activeBg: 'bg-binder-plum/10', activeText: 'text-foreground' },
     muted: {
       icon: 'text-muted-foreground',
+      swatch: 'bg-muted-foreground/50',
       activeBg: 'bg-muted',
       activeText: 'text-foreground',
     },
@@ -210,7 +207,7 @@
   >
     <SearchIcon strokeWidth={1.5} class="size-3.5 shrink-0" />
     <span class="flex-1 truncate">Search</span>
-    <span class="text-[0.6875rem] tabular-nums text-disabled shrink-0">{MOD_KEY}K</span>
+    <span class="text-meta tabular-nums text-disabled shrink-0">{MOD_KEY}K</span>
   </button>
 {/snippet}
 
@@ -224,7 +221,7 @@
           onclick={() => openSettings(onSelect)}
           variant="ghost"
           size="icon-sm"
-          class="text-muted-foreground hover:text-foreground rounded-full shrink-0"
+          class="text-muted-foreground hover:text-foreground shrink-0"
           aria-label="Settings"
         >
           <SettingIcon strokeWidth={1.5} class="size-4" />
@@ -248,8 +245,8 @@
         : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
     >
       <FileIcon strokeWidth={1.5} class="size-4 shrink-0" />
-      <span class="truncate flex-1">All Writings</span>
-      <span class="text-[0.6875rem] text-muted-foreground tabular-nums">{fileManager.files.length}</span>
+      <span class="truncate flex-1">All writings</span>
+      <span class="text-meta text-muted-foreground tabular-nums">{fileManager.files.length}</span>
     </button>
     <div class="my-1 border-t border-border/30"></div>
     {#each fileManager.binders as binder (binder)}
@@ -288,7 +285,7 @@
             >
               <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 {activeBinder === binder ? '' : tint.icon}" />
               <span class="truncate flex-1">{binder}</span>
-              <span class="text-[0.6875rem] text-muted-foreground tabular-nums">{binderCount(binder)}</span>
+              <span class="text-meta text-muted-foreground tabular-nums">{binderCount(binder)}</span>
             </button>
           </ContextMenu.Trigger>
           <ContextMenu.Content class="w-48">
@@ -308,8 +305,8 @@
                     inset={false}
                     onclick={() => appState.setBinderColour(binder, colour)}
                   >
-                    <span class="size-3 rounded-full {TINTS[colour].activeBg} ring-1 ring-inset ring-current {TINTS[colour].activeText}"></span>
-                    <span class="flex-1 capitalize">{colour}</span>
+                    <span class="size-3 rounded-full {TINTS[colour].swatch}"></span>
+                    <span class="flex-1">{BINDER_COLOUR_NAMES[colour]}</span>
                   </ContextMenu.Item>
                 {/each}
                 <ContextMenu.Separator class="" />
@@ -341,7 +338,7 @@
             onSelect?.();
             openCodex({ binder });
           }}
-          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
+          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-xs text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
           style="padding-left: 1.25rem"
         >
           <BookUserIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
@@ -355,7 +352,7 @@
               onSelect?.();
             }}
             title={folder.path}
-            class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-[0.75rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
+            class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-xs text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
             style="padding-left: {0.5 + folder.depth * 0.75}rem"
           >
             <CornerDownRightIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
@@ -371,17 +368,25 @@
   <div class="flex items-center justify-between px-2 pb-1.5 shrink-0">
     <button
       onclick={goToManageBinders}
-      class="text-[0.6875rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
+      class="text-meta font-medium text-muted-foreground hover:text-foreground transition-colors"
     >
       Binders
     </button>
-    <button
-      onclick={startCreateBinder}
-      aria-label="New Binder"
-      class="text-muted-foreground hover:text-foreground transition-colors"
-    >
-      <PlusIcon class="size-3 shrink-0" strokeWidth={1.5} />
-    </button>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <button
+            {...props}
+            onclick={startCreateBinder}
+            aria-label="New binder"
+            class="flex items-center justify-center size-7 -mr-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+          >
+            <PlusIcon class="size-3.5 shrink-0" strokeWidth={1.5} />
+          </button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content side="right" portalProps={{}}>New binder</Tooltip.Content>
+    </Tooltip.Root>
   </div>
   {#if isCreatingBinder}
     <div class="px-2 pb-1.5 shrink-0">
@@ -427,14 +432,15 @@
   {/if}
 {/snippet}
 
-<!-- Wide desktop only: overlaps the page container instead of taking layout space.
-     Needs the centered content's side gutter to exceed the sidebar's own footprint
-     or it'd sit on top of text. That is 48rem of page plus 2 × (15rem sidebar +
-     2rem margin) = 82rem, and at the default density's 18px root that is ~1476px.
-     Media queries don't follow the root size, so the breakpoint is in pixels.
+<!-- Laptop and up: the binder rail is always there. From 1024px it takes its own
+     column beside the page. From ~1480px the centered page's side gutter is wider
+     than the rail (48rem of page plus 2 × (15rem rail + 2rem margin) = 82rem, ~1476px
+     at the default density's 18px root), so it floats over that gutter instead and
+     the page stays centred in the window. Media queries don't follow the root
+     size, so the breakpoints are in pixels.
      Narrower windows (tablet, tiled/split desktop, phone) use the sheet trigger below. -->
 <aside
-  class="hidden min-[1480px]:flex min-[1480px]:absolute min-[1480px]:top-0 min-[1480px]:left-0 min-[1480px]:z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
+  class="hidden lg:flex lg:relative min-[1480px]:absolute min-[1480px]:top-0 min-[1480px]:left-0 z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
 >
   <div class="pt-8 flex items-center gap-2">
     {@render topActions()}
@@ -447,10 +453,10 @@
      shrunk/tiled desktop windows where there isn't room for the overlay). -->
 <button
   onclick={() => (isMobileSheetOpen = true)}
-  class="min-[1480px]:hidden fixed top-4 left-[max(1rem,var(--titlebar-inset-left,0px))] z-30 flex items-center justify-center size-9 rounded-full bg-muted text-muted-foreground hover:text-foreground transition-colors"
+  aria-label="Open binders"
+  class="lg:hidden fixed top-4 left-[max(1rem,var(--titlebar-inset-left,0px))] z-30 flex items-center justify-center size-9 rounded-md bg-muted text-muted-foreground hover:text-foreground transition-colors"
 >
   <MenuIcon strokeWidth={1.5} class="size-4" />
-  <span class="sr-only">Open binders</span>
 </button>
 
 <Sheet.Root bind:open={isMobileSheetOpen}>
@@ -470,7 +476,7 @@
                 onclick={() => openSettings(() => (isMobileSheetOpen = false))}
                 variant="ghost"
                 size="icon-sm"
-                class="text-muted-foreground hover:text-foreground rounded-full"
+                class="text-muted-foreground hover:text-foreground"
                 aria-label="Settings"
               >
                 <SettingIcon strokeWidth={1.5} class="size-4" />
@@ -493,9 +499,9 @@
 <Dialog.Root open={binderToDelete !== null} onOpenChange={(v) => { if (!v) binderToDelete = null; }}>
   <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Delete binder</Dialog.Title>
+      <Dialog.Title class="text-xl font-normal font-writer">Move binder to trash?</Dialog.Title>
       <Dialog.Description class="text-base text-muted-foreground pt-2">
-        <span class="font-bold text-foreground">"{binderToDelete}"</span>
+        <span class="font-medium text-foreground">"{binderToDelete}"</span>
         {#if binderToDelete && binderTotal(binderToDelete) > 0}
           holds {binderTotal(binderToDelete)} writing{binderTotal(binderToDelete) === 1 ? '' : 's'}.
           They go to the trash together, and one undo brings them all back.
@@ -506,7 +512,7 @@
     </Dialog.Header>
     <Dialog.Footer class="mt-6 flex gap-2">
       <Button variant="ghost" onclick={() => (binderToDelete = null)} class="flex-1">Cancel</Button>
-      <Button variant="destructive" onclick={confirmDeleteBinder} class="flex-1">Delete</Button>
+      <Button variant="destructive" onclick={confirmDeleteBinder} class="flex-1">Move to trash</Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

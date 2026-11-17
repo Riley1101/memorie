@@ -99,10 +99,10 @@
     aria-valuenow={Math.min(value, goal)}
   >
     <div
-      class="h-full rounded-full transition-[width] duration-300 {value >= goal
+      class="h-full w-full origin-left rounded-full transition-transform duration-200 ease-out {value >= goal
         ? 'bg-success'
         : 'bg-primary'}"
-      style="width: {percent(value, goal)}%"
+      style="transform: scaleX({percent(value, goal) / 100})"
     ></div>
   </div>
 {/snippet}
@@ -138,11 +138,11 @@
         title="{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)}"
       >
         <span
-          class="block h-full rounded-full transition-[width] duration-300 {activeGoal.value >=
+          class="block h-full w-full origin-left rounded-full transition-transform duration-200 ease-out {activeGoal.value >=
           activeGoal.goal
             ? 'bg-success'
             : 'bg-primary'}"
-          style="width: {percent(activeGoal.value, activeGoal.goal)}%"
+          style="transform: scaleX({percent(activeGoal.value, activeGoal.goal) / 100})"
         ></span>
       </span>
       <span class="text-muted-foreground tabular-nums">
