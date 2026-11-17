@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support — Memoire</title>
+<meta name="description" content="Get help with Memoire: report a bug, ask a question, and answers to common questions.">
+<link rel="icon" type="image/png" href="assets/icon-256.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<script>
+  /* Same tokens as index.html. */
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: {
+        sans:  ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+        serif: ['Noto Serif', 'Georgia', 'serif'],
+      },
+      colors: {
+        background: '#08090a', surface: '#0e1012', card: '#121517',
+        border: '#23272b', 'border-strong': '#31363b',
+        foreground: '#f5f6f7', muted: '#8b9299', 'muted-dim': '#5f676e', accent: '#c8b89a',
+      },
+    } },
+  }
+</script>
+<link rel="stylesheet" href="assets/pages.css">
+</head>
+
+<body class="bg-background text-foreground font-sans antialiased selection:bg-accent selection:text-background">
+
+<header class="border-b border-border">
+  <div class="mx-auto flex max-w-3xl items-center justify-between gap-4 px-5 py-4">
+    <a href="index.html" class="flex items-center gap-2">
+      <img src="assets/icon-256.png" alt="" width="256" height="256" class="h-6 w-6 rounded-md">
+      <span class="font-serif text-base tracking-tight">Memoire</span>
+    </a>
+    <nav aria-label="Pages" class="flex items-center gap-1 text-sm">
+      <a href="privacy.html" class="hidden rounded-full px-3 py-1.5 text-muted transition-colors hover:text-foreground sm:inline-block">Privacy</a>
+      <a href="support.html" aria-current="page" class="rounded-full px-3 py-1.5 text-foreground">Support</a>
+      <a href="changelog.html" class="hidden rounded-full px-3 py-1.5 text-muted transition-colors hover:text-foreground sm:inline-block">Changelog</a>
+      <a href="index.html#download" class="ml-1 rounded-full bg-foreground px-3.5 py-1.5 font-medium text-background transition-colors hover:bg-white">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main class="mx-auto max-w-3xl px-5 py-16 sm:py-20">
+<article class="doc">
+<h1>Support</h1>
+<p class="intro">Memoire is built in the open, so help happens on GitHub. Most questions are answered below.</p>
+
+<div class="help">
+  <a href="https://github.com/Riley1101/memorie/issues/new"><b>Report a bug</b><span>Say what you did, what you expected, and your app version. A screenshot helps.</span></a>
+  <a href="https://github.com/Riley1101/memorie/issues"><b>Search known issues</b><span>See if someone has already reported it, and follow the fix.</span></a>
+</div>
+<p class="note" style="margin-top:16px">Find your version in Settings &rarr; Updates. We read every report, usually within a few days.</p>
+
+<h2>Common questions</h2>
+<div class="faq">
+  <details open>
+    <summary>Where is my writing saved?</summary>
+    <p>In <code>~/.memorie/content</code> in your home folder, as plain Markdown files. Settings shows the exact path under Storage. You can open the files in any text editor.</p>
+  </details>
+  <details>
+    <summary>How do I back up my writing?</summary>
+    <p>Connect GitHub or Dropbox in Settings &rarr; Cloud Sync. With GitHub, every sync becomes a commit you can go back to. You can also copy the content folder to any backup drive.</p>
+  </details>
+  <details>
+    <summary>How do I move to a new computer?</summary>
+    <p>Sync to GitHub or Dropbox, install Memoire on the new computer, connect the same account, and pull. Or copy the <code>~/.memorie</code> folder across.</p>
+  </details>
+  <details>
+    <summary>How do I turn on the assistant?</summary>
+    <p>Open Settings &rarr; AI. Choose a local model to run on your computer, or add your own OpenRouter key to use a hosted model. AI stays off until you do.</p>
+  </details>
+  <details>
+    <summary>How do I update the app?</summary>
+    <p>Memoire checks for updates on its own and offers a restart when one is ready. You can also check in Settings &rarr; Updates. Copies from the Microsoft Store update through the Store.</p>
+  </details>
+  <details>
+    <summary>macOS says the app is damaged. What do I do?</summary>
+    <p>Mac builds aren't notarized yet, so macOS blocks them the first time. Move Memoire to Applications, then run this once in Terminal:</p>
+    <pre>xattr -dr com.apple.quarantine /Applications/memoire.app</pre>
+  </details>
+  <details>
+    <summary>Does Memoire collect any data?</summary>
+    <p>No. There is no account and no analytics. The <a href="privacy.html">privacy policy</a> lists every case where the app connects to the internet.</p>
+  </details>
+  <details>
+    <summary>Is it really free?</summary>
+    <p>Yes. Memoire is open source under the MIT License, with no paid tier.</p>
+  </details>
+</div>
+</article>
+</main>
+
+<footer class="border-t border-border py-10">
+  <div class="mx-auto flex max-w-3xl flex-col items-center gap-4 px-5 text-center">
+    <nav aria-label="Footer" class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted">
+      <a href="index.html" class="transition-colors hover:text-foreground">Home</a>
+      <a href="privacy.html" class="transition-colors hover:text-foreground">Privacy</a>
+      <a href="support.html" class="transition-colors hover:text-foreground">Support</a>
+      <a href="changelog.html" class="transition-colors hover:text-foreground">Changelog</a>
+      <a href="https://github.com/Riley1101/memorie" target="_blank" rel="noopener" class="transition-colors hover:text-foreground">GitHub</a>
+    </nav>
+    <p class="text-xs text-muted-dim">© 2026 Memoire Labs. Made for people with something to say.</p>
+  </div>
+</footer>
+
+</body>
+</html>
