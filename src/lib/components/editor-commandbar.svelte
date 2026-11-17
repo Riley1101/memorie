@@ -1,489 +1,42 @@
 <script>
-  import { tick } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { appState, DENSITY_FONT_SIZE } from '$lib/runes/app.svelte.js';
-  import { cn } from '$lib/utils';
-  import { goto, invalidateAll } from '$app/navigation';
-  import { resolve } from '$app/paths';
-  import { llmManager } from '@/runes/llm.svelte.js';
-  import { configManager } from '@/runes/config.svelte.js';
-  import { memoryManager } from '@/runes/memory.svelte';
-  import { publish } from '@/runes/sync.svelte.js';
-  import AiSparkleIcon from '@lucide/svelte/icons/sparkles';
-  import SaveIcon from '@lucide/svelte/icons/save';
-  import HistoryIcon from '@lucide/svelte/icons/history';
-  import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
-  import UndoIcon from '@lucide/svelte/icons/undo-2';
-  import RedoIcon from '@lucide/svelte/icons/redo-2';
-  import HouseIcon from '@lucide/svelte/icons/house';
-  import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
-  import HelpIcon from '@lucide/svelte/icons/help-circle';
-  import PlusIcon from '@lucide/svelte/icons/plus';
-  import { startNewWriting } from '$lib/new-writing.js';
-  import { dirOf } from '$lib/runes/fs.svelte.js';
-  import TerminalIcon from '@lucide/svelte/icons/square-terminal';
-  import SearchIcon from '@lucide/svelte/icons/search';
-  import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
-  import FocusIcon from '@lucide/svelte/icons/focus';
-  import Trash2Icon from '@lucide/svelte/icons/trash-2';
-  import SpellCheckIcon from '@lucide/svelte/icons/spell-check';
-  import FileOutputIcon from '@lucide/svelte/icons/file-output';
-  import FileInputIcon from '@lucide/svelte/icons/file-input';
-  import TextSearchIcon from '@lucide/svelte/icons/text-search';
-  import QuoteIcon from '@lucide/svelte/icons/quote';
-  import BracketsIcon from '@lucide/svelte/icons/parentheses';
-  import EditorStats from '$lib/components/editor-stats.svelte';
+  import { llmManager } from '$lib/runes/llm.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
-  import { getMarkdown } from '@milkdown/kit/utils';
+  import EditorStats from '$lib/components/editor-stats.svelte';
   import { editorViewCtx } from '@milkdown/kit/core';
-  import { invoke } from '@tauri-apps/api/core';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
-  import { isMod, MOD_KEY } from '$lib/keyboard.svelte.js';
-  import { toast } from '$lib/toast.js';
-
-  import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-
-  let isDownloadDialogOpen = $state(false);
-
-  /**
-   * @typedef {Object} Props
-   * @property {string} [fileName]
-   * @property {number} [currentVersion]
-   */
-
-  /** @type {Props & { isDraft?: boolean }} */
-  let { fileName, currentVersion = 0, isDraft = false } = $props();
-
-  // Runes & State
-  let isThinking = $derived(llmManager.isLoading);
-  let isCommandMode = $state(false);
-  let input = $state('');
-  let selectedIndex = $state(0);
-  let inputRef = $state(/** @type {HTMLInputElement | null} */ (null));
-  let blurTimeout = $state(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
-
-  const BLUR_DELAY = 200;
+  import { isMod, shortcut } from '$lib/keyboard.svelte.js';
+  import {
+    editorSession,
+    aiSetup,
+    editorCommands,
+    runEditorCommand,
+  } from '$lib/editor-commands.svelte.js';
 
   /**
-   * @typedef {Object} Command
-   * @property {string} cmd - The command string (e.g., ":w").
-   * @property {string} description - A brief description.
-   * @property {string} action - Action identifier.
-   * @property {string[]} [aliases] - Other names that run it, without the colon (e.g. old names).
-   * @property {string} [shortcutLabel] - Visual shortcut display (e.g. '⌘S').
-   * @property {string} [key] - Key to listen for together with Meta/Ctrl (e.g., 's'). Empty = no shortcut.
-   * @property {boolean} [shift] - Shortcut also needs Shift.
-   * @property {boolean} [alt] - Shortcut also needs Alt/Option.
-   * @property {import("svelte").Component} [icon] - Icon component.
+   * The quiet dock floating over the foot of the page: the count and goal,
+   * and one way into every command (the palette, ⌘K). It also owns the
+   * editor's keyboard shortcuts, since it exists exactly while a writing is open.
    */
 
-  /**
-   * Shortcuts deliberately avoid keys the editor or the OS already own:
-   * ⌘B/⌘I/⌘E (marks), ⌘Z/⌘⇧Z (editor undo/redo), ⌘Q (quit), ⌘H (hide), ⌘W (close window).
-   */
+  /** @type {{ fileName?: string, isDraft?: boolean }} */
+  let { fileName, isDraft = false } = $props();
 
-  let aiEnabled = $derived(configManager.config?.ai_enabled ?? false);
-  let aiProvider = $derived(configManager.config?.provider ?? 'local');
-  let aiReady = $derived(
-    aiProvider === 'openrouter' ? configManager.hasOpenRouterApiKey : llmManager.modelsLoaded
-  );
-  let aiButtonLabel = $derived(aiReady ? 'Open assistant' : 'Set up AI');
+  // Tell the palette which writing is open, and that none is once we leave.
+  $effect(() => {
+    editorSession.fileName = fileName ?? null;
+    editorSession.isDraft = isDraft;
+    return () => {
+      editorSession.fileName = null;
+      editorSession.isDraft = false;
+    };
+  });
+
   let defaultFontSize = $derived(DENSITY_FONT_SIZE[appState.ui.density]);
   let zoomPercent = $derived(Math.round((appState.ui.fontSize / defaultFontSize) * 100));
 
-  /** @type {Command[]} */
-  const allCommands = [
-    {
-      cmd: ':c',
-      description: 'Create writing context',
-      action: 'createDocumentContext',
-      shortcutLabel: '', // No global shortcut to avoid conflict with Cmd+C
-      key: '',
-    },
-    {
-      cmd: ':n',
-      description: 'New writing (same folder)',
-      action: 'new',
-      shortcutLabel: `${MOD_KEY}N`,
-      key: '', // handled globally in the root layout
-      icon: PlusIcon,
-    },
-    {
-      cmd: ':u',
-      description: 'Previous version',
-      action: 'undo',
-      shortcutLabel: `${MOD_KEY}⌥Z`,
-      key: 'z',
-      alt: true,
-      icon: UndoIcon,
-    },
-    {
-      cmd: ':redo',
-      description: 'Next version (latest branch)',
-      action: 'redo',
-      shortcutLabel: `${MOD_KEY}⌥⇧Z`,
-      key: 'z',
-      alt: true,
-      shift: true,
-      icon: RedoIcon,
-    },
-    {
-      cmd: ':history',
-      description: 'Toggle history sidebar',
-      action: 'toggleHistory',
-      shortcutLabel: `${MOD_KEY}U`,
-      key: 'u',
-      icon: HistoryIcon,
-    },
-    {
-      cmd: ':toc',
-      description: 'Toggle table of contents',
-      action: 'toggleOutline',
-      shortcutLabel: `${MOD_KEY}⇧O`,
-      key: 'o',
-      shift: true,
-      icon: TableOfContentsIcon,
-    },
-    {
-      cmd: ':focus',
-      description: 'Toggle focus mode',
-      action: 'toggleFocus',
-      shortcutLabel: `${MOD_KEY}.`,
-      key: '.',
-      icon: FocusIcon,
-    },
-    {
-      cmd: ':find',
-      description: 'Find and replace in all writings',
-      action: 'projectSearch',
-      shortcutLabel: `${MOD_KEY}⇧F`,
-      key: '', // handled globally in the root layout
-      icon: TextSearchIcon,
-    },
-    {
-      cmd: ':export',
-      description: 'Export (Word, PDF, EPUB…)',
-      action: 'export',
-      shortcutLabel: `${MOD_KEY}⇧E`,
-      key: 'e',
-      shift: true,
-      icon: FileOutputIcon,
-    },
-    {
-      cmd: ':import',
-      description: 'Import (Word, Scrivener, Markdown…)',
-      action: 'import',
-      shortcutLabel: '',
-      key: '',
-      icon: FileInputIcon,
-    },
-    {
-      cmd: ':spell',
-      description: 'Toggle spellcheck',
-      action: 'toggleSpellcheck',
-      shortcutLabel: '',
-      key: '',
-      icon: SpellCheckIcon,
-    },
-    {
-      cmd: ':smart',
-      description: 'Toggle smart punctuation (curly quotes, dashes)',
-      action: 'toggleSmartPunctuation',
-      shortcutLabel: '',
-      key: '',
-      icon: QuoteIcon,
-    },
-    {
-      cmd: ':pairs',
-      description: 'Toggle auto-closing brackets',
-      action: 'toggleAutoPair',
-      shortcutLabel: '',
-      key: '',
-      icon: BracketsIcon,
-    },
-    {
-      cmd: ':h',
-      description: 'Show keyboard shortcuts',
-      action: 'help',
-      shortcutLabel: `${MOD_KEY}/`,
-      key: '/',
-      icon: HelpIcon,
-    },
-    {
-      cmd: ':w',
-      description: 'Save file',
-      action: 'save',
-      shortcutLabel: `${MOD_KEY}S`,
-      key: 's',
-      icon: SaveIcon,
-    },
-    {
-      cmd: ':q',
-      description: 'Close file',
-      action: 'close',
-      shortcutLabel: '',
-      key: '',
-    },
-    {
-      cmd: ':home',
-      // ":b" was the old name, from when this toggled a sidebar.
-      aliases: ['b'],
-      description: 'Go home',
-      action: 'home',
-      shortcutLabel: `${MOD_KEY}⇧H`,
-      key: 'h',
-      shift: true,
-      icon: HouseIcon,
-    },
-    {
-      cmd: ':ai',
-      description: 'Open or close the assistant',
-      action: 'aichat',
-      shortcutLabel: `${MOD_KEY}L`,
-      key: 'l',
-      icon: AiSparkleIcon,
-    },
-    {
-      cmd: ':trash',
-      description: 'Recently deleted — put a writing back',
-      aliases: ['deleted', 'restore'],
-      action: 'trash',
-      shortcutLabel: '',
-      key: '',
-      icon: Trash2Icon,
-    },
-    {
-      cmd: ':sync',
-      // "push" in the description keeps `:push` (the old name) findable.
-      description: 'Publish (push) writing to your cloud sync — set in Settings',
-      aliases: ['push'],
-      action: 'push',
-      shortcutLabel: '',
-      key: '',
-      icon: UploadCloudIcon,
-    },
-  ];
-
-  let commands = $derived(
-    aiEnabled ? allCommands : allCommands.filter((c) => !['ai', 'c'].includes(c.cmd.slice(1)))
-  );
-
-  let quickCommands = $derived(
-    commands.filter((c) => [':redo', ':w', ':ai', ':h'].includes(c.cmd))
-  );
-
-  let suggestions = $derived.by(() => {
-    if (input === ':') return commands;
-
-    if (input.length >= 1) {
-      const term = input.toLowerCase();
-      const searchTerm = term.startsWith(':') ? term.slice(1) : term;
-
-      // Tier 1: Direct matches (command string starts with term or searchTerm).
-      // Old names count too, so ":b" and ":push" still find what they renamed to.
-      const directMatches = commands.filter(
-        (cmd) =>
-          cmd.cmd.toLowerCase().startsWith(term) ||
-          cmd.cmd.toLowerCase().slice(1).startsWith(searchTerm) ||
-          cmd.aliases?.some((a) => a.toLowerCase().startsWith(searchTerm))
-      );
-
-      // Tier 2: Description matches (description contains searchTerm)
-      const descriptionMatches = commands.filter(
-        (cmd) => !directMatches.includes(cmd) && cmd.description.toLowerCase().includes(searchTerm)
-      );
-
-      return [...directMatches, ...descriptionMatches];
-    }
-    return [];
-  });
-
-  /** @type {HTMLButtonElement[]} */
-  let suggestionsEls = [];
-
-  $effect(() => {
-    suggestions;
-    selectedIndex = 0;
-  });
-
-  $effect(() => {
-    if (isCommandMode && inputRef) {
-      tick().then(() => inputRef?.focus());
-    }
-  });
-
-  /**
-   * Actions
-   */
-  /** Same path as autosave, so drafts get named and created the same way. */
-  async function onSave() {
-    if (editorState.flushSave) await editorState.flushSave();
-  }
-
-  /**
-   * @param {string} cmd
-   */
-  async function executeCommand(cmd) {
-    // Match either full command (like ":w") or the part without colon (like "w")
-    const name = cmd.startsWith(':') ? cmd.slice(1) : cmd;
-    const command = commands.find((c) => c.cmd.slice(1) === name || c.aliases?.includes(name));
-    if (!command) return;
-
-    // Drafts have no versions yet and nothing to push.
-    if (isDraft && ['undo', 'redo', 'toggleHistory', 'push'].includes(command.action)) {
-      toast.info('Start writing first', 'Versions appear after the first save.');
-      closeCommandMode();
-      return;
-    }
-
-    switch (command.action) {
-      case 'new':
-        await onSave();
-        startNewWriting(dirOf(fileName));
-        break;
-      case 'createDocumentContext':
-        memoryManager.createDocumentContext();
-        break;
-      case 'toggleHistory':
-        appState.toggleChatHistory();
-        break;
-      case 'toggleOutline':
-        appState.toggleOutline();
-        break;
-      case 'toggleFocus':
-        writingState.toggleFocusMode();
-        break;
-      case 'projectSearch':
-        appState.toggleProjectSearch(true);
-        break;
-      case 'export':
-        appState.openExport({ fileName: isDraft ? null : (fileName ?? null), dir: dirOf(fileName ?? '') });
-        break;
-      case 'import':
-        appState.openImport({ dir: dirOf(fileName ?? '') });
-        break;
-      case 'toggleSpellcheck':
-        writingState.setSpellcheck(!writingState.spellcheck);
-        toast.info(writingState.spellcheck ? 'Spellcheck on' : 'Spellcheck off');
-        break;
-      case 'toggleSmartPunctuation':
-        writingState.setSmartPunctuation(!writingState.smartPunctuation);
-        toast.info(writingState.smartPunctuation ? 'Smart punctuation on' : 'Smart punctuation off');
-        break;
-      case 'toggleAutoPair':
-        writingState.setAutoPair(!writingState.autoPair);
-        toast.info(writingState.autoPair ? 'Auto-closing brackets on' : 'Auto-closing brackets off');
-        break;
-      case 'trash':
-        appState.toggleTrash(true);
-        break;
-      case 'home':
-        // Leaving the document: make sure the last words are on disk first.
-        await onSave();
-        goto(resolve('/'));
-        break;
-      case 'aichat':
-        appState.toggleAiChat(!appState.ui.isChatOpen);
-        break;
-      case 'save':
-        onSave();
-        break;
-      case 'push':
-        // Save first so the open writing's latest edits go out too.
-        await onSave();
-        await publish();
-        break;
-      case 'close':
-        goto(resolve('/'));
-        break;
-      case 'saveAndClose':
-        onSave();
-        goto(resolve('/'));
-        break;
-      case 'undo':
-        try {
-          const moved = await invoke('undo_file', { name: fileName });
-          if (moved === null || moved === undefined) {
-            toast.info('Already at the oldest version');
-            break;
-          }
-          await invalidateAll();
-          appState.incrementEditorVersion();
-        } catch (e) {
-          console.error('Undo failed:', e);
-          toast.error('Could not go to previous version', e);
-        }
-        break;
-      case 'redo':
-        try {
-          const moved = await invoke('redo_file', { name: fileName });
-          if (moved === null || moved === undefined) {
-            toast.info('Already at the latest version');
-            break;
-          }
-          await invalidateAll();
-          appState.incrementEditorVersion();
-        } catch (e) {
-          console.error('Redo failed:', e);
-          toast.error('Could not go to next version', e);
-        }
-        break;
-      case 'help':
-        appState.toggleHelpModal(!appState.ui.isHelpModalOpen);
-        break;
-      case 'aiShorten':
-      case 'aiExpand':
-      case 'aiPolish': {
-        const actionMap = {
-          aiShorten: 'LengthShorten',
-          aiExpand: 'LengthExpand',
-          aiPolish: 'CorrectGrammar',
-        };
-        const milkdownAction = actionMap[command.action];
-
-        // Get text from selection if possible, otherwise use full document
-        let textToEdit = '';
-        if (editorState.editor) {
-          editorState.editor.action((ctx) => {
-            const view = ctx.get(editorViewCtx);
-            const { state } = view;
-            const { from, to } = state.selection;
-            if (from !== to) {
-              textToEdit = state.doc.textBetween(from, to, ' ');
-            } else {
-              // Fallback to full doc if no selection?
-              // Actually, GrammarBox works per-paragraph.
-              // For now, let's just use selection if available.
-              textToEdit = getMarkdown()(ctx);
-            }
-          });
-        }
-
-        if (textToEdit) {
-          llmManager.sendEditActionMessage(textToEdit, milkdownAction);
-        }
-        break;
-      }
-    }
-
-    closeCommandMode();
-  }
-
-  function closeCommandMode() {
-    isCommandMode = false;
-    input = '';
-    // Return focus to editor
-    editorState.editor?.action((ctx) => {
-      const view = ctx.get(editorViewCtx);
-      view.focus();
-    });
-  }
-
-  /**
-   * KEYDOWN HANDLER (Global Capture)
-   */
   $effect(() => {
     /** @param {KeyboardEvent} e */
     const handleCaptureKeyDown = (e) => {
@@ -491,14 +44,13 @@
       const inEditor = !!target?.closest('.ProseMirror');
 
       // Tab only means "indent" while the caret is in the document. Anywhere
-      // else (command input, chat box, dialogs) it keeps its normal meaning.
+      // else (the palette, chat box, dialogs) it keeps its normal meaning.
       if (e.key === 'Tab' && inEditor) {
         const editor = editorState?.editor;
         if (editor) {
           let inList = false;
           editor.action((ctx) => {
-            const view = ctx.get(editorViewCtx);
-            const { state } = view;
+            const { state } = ctx.get(editorViewCtx);
             const fromPos = state.selection['$from'];
             for (let d = fromPos.depth; d > 0; d--) {
               if (fromPos.node(d).type.name.includes('list')) {
@@ -512,8 +64,7 @@
 
           e.preventDefault();
           editor.action((ctx) => {
-            const view = ctx.get(editorViewCtx);
-            const { state, dispatch } = view;
+            const { state, dispatch } = ctx.get(editorViewCtx);
             dispatch(state.tr.insertText('  '));
           });
         } else {
@@ -523,12 +74,6 @@
       }
 
       if (e.key === 'Escape') {
-        if (isCommandMode) {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCommandMode();
-          return;
-        }
         if (appState.ui.isChatOpen) {
           appState.toggleAiChat(false);
           e.preventDefault();
@@ -542,43 +87,31 @@
         }
       }
 
+      if (!isMod(e)) return;
+
       // Shortcuts belong to the document. In a text field (the chat box, the
       // title, a dialog's input) the writer is typing, not driving panels —
       // only Save is still meant to work there.
       const inTextField =
         !inEditor &&
         !!target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable);
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
 
-      // 2. Handle Shortcuts
-      if (isMod(e) && !isCommandMode) {
-        // Trigger Command Mode with Cmd/Ctrl+Shift+P (standard command palette shortcut)
-        if (e.shiftKey && !e.altKey && e.key.toLowerCase() === 'p') {
-          e.preventDefault();
-          e.stopPropagation();
-          isCommandMode = true;
-          input = ':';
-          return;
-        }
-
-        // Exact modifier match, so ⌘Z (editor undo) and ⌘⌥Z (version undo) stay distinct.
-        const key = e.key.toLowerCase();
-        const match = commands.find(
-          (c) =>
-            c.key &&
-            c.key === key &&
-            !!c.shift === e.shiftKey &&
-            !!c.alt === e.altKey
-        );
-        if (match && inTextField && match.action !== 'save') return;
-        if (match) {
-          e.preventDefault();
-          e.stopPropagation();
-          executeCommand(match.cmd);
-        }
-      }
+      // Exact modifier match, so ⌘Z (editor undo) and ⌘⌥Z (version undo) stay distinct.
+      // Letters also match by physical key: on a Mac, Option turns M into µ and Z into Ω.
+      const key = e.key.toLowerCase();
+      const match = editorCommands().find(
+        (c) =>
+          c.key &&
+          (c.key === key || (/^[a-z]$/.test(c.key) && e.code === `Key${c.key.toUpperCase()}`)) &&
+          !!c.shift === e.shiftKey &&
+          !!c.alt === e.altKey
+      );
+      if (!match) return;
+      if (inTextField && match.action !== 'save') return;
+      e.preventDefault();
+      e.stopPropagation();
+      runEditorCommand(match);
     };
 
     window.addEventListener('keydown', handleCaptureKeyDown, { capture: true });
@@ -586,303 +119,86 @@
       window.removeEventListener('keydown', handleCaptureKeyDown, { capture: true });
     };
   });
-
-  // Input Handling
-  /** @param {KeyboardEvent} e */
-  function handleInputKeyDown(e) {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      selectedIndex = (selectedIndex + 1) % suggestions.length;
-      suggestionsEls[selectedIndex]?.scrollIntoView({
-        behavior: 'auto',
-        block: 'nearest',
-        inline: 'nearest'
-      });
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
-      suggestionsEls[selectedIndex]?.scrollIntoView({
-        behavior: 'auto',
-        block: 'nearest',
-        inline: 'nearest'
-      });
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      if (suggestions[selectedIndex]) {
-        input = suggestions[selectedIndex].cmd;
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (suggestions[selectedIndex]) {
-        executeCommand(suggestions[selectedIndex].cmd);
-      } else {
-        executeCommand(input);
-      }
-    }
-  }
-
-  function handleBlur() {
-    blurTimeout = setTimeout(() => {
-      closeCommandMode();
-    }, BLUR_DELAY);
-  }
-
-  function handleFocus() {
-    if (blurTimeout) {
-      clearTimeout(blurTimeout);
-      blurTimeout = null;
-    }
-  }
 </script>
 
-<div class="relative bg-titlebar-background z-40 command-bar">
-
-  {#if isCommandMode && suggestions.length > 0}
-    <div
-      class="absolute bottom-full left-0 right-0 mb-1 mx-4 max-w-2xl md:mx-auto bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50"
-      role="listbox"
+<!-- Floats over the last lines of the page, so the text shows through the glass. -->
+<div class="absolute inset-x-0 bottom-3 z-40 flex justify-center px-4 pointer-events-none">
+  <div
+    class="dock-glass pointer-events-auto flex items-center gap-2 h-10 max-w-full px-1 rounded-full text-meta tabular-nums text-muted-foreground"
+  >
+    {#if fileName}
+      <EditorStats {fileName} {isDraft} />
+    {/if}
+    {#if zoomPercent !== 100}
+      <span class="shrink-0 px-1">{zoomPercent}%</span>
+    {/if}
+    <button
+      type="button"
+      onclick={() => appState.toggleCommandMenu(true)}
+      aria-label="Commands"
+      title="Commands"
+      class="flex items-center h-8 px-3 shrink-0 rounded-full bg-foreground/6 text-foreground hover:bg-foreground/10 transition-colors"
     >
-      <div class="max-h-64 overflow-y-auto p-1">
-        {#each suggestions as suggestion, index (suggestion.cmd)}
-          <button
-            onclick={() => executeCommand(suggestion.cmd)}
-            onfocus={handleFocus}
-            bind:this={suggestionsEls[index]}
-            class={cn(
-              'w-full px-3 py-2 text-left text-sm font-mono flex items-center justify-between rounded-sm transition-colors',
-              index === selectedIndex
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-muted'
-            )}
-            role="option"
-            aria-selected={index === selectedIndex}
-          >
-            <div class="flex items-center gap-2">
-              <span class="font-medium text-foreground">{suggestion.cmd}</span>
-              <span class="text-xs opacity-80">{suggestion.description}</span>
-            </div>
-            {#if suggestion.shortcutLabel}
-              <kbd
-                class="hidden sm:inline-block pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 tabular-nums text-meta font-medium text-muted-foreground opacity-100"
-              >
-                {suggestion.shortcutLabel}
-              </kbd>
-            {/if}
-          </button>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  {#if isCommandMode}
-    <!-- Command-line mode: takes over the whole statusline, like vim's ":" prompt -->
-    <div class="flex items-center command-bar__inner h-8">
-      <input
-        bind:this={inputRef}
-        type="text"
-        bind:value={input}
-        onkeydown={handleInputKeyDown}
-        onblur={handleBlur}
-        onfocus={handleFocus}
-        placeholder="Type a command…"
-        class="w-full bg-transparent font-mono text-sm outline-none text-foreground placeholder:text-muted-foreground/50 h-full px-2"
-        aria-label="Command input"
-      />
-    </div>
-  {:else}
-    <div class="flex items-stretch command-bar__inner h-9 text-meta tabular-nums">
-      <!-- File/version state -->
-      <div class="flex items-center gap-3 px-3.5 text-muted-foreground shrink-0">
-        <!-- 0 means no saved version yet; "v0" read as a bug, not a state. -->
-        {#if isDraft}
-          <span>Draft</span>
-        {:else if appState.ui.isHistoryOpen}
-          <span>History</span>
-        {:else if currentVersion > 0}
-          <span title="Saved versions are in the history panel ({MOD_KEY}U)">Version {currentVersion}</span>
-        {/if}
-        {#if fileName}
-          <EditorStats {fileName} {isDraft} />
-        {/if}
-        {#if zoomPercent !== 100}
-          <span>{zoomPercent}%</span>
-        {/if}
-      </div>
-
-      <div class="flex-1"></div>
-
-      <!-- Shortcut icons: hover for label + keys -->
-      <div class="hidden md:flex items-center gap-1 px-2 text-muted-foreground shrink-0">
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                onclick={() => executeCommand(':h')}
-                aria-label="Show keyboard shortcuts"
-                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <HelpIcon strokeWidth={1.5} class="size-3.5" />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>Show keyboard shortcuts <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}/</kbd></Tooltip.Content>
-        </Tooltip.Root>
-
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                onclick={() => {
-                  isCommandMode = true;
-                  input = ':';
-                }}
-                aria-label="Open command palette"
-                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <TerminalIcon strokeWidth={1.5} class="size-3.5" />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}
-            >Open command palette <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}⇧P</kbd></Tooltip.Content
-          >
-        </Tooltip.Root>
-
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                onclick={() => appState.toggleCommandMenu(true)}
-                aria-label="Go to writing"
-                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <SearchIcon strokeWidth={1.5} class="size-3.5" />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>Go to writing <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}K</kbd></Tooltip.Content>
-        </Tooltip.Root>
-
-        {#if aiEnabled}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <button
-                {...props}
-                onclick={() => {
-                  if (llmManager.isLoadModelsInProgress || llmManager.downloadingModelId) return;
-                  if (aiProvider === 'openrouter') {
-                    if (!aiReady) {
-                      goto(resolve('/settings'));
-                      toast.info('Add your OpenRouter API key', 'Settings → AI → OpenRouter');
-                    } else {
-                      appState.toggleAiChat(!appState.ui.isChatOpen);
-                    }
-                    return;
-                  }
-                  if (!llmManager.modelsLoaded) {
-                    const isDownloaded = llmManager.modelStatuses.some((m) => m.downloaded);
-                    if (isDownloaded) {
-                      llmManager.loadModels();
-                    } else {
-                      isDownloadDialogOpen = true;
-                    }
-                  } else {
-                    appState.toggleAiChat(!appState.ui.isChatOpen);
-                  }
-                }}
-                aria-label={aiButtonLabel}
-                class="flex items-center justify-center size-7 rounded-md hover:text-foreground hover:bg-foreground/5 transition-colors"
-              >
-                <!-- Monochrome like its neighbours: the state is in the label, not a colour. -->
-                <AiSparkleIcon strokeWidth={1.5}
-                  class={cn(
-                    'size-3.5 transition-opacity',
-                    isThinking || llmManager.isLoadModelsInProgress ? 'opacity-50' : ''
-                  )}
- />
-              </button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content side="top" portalProps={{}}>
-            {#if aiProvider === 'openrouter'}
-              {#if !aiReady}
-                Set up AI: add your OpenRouter API key
-              {:else}
-                Open assistant (OpenRouter) <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}L</kbd>
-              {/if}
-            {:else if llmManager.isLoadModelsInProgress}
-              Loading AI model… {llmManager.loadingProgress}%
-            {:else if llmManager.downloadingModelId}
-              Downloading model… {llmManager.loadingProgress}%
-            {:else if !llmManager.modelsLoaded}
-              Set up local AI
-            {:else}
-              Open assistant <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}L</kbd>
-            {/if}
-          </Tooltip.Content>
-        </Tooltip.Root>
-        {/if}
-      </div>
-
-      <Dialog.Root bind:open={isDownloadDialogOpen}>
-        <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
-          <Dialog.Header class="">
-            <Dialog.Title class="text-xl font-normal font-writer">Set up local AI</Dialog.Title>
-            <Dialog.Description class="text-base text-muted-foreground pt-2">
-              Memoire runs AI entirely on your machine. The first time it needs to download a
-              language model (about 1.5 GB). Nothing you write leaves this device.
-            </Dialog.Description>
-          </Dialog.Header>
-          <Dialog.Footer class="mt-6 flex gap-2">
-            <Button variant="ghost" class="flex-1" onclick={() => (isDownloadDialogOpen = false)}>
-              Not now
-            </Button>
-            <Button
-              class="flex-1"
-              onclick={() => {
-                isDownloadDialogOpen = false;
-                llmManager.loadModels();
-              }}
-            >
-              Download model
-            </Button>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Root>
-
-      <!-- Mobile overflow menu -->
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          {#snippet child({ props })}
-            <Button
-              {...props}
-              variant="ghost"
-              size="icon"
-              class="size-8 md:hidden shrink-0"
-              aria-label="More commands"
-            >
-              <EllipsisIcon strokeWidth={1.5} class="size-3.5" />
-            </Button>
-          {/snippet}
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content class="{appState.ui.theme} w-56 mr-2" align="end" portalProps={{}}>
-          <DropdownMenu.Group>
-            {#each quickCommands as qCmd (qCmd.cmd)}
-              <DropdownMenu.Item onclick={() => executeCommand(qCmd.cmd)} class="" inset={false}>
-                <div class="flex items-center gap-2 flex-1">
-                  <qCmd.icon strokeWidth={1.5} class="size-3.5" />
-                  <span class="tabular-nums text-sm">{qCmd.description}</span>
-                </div>
-                <DropdownMenu.Shortcut class="">{qCmd.shortcutLabel}</DropdownMenu.Shortcut>
-              </DropdownMenu.Item>
-            {/each}
-          </DropdownMenu.Group>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </div>
-  {/if}
+      <kbd class="font-sans">{shortcut('K')}</kbd>
+    </button>
+  </div>
 </div>
+
+<Dialog.Root bind:open={aiSetup.open}>
+  <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
+    <Dialog.Header class="">
+      <Dialog.Title class="text-xl font-normal font-writer">Set up local AI</Dialog.Title>
+      <Dialog.Description class="text-base text-muted-foreground pt-2">
+        Memoire runs AI entirely on your machine. The first time it needs to download a
+        language model (about 1.5 GB). Nothing you write leaves this device.
+      </Dialog.Description>
+    </Dialog.Header>
+    <Dialog.Footer class="mt-6 flex gap-2">
+      <Button variant="ghost" class="flex-1" onclick={() => (aiSetup.open = false)}>
+        Not now
+      </Button>
+      <Button
+        class="flex-1"
+        onclick={() => {
+          aiSetup.open = false;
+          llmManager.loadModels();
+        }}
+      >
+        Download model
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<style>
+  /* Liquid glass: a translucent, blurred and saturated pane with a bright
+     rim on top, a soft inner shade below and a light drop shadow. */
+  .dock-glass {
+    background: color-mix(in oklch, var(--popover) 55%, transparent);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 70%, transparent),
+      inset 0 -1px 0 0 color-mix(in oklch, var(--foreground) 4%, transparent),
+      0 1px 2px color-mix(in oklch, black 6%, transparent),
+      0 8px 24px -6px color-mix(in oklch, black 14%, transparent);
+  }
+
+  :global(.dark) .dock-glass {
+    background: color-mix(in oklch, var(--popover) 50%, transparent);
+    border-color: color-mix(in oklch, white 10%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
+      inset 0 -1px 0 0 color-mix(in oklch, black 20%, transparent),
+      0 8px 28px -6px color-mix(in oklch, black 50%, transparent);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .dock-glass {
+      background: var(--popover);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+</style>

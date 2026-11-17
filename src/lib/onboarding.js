@@ -1,7 +1,7 @@
 /**
  * @file First-run welcome.
  *
- * The app's best features — the command bar, binders, the codex, the branching
+ * The app's best features — the command palette, binders, the codex, the branching
  * history — are all invisible on a blank home screen, and until now were
  * described only in the README. A new writer gets one short writing that shows
  * them, in the place they are already looking.
@@ -27,12 +27,12 @@ This is a writing, and it works like every other one: it is plain Markdown on
 your own disk, it saves itself as you type, and the title above follows your
 first line until you name it yourself.
 
-## Press : for anything
+## Press ${mod}+K for anything
 
-Type a colon anywhere in the page and the command bar opens. \`:export\` sends a
-manuscript to Word, PDF or EPUB. \`:focus\` clears the room. \`:toc\` opens the
-outline. \`:sync\` publishes. You never have to remember a shortcut — but
-${mod}+/ lists them all.
+${mod}+K opens one place for everything: jump to a writing, export a manuscript
+to Word, PDF or EPUB, enter focus mode, open the outline, publish. Ask in plain
+words, or type the old short names — \`:export\`, \`:focus\`, \`:toc\`. You never
+have to remember a shortcut — but ${mod}+/ lists them all.
 
 ## Binders hold long work
 

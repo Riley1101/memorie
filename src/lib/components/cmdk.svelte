@@ -14,13 +14,21 @@
   import { appState } from '$lib/runes/app.svelte.js';
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
   import { formatFileName, formatDate, formatTime } from '@/utils';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { shortcut } from '$lib/keyboard.svelte.js';
   import { startNewWriting, sanitizeTitle } from '$lib/new-writing.js';
   import { toast } from '$lib/toast.js';
   import { goto } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { resolve } from '$app/paths';
+  import { dirOf } from '$lib/runes/fs.svelte.js';
+  import {
+    editorSession,
+    editorCommands,
+    commandLabel,
+    commandSearchValue,
+    runEditorCommand,
+  } from '$lib/editor-commands.svelte.js';
 
   /**
    * The binder's colour as the home list shows it, so a writing reads the same
@@ -54,10 +62,35 @@
   /** Typing pause before the content search runs. */
   const SEARCH_DEBOUNCE_MS = 180;
 
-  // Where a writing created from the palette goes: the binder open on the
-  // home screen, or the top level.
-  let targetDir = $derived(appState.ui.activeBinder ?? '');
-  let targetLabel = $derived(appState.ui.activeBinder ?? 'top level');
+  /** The writing open in the editor, or null on the home screen. */
+  let openWriting = $derived(editorSession.fileName);
+
+  // Where a writing created from the palette goes: next to the open writing
+  // (as ⌘N does), else the binder open on the home screen, else the top level.
+  let targetDir = $derived(openWriting !== null ? dirOf(openWriting) : (appState.ui.activeBinder ?? ''));
+  let targetLabel = $derived(targetDir || 'top level');
+
+  const COMMAND_GROUPS = /** @type {const} */ ([
+    ['writing', 'This writing'],
+    ['assistant', 'Assistant'],
+    ['typing', 'Typing'],
+  ]);
+
+  /** The open writing's commands, by group. Empty on the home screen. */
+  let commandGroups = $derived.by(() => {
+    if (openWriting === null) return [];
+    const commands = editorCommands();
+    return COMMAND_GROUPS.map(([id, heading]) => ({
+      heading,
+      commands: commands.filter((c) => c.group === id),
+    })).filter((g) => g.commands.length > 0);
+  });
+
+  /** @param {import('$lib/editor-commands.svelte.js').EditorCommand} command */
+  function handleRunCommand(command) {
+    close();
+    runEditorCommand(command);
+  }
 
   let query = $derived(search.trim());
 
@@ -150,6 +183,8 @@
 
   /** Typed text as a usable title, if it doesn't already name a writing. */
   let creatableTitle = $derived.by(() => {
+    // ":toc" and friends are commands, not titles.
+    if (query.startsWith(':')) return '';
     const title = sanitizeTitle(search);
     if (!title) return '';
     const exists = fileManager.files.some(
@@ -214,13 +249,13 @@
     appState.toggleCommandMenu(v);
     if (!v) search = '';
   }}
-  title="Search Writings"
-  description="Search writings by title, or type a new title to create one"
+  title={openWriting !== null ? 'Commands' : 'Search Writings'}
+  description="Run a command, go to a writing, or type a new title to create one"
   portalProps={{}}
 >
   <Command.Input
     bind:value={search}
-    placeholder="Go to a writing, or type a new title…"
+    placeholder={openWriting !== null ? 'What would you like to do?' : 'Go to a writing, or type a new title…'}
     class=""
  />
   <Command.List class="p-2">
@@ -228,7 +263,7 @@
       {#if creatableTitle}
         Press Enter to create “{creatableTitle}”.
       {:else}
-        No writing matches “{search}”.
+        Nothing matches “{search}”.
       {/if}
     </Command.Empty>
 
@@ -274,6 +309,24 @@
       </Command.Item>
     {/snippet}
 
+    {#each commandGroups as group (group.heading)}
+      <Command.Group heading={group.heading} class="" value="">
+        {#each group.commands as command (command.name)}
+          <Command.Item
+            value={commandSearchValue(command)}
+            onSelect={() => handleRunCommand(command)}
+            class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40"
+          >
+            <command.icon strokeWidth={1.5} class="size-3.5 mr-2" />
+            <span>{commandLabel(command)}</span>
+            {#if command.shortcutLabel}
+              <Command.Shortcut class="">{command.shortcutLabel}</Command.Shortcut>
+            {/if}
+          </Command.Item>
+        {/each}
+      </Command.Group>
+    {/each}
+
     <Command.Group heading={query ? 'Writings' : 'Recent'} class="" value="">
       {#each query ? titleMatches : recentFiles as file (file.name)}
         {@render writingRow(file)}
@@ -308,20 +361,20 @@
     {/if}
 
     <Command.Group heading="Actions" class="" value="">
-      <Command.Item value="new writing blank create" onSelect={handleCreateBlank} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+      <Command.Item value="new writing blank create :n" onSelect={handleCreateBlank} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <CirclePlusIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>New writing in {targetLabel}</span>
-        <Command.Shortcut class="">{MOD_KEY}N</Command.Shortcut>
+        <Command.Shortcut class="">{shortcut('N')}</Command.Shortcut>
       </Command.Item>
       <Command.Item value="new writing in choose location" onSelect={() => { close(); appState.toggleNewPicker(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <FolderIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>New writing in…</span>
-        <Command.Shortcut class="">{MOD_KEY}⇧N</Command.Shortcut>
+        <Command.Shortcut class="">{shortcut('shift', 'N')}</Command.Shortcut>
       </Command.Item>
-      <Command.Item value="find replace text in all writings" onSelect={() => { close(); appState.toggleProjectSearch(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+      <Command.Item value="find replace text in all writings :find" onSelect={() => { close(); appState.toggleProjectSearch(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <TextSearchIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Find and replace in all writings</span>
-        <Command.Shortcut class="">{MOD_KEY}⇧F</Command.Shortcut>
+        <Command.Shortcut class="">{shortcut('shift', 'F')}</Command.Shortcut>
       </Command.Item>
       {#if appState.ui.activeBinder}
         <Command.Item value="export compile binder word pdf epub" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openExport({ fileName: null, dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
@@ -329,7 +382,7 @@
           <span>Export {appState.ui.activeBinder}…</span>
         </Command.Item>
       {/if}
-      <Command.Item value="import word docx scrivener markdown obsidian rtf" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openImport({ dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+      <Command.Item value="import word docx scrivener markdown obsidian rtf :import" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openImport({ dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <FileInputIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Import from Word, Scrivener, Markdown…</span>
       </Command.Item>
@@ -337,7 +390,7 @@
         <BookUserIcon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Open codex{appState.ui.activeBinder ? ` for ${appState.ui.activeBinder}` : ''}</span>
       </Command.Item>
-      <Command.Item value="trash deleted restore recover undo bin" onSelect={() => { close(); appState.toggleTrash(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
+      <Command.Item value="trash deleted restore recover undo bin :trash :deleted :restore" onSelect={() => { close(); appState.toggleTrash(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
         <Trash2Icon strokeWidth={1.5} class="size-3.5 mr-2" />
         <span>Recently deleted</span>
       </Command.Item>

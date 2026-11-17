@@ -7,8 +7,11 @@
   import SendIcon from '@lucide/svelte/icons/send';
   import BoldIcon from '@lucide/svelte/icons/bold';
   import ItalicIcon from '@lucide/svelte/icons/italic';
-  import StrikethroughIcon from '@lucide/svelte/icons/strikethrough';
-  import CodeIcon from '@lucide/svelte/icons/code';
+  import LinkIcon from '@lucide/svelte/icons/link';
+  import NoteIcon from '@lucide/svelte/icons/message-square-text';
+  import { editLink } from './link-popover.svelte.js';
+  import { addNoteOnSelection } from './margin-notes.js';
+  import { shortcut } from '$lib/keyboard.svelte.js';
   import { Textarea } from '$lib/components/ui/textarea/index.js';
   import { llmManager } from '@/runes/llm.svelte.js';
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
@@ -50,12 +53,27 @@
     }
   }
 
+  /**
+   * Bold and italic are what prose uses; strikethrough and code are still in
+   * the slash menu and Markdown for the writers who want them.
+   */
   const markButtons = [
-    { label: 'Bold', markName: 'strong', icon: BoldIcon },
-    { label: 'Italic', markName: 'emphasis', icon: ItalicIcon },
-    { label: 'Strikethrough', markName: 'strike_through', icon: StrikethroughIcon },
-    { label: 'Code', markName: 'inlineCode', icon: CodeIcon },
+    { label: 'Bold', markName: 'strong', icon: BoldIcon, keys: shortcut('B') },
+    { label: 'Italic', markName: 'emphasis', icon: ItalicIcon, keys: shortcut('I') },
   ];
+
+  const toolButton =
+    'flex size-8 items-center justify-center rounded-lg text-background/80 transition-colors hover:bg-background/15 hover:text-background focus-visible:outline-2 focus-visible:outline-background/60';
+  const toolLabel =
+    'flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[0.8125rem] font-medium text-background/90 transition-colors hover:bg-background/15 hover:text-background focus-visible:outline-2 focus-visible:outline-background/60';
+
+  function addLink() {
+    if (view) editLink(view);
+  }
+
+  function addNote() {
+    addNoteOnSelection();
+  }
 
   /**
    * Toggle a mark on the editor's current selection. The widget can stay mounted
@@ -146,7 +164,7 @@
   ];
 </script>
 
-<div class="w-max max-w-sm flex flex-col gap-3 not-prose select-none animate-in fade-in slide-in-from-top-2 duration-200">
+<div class="w-max max-w-md flex flex-col gap-2 not-prose select-none animate-in fade-in duration-150 motion-reduce:animate-none group-data-[placement=below]/box:flex-col-reverse">
   
   {#if aiEnabled && (llmManager.editActionContent || llmManager.editActionInProgress)}
     <div class="group relative bg-muted/50 rounded-xl p-4 transition-colors hover:bg-muted/70">
@@ -203,52 +221,73 @@
     </div>
   {/if}
 
-  <div class="flex items-center gap-2">
-    <div class="flex items-center gap-0.5 bg-background border border-border/40 rounded-full p-0.5 shadow-sm">
-      {#each markButtons as { label, markName, icon: Icon } (markName)}
-        <Button
-          variant="ghost"
-          size="icon"
-          title={label}
-          aria-label={label}
-          onmousedown={(e) => e.preventDefault()}
-          onclick={() => applyMark(markName)}
-          class="size-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
-        >
-          <Icon strokeWidth={1.5} class="size-3.5" />
-        </Button>
-      {/each}
-      <Button
-        variant="ghost"
-        size="icon"
-        title="Add to codex"
-        aria-label="Add selection to codex"
+  <!-- One dark pill, like a printer's proof mark: the same in every theme. -->
+  <div
+    role="toolbar"
+    aria-label="Selection"
+    class="flex items-center gap-0.5 self-start rounded-xl bg-foreground p-1 text-background shadow-lg"
+  >
+    {#each markButtons as { label, markName, icon: Icon, keys } (markName)}
+      <button
+        type="button"
+        title="{label} ({keys})"
+        aria-label={label}
         onmousedown={(e) => e.preventDefault()}
-        onclick={addToCodex}
-        class="size-6 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        onclick={() => applyMark(markName)}
+        class={toolButton}
       >
-        <BookUserIcon strokeWidth={1.5} class="size-3.5" />
-      </Button>
-    </div>
+        <Icon strokeWidth={1.75} class="size-4" />
+      </button>
+    {/each}
+    <button
+      type="button"
+      title="Link ({shortcut('K')})"
+      aria-label="Link"
+      onmousedown={(e) => e.preventDefault()}
+      onclick={addLink}
+      class={toolButton}
+    >
+      <LinkIcon strokeWidth={1.75} class="size-4" />
+    </button>
+    <span class="mx-1 h-4 w-px bg-background/20" aria-hidden="true"></span>
+    <button
+      type="button"
+      title="Leave a note ({shortcut('alt', 'M')})"
+      onmousedown={(e) => e.preventDefault()}
+      onclick={addNote}
+      class={toolLabel}
+    >
+      <NoteIcon strokeWidth={1.75} class="size-4" />
+      <span class="hidden sm:inline">Comment</span>
+    </button>
+    <button
+      type="button"
+      title="Add to codex"
+      aria-label="Add to codex"
+      onmousedown={(e) => e.preventDefault()}
+      onclick={addToCodex}
+      class={toolLabel}
+    >
+      <BookUserIcon strokeWidth={1.75} class="size-4" />
+      <span class="hidden sm:inline">Codex</span>
+    </button>
 
     {#if aiEnabled}
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           {#snippet child({ props })}
-            <Button
+            <button
               {...props}
-              variant="ghost"
-              size="sm"
-              disabled={props.disabled ?? false}
-              class="h-7 px-2.5 bg-background border border-border/40 hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] rounded-full text-meta font-medium tracking-wide text-muted-foreground hover:text-foreground transition-colors group"
+              type="button"
+              onmousedown={(e) => e.preventDefault()}
+              class={toolLabel}
             >
-              <AiSparkleIcon strokeWidth={1.5} class="size-3.5 mr-1.5 text-primary/60 group-hover:text-primary transition-colors" />
-              AI Suggestions
-              <ChevrondownIcon strokeWidth={1.5} class="size-3 ml-1 opacity-40 group-hover:opacity-100 transition-opacity" />
-            </Button>
+              <AiSparkleIcon strokeWidth={1.75} class="size-4" />
+              <span class="hidden sm:inline">Rewrite</span>
+              <ChevrondownIcon strokeWidth={1.75} class="size-3.5 opacity-60" />
+            </button>
           {/snippet}
         </DropdownMenu.Trigger>
-      
         <DropdownMenu.Content portalProps={{}} class="w-72 {appState.ui.theme} p-2 border border-border/40 shadow-lg rounded-xl bg-popover" align="start">
           <div class="flex flex-col gap-2.5 p-1">
             <div class="relative group">

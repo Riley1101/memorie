@@ -305,9 +305,7 @@
       appState.toggleProjectSearch(true);
     }
 
-    // ⌘⇧P belongs to the editor's ":" command bar, which takes it on capture
-    // and stops it reaching here. Outside the editor there is no command bar,
-    // so the palette answers instead and the chord always does something.
+    // ⌘⇧P is the other common chord for a command palette; it opens the same one.
     if (e.key.toLowerCase() === 'p' && isMod(e) && e.shiftKey && !e.altKey) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);

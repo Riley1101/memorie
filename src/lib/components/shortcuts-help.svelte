@@ -2,7 +2,7 @@
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { configManager } from '$lib/runes/config.svelte.js';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { MOD_KEY, SHIFT_KEY, ALT_KEY } from '$lib/keyboard.svelte.js';
   import { page } from '$app/state';
   import HouseIcon from '@lucide/svelte/icons/house';
   import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
@@ -19,12 +19,11 @@
   import TextSearchIcon from '@lucide/svelte/icons/text-search';
   import FileOutputIcon from '@lucide/svelte/icons/file-output';
   import LinkIcon from '@lucide/svelte/icons/link';
-  import TerminalIcon from '@lucide/svelte/icons/square-terminal';
   import KeyboardIcon from '@lucide/svelte/icons/keyboard';
   import PencilIcon from '@lucide/svelte/icons/pencil';
 
   /**
-   * Most shortcuts are the editor's: they are bound by the command bar, which
+   * Most shortcuts are the editor's: they are bound by the editor's dock, which
    * only exists while a writing is open. Listing them on the home screen as if
    * they worked everywhere is what made them feel broken.
    */
@@ -32,28 +31,27 @@
 
   let shortcuts = $derived(
     [
-      { key: `${MOD_KEY} + K`, description: 'Go to writing', icon: SearchIcon },
+      { key: `${MOD_KEY} + K / ${MOD_KEY} + ${SHIFT_KEY} + P`, description: 'Commands and writings', icon: SearchIcon },
       { key: `${MOD_KEY} + K`, description: 'Link selected text', editorOnly: true, icon: LinkIcon },
       { key: `${MOD_KEY} + Click`, description: 'Open link', editorOnly: true, icon: LinkIcon },
-      { key: `${MOD_KEY} + ⇧ + F`, description: 'Find in all writings', icon: TextSearchIcon },
-      { key: `${MOD_KEY} + ⇧ + E`, description: 'Export', editorOnly: true, icon: FileOutputIcon },
+      { key: `${MOD_KEY} + ${SHIFT_KEY} + F`, description: 'Find in all writings', icon: TextSearchIcon },
+      { key: `${MOD_KEY} + ${SHIFT_KEY} + E`, description: 'Export', editorOnly: true, icon: FileOutputIcon },
       { key: `${MOD_KEY} + N`, description: 'New writing here', icon: PlusIcon },
-      { key: `${MOD_KEY} + ⇧ + N`, description: 'New writing in…', icon: PlusIcon },
+      { key: `${MOD_KEY} + ${SHIFT_KEY} + N`, description: 'New writing in…', icon: PlusIcon },
       configManager.config?.ai_enabled
         ? { key: `${MOD_KEY} + L`, description: 'Toggle AI chat', editorOnly: true, icon: SparklesIcon }
         : null,
       { key: `${MOD_KEY} + B`, description: 'Go back (bold while typing)', icon: ArrowLeftIcon },
-      { key: `${MOD_KEY} + ⇧ + H`, description: 'Go home', editorOnly: true, icon: HouseIcon },
+      { key: `${MOD_KEY} + ${SHIFT_KEY} + H`, description: 'Go home', editorOnly: true, icon: HouseIcon },
       { key: `${MOD_KEY} + U`, description: 'Toggle history', editorOnly: true, icon: HistoryIcon },
-      { key: `${MOD_KEY} + ⇧ + O`, description: 'Toggle table of contents', editorOnly: true, icon: TableOfContentsIcon },
+      { key: `${MOD_KEY} + ${SHIFT_KEY} + O`, description: 'Toggle table of contents', editorOnly: true, icon: TableOfContentsIcon },
       { key: `${MOD_KEY} + .`, description: 'Toggle focus mode', editorOnly: true, icon: FocusIcon },
       { key: `${MOD_KEY} + S`, description: 'Save writing', editorOnly: true, icon: SaveIcon },
       { key: `${MOD_KEY} + Z`, description: 'Undo typing', editorOnly: true, icon: UndoIcon },
-      { key: `${MOD_KEY} + ⇧ + Z`, description: 'Redo typing', editorOnly: true, icon: RedoIcon },
-      { key: `${MOD_KEY} + ⌥ + Z`, description: 'Previous saved version', editorOnly: true, icon: UndoIcon },
-      { key: `${MOD_KEY} + ⌥ + ⇧ + Z`, description: 'Next saved version', editorOnly: true, icon: RedoIcon },
+      { key: `${MOD_KEY} + ${SHIFT_KEY} + Z`, description: 'Redo typing', editorOnly: true, icon: RedoIcon },
+      { key: `${MOD_KEY} + ${ALT_KEY} + Z`, description: 'Previous saved version', editorOnly: true, icon: UndoIcon },
+      { key: `${MOD_KEY} + ${ALT_KEY} + ${SHIFT_KEY} + Z`, description: 'Next saved version', editorOnly: true, icon: RedoIcon },
       { key: `${MOD_KEY} + + / -`, description: 'Adjust font size', icon: TypeIcon },
-      { key: `${MOD_KEY} + ⇧ + P`, description: 'Command palette', icon: TerminalIcon },
       { key: `${MOD_KEY} + /`, description: 'This help', icon: KeyboardIcon },
       { key: 'F2', description: 'Rename selected writing', icon: PencilIcon },
     ].filter((s) => s && (inEditor || !s.editorOnly))

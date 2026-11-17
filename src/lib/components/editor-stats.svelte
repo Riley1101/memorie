@@ -126,28 +126,36 @@
 
 <Popover.Root bind:open>
   <Popover.Trigger
-    class="flex items-center gap-2 px-2 -mx-2 h-7 rounded-md tracking-wide tabular-nums hover:text-foreground hover:bg-foreground/5 transition-colors"
+    class="flex items-center gap-2 px-3 h-8 rounded-full tracking-wide tabular-nums hover:text-foreground hover:bg-foreground/5 transition-colors"
     aria-label="Word count and goals"
   >
     <span>{label}</span>
     {#if activeGoal}
+      {@const done = percent(activeGoal.value, activeGoal.goal)}
       <!-- A goal you have to open a popover to see is a goal you forget. The
-           bar is small and quiet on purpose: progress, not a scoreboard. -->
-      <span
-        class="h-1 w-10 rounded-full bg-muted overflow-hidden"
-        title="{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)}"
+           ring is small and quiet on purpose: progress, not a scoreboard. -->
+      <svg
+        viewBox="0 0 36 36"
+        class="size-4 -rotate-90 shrink-0 order-first"
+        role="img"
+        aria-label="{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)} words"
       >
-        <span
-          class="block h-full w-full origin-left rounded-full transition-transform duration-200 ease-out {activeGoal.value >=
-          activeGoal.goal
-            ? 'bg-success'
-            : 'bg-primary'}"
-          style="transform: scaleX({percent(activeGoal.value, activeGoal.goal) / 100})"
-        ></span>
-      </span>
-      <span class="text-muted-foreground tabular-nums">
-        {percent(activeGoal.value, activeGoal.goal)}%
-      </span>
+        <title>{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)}</title>
+        <circle cx="18" cy="18" r="15" fill="none" stroke-width="4" class="stroke-muted"></circle>
+        <circle
+          cx="18"
+          cy="18"
+          r="15"
+          fill="none"
+          stroke-width="4"
+          stroke-linecap="round"
+          pathLength="100"
+          stroke-dasharray="{done} 100"
+          class="transition-[stroke-dasharray] duration-200 ease-out {activeGoal.value >= activeGoal.goal
+            ? 'stroke-success'
+            : 'stroke-primary'}"
+        ></circle>
+      </svg>
     {/if}
   </Popover.Trigger>
   <Popover.Content

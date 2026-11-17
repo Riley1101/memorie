@@ -14,6 +14,7 @@
   import { parseWriting, serializeWriting } from '$lib/front-matter.js';
   import { formatDate, formatTime } from '$lib/utils.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
+  import { notesState } from '$lib/runes/notes.svelte.js';
   import { codexManager } from '$lib/runes/codex.svelte.js';
 
   /** Strip .md for display */
@@ -48,7 +49,10 @@
   $effect(() => {
     void docKey;
     void appState.ui.editorVersion;
-    untrack(() => editorState.loadMeta(parsed));
+    untrack(() => {
+      editorState.loadMeta(parsed);
+      notesState.load(parsed.meta.notes);
+    });
   });
 
   /** The path we are currently saving to. Follows the prop, and any rename we perform. */

@@ -12,6 +12,7 @@
   import { smartPunctuation, autoPair } from '$lib/components/plugins/typing.js';
   import { codexMentionsPlugin, setCodexMentions } from '$lib/components/plugins/codex-mentions.js';
   import { findPlugin, findAll, buildFindRegex } from '$lib/components/plugins/find.js';
+  import { marginNotesPlugin } from '$lib/components/plugins/margin-notes.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { changesPlugin } from '$lib/components/plugins/changes.js';
@@ -294,6 +295,7 @@
         .use(smartPunctuation)
         .use(codexMentionsPlugin)
         .use(findPlugin)
+        .use(marginNotesPlugin)
         .create()
         .then((editor) => {
           if (editor) {
@@ -457,6 +459,21 @@
     background-color: color-mix(in oklab, var(--warning) 80%, transparent);
     color: var(--warning-foreground);
     box-shadow: 0 0 0 1px var(--warning);
+  }
+
+  /* Text under a margin note: a light wash and an underline, in ochre so it
+     never reads as a search hit (warning) or a link (primary). */
+  main :global(.margin-note) {
+    background-color: color-mix(in oklab, var(--binder-ochre) 14%, transparent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--binder-ochre) 50%, transparent);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.22em;
+    border-radius: 2px;
+  }
+
+  main :global(.margin-note-active) {
+    background-color: color-mix(in oklab, var(--binder-ochre) 28%, transparent);
   }
 
   main :global(.ProseMirror p.is-empty:first-child::before) {

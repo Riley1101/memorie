@@ -8,7 +8,8 @@
  *
  * Only the keys below are read and written. Anything else in the block (tags
  * from Obsidian, say) is kept exactly as it was. Values are written as JSON
- * strings, which are valid YAML, so quotes and new lines survive.
+ * strings, which are valid YAML, so quotes and new lines survive. `notes` is
+ * the exception: a JSON array on one line, which is a valid YAML flow sequence.
  */
 
 /**
@@ -18,13 +19,14 @@
  * sort by name, which forces "01 ", "02 " prefixes onto every scene — and
  * those then fight the title that follows the first line.
  */
-export const META_KEYS = /** @type {const} */ (['synopsis', 'status', 'label', 'order']);
+export const META_KEYS = /** @type {const} */ (['synopsis', 'status', 'label', 'order', 'notes']);
 
 /** Scrivener's default statuses, offered as presets. Any text is allowed. */
 export const STATUS_PRESETS = ['To Do', 'First Draft', 'Revised Draft', 'Final Draft', 'Done'];
 
 /**
- * @typedef {{ synopsis?: string, status?: string, label?: string, order?: string }} SceneMeta
+ * `notes` holds the writing's margin notes as JSON text (see runes/notes.svelte.js).
+ * @typedef {{ synopsis?: string, status?: string, label?: string, order?: string, notes?: string }} SceneMeta
  * @typedef {{ meta: SceneMeta, extra: string[], body: string, raw: string }} ParsedWriting
  *   `raw` is the front matter exactly as it was in the file ('' if none).
  */
@@ -122,7 +124,13 @@ export function serializeWriting(meta, extra, body, original) {
   const lines = [];
   for (const key of META_KEYS) {
     const value = meta[key]?.trim();
-    if (value) lines.push(`${key}: ${JSON.stringify(value)}`);
+    if (!value) continue;
+    // Notes are already JSON; anything else in that key would not be valid YAML.
+    if (key === 'notes') {
+      if (value.startsWith('[') && !value.includes('\n')) lines.push(`notes: ${value}`);
+      continue;
+    }
+    lines.push(`${key}: ${JSON.stringify(value)}`);
   }
   const kept = extra.filter((line, i) => line.trim() !== '' || i < extra.length - 1);
   lines.push(...kept);

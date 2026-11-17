@@ -2,7 +2,7 @@
   import { editorViewCtx } from '@milkdown/kit/core';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { isMod, MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { isMod, shortcut } from '$lib/keyboard.svelte.js';
   import { toast } from '$lib/toast.js';
   import {
     buildFindRegex,
@@ -126,7 +126,7 @@
     if (count)
       toast.success(
         `Replaced ${count} ${count === 1 ? 'match' : 'matches'}`,
-        `${MOD_KEY}Z to undo.`
+        `${shortcut('Z')} to undo.`
       );
   }
 
@@ -279,7 +279,7 @@
       {@render iconButton('Previous match (⇧↵)', () => step(-1), !total, ArrowUpIcon)}
       {@render iconButton('Next match (↵)', () => step(1), !total, ArrowDownIcon)}
       {@render iconButton(
-        `Find in all writings (${MOD_KEY}⇧F)`,
+        `Find in all writings (${shortcut('shift', 'F')})`,
         searchEverywhere,
         false,
         TextSearchIcon
@@ -309,7 +309,7 @@
         </button>
         <button
           type="button"
-          title="Replace all ({MOD_KEY}↵)"
+          title="Replace all ({shortcut('↵')})"
           onclick={replaceEvery}
           disabled={!total}
           class="h-6 px-2 rounded text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"

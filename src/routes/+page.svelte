@@ -4,7 +4,7 @@
   import PlusIcon from '@lucide/svelte/icons/plus';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { shortcut } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { startNewWriting } from '$lib/new-writing.js';
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
@@ -100,7 +100,7 @@
                 </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content side="bottom" portalProps={{}}>{newLabel} · {MOD_KEY}N</Tooltip.Content>
+            <Tooltip.Content side="bottom" portalProps={{}}>{newLabel} · {shortcut('N')}</Tooltip.Content>
           </Tooltip.Root>
           <div class="w-px h-4 bg-primary-foreground/20"></div>
           <Tooltip.Root>
@@ -117,7 +117,7 @@
                 </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content side="bottom" portalProps={{}}>New in… · {MOD_KEY}⇧N</Tooltip.Content>
+            <Tooltip.Content side="bottom" portalProps={{}}>New in… · {shortcut('shift', 'N')}</Tooltip.Content>
           </Tooltip.Root>
         </div>
       </div>

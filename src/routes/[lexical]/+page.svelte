@@ -12,9 +12,11 @@
   import EditorSceneInfo from '$lib/components/editor-scene-info.svelte';
   import EditorCodex from '$lib/components/editor-codex.svelte';
   import EditorFind from '$lib/components/editor-find.svelte';
+  import MarginNotes from '$lib/components/margin-notes.svelte';
+  import EditorNotes from '$lib/components/editor-notes.svelte';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { shortcut } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount, untrack } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte';
@@ -113,6 +115,17 @@
   function goToWriting(file) {
     if (file) goto(resolve(`/${encodeURIComponent(file.name)}`));
   }
+
+  // 0 means no saved version yet; "v0" read as a bug, not a state.
+  let versionLabel = $derived(
+    isDraft
+      ? 'Draft'
+      : appState.ui.isHistoryOpen
+        ? 'History'
+        : history?.current
+          ? `Version ${history.current}`
+          : ''
+  );
 
   let saveLabel = $derived.by(() => {
     // `now` is read so the label recomputes on every tick.
@@ -237,6 +250,14 @@
         </Tooltip.Trigger>
         <Tooltip.Content side="bottom" portalProps={{}}>Go home</Tooltip.Content>
       </Tooltip.Root>
+      {#if versionLabel}
+        <span
+          class="shrink-0 ml-1 select-none text-muted-foreground"
+          title={isDraft ? undefined : `Saved versions are in the history panel (${shortcut('U')})`}
+        >
+          {versionLabel}
+        </span>
+      {/if}
       <div class="flex-1 flex items-center justify-center gap-1 min-w-0 pointer-events-none">
         {#if siblings.length > 1}
           <Tooltip.Root>
@@ -326,23 +347,24 @@
       </button>
           {/snippet}
         </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>{appState.ui.isOutlineOpen ? 'Hide' : 'Show'} scene panel <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}⇧O</kbd></Tooltip.Content>
+        <Tooltip.Content side="bottom" portalProps={{}}>{appState.ui.isOutlineOpen ? 'Hide' : 'Show'} scene panel <kbd class="ml-1 font-sans opacity-70">{shortcut('shift', 'O')}</kbd></Tooltip.Content>
       </Tooltip.Root>
     </header>
 
     <main class="relative h-full flex-1 overflow-hidden">
       <EditorFind />
-      <ScrollFade class="h-full" fadeSize="h-12">
+      <ScrollFade class="h-full" fadeSize="h-6">
         <ScrollArea class="h-full" type="scroll">
-          <div class="writing-surface pb-24">
+          <div class="writing-surface relative pb-24">
             <MarkdownEditor {fileName} {body} {isDraft} {docKey} />
+            <MarginNotes />
           </div>
         </ScrollArea>
       </ScrollFade>
     </main>
 
-    <footer class="focus-chrome">
-      <EditorCommandbar {fileName} {isDraft} currentVersion={history?.current || 0} />
+    <footer class="focus-chrome relative h-0">
+      <EditorCommandbar {fileName} {isDraft} />
     </footer>
   </div>
 
@@ -358,6 +380,8 @@
             {#key fileName}
               <EditorSceneInfo {fileName} {isDraft} />
             {/key}
+            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">Notes</h2>
+            <EditorNotes />
             <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">In this scene</h2>
             <EditorCodex {fileName} content={body} />
             <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">Contents</h2>

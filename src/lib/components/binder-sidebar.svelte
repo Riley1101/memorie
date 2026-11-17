@@ -21,7 +21,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import ScrollFade from './scroll-fade.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { shortcut } from '$lib/keyboard.svelte.js';
   import { openCodex } from '$lib/runes/codex.svelte.js';
   import { offerUndo } from '$lib/runes/trash.svelte.js';
   import { BINDER_COLOURS, BINDER_COLOUR_NAMES } from '$lib/runes/app.svelte.js';
@@ -207,7 +207,7 @@
   >
     <SearchIcon strokeWidth={1.5} class="size-3.5 shrink-0" />
     <span class="flex-1 truncate">Search</span>
-    <span class="text-meta tabular-nums text-disabled shrink-0">{MOD_KEY}K</span>
+    <span class="text-meta tabular-nums text-disabled shrink-0">{shortcut('K')}</span>
   </button>
 {/snippet}
 
@@ -414,6 +414,22 @@
       {@render binderList(onSelect)}
     </ScrollArea>
   </ScrollFade>
+
+  <!-- Below the binders, where a deleted writing is looked for. Opens the
+       same sheet as "Recently deleted" in the ⌘K palette. -->
+  <div class="px-2 pb-1.5 pt-1 shrink-0 border-t border-border/30">
+    <button
+      type="button"
+      onclick={() => {
+        onSelect?.();
+        appState.toggleTrash(true);
+      }}
+      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
+    >
+      <Trash2Icon strokeWidth={1.5} class="size-4 shrink-0" />
+      <span class="truncate flex-1">Recently deleted</span>
+    </button>
+  </div>
 
   {#if target.ready && target.pending > 0}
     <div class="px-2 pb-2 pt-2 shrink-0 border-t border-border/30">
