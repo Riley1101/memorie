@@ -29,6 +29,9 @@ import { dirOf } from '$lib/runes/fs.svelte.js';
 import { shortcut } from '$lib/keyboard.svelte.js';
 import { toast } from '$lib/toast.js';
 import { addNoteOnSelection } from '$lib/components/plugins/margin-notes.js';
+import { compareWithStartOfToday, stopRevise } from '$lib/components/plugins/revise.js';
+import { reviseState } from '$lib/runes/revise.svelte.js';
+import CompareIcon from '@lucide/svelte/icons/git-compare';
 
 /**
  * The writing open in the editor. The editor's dock sets it while it is
@@ -110,6 +113,18 @@ const ALL_COMMANDS = [
     shortcutLabel: shortcut('U'),
     key: 'u',
     icon: HistoryIcon,
+  },
+  {
+    name: 'revise',
+    aliases: ['diff', 'compare'],
+    label: () => (reviseState.open ? 'Stop comparing' : 'Compare with the start of today'),
+    keywords: 'revise changes diff track since earlier version',
+    group: 'writing',
+    action: 'revise',
+    shortcutLabel: shortcut('shift', 'R'),
+    key: 'r',
+    shift: true,
+    icon: CompareIcon,
   },
   {
     name: 'u',
@@ -301,7 +316,7 @@ export async function runEditorCommand(command) {
   if (fileName === null) return;
 
   // Drafts have no versions yet and nothing to push.
-  if (isDraft && ['undo', 'redo', 'toggleHistory', 'push'].includes(command.action)) {
+  if (isDraft && ['undo', 'redo', 'toggleHistory', 'push', 'revise'].includes(command.action)) {
     toast.info('Start writing first', 'Versions appear after the first save.');
     return;
   }
@@ -312,6 +327,10 @@ export async function runEditorCommand(command) {
       break;
     case 'createDocumentContext':
       memoryManager.createDocumentContext();
+      break;
+    case 'revise':
+      if (reviseState.open) stopRevise();
+      else await compareWithStartOfToday(fileName);
       break;
     case 'toggleHistory':
       appState.toggleChatHistory();

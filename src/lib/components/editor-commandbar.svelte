@@ -8,6 +8,8 @@
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { isMod, shortcut } from '$lib/keyboard.svelte.js';
+  import { reviseState } from '$lib/runes/revise.svelte.js';
+  import { stopRevise } from '$lib/components/plugins/revise.js';
   import {
     editorSession,
     aiSetup,
@@ -80,7 +82,13 @@
           return;
         }
         // Only when nothing else (a dialog, a popover) is going to take the Escape.
-        if (writingState.focusMode && !document.querySelector('[role="dialog"], [data-slot="popover-content"]')) {
+        const overlayOpen = !!document.querySelector('[role="dialog"], [data-slot="popover-content"]');
+        if (reviseState.open && !overlayOpen) {
+          e.preventDefault();
+          stopRevise();
+          return;
+        }
+        if (writingState.focusMode && !overlayOpen) {
           e.preventDefault();
           writingState.toggleFocusMode(false);
           return;
@@ -124,7 +132,7 @@
 <!-- Floats over the last lines of the page, so the text shows through the glass. -->
 <div class="absolute inset-x-0 bottom-3 z-40 flex justify-center px-4 pointer-events-none">
   <div
-    class="dock-glass pointer-events-auto flex items-center gap-2 h-10 max-w-full px-1 rounded-full text-meta tabular-nums text-muted-foreground"
+    class="glass pointer-events-auto flex items-center gap-2 h-10 max-w-full px-1 rounded-full text-meta tabular-nums text-muted-foreground"
   >
     {#if fileName}
       <EditorStats {fileName} {isDraft} />
@@ -170,35 +178,3 @@
   </Dialog.Content>
 </Dialog.Root>
 
-<style>
-  /* Liquid glass: a translucent, blurred and saturated pane with a bright
-     rim on top, a soft inner shade below and a light drop shadow. */
-  .dock-glass {
-    background: color-mix(in oklch, var(--popover) 55%, transparent);
-    backdrop-filter: blur(18px) saturate(180%);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-    border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
-    box-shadow:
-      inset 0 1px 0 0 color-mix(in oklch, white 70%, transparent),
-      inset 0 -1px 0 0 color-mix(in oklch, var(--foreground) 4%, transparent),
-      0 1px 2px color-mix(in oklch, black 6%, transparent),
-      0 8px 24px -6px color-mix(in oklch, black 14%, transparent);
-  }
-
-  :global(.dark) .dock-glass {
-    background: color-mix(in oklch, var(--popover) 50%, transparent);
-    border-color: color-mix(in oklch, white 10%, transparent);
-    box-shadow:
-      inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
-      inset 0 -1px 0 0 color-mix(in oklch, black 20%, transparent),
-      0 8px 28px -6px color-mix(in oklch, black 50%, transparent);
-  }
-
-  @media (prefers-reduced-transparency: reduce) {
-    .dock-glass {
-      background: var(--popover);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
-  }
-</style>

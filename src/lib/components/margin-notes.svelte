@@ -111,7 +111,7 @@
 
 <div bind:this={root} class="absolute inset-y-0 left-full" aria-hidden={!visible}>
   {#if visible}
-    <aside aria-label="Notes" class="relative ml-6" style="width: {CARD_WIDTH}px">
+    <aside aria-label="Notes" class="absolute top-0 left-0 ml-6" style="width: {CARD_WIDTH}px">
       {#each placedNotes as note (note.id)}
         <div
           {@attach card(note.id)}
@@ -122,5 +122,22 @@
         </div>
       {/each}
     </aside>
+    <!-- Notes whose text is gone have no line to sit beside; they wait in the
+         scene panel. Pinned so it stays in sight while scrolling. -->
+    {#if notesState.detached.length > 0}
+      <div class="sticky top-3 z-10 ml-6 pointer-events-none" style="width: {CARD_WIDTH}px">
+        <button
+          type="button"
+          onclick={() => {
+            if (!appState.ui.isOutlineOpen) appState.toggleOutline();
+          }}
+          class="pointer-events-auto px-2.5 py-1 rounded-full text-meta text-muted-foreground bg-popover/80 backdrop-blur border border-border/60 shadow-xs hover:text-foreground transition-colors"
+        >
+          {notesState.detached.length === 1
+            ? '1 note lost its place'
+            : `${notesState.detached.length} notes lost their place`}
+        </button>
+      </div>
+    {/if}
   {/if}
 </div>

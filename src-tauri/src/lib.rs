@@ -379,6 +379,7 @@ pub async fn run() {
             commands::set_default_llm_model,
             commands::set_system_prompt,
             commands::goto_file_version,
+            commands::get_file_version,
             commands::undo_file,
             commands::redo_file,
             commands::github_device_start,

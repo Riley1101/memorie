@@ -1,4 +1,5 @@
 <script>
+  import { compareWithVersion } from '$lib/components/plugins/revise.js';
   import { cn } from '$lib/utils';
   import { invalidateAll } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
@@ -130,16 +131,18 @@
       {#each graph.rows as row, index (row.id)}
         {@const y0 = index * ROW_HEIGHT}
         {@const stamp = formatStamp(row.createdAt)}
+        <div class="group absolute left-0 w-full" style="top: {y0}px; height: {ROW_HEIGHT}px;">
         <button
           type="button"
           onclick={() => goto(row)}
           disabled={navigatingId !== null || row.isCurrent}
           class={cn(
-            'absolute left-0 w-full rounded-md pr-2 text-left transition-colors hover:bg-foreground/5',
+            'w-full h-full rounded-md pr-2 text-left transition-colors hover:bg-foreground/5',
+            !row.isCurrent && 'group-hover:pr-18 group-focus-within:pr-18',
             row.isCurrent ? 'cursor-default' : 'cursor-pointer',
             navigatingId === row.id && 'cursor-wait opacity-50'
           )}
-          style="top: {y0}px; height: {ROW_HEIGHT}px; padding-left: {lanesWidth + 4}px;"
+          style="padding-left: {lanesWidth + 4}px;"
           aria-label={row.isCurrent ? `v${row.id}, current version` : `Go to version v${row.id}`}
         >
           <p
@@ -167,6 +170,17 @@
             {row.preview || 'Empty'}
           </p>
         </button>
+        {#if !row.isCurrent}
+          <button
+            type="button"
+            onclick={() => compareWithVersion(fileName, row.id, stamp ? `v${row.id} (${stamp})` : `v${row.id}`)}
+            aria-label="Compare the page with v{row.id}"
+            class="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-2 rounded-full text-meta text-muted-foreground bg-background/80 border border-border/60 hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+          >
+            Compare
+          </button>
+        {/if}
+        </div>
       {/each}
     </div>
   {/if}

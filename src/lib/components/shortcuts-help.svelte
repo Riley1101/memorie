@@ -10,6 +10,8 @@
   import SparklesIcon from '@lucide/svelte/icons/sparkles';
   import SaveIcon from '@lucide/svelte/icons/save';
   import HistoryIcon from '@lucide/svelte/icons/history';
+  import CompareIcon from '@lucide/svelte/icons/git-compare';
+  import NoteIcon from '@lucide/svelte/icons/message-square-text';
   import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
   import UndoIcon from '@lucide/svelte/icons/undo-2';
   import RedoIcon from '@lucide/svelte/icons/redo-2';
@@ -44,6 +46,8 @@
       { key: `${MOD_KEY} + B`, description: 'Go back (bold while typing)', icon: ArrowLeftIcon },
       { key: `${MOD_KEY} + ${SHIFT_KEY} + H`, description: 'Go home', editorOnly: true, icon: HouseIcon },
       { key: `${MOD_KEY} + U`, description: 'Toggle history', editorOnly: true, icon: HistoryIcon },
+      { key: `${MOD_KEY} + ${ALT_KEY} + M`, description: 'Leave a note on the selection', editorOnly: true, icon: NoteIcon },
+      { key: `${MOD_KEY} + ${SHIFT_KEY} + R`, description: 'Compare with the start of today', editorOnly: true, icon: CompareIcon },
       { key: `${MOD_KEY} + ${SHIFT_KEY} + O`, description: 'Toggle table of contents', editorOnly: true, icon: TableOfContentsIcon },
       { key: `${MOD_KEY} + .`, description: 'Toggle focus mode', editorOnly: true, icon: FocusIcon },
       { key: `${MOD_KEY} + S`, description: 'Save writing', editorOnly: true, icon: SaveIcon },

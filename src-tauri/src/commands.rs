@@ -673,6 +673,20 @@ pub async fn goto_file_version(
     Ok(result)
 }
 
+/// Reads one saved version without switching the writing to it, so Revise
+/// mode can compare the page against it.
+#[tauri::command]
+pub async fn get_file_version(
+    name: String,
+    node_id: usize,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let mut undo_tree = state.undotree.lock().await;
+    Ok(undo_tree
+        .get_history(&name)
+        .and_then(|h| h.content_of(super::undotree::NodeIndex(node_id))))
+}
+
 #[tauri::command]
 pub async fn undo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
     let mut undo_tree = state.undotree.lock().await;

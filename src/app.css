@@ -947,3 +947,37 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
     background: transparent;
   }
 }
+
+/* Shared by the dock, the Revise bar and other panes that float over the page. */
+@layer components {
+  /* Liquid glass: a translucent, blurred and saturated pane with a bright
+     rim on top, a soft inner shade below and a light drop shadow. */
+  .glass {
+    background: color-mix(in oklch, var(--popover) 55%, transparent);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 70%, transparent),
+      inset 0 -1px 0 0 color-mix(in oklch, var(--foreground) 4%, transparent),
+      0 1px 2px color-mix(in oklch, black 6%, transparent),
+      0 8px 24px -6px color-mix(in oklch, black 14%, transparent);
+  }
+
+  .dark .glass {
+    background: color-mix(in oklch, var(--popover) 50%, transparent);
+    border-color: color-mix(in oklch, white 10%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
+      inset 0 -1px 0 0 color-mix(in oklch, black 20%, transparent),
+      0 8px 28px -6px color-mix(in oklch, black 50%, transparent);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass {
+      background: var(--popover);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+}
