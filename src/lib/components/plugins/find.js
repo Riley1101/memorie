@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import { revealElement } from './reveal.js';
 
 /**
  * @file Find and replace in the open writing (⌘F). Highlights every match,
@@ -187,7 +188,7 @@ function revealCurrent(view) {
   );
   const { node } = view.domAtPos(match.from);
   const el = node instanceof HTMLElement ? node : node.parentElement;
-  el?.scrollIntoView({ block: 'center' });
+  revealElement(el);
 }
 
 /**

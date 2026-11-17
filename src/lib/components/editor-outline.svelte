@@ -7,6 +7,7 @@
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { editorViewCtx } from '@milkdown/kit/core';
   import { TextSelection } from '@milkdown/kit/prose/state';
+  import { revealElement } from '$lib/components/plugins/reveal.js';
 
   let headings = $derived(editorState.headings);
   let activeIndex = $state(-1);
@@ -23,9 +24,9 @@
       const end = heading.pos + node.nodeSize - 1;
       view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, end)));
       view.focus();
-      /** @type {HTMLElement | null} */ (view.nodeDOM(heading.pos))?.scrollIntoView({
-        behavior: 'smooth',
+      revealElement(/** @type {HTMLElement | null} */ (view.nodeDOM(heading.pos)), {
         block: 'start',
+        smooth: true,
       });
     });
   }
