@@ -137,7 +137,7 @@
           onclick={() => goto(row)}
           disabled={navigatingId !== null || row.isCurrent}
           class={cn(
-            'w-full h-full rounded-md pr-2 text-left transition-colors hover:bg-foreground/5',
+            'w-full h-full rounded-field pr-2 text-left transition-colors hover:bg-fill',
             !row.isCurrent && 'group-hover:pr-18 group-focus-within:pr-18',
             row.isCurrent ? 'cursor-default' : 'cursor-pointer',
             navigatingId === row.id && 'cursor-wait opacity-50'
@@ -156,7 +156,7 @@
             {#if row.isCurrent}
               <span>· current</span>
             {:else if row.isBranchStart}
-              <span class="rounded border border-border px-1 py-px text-meta leading-none">
+              <span class="rounded-full bg-fill px-1.5 py-px text-meta leading-none">
                 branch
               </span>
             {/if}
@@ -175,7 +175,7 @@
             type="button"
             onclick={() => compareWithVersion(fileName, row.id, stamp ? `v${row.id} (${stamp})` : `v${row.id}`)}
             aria-label="Compare the page with v{row.id}"
-            class="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-2 rounded-full text-meta text-muted-foreground bg-background/80 border border-border/60 hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            class="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-2 rounded-full text-meta text-muted-foreground bg-paper shadow-[0_0_0_1px_var(--hair)] hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
           >
             Compare
           </button>

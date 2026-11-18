@@ -7,12 +7,15 @@
   import { shortcut } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { startNewWriting } from '$lib/new-writing.js';
-  import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
-  import { formatFileName } from '$lib/utils.js';
+  import { fileManager, baseOf, dirOf } from '$lib/runes/fs.svelte.js';
+  import { formatFileName, formatTimeAgo } from '$lib/utils.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import FileOutputIcon from '@lucide/svelte/icons/file-output';
-  import CornerDownLeftIcon from '@lucide/svelte/icons/corner-down-left';
+  import { binderDot } from '$lib/binder-tints.js';
+  import ShareIcon from '@lucide/svelte/icons/share';
+  import ListIcon from '@lucide/svelte/icons/list';
+  import LayoutGridIcon from '@lucide/svelte/icons/layout-grid';
+  import PanelLeftIcon from '@lucide/svelte/icons/panel-left';
 
   let newLabel = $derived(
     appState.ui.activeBinder ? `New in ${appState.ui.activeBinder}` : 'New writing'
@@ -26,66 +29,115 @@
   let resumable = $derived.by(() => {
     const last = appState.ui.lastWriting;
     if (!last || !fileManager.hasLoadedFiles) return null;
-    return fileManager.files.some((f) => f.name === last) ? last : null;
+    return fileManager.files.find((f) => f.name === last) ?? null;
   });
 
-  let resumeLabel = $derived(resumable ? formatFileName(baseOf(resumable)) : '');
+  let resumeLabel = $derived(resumable ? formatFileName(baseOf(resumable.name)) : '');
+  let resumeBinder = $derived(resumable ? dirOf(resumable.name).split('/')[0] : '');
 
   function resume() {
-    if (resumable) goto(resolve(`/${encodeURIComponent(resumable)}`));
+    if (resumable) goto(resolve(`/${encodeURIComponent(resumable.name)}`));
   }
+
+  /** List or cards; one choice for the whole library, remembered across launches. */
+  let view = $state(/** @type {'list' | 'cards'} */ (readView()));
+
+  function readView() {
+    try {
+      const saved = localStorage.getItem('homeView') ?? localStorage.getItem('binderView');
+      return saved === 'cards' ? 'cards' : 'list';
+    } catch {
+      return 'list';
+    }
+  }
+
+  /** @param {'list' | 'cards'} next */
+  function setView(next) {
+    view = next;
+    try {
+      localStorage.setItem('homeView', next);
+    } catch {
+      // Not remembered; fine.
+    }
+  }
+
+  let sidebarOpen = $state(false);
 </script>
 
-<div class="relative flex flex-col md:flex-row w-full h-full overflow-hidden">
-  <BinderSidebar bind:activeBinder={appState.ui.activeBinder} />
+{#snippet continueStrip()}
+  <!-- Continue writing (C3): one slim strip back into the last writing. -->
+  {#if resumable}
+    <a
+      href={resolve(`/${encodeURIComponent(resumable.name)}`)}
+      onclick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+        e.preventDefault();
+        resume();
+      }}
+      class="glass mt-2 flex items-center gap-3 rounded-group py-2 pr-2 pl-4 text-foreground hover:bg-selection transition-colors"
+    >
+      <span class="binder-dot {binderDot(resumeBinder)}"></span>
+      <span class="text-xs font-semibold text-primary dark:text-[color-mix(in_oklch,var(--primary)_55%,white)]">Continue</span>
+      <span class="font-serif text-base whitespace-nowrap truncate max-w-[40%]">{resumeLabel}</span>
+      <span class="meta flex-1 min-w-0 truncate">
+        {[resumeBinder, `edited ${formatTimeAgo(resumable.last_modified * 1000)}`].filter(Boolean).join(' · ')}
+      </span>
+      <span class="tb-btn tb-primary px-3.5 shrink-0">Resume</span>
+    </a>
+  {/if}
+{/snippet}
 
-  <div class="page-container flex-1 min-w-0 h-full flex flex-col overflow-hidden">
-    <!-- Below lg the binders button floats top-left; keep the heading clear of it. -->
-    <div class="flex items-center justify-between gap-3 mb-4 md:mb-8 max-lg:pl-11">
-      <h2 class="font-writer text-3xl md:text-5xl font-normal text-heading-foreground leading-normal pb-1 truncate">{appState.ui.activeBinder ?? 'Writings'}</h2>
-      <div class="flex items-center gap-1 shrink-0">
-        <!-- Back to whatever was open last: the first thing most writers want. -->
-        {#if resumable}
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <button
-                  {...props}
-                  type="button"
-                  onclick={resume}
-                  class="hidden md:flex items-center gap-1.5 h-8 px-3 mr-1 rounded-md text-[0.8125rem] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                >
-                  <CornerDownLeftIcon strokeWidth={1.75} class="size-3.5" />
-                  <span class="max-w-[14ch] truncate">{resumeLabel}</span>
-                </button>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content side="bottom" portalProps={{}}>Carry on with “{resumeLabel}”</Tooltip.Content>
-          </Tooltip.Root>
-        {/if}
+<div class="relative flex w-full h-full overflow-hidden">
+  <BinderSidebar bind:activeBinder={appState.ui.activeBinder} bind:sheetOpen={sidebarOpen} />
+
+  <main class="flex-1 min-w-0 h-full flex flex-col bg-paper shadow-[-1px_0_0_var(--hair)]">
+    <header
+      data-tauri-drag-region
+      class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]"
+    >
+      <button
+        type="button"
+        class="tb-btn lg:hidden -ml-2"
+        aria-label="Show library sidebar"
+        onclick={() => (sidebarOpen = true)}
+      >
+        <PanelLeftIcon strokeWidth={1.7} />
+      </button>
+      <h1 class="toolbar-title" data-tauri-drag-region>{appState.ui.activeBinder ?? 'All writings'}</h1>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="capsule glass" role="group" aria-label="View">
+          <button type="button" class="tb-btn" aria-label={appState.ui.activeBinder ? 'Chapters' : 'List'} aria-pressed={view === 'list'} onclick={() => setView('list')}>
+            <ListIcon strokeWidth={1.7} />
+          </button>
+          <button type="button" class="tb-btn" aria-label="Cards" aria-pressed={view === 'cards'} onclick={() => setView('cards')}>
+            <LayoutGridIcon strokeWidth={1.7} />
+          </button>
+        </div>
 
         <!-- Export is a headline feature; it was reachable only from the palette. -->
         {#if appState.ui.activeBinder}
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <button
-                  {...props}
-                  type="button"
-                  onclick={() => appState.openExport({ fileName: null, dir: appState.ui.activeBinder ?? '' })}
-                  aria-label="Export {appState.ui.activeBinder}"
-                  class="flex items-center justify-center size-8 mr-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                >
-                  <FileOutputIcon strokeWidth={1.75} class="size-3.5" />
-                </button>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content side="bottom" portalProps={{}}>Export {appState.ui.activeBinder}…</Tooltip.Content>
-          </Tooltip.Root>
+          <div class="capsule glass">
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <button
+                    {...props}
+                    type="button"
+                    class="tb-btn"
+                    onclick={() => appState.openExport({ fileName: null, dir: appState.ui.activeBinder ?? '' })}
+                    aria-label="Export {appState.ui.activeBinder}"
+                  >
+                    <ShareIcon strokeWidth={1.7} />
+                  </button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content side="bottom" portalProps={{}}>Export {appState.ui.activeBinder}…</Tooltip.Content>
+            </Tooltip.Root>
+          </div>
         {/if}
 
         <!-- Primary action: one click, no naming, lands in the open binder. -->
-        <div class="flex items-center mr-1.5 rounded-md bg-primary hover:bg-primary-hover transition-colors">
+        <div class="capsule tb-primary p-0">
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
@@ -93,16 +145,16 @@
                   {...props}
                   type="button"
                   onclick={() => startNewWriting(appState.ui.activeBinder ?? '')}
-                  class="flex items-center gap-1.5 h-8 pl-3 pr-2.5 rounded-l-md text-[0.8125rem] font-medium text-primary-foreground"
+                  class="tb-btn pl-3 pr-2"
                 >
-                  <PlusIcon strokeWidth={1.75} class="size-3.5" />
-                  <span class="hidden sm:inline">{newLabel}</span>
+                  <PlusIcon strokeWidth={2} class="size-[15px]!" />
+                  <span class="hidden sm:inline max-w-[22ch] truncate">{newLabel}</span>
                 </button>
               {/snippet}
             </Tooltip.Trigger>
             <Tooltip.Content side="bottom" portalProps={{}}>{newLabel} · {shortcut('N')}</Tooltip.Content>
           </Tooltip.Root>
-          <div class="w-px h-4 bg-primary-foreground/20"></div>
+          <span aria-hidden="true" class="w-px h-4 bg-primary-foreground/30"></span>
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
@@ -110,10 +162,10 @@
                   {...props}
                   type="button"
                   onclick={() => appState.toggleNewPicker(true)}
-                  aria-label="New writing in another place"
-                  class="flex items-center justify-center h-8 w-7 rounded-r-md text-primary-foreground/70 hover:text-primary-foreground"
+                  aria-label="New writing in another binder"
+                  class="tb-btn min-w-6.5 pl-1.5 pr-2"
                 >
-                  <ChevronDownIcon strokeWidth={1.75} class="size-3.5" />
+                  <ChevronDownIcon strokeWidth={2} class="size-[13px]!" />
                 </button>
               {/snippet}
             </Tooltip.Trigger>
@@ -121,9 +173,12 @@
           </Tooltip.Root>
         </div>
       </div>
+    </header>
+
+    <div class="flex-1 min-h-0 w-full px-5">
+      <div class="mx-auto h-full max-w-215">
+        <TimelineDocuments activeBinder={appState.ui.activeBinder} {view} header={continueStrip} />
+      </div>
     </div>
-    <div class="flex-1 overflow-hidden w-full relative">
-      <TimelineDocuments activeBinder={appState.ui.activeBinder} />
-    </div>
-  </div>
+  </main>
 </div>

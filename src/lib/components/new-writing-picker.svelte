@@ -37,7 +37,7 @@
   description="Choose where the new writing should live"
   portalProps={{}}
 >
-  <Command.Input placeholder="New writing in…" class="border-border/20 bg-muted/10" />
+  <Command.Input placeholder="New writing in…" class="" />
   <Command.List class="p-2">
     <Command.Empty class="py-10 text-muted-foreground font-sans">No such place.</Command.Empty>
 
@@ -45,17 +45,17 @@
       <Command.Item
         value="top level all writings"
         onSelect={() => choose('')}
-        class="rounded-lg px-3 py-2.5 mb-1 aria-selected:bg-muted/40"
+        class=""
       >
         <FileIcon strokeWidth={1.5} class="size-4 mr-1" />
-        <span class="font-writer text-base">Top level</span>
-        <span class="ml-auto text-meta text-muted-foreground tabular-nums">no binder</span>
+        <span class="text-sm">Top level</span>
+        <span class="ml-auto meta">no binder</span>
       </Command.Item>
       {#each locations as loc (loc.dir)}
         <Command.Item
           value={loc.dir}
           onSelect={() => choose(loc.dir)}
-          class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
+          class=""
         >
           {#if loc.depth > 0}
             <span style="width: {loc.depth * 0.875}rem" class="shrink-0"></span>
@@ -63,9 +63,9 @@
           {:else}
             <FolderIcon strokeWidth={1.5} class="size-4 mr-1" />
           {/if}
-          <span class="font-writer text-base truncate">{loc.label}</span>
+          <span class="text-sm truncate">{loc.label}</span>
           {#if loc.parent}
-            <span class="ml-auto text-meta text-muted-foreground tabular-nums truncate">{loc.parent}</span>
+            <span class="ml-auto meta truncate">{loc.parent}</span>
           {/if}
         </Command.Item>
       {/each}

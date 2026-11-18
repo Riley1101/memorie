@@ -131,7 +131,7 @@
           onclick={() => {
             if (!appState.ui.isOutlineOpen) appState.toggleOutline();
           }}
-          class="pointer-events-auto px-2.5 py-1 rounded-full text-meta text-muted-foreground bg-popover/80 backdrop-blur border border-border/60 shadow-xs hover:text-foreground transition-colors"
+          class="pointer-events-auto px-2.5 py-1 rounded-full text-meta text-muted-foreground glass hover:text-foreground transition-colors"
         >
           {notesState.detached.length === 1
             ? '1 note lost its place'

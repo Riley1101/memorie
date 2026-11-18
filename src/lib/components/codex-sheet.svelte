@@ -221,19 +221,20 @@
     }
   }
 
+  // Quiet wells, as in the Codex board: the field is a fill, not a box.
   const labelClass = 'text-xs text-muted-foreground';
   const inputClass =
-    'h-8 w-full rounded-md border border-border/60 bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50';
+    'h-7.5 w-full rounded-[6px] bg-fill px-2 text-sm outline-none placeholder:text-placeholder focus-visible:ring-2 focus-visible:ring-ring/50';
   const selectClass =
-    'h-8 w-full rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50';
+    'h-7.5 w-full rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50';
   const areaClass =
-    'w-full rounded-md border border-border/60 bg-transparent px-2 py-1.5 text-sm outline-none field-sizing-content focus-visible:ring-2 focus-visible:ring-ring/50';
-  const sectionClass = 'text-[0.8125rem] font-medium text-muted-foreground';
+    'w-full rounded-[6px] bg-fill px-2 py-1.5 text-sm outline-none field-sizing-content placeholder:text-placeholder focus-visible:ring-2 focus-visible:ring-ring/50';
+  const sectionClass = 'text-xs font-semibold text-muted-foreground';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <form
-  class="flex flex-col gap-6 font-sans pb-10"
+  class="flex flex-col gap-5 pb-10"
   onsubmit={(e) => {
     e.preventDefault();
     save();
@@ -248,7 +249,7 @@
       placeholder="Name"
       aria-label="Name"
       autofocus={isNew}
-      class="flex-1 min-w-0 bg-transparent font-writer text-3xl text-heading-foreground outline-none placeholder:text-muted-foreground/40"
+      class="flex-1 min-w-0 bg-transparent font-serif text-[28px] font-medium leading-tight text-heading-foreground outline-none placeholder:text-muted-foreground/40"
     />
     <div class="flex items-center gap-1 shrink-0 pt-1">
       {#if !isNew}
@@ -279,10 +280,7 @@
             type="button"
             onclick={() => setKind(kind.id)}
             aria-pressed={draft.kind === kind.id}
-            class="h-7 px-2.5 rounded-md border text-xs transition-colors
-              {draft.kind === kind.id
-              ? 'border-primary/40 bg-primary/10 text-primary'
-              : 'border-border/60 text-muted-foreground hover:text-foreground'}"
+            class="chip"
           >
             {kind.label}
           </button>
@@ -329,7 +327,7 @@
   {/if}
 
   {#snippet suggestion(/** @type {string} */ value, /** @type {() => void} */ use, /** @type {() => void} */ drop)}
-    <div class="flex items-start gap-2 rounded-md border border-dashed border-primary/30 bg-primary/5 px-2 py-1.5 text-sm">
+    <div class="flex items-start gap-2 rounded-[8px] border border-dashed border-primary/30 bg-selection/50 px-2 py-1.5 text-sm">
       <SparklesIcon strokeWidth={1.5} class="size-3 mt-1 shrink-0 text-primary/60" />
       <span class="flex-1 min-w-0">{value}</span>
       <button type="button" onclick={use} class="text-xs text-primary hover:underline shrink-0">Use</button>
@@ -366,7 +364,7 @@
           type="button"
           onclick={() => draft.fields.splice(i, 1)}
           aria-label="Remove {field.key || 'field'}"
-          class="size-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+          class="size-7.5 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-fill"
         >
           <XIcon strokeWidth={1.5} class="size-3.5" />
         </button>
@@ -404,7 +402,7 @@
           type="button"
           onclick={() => draft.relationships.splice(i, 1)}
           aria-label="Remove relationship"
-          class="size-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+          class="size-7.5 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-fill"
         >
           <XIcon strokeWidth={1.5} class="size-3.5" />
         </button>
@@ -439,7 +437,7 @@
   {#if appearances && !isNew}
     <section class="grid gap-2">
       <h3 class={sectionClass}>
-        Appears in {appearances.length} writing{appearances.length === 1 ? '' : 's'}
+        Mentioned in {appearances.length} writing{appearances.length === 1 ? '' : 's'}
       </h3>
       {#if appearances.length}
         <div class="flex flex-wrap gap-1.5">
@@ -448,9 +446,9 @@
               type="button"
               onclick={() => goto(resolve(`/${encodeURIComponent(a.name)}`))}
               title={a.name}
-              class="rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary transition-colors"
+              class="chip"
             >
-              {a.label} <span class="opacity-50 tabular-nums">×{a.count}</span>
+              {a.label} <span class="opacity-60 tabular-nums">×{a.count}</span>
             </button>
           {/each}
         </div>
@@ -464,12 +462,12 @@
 <Dialog.Root bind:open={confirmDelete}>
   <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Delete “{entity.name}”?</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground pt-2">
+      <Dialog.Title class="text-title font-semibold">Delete “{entity.name}”?</Dialog.Title>
+      <Dialog.Description class="text-sm text-muted-foreground pt-1">
         This deletes the sheet's file. Your writings aren't changed.
       </Dialog.Description>
     </Dialog.Header>
-    <Dialog.Footer class="mt-6 flex gap-2">
+    <Dialog.Footer class="mt-4 flex gap-2">
       <Button variant="ghost" onclick={() => (confirmDelete = false)} class="flex-1" disabled={false}>Cancel</Button>
       <Button variant="destructive" onclick={remove} class="flex-1" disabled={false}>Delete sheet</Button>
     </Dialog.Footer>

@@ -6,13 +6,30 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Type floor: the root font size follows density (15px compact, 18px default),
-   so rem-sized meta text could fall below 12px. `text-meta` and `text-xs`
-   never go under 12px whatever the density. */
+/* Memorie Glass: the interface is sized in pixels, like a native Mac app, and
+   does not follow writing density. The root font size still follows density
+   (15px compact, 18px default), but only the writing surface sizes from it
+   (the `--writer-*` tokens and the prose's em sizes). Chrome text, spacing
+   and radii stay put, so controls keep their 28–32px height at any density.
+   12px is the type floor: section labels that the mocks set at 11px use 12. */
 @theme {
-  --text-xs: max(0.75rem, 12px);
-  --text-meta: max(0.6875rem, 12px);
+  --spacing: 4px;
+  --text-xs: 12px;
+  --text-xs--line-height: 1.4;
+  --text-meta: 12px;
   --text-meta--line-height: 1.4;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.4;
+  --text-base: 14px;
+  --text-base--line-height: 1.5;
+  /* Toolbar and sheet titles. */
+  --text-title: 15px;
+  --text-title--line-height: 1.25;
+  /* Fixed shapes: capsules use rounded-full; these never follow a style
+     flavour's `--radius`, which belongs to the writing surface. */
+  --radius-field: 8px;
+  --radius-group: 12px;
+  --radius-window: 14px;
 }
 
 :root {
@@ -72,6 +89,8 @@
   --sidebar-border: oklch(0.94 0 0);
   --sidebar-ring: oklch(0 0 0);
   --font-sans: 'Public Sans', ui-sans-serif, sans-serif;
+  /* Interface text: the Mac system font where there is one, Public Sans elsewhere. */
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Public Sans', system-ui, sans-serif;
   --font-serif: 'Source Serif 4', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --radius: 0.625rem;
@@ -90,7 +109,37 @@
   --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.07), 0px 8px 10px -1px hsl(0 0% 0% / 0.07);
   --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.08);
   --tracking-normal: 0em;
-  --spacing: 0.25rem;
+}
+
+/* Memorie Glass surfaces. Derived from the base tokens, so every palette and
+   style flavour (Paper's desk included) gets a matching frame and glass.
+   - frame: the window behind the sidebar, a shade off the paper
+   - paper: where reading and writing happen (the old background)
+   - glass: floating panes; hair: 1px rules; fill: quiet control wells
+   - selection: the tinted fill on the selected row
+   A custom property that refers to another is resolved where it is declared,
+   so these sit on every element that changes the base tokens (the root, body
+   and the app's root div, which carry the theme, palette and flavour classes). */
+:root,
+body,
+[class*='style-'] {
+  --paper: var(--background);
+  --frame: color-mix(in oklch, var(--background), oklch(0.45 0.03 70) 11%);
+  --glass: color-mix(in oklch, var(--popover) 68%, transparent);
+  --glass-solid: var(--popover);
+  --hair: color-mix(in oklch, var(--foreground) 10%, transparent);
+  --fill: color-mix(in oklch, var(--foreground) 5.5%, transparent);
+  --selection: color-mix(in oklch, var(--primary) 15%, transparent);
+  --glass-rim: color-mix(in oklch, white 72%, transparent);
+}
+.dark {
+  --frame: color-mix(in oklch, var(--background), white 6%);
+  --glass: color-mix(in oklch, color-mix(in oklch, var(--popover), white 8%) 66%, transparent);
+  --glass-solid: color-mix(in oklch, var(--popover), white 6%);
+  --hair: color-mix(in oklch, white 9%, transparent);
+  --fill: color-mix(in oklch, white 7%, transparent);
+  --selection: color-mix(in oklch, var(--primary) 32%, transparent);
+  --glass-rim: color-mix(in oklch, white 12%, transparent);
 }
 
 .dark {
@@ -322,15 +371,26 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-paper: var(--paper);
+  --color-frame: var(--frame);
+  --color-glass: var(--glass);
+  --color-hair: var(--hair);
+  --color-fill: var(--fill);
+  --color-selection: var(--selection);
 
-  --font-sans: var(--font-sans);
+  /* `font-sans` is the interface face. Style flavours that write in sans read
+     `--font-sans` (Public Sans) directly, so writing keeps its own face. */
+  --font-sans: var(--font-ui);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Interface radii are fixed (Mac shapes). `--radius` stays the writing
+     surface's own, set per style flavour (images, quotes, code). */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
 
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);
@@ -657,26 +717,10 @@
   }
 }
 
-/* Modals and AI sidebar (drawer): match the rounded-xl radius used app-wide (writing cards, popups) */
-body [data-slot="dialog-content"] {
-  border-radius: var(--radius-xl);
-}
+/* Sheets are glass panels (see the overlay rules at the end); a side sheet
+   floats inset from the window edge like the sidebar does. */
 body [data-slot="sheet-content"] {
-  border-radius: var(--radius-xl);
-}
-body [data-slot="drawer-content"] {
-  font-family: var(--font-writer);
-  /* radius handled per-side by the component's own rounded-*-xl classes */
-}
-body.style-paper [data-slot="dialog-content"],
-body.style-paper [data-slot="sheet-content"],
-body.style-paper [data-slot="drawer-content"] {
-  background: var(--writer-surface-bg);
-  box-shadow: var(--writer-surface-shadow);
-}
-body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="right"],
-body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"] {
-  border-width: 0;
+  border-radius: var(--radius-group);
 }
 
 /* streamdown's Mermaid component ships an unscoped `[data-expanded='true']`
@@ -736,13 +780,21 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   outline: none;
 }
 
-/* macOS overlay title bar: keep the top-left clear of the traffic lights. */
+/* macOS overlay title bar. The traffic lights are placed (tauri.conf.json,
+   trafficLightPosition) to centre on the 52px toolbar band; this is the room
+   they take at the top-left, kept clear by the sidebar and by a toolbar that
+   starts at the window's left edge. */
 .platform-mac {
-  --titlebar-inset-left: 4.75rem;
-  --titlebar-height: 2.75rem;
+  --titlebar-inset-left: 84px;
+  --titlebar-height: 52px;
 }
 
 @layer base {
+  /* Checkboxes, radios and ranges take the accent, as native Mac controls do. */
+  :root {
+    accent-color: var(--primary);
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
@@ -886,9 +938,9 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   /* Writing surface: single container for editor page */
   /* The measure is capped in characters of the writing font, so it holds at any
      font size or density. `ch` is the width of a zero, wider than an average
-     letter, so 58ch of the surface font comes to about 66 characters of prose. */
+     letter, so 66ch of the surface font comes to about 75 characters of prose. */
   .writing-surface {
-    max-width: min(48rem, calc(58ch + 2 * var(--writer-padding-x)));
+    max-width: min(54rem, calc(66ch + 2 * var(--writer-padding-x)));
     margin-inline: auto;
     padding-inline: var(--writer-padding-x);
     padding-block: var(--writer-padding-y);
@@ -948,36 +1000,365 @@ body.style-paper [data-slot="drawer-content"][data-vaul-drawer-direction="left"]
   }
 }
 
-/* Shared by the dock, the Revise bar and other panes that float over the page. */
+/* Memorie Glass components. Every screen builds from these, so the look is
+   decided here once. */
 @layer components {
-  /* Liquid glass: a translucent, blurred and saturated pane with a bright
-     rim on top, a soft inner shade below and a light drop shadow. */
+  /* Glass: floating panes only (dock, toolbar capsules, palette, popovers,
+     menus, note cards, sheets, the assistant). Translucent, blurred and
+     saturated, with a bright rim on top and a soft drop shadow. */
   .glass {
-    background: color-mix(in oklch, var(--popover) 55%, transparent);
-    backdrop-filter: blur(18px) saturate(180%);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-    border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+    background: var(--glass);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--hair);
     box-shadow:
-      inset 0 1px 0 0 color-mix(in oklch, white 70%, transparent),
-      inset 0 -1px 0 0 color-mix(in oklch, var(--foreground) 4%, transparent),
+      inset 0 1px 0 0 var(--glass-rim),
       0 1px 2px color-mix(in oklch, black 6%, transparent),
-      0 8px 24px -6px color-mix(in oklch, black 14%, transparent);
+      0 8px 24px -10px color-mix(in oklch, black 22%, transparent);
+  }
+  .dark .glass {
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-rim),
+      0 10px 30px -8px color-mix(in oklch, black 55%, transparent);
   }
 
-  .dark .glass {
-    background: color-mix(in oklch, var(--popover) 50%, transparent);
-    border-color: color-mix(in oklch, white 10%, transparent);
+  /* Dark glass: the selection toolbar, which sits on the words themselves. */
+  .glass-dark {
+    background: color-mix(in oklch, oklch(0.2 0.006 70) 86%, transparent);
+    color: oklch(0.97 0.004 85);
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    border: 1px solid color-mix(in oklch, white 10%, transparent);
     box-shadow:
-      inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
-      inset 0 -1px 0 0 color-mix(in oklch, black 20%, transparent),
-      0 8px 28px -6px color-mix(in oklch, black 50%, transparent);
+      inset 0 1px 0 0 color-mix(in oklch, white 12%, transparent),
+      0 10px 28px -8px color-mix(in oklch, black 45%, transparent);
+  }
+
+  /* Toolbar: 52px, the window's drag region. Title left, capsules right. */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    flex-shrink: 0;
+    padding-inline: 20px 14px;
+  }
+  .toolbar-title {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* A capsule groups toolbar buttons; with .glass it floats. */
+  .capsule {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .tb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 30px;
+    min-width: 30px;
+    padding-inline: 9px;
+    border-radius: 999px;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--foreground);
+    white-space: nowrap;
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+  .tb-btn:hover:not(:disabled) {
+    background: var(--fill);
+  }
+  .tb-btn:disabled {
+    opacity: 0.4;
+  }
+  .tb-btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  /* The on segment of a capsule: a raised paper chip. */
+  .tb-btn[aria-pressed='true'],
+  .tb-btn[aria-selected='true'],
+  .tb-btn.is-on {
+    background: var(--paper);
+    box-shadow: 0 1px 2px color-mix(in oklch, black 14%, transparent);
+  }
+  /* The primary action: the one solid accent on a screen. */
+  .tb-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-weight: 500;
+  }
+  .tb-primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+  }
+  .tb-primary .tb-btn {
+    color: inherit;
+  }
+  .tb-primary .tb-btn:hover:not(:disabled) {
+    background: color-mix(in oklch, black 10%, transparent);
+  }
+
+  /* Sidebar: section heads and rows. */
+  .sb-head {
+    display: flex;
+    align-items: center;
+    padding: 14px 8px 4px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+  .sb-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 28px;
+    padding-inline: 8px;
+    border-radius: 7px;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--foreground);
+    text-align: left;
+    transition: background-color 120ms ease;
+  }
+  .sb-row:hover {
+    background: var(--fill);
+  }
+  .sb-row[aria-current='page'],
+  .sb-row[aria-current='true'],
+  .sb-row.is-on {
+    background: var(--selection);
+  }
+  .sb-row > svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--primary);
+  }
+  .sb-row .sb-count {
+    margin-left: auto;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-foreground);
+  }
+  /* A binder's colour as a small rounded square. */
+  .binder-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* Field: a quiet search or text well. */
+  .field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding-inline: 8px;
+    border-radius: var(--radius-field);
+    background: var(--fill);
+    color: var(--muted-foreground);
+    font-family: var(--font-ui);
+    font-size: 13px;
+  }
+  .field input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--foreground);
+    font: inherit;
+    outline: none;
+  }
+
+  /* Grouped inset list, as in System Settings: a card of rows split by
+     hairlines, with a small head above it. */
+  .inset-group {
+    background: var(--card);
+    border-radius: var(--radius-group);
+    box-shadow: 0 0 0 1px var(--hair);
+    overflow: hidden;
+  }
+  .inset-group > :where(* + *) {
+    box-shadow: 0 -1px 0 var(--hair);
+  }
+  .inset-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 40px;
+    padding: 8px 14px;
+    font-family: var(--font-ui);
+    font-size: 13px;
+  }
+  .group-head {
+    margin: 0;
+    padding: 18px 12px 6px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  /* Segmented control: a capsule of choices, the chosen one a raised chip. */
+  .seg > button {
+    border-radius: 999px;
+  }
+  .seg > button[aria-pressed='true'],
+  .seg > button[aria-selected='true'] {
+    background: var(--paper);
+    color: var(--foreground);
+    box-shadow: 0 1px 2px color-mix(in oklch, black 14%, transparent);
+  }
+
+  /* A small section label above an inset group. */
+  .ex-label {
+    margin: 0 0 6px 2px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  /* Chip: a filter or a small choice. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding-inline: 10px;
+    border-radius: 999px;
+    background: var(--fill);
+    color: var(--foreground);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .chip:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--foreground) 9%, transparent);
+  }
+  .chip[aria-pressed='true'],
+  .chip.is-on {
+    background: var(--foreground);
+    color: var(--paper);
+  }
+
+  /* Small grey metadata beside a title. */
+  .meta {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-foreground);
   }
 
   @media (prefers-reduced-transparency: reduce) {
     .glass {
-      background: var(--popover);
+      background: var(--glass-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .glass-dark {
+      background: oklch(0.2 0.006 70);
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
   }
+}
+
+/* Overlay primitives float, so they are glass. Matched by data-slot so every
+   dialog, sheet, popover and menu in the app gets it at once. Unlayered, so
+   it wins over each primitive's own bg-popover. */
+:is(
+    [data-slot='dialog-content'],
+    [data-slot='sheet-content'],
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='context-menu-content'],
+    [data-slot='context-menu-sub-content'],
+    [data-slot='select-content']
+  ) {
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--hair);
+  font-family: var(--font-ui);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-rim),
+    0 1px 2px color-mix(in oklch, black 6%, transparent),
+    0 12px 32px -10px color-mix(in oklch, black 26%, transparent);
+  --tw-ring-shadow: 0 0 #0000;
+}
+:is(
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='context-menu-content'],
+    [data-slot='context-menu-sub-content'],
+    [data-slot='select-content']
+  ) {
+  border-radius: var(--radius-field);
+}
+[data-slot='dialog-content'] {
+  border-radius: var(--radius-window);
+}
+/* Menu rows: 13px, highlighted with the selection tint. */
+:is(
+    [data-slot='dropdown-menu-item'],
+    [data-slot='dropdown-menu-sub-trigger'],
+    [data-slot='dropdown-menu-checkbox-item'],
+    [data-slot='dropdown-menu-radio-item'],
+    [data-slot='context-menu-item'],
+    [data-slot='context-menu-sub-trigger'],
+    [data-slot='context-menu-checkbox-item'],
+    [data-slot='context-menu-radio-item'],
+    [data-slot='select-item']
+  ) {
+  font-size: 13px;
+  border-radius: 5px;
+}
+:is(
+    [data-slot='dropdown-menu-item'],
+    [data-slot='dropdown-menu-sub-trigger'],
+    [data-slot='dropdown-menu-checkbox-item'],
+    [data-slot='dropdown-menu-radio-item'],
+    [data-slot='context-menu-item'],
+    [data-slot='context-menu-sub-trigger'],
+    [data-slot='context-menu-checkbox-item'],
+    [data-slot='context-menu-radio-item'],
+    [data-slot='select-item']
+  ):is([data-highlighted], :focus):not([data-variant='destructive']) {
+  background: var(--selection);
+  color: var(--foreground);
+}
+/* Overlays dim the window less than a web modal would. */
+:is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']) {
+  background: color-mix(in oklch, black 18%, transparent);
+}
+.dark :is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']),
+body.dark :is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']) {
+  background: color-mix(in oklch, black 40%, transparent);
+}
+/* Tooltips: small dark glass labels. */
+[data-slot='tooltip-content'] {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  border-radius: 6px;
 }

@@ -55,7 +55,7 @@
       onkeydown={(e) => {
         if (e.key === 'Enter') e.currentTarget.blur();
       }}
-      class="h-8 w-full rounded-md border border-border/60 bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
+      class="h-8 w-full rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
     />
     <datalist id={listId}>
       {#each STATUS_PRESETS as preset (preset)}
@@ -79,7 +79,7 @@
       onkeydown={(e) => {
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) e.currentTarget.blur();
       }}
-      class="w-full resize-y rounded-md border border-border/60 bg-transparent px-2 py-1.5 font-writer text-sm leading-snug outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
+      class="w-full resize-y rounded-[6px] bg-fill px-2 py-1.5 font-writer text-sm leading-snug outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
     ></textarea>
   </label>
 </div>

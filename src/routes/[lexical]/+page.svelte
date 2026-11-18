@@ -15,7 +15,11 @@
   import ReviseBar from '$lib/components/revise-bar.svelte';
   import MarginNotes from '$lib/components/margin-notes.svelte';
   import EditorNotes from '$lib/components/editor-notes.svelte';
-  import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
+  import PanelLeftIcon from '@lucide/svelte/icons/panel-left';
+  import PanelRightIcon from '@lucide/svelte/icons/panel-right';
+  import HistoryIcon from '@lucide/svelte/icons/history';
+  import ShareIcon from '@lucide/svelte/icons/share';
+  import BinderSidebar from '$lib/components/binder-sidebar.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import { shortcut } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
@@ -170,6 +174,9 @@
 
   let binderLabel = $derived(dirOf(fileName));
 
+  /** The library sidebar, opened over the page from the toolbar. */
+  let librarySheetOpen = $state(false);
+
   let focusMode = $derived(writingState.focusMode);
 
   /** Whether focus mode put the window into full screen (and so should undo it). */
@@ -204,158 +211,149 @@
   });
 </script>
 
-<div class="flex h-dvh w-full bg-background" class:focus-mode={focusMode}>
-  <aside
-    class="h-dvh bg-background
-    {appState.ui.isHistoryOpen && !focusMode ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
+{#snippet iconButton(/** @type {{ label: string, tip: string, onclick: () => void, pressed?: boolean, disabled?: boolean, icon: any }} */ b)}
+  <Tooltip.Root>
+    <Tooltip.Trigger>
+      {#snippet child({ props })}
+        <button
+          {...props}
+          type="button"
+          class="tb-btn"
+          aria-label={b.label}
+          aria-pressed={b.pressed}
+          disabled={b.disabled}
+          onclick={b.onclick}
+        >
+          <b.icon strokeWidth={1.7} />
+        </button>
+      {/snippet}
+    </Tooltip.Trigger>
+    <Tooltip.Content side="bottom" portalProps={{}}>{b.tip}</Tooltip.Content>
+  </Tooltip.Root>
+{/snippet}
+
+<div class="flex flex-col h-dvh w-full bg-paper" class:focus-mode={focusMode}>
+  <!-- One toolbar across the window (and its drag region): the way back and
+       the library on the left, the writing's title in the middle, its panels
+       and export on the right. -->
+  <header
+    data-tauri-drag-region
+    class="focus-chrome toolbar relative z-20 gap-2 pl-[max(18px,var(--titlebar-inset-left,0px))] pr-3"
   >
+    <div class="capsule glass">
+      {@render iconButton({ label: 'Back to library', tip: `Back to library · ${shortcut('B')}`, onclick: () => goto(resolve('/')), icon: HouseIcon })}
+      {@render iconButton({ label: 'Show library sidebar', tip: 'Library', onclick: () => (librarySheetOpen = true), icon: PanelLeftIcon })}
+    </div>
+
+    <div class="flex-1 min-w-0 flex items-center justify-center gap-1 pointer-events-none" data-tauri-drag-region>
+      {#if siblings.length > 1}
+        <span class="pointer-events-auto">
+          {@render iconButton({
+            label: 'Previous writing',
+            tip: prevWriting ? `Previous writing: ${formatFileName(baseOf(prevWriting.name))}` : 'Previous writing',
+            onclick: () => goToWriting(prevWriting),
+            disabled: !prevWriting,
+            icon: ChevronLeftIcon,
+          })}
+        </span>
+      {/if}
+      <div class="min-w-0 flex flex-col items-center leading-tight select-none" data-tauri-drag-region>
+        <h1 class="m-0 max-w-[40ch] truncate text-sm font-semibold text-foreground" data-tauri-drag-region>
+          {editorState.name || 'Untitled'}
+        </h1>
+        <!-- One line for the state of the work: where it lives, which version,
+             saved on disk, and whether it has left the machine. -->
+        <span class="meta flex items-center gap-1 max-w-[56ch] truncate pointer-events-auto" aria-live="polite">
+          {#if binderLabel}<span class="truncate">{binderLabel.replaceAll('/', ' / ')}</span><span aria-hidden="true">·</span>{/if}
+          {#if versionLabel}
+            <span title={isDraft ? undefined : `Saved versions are in the history panel (${shortcut('U')})`}>{versionLabel}</span>
+            {#if saveLabel}<span aria-hidden="true">·</span>{/if}
+          {/if}
+          {#if editorState.saveStatus.status === 'error'}
+            <button type="button" onclick={() => editorState.flushSave?.()} class="{saveTone} hover:underline underline-offset-2">
+              {saveLabel}
+            </button>
+          {:else if saveLabel}
+            <span class="{saveTone} transition-colors">{saveLabel}</span>
+          {/if}
+          {#if syncLabel}
+            <span aria-hidden="true">·</span>
+            <button
+              type="button"
+              onclick={publishNow}
+              disabled={sync.busy}
+              title="Publish to {sync.label}"
+              class="transition-colors hover:text-foreground disabled:opacity-60 {sync.pending ? 'text-foreground' : ''}"
+            >
+              {syncLabel}
+            </button>
+          {/if}
+        </span>
+      </div>
+      {#if siblings.length > 1}
+        <span class="pointer-events-auto">
+          {@render iconButton({
+            label: 'Next writing',
+            tip: nextWriting ? `Next writing: ${formatFileName(baseOf(nextWriting.name))}` : 'Next writing',
+            onclick: () => goToWriting(nextWriting),
+            disabled: !nextWriting,
+            icon: ChevronRightIcon,
+          })}
+        </span>
+      {/if}
+    </div>
+
+    <div class="capsule glass">
+      {@render iconButton({
+        label: appState.ui.isHistoryOpen ? 'Hide history' : 'Show history',
+        tip: `History · ${shortcut('U')}`,
+        onclick: () => appState.toggleChatHistory(),
+        pressed: appState.ui.isHistoryOpen,
+        disabled: isDraft,
+        icon: HistoryIcon,
+      })}
+      {@render iconButton({
+        label: appState.ui.isOutlineOpen ? 'Hide scene panel' : 'Show scene panel',
+        tip: `Scene panel · ${shortcut('shift', 'O')}`,
+        onclick: () => appState.toggleOutline(),
+        pressed: appState.ui.isOutlineOpen,
+        icon: PanelRightIcon,
+      })}
+    </div>
+    <div class="capsule glass">
+      {@render iconButton({
+        label: 'Export',
+        tip: 'Export…',
+        onclick: () => appState.openExport({ fileName, dir: dirOf(fileName) }),
+        disabled: isDraft,
+        icon: ShareIcon,
+      })}
+    </div>
+  </header>
+
+  <div class="flex flex-1 min-h-0">
     {#if appState.ui.isHistoryOpen && !focusMode}
-      <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
-        <div class="flex items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
-          <h2 class="text-[0.8125rem] font-medium text-muted-foreground">History</h2>
-          <span class="truncate text-meta tabular-nums text-metadata" title={baseOf(fileName)}>
-            {baseOf(fileName)}
-          </span>
+      <aside aria-label="History" class="glass flex flex-col w-60 shrink-0 ml-2 mb-2 rounded-group overflow-hidden">
+        <div class="flex items-center justify-between gap-2 px-3.5 pt-3 pb-2">
+          <h2 class="text-xs font-semibold text-muted-foreground">History</h2>
+          <span class="meta truncate" title={baseOf(fileName)}>{formatFileName(baseOf(fileName))}</span>
         </div>
-        <ScrollFade class="flex-1 h-full">
+        <ScrollFade class="flex-1 min-h-0">
           <ScrollArea class="h-full" type="scroll">
             {#if history}
               <EditorHistory {fileName} {history} />
             {:else}
-              <div class="p-4 text-sm text-muted-foreground">No history available</div>
+              <div class="p-4 text-sm text-muted-foreground">No history yet.</div>
             {/if}
           </ScrollArea>
         </ScrollFade>
-      </div>
+      </aside>
     {/if}
-  </aside>
 
-  <div class="w-full h-full flex flex-1 flex-col min-w-0">
-    <header
-      data-tauri-drag-region
-      class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-meta tabular-nums shrink-0
-        {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
-    >
-<Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-      <button
-        {...props}
-        onclick={() => goto(resolve('/'))}
-        aria-label="Go home"
-        class="flex items-center justify-center size-7 -ml-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
-      >
-        <HouseIcon strokeWidth={1.5} class="size-3.5" />
-      </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>Go home</Tooltip.Content>
-      </Tooltip.Root>
-      {#if versionLabel}
-        <span
-          class="shrink-0 ml-1 select-none text-muted-foreground"
-          title={isDraft ? undefined : `Saved versions are in the history panel (${shortcut('U')})`}
-        >
-          {versionLabel}
-        </span>
-      {/if}
-      <div class="flex-1 flex items-center justify-center gap-1 min-w-0 pointer-events-none">
-        {#if siblings.length > 1}
-          <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-<button
-            {...props}
-            onclick={() => goToWriting(prevWriting)}
-            disabled={!prevWriting}
-            aria-label="Previous writing"
-            class="pointer-events-auto flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
-          >
-            <ChevronLeftIcon strokeWidth={1.5} class="size-3.5" />
-          </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>{prevWriting ? `Previous writing: ${formatFileName(baseOf(prevWriting.name))}` : 'Previous writing'}</Tooltip.Content>
-      </Tooltip.Root>
-        {/if}
-        <span class="text-muted-foreground select-none truncate max-w-xs">
-          {#if binderLabel}
-            <span class="text-muted-foreground">{binderLabel.replaceAll('/', ' / ')} /</span>
-          {/if}
-          {editorState.name}
-        </span>
-        {#if siblings.length > 1}
-          <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-<button
-            {...props}
-            onclick={() => goToWriting(nextWriting)}
-            disabled={!nextWriting}
-            aria-label="Next writing"
-            class="pointer-events-auto flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
-          >
-            <ChevronRightIcon strokeWidth={1.5} class="size-3.5" />
-          </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>{nextWriting ? `Next writing: ${formatFileName(baseOf(nextWriting.name))}` : 'Next writing'}</Tooltip.Content>
-      </Tooltip.Root>
-        {/if}
-      </div>
-      <!-- One line for the state of the work: saved on disk, and whether it
-           has left the machine. They used to be separate signals in separate
-           places, and the second is the one that actually worries people. -->
-      <span class="flex items-center gap-1.5 shrink-0 tracking-wide" aria-live="polite">
-        {#if editorState.saveStatus.status === 'error'}
-          <button
-            type="button"
-            onclick={() => editorState.flushSave?.()}
-            class="{saveTone} rounded px-1 -mx-1 hover:underline underline-offset-2"
-          >
-            {saveLabel}
-          </button>
-        {:else}
-          <span class="{saveTone} transition-colors">{saveLabel}</span>
-        {/if}
-        {#if syncLabel}
-          <span class="opacity-30">•</span>
-          <button
-            type="button"
-            onclick={publishNow}
-            disabled={sync.busy}
-            title="Publish to {sync.label}"
-            class="transition-colors hover:text-foreground disabled:opacity-60 {sync.pending
-              ? 'text-foreground'
-              : 'text-muted-foreground'}"
-          >
-            {syncLabel}
-          </button>
-        {/if}
-      </span>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-<button
-        {...props}
-        onclick={() => appState.toggleOutline()}
-        aria-label={appState.ui.isOutlineOpen ? 'Hide table of contents' : 'Show table of contents'}
-        aria-pressed={appState.ui.isOutlineOpen}
-        class="flex items-center justify-center size-7 ml-1.5 -mr-1.5 rounded-md transition-colors hover:text-foreground hover:bg-foreground/5
-          {appState.ui.isOutlineOpen ? 'text-foreground' : 'text-muted-foreground'}"
-      >
-        <TableOfContentsIcon strokeWidth={1.5} class="size-3.5" />
-      </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>{appState.ui.isOutlineOpen ? 'Hide' : 'Show'} scene panel <kbd class="ml-1 font-sans opacity-70">{shortcut('shift', 'O')}</kbd></Tooltip.Content>
-      </Tooltip.Root>
-    </header>
-
-    <main class="relative h-full flex-1 overflow-hidden">
+    <main class="relative h-full flex-1 min-w-0 overflow-hidden">
       <EditorFind />
       <ReviseBar />
-      <ScrollFade class="h-full" fadeSize="h-6">
+      <ScrollFade class="h-full" fade={24}>
         <ScrollArea class="h-full" type="scroll">
           <div class="writing-surface relative pb-24">
             <MarkdownEditor {fileName} {body} {isDraft} {docKey} />
@@ -363,45 +361,49 @@
           </div>
         </ScrollArea>
       </ScrollFade>
+      <footer class="focus-chrome">
+        <EditorCommandbar {fileName} {isDraft} />
+      </footer>
     </main>
 
-    <footer class="focus-chrome relative h-0">
-      <EditorCommandbar {fileName} {isDraft} />
-    </footer>
-  </div>
-
-  <aside
-    class="h-dvh bg-background shrink-0
-    {appState.ui.isOutlineOpen && !focusMode ? 'w-65 border-l border-border/40' : 'w-0'} overflow-hidden"
-  >
     {#if appState.ui.isOutlineOpen && !focusMode}
-      <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
-        <ScrollFade class="flex-1 h-full">
+      <!-- The scene panel: an inspector floating at the window's right edge. -->
+      <aside aria-label="Scene" class="glass flex flex-col w-66 shrink-0 mr-2 mb-2 rounded-group overflow-hidden">
+        <ScrollFade class="flex-1 min-h-0">
           <ScrollArea class="h-full" type="scroll">
-            <h2 class="px-4 py-3 text-[0.8125rem] font-medium text-muted-foreground">Scene</h2>
-            {#key fileName}
-              <EditorSceneInfo {fileName} {isDraft} />
-            {/key}
-            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">Notes</h2>
-            <EditorNotes />
-            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">In this scene</h2>
-            <EditorCodex {fileName} content={body} />
-            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">Contents</h2>
-            <EditorOutline />
-            {#if !isDraft}
-              <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">
-                Referenced by
-              </h2>
-              <EditorBacklinks {fileName} />
-            {/if}
+            <div class="pb-3">
+              <h2 class="inspector-head">Scene</h2>
+              {#key fileName}
+                <EditorSceneInfo {fileName} {isDraft} />
+              {/key}
+              <h2 class="inspector-head">Notes</h2>
+              <EditorNotes />
+              <h2 class="inspector-head">In this scene</h2>
+              <EditorCodex {fileName} content={body} />
+              <h2 class="inspector-head">Contents</h2>
+              <EditorOutline />
+              {#if !isDraft}
+                <h2 class="inspector-head">Referenced by</h2>
+                <EditorBacklinks {fileName} />
+              {/if}
+            </div>
           </ScrollArea>
         </ScrollFade>
-      </div>
+      </aside>
     {/if}
-  </aside>
+  </div>
 </div>
 
+<BinderSidebar docked={false} bind:activeBinder={appState.ui.activeBinder} bind:sheetOpen={librarySheetOpen} />
+
 <style>
+  .inspector-head {
+    padding: 14px 14px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
   /* Focus mode: chrome fades out and comes back when the pointer reaches it
      or something inside it takes focus (command mode, the stats popover). */
   .focus-chrome {

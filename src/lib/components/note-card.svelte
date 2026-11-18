@@ -67,8 +67,8 @@
 
 <article
   class={cn(
-    'rounded-xl bg-popover px-3.5 py-3 text-sm leading-normal text-foreground border transition-[border-color,box-shadow]',
-    active || editing ? 'border-primary/50 shadow-md' : 'border-border shadow-sm',
+    'glass rounded-group px-3.5 py-3 text-sm leading-normal text-foreground transition-shadow',
+    (active || editing) && 'ring-2 ring-primary/40',
     className
   )}
   aria-label="Note"

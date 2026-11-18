@@ -206,10 +206,10 @@
     aria-label={title}
     aria-pressed={pressed}
     {onclick}
-    class="h-6 min-w-6 px-1 rounded font-mono text-meta transition-colors
+    class="h-6 min-w-6 px-1 rounded-[6px] font-mono text-meta transition-colors
       {pressed
-      ? 'bg-primary/15 text-primary'
-      : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+      ? 'bg-selection text-foreground'
+      : 'text-muted-foreground hover:bg-fill hover:text-foreground'}"
   >
     {label}
   </button>
@@ -227,7 +227,7 @@
     aria-label={title}
     {onclick}
     {disabled}
-    class="size-6 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
+    class="size-6 flex items-center justify-center rounded-[6px] text-muted-foreground hover:bg-fill hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
   >
     <Icon strokeWidth={1.5} class="size-3.5" />
   </button>
@@ -237,7 +237,7 @@
   <div
     role="search"
     aria-label="Find in this writing"
-    class="find-bar absolute right-4 top-2 z-30 grid gap-1.5 rounded-lg border border-border/60 bg-popover p-1.5 font-sans text-popover-foreground shadow-lg"
+    class="find-bar absolute right-4 top-2 z-30 grid gap-1.5 glass rounded-group p-1.5 font-sans text-popover-foreground"
   >
     <div class="flex items-center gap-1">
       <button
@@ -245,7 +245,7 @@
         onclick={() => (showReplace = !showReplace)}
         aria-label={showReplace ? 'Hide replace' : 'Show replace'}
         aria-expanded={showReplace}
-        class="size-6 flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+        class="size-6 flex items-center justify-center rounded-[6px] text-muted-foreground hover:bg-fill hover:text-foreground"
       >
         <ChevronRightIcon
           strokeWidth={1.5}
@@ -262,8 +262,8 @@
         title={error || undefined}
         spellcheck="false"
         autocomplete="off"
-        class="w-52 h-7 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50
-          {error ? 'border-destructive' : 'border-border'}"
+        class="w-52 h-7 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50
+          {error ? 'ring-2 ring-destructive/60' : ''}"
       />
       {@render toggle('Aa', 'Match case', caseSensitive, () => (caseSensitive = !caseSensitive))}
       {@render toggle('ab', 'Whole word', wholeWord, () => (wholeWord = !wholeWord))}
@@ -296,14 +296,14 @@
           aria-label="Replace"
           spellcheck="false"
           autocomplete="off"
-          class="w-52 h-7 rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          class="w-52 h-7 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         />
         <button
           type="button"
           title="Replace (↵)"
           onclick={replaceOne}
           disabled={!total}
-          class="h-6 px-2 rounded text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
+          class="h-6 px-2 rounded-[6px] text-xs text-muted-foreground hover:bg-fill hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
         >
           Replace
         </button>
@@ -312,7 +312,7 @@
           title="Replace all ({shortcut('↵')})"
           onclick={replaceEvery}
           disabled={!total}
-          class="h-6 px-2 rounded text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
+          class="h-6 px-2 rounded-[6px] text-xs text-muted-foreground hover:bg-fill hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
         >
           All
         </button>

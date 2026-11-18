@@ -215,19 +215,15 @@
       ? `theme-${appState.ui.themePalette}`
       : ''} style-{appState.ui.styleFlavour} density-{appState.ui.density} {onMacOS
       ? 'platform-mac'
-      : ''} font-sans font-normal w-full h-dvh bg-background text-foreground overflow-hidden relative"
+      : ''} font-sans font-normal text-sm w-full h-dvh bg-frame text-foreground overflow-hidden relative"
   >
-    {#if onMacOS}
-      <!-- Overlay title bar: this strip is what the user grabs to move the window. -->
-      <div
-        data-tauri-drag-region
-        class="fixed inset-x-0 top-0 z-10 h-(--titlebar-height) bg-titlebar-background cursor-default select-none"
-      ></div>
-    {/if}
+    <!-- The window frame. Each screen puts its floating sidebar and its paper
+         on it; their toolbars are the drag region (on macOS the traffic lights
+         sit over the sidebar's top row or the toolbar's left edge). -->
     {@render children()}
     {#if isClosing}
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-background"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-paper"
         role="status"
         aria-live="polite"
       >
@@ -247,8 +243,7 @@
       offset={56}
       closeButton
       toastOptions={{
-        class:
-          'font-sans !bg-popover !text-popover-foreground !border-border !shadow-md !rounded-lg',
+        class: 'font-sans glass !bg-glass !text-popover-foreground !border-hair !rounded-group',
         descriptionClass: '!text-muted-foreground',
       }}
     />

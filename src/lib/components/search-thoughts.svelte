@@ -73,7 +73,7 @@
     </Collapsible.Trigger>
 
     <Collapsible.Content>
-      <ol class="mt-2 ml-1.5 flex flex-col gap-2.5 border-l border-border/60 pl-3">
+      <ol class="mt-2 ml-1.5 flex flex-col gap-2.5 border-l border-hair pl-3">
         {#each passages as passage, i (i)}
           {@const judged = verdict(passage.rerankScore)}
           <li>
@@ -81,7 +81,7 @@
               type="button"
               onclick={() => onOpen(passage.title)}
               title="Open {passage.title}"
-              class="flex w-full flex-col gap-0.5 rounded-md text-left text-xs text-muted-foreground hover:text-foreground transition-colors"
+              class="flex w-full flex-col gap-0.5 rounded-[6px] text-left text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <span class="flex min-w-0 items-baseline gap-1.5">
                 <span class="shrink-0 tabular-nums text-muted-foreground">{i + 1}.</span>

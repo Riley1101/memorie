@@ -787,6 +787,227 @@ pub fn matrix(entities: Vec<Entity>, writings: Vec<(String, String)>) -> Matrix 
 }
 
 // -------------------------------------------------------
+//  MENTIONS OF ONE ENTRY
+// -------------------------------------------------------
+
+/// A run of a mention's sentence: plain text, or the name itself.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct SnippetPart {
+    pub text: String,
+    pub hit: bool,
+}
+
+/// The sentence a mention sits in, with every mention in it marked.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MentionSnippet {
+    /// 1-based, counting the writing's non-empty paragraphs (front matter skipped).
+    pub paragraph: usize,
+    pub parts: Vec<SnippetPart>,
+}
+
+/// One writing's mentions of an entry.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct WritingMentions {
+    pub name: String,
+    pub count: usize,
+    pub snippets: Vec<MentionSnippet>,
+}
+
+/// Longest sentence shown whole; longer ones are cut to a window round the names.
+const SNIPPET_MAX: usize = 280;
+const SNIPPET_CONTEXT: usize = 110;
+
+fn ends_sentence(c: char) -> bool {
+    matches!(c, '.' | '!' | '?' | '…' | '\n')
+}
+
+fn closes_quote(c: char) -> bool {
+    matches!(c, '"' | '\'' | ')' | '\u{201D}' | '\u{2019}' | '*' | '_')
+}
+
+/// Byte range of the sentence in `p` holding `start..end`.
+fn sentence_bounds(p: &str, start: usize, end: usize) -> (usize, usize) {
+    let from = p[..start]
+        .char_indices()
+        .rev()
+        .find(|&(_, c)| ends_sentence(c))
+        .map(|(i, c)| {
+            // Step over the closing quote of the sentence before.
+            let after = i + c.len_utf8();
+            after
+                + p[after..]
+                    .chars()
+                    .take_while(|&c| closes_quote(c))
+                    .map(char::len_utf8)
+                    .sum::<usize>()
+        })
+        .unwrap_or(0)
+        .min(start);
+    let to = p[end..]
+        .char_indices()
+        .find(|&(_, c)| ends_sentence(c))
+        .map(|(i, c)| {
+            let after = end + i + c.len_utf8();
+            after
+                + p[after..]
+                    .chars()
+                    .take_while(|&c| closes_quote(c))
+                    .map(char::len_utf8)
+                    .sum::<usize>()
+        })
+        .unwrap_or(p.len());
+    (from, to)
+}
+
+/// Moves `i` back (or forward) to the nearest char boundary in `s`.
+fn floor_boundary(s: &str, mut i: usize) -> usize {
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
+}
+fn ceil_boundary(s: &str, mut i: usize) -> usize {
+    while i < s.len() && !s.is_char_boundary(i) {
+        i += 1;
+    }
+    i
+}
+
+/// Markdown marks that read as noise in a quoted sentence.
+fn clean_markdown(text: &str) -> String {
+    text.replace("**", "").replace('*', "")
+}
+
+fn snippet(
+    paragraph: &str,
+    number: usize,
+    from: usize,
+    to: usize,
+    hits: &[(usize, usize)],
+) -> MentionSnippet {
+    let (mut from, mut to) = (from, to);
+    let (mut lead, mut tail) = ("", "");
+    if to - from > SNIPPET_MAX {
+        let first = hits.first().map_or(from, |h| h.0);
+        let last = hits.last().map_or(to, |h| h.1);
+        let window_from =
+            floor_boundary(paragraph, first.saturating_sub(SNIPPET_CONTEXT).max(from));
+        let window_to = ceil_boundary(paragraph, (last + SNIPPET_CONTEXT).min(to));
+        if window_from > from {
+            from = window_from;
+            lead = "…";
+        }
+        if window_to < to {
+            to = window_to;
+            tail = "…";
+        }
+    }
+    let mut parts = Vec::new();
+    let mut at = from;
+    let push = |text: &str, hit: bool, parts: &mut Vec<SnippetPart>| {
+        if !text.is_empty() {
+            parts.push(SnippetPart {
+                text: if hit {
+                    text.to_string()
+                } else {
+                    clean_markdown(text)
+                },
+                hit,
+            });
+        }
+    };
+    for &(start, end) in hits {
+        if start < at || end > to {
+            continue;
+        }
+        push(&paragraph[at..start], false, &mut parts);
+        push(&paragraph[start..end], true, &mut parts);
+        at = end;
+    }
+    push(&paragraph[at..to], false, &mut parts);
+    // Headings, quotes and list marks at the start of a paragraph are not the sentence.
+    if let Some(first) = parts.first_mut().filter(|p| !p.hit) {
+        first.text = first
+            .text
+            .trim_start_matches(|c: char| c == '#' || c == '>' || c == '-' || c.is_whitespace())
+            .to_string();
+    }
+    if let Some(last) = parts.last_mut().filter(|p| !p.hit) {
+        last.text = last.text.trim_end().to_string();
+    }
+    parts.retain(|p| !p.text.is_empty());
+    if !lead.is_empty() {
+        parts.insert(
+            0,
+            SnippetPart {
+                text: lead.to_string(),
+                hit: false,
+            },
+        );
+    }
+    if !tail.is_empty() {
+        parts.push(SnippetPart {
+            text: tail.to_string(),
+            hit: false,
+        });
+    }
+    MentionSnippet {
+        paragraph: number,
+        parts,
+    }
+}
+
+/// Every sentence in `writings` that mentions the entry at `path`, grouped by
+/// writing (only writings that mention it). Uses the same matcher as the
+/// matrix, over all `entities`, so where names overlap the longest still wins
+/// and the counts agree.
+pub fn mention_snippets(
+    entities: &[Entity],
+    path: &str,
+    writings: &[(String, String)],
+) -> Vec<WritingMentions> {
+    let Some(target) = entities.iter().position(|e| e.path == path) else {
+        return Vec::new();
+    };
+    let matcher = Matcher::new(entities);
+    let mut out = Vec::new();
+    for (name, content) in writings {
+        let (_, body) = split_front_matter(content);
+        let mut snippets = Vec::new();
+        let mut count = 0;
+        let paragraphs = body.split("\n\n").map(str::trim).filter(|p| !p.is_empty());
+        for (index, paragraph) in paragraphs.enumerate() {
+            let hits: Vec<(usize, usize)> = matcher
+                .find(paragraph)
+                .into_iter()
+                .filter(|h| h.entity == target)
+                .map(|h| (h.start, h.end))
+                .collect();
+            count += hits.len();
+            // Mentions in the same sentence are shown once, together.
+            let mut i = 0;
+            while i < hits.len() {
+                let (from, to) = sentence_bounds(paragraph, hits[i].0, hits[i].1);
+                let mut j = i + 1;
+                while j < hits.len() && hits[j].0 < to {
+                    j += 1;
+                }
+                snippets.push(snippet(paragraph, index + 1, from, to, &hits[i..j]));
+                i = j;
+            }
+        }
+        if count > 0 {
+            out.push(WritingMentions {
+                name: name.clone(),
+                count,
+                snippets,
+            });
+        }
+    }
+    out
+}
+
+// -------------------------------------------------------
 //  DRAFTING A SHEET
 // -------------------------------------------------------
 
@@ -1090,6 +1311,44 @@ pub fn build_context(entities: &[Entity], sources: &ContextSources, budget: usiz
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn mention_snippets_quote_the_sentence_and_mark_the_name() {
+        let mara = entity("Mara Quill", &["Mara"], MatchMode::CaseSensitive);
+        let writings = vec![(
+            "Novel/Lamp Room.md".to_string(),
+            "---\nstatus: draft\n---\n\n# The Lamp Room\n\nThe bell was quiet. Mara climbed the steps. It was Mara Quill's light now.\n\nNo one else came.\n\n> \"Mara,\" he said.".to_string(),
+        )];
+        let found = mention_snippets(&[mara], "Novel/Codex/Characters/Mara Quill.md", &writings);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].count, 3);
+        let texts: Vec<String> = found[0]
+            .snippets
+            .iter()
+            .map(|s| {
+                s.parts
+                    .iter()
+                    .map(|p| {
+                        if p.hit {
+                            format!("[{}]", p.text)
+                        } else {
+                            p.text.clone()
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        assert_eq!(
+            texts,
+            vec![
+                "[Mara] climbed the steps.",
+                "It was [Mara Quill]'s light now.",
+                "\"[Mara],\" he said."
+            ]
+        );
+        assert_eq!(found[0].snippets[0].paragraph, 2);
+        assert_eq!(found[0].snippets[2].paragraph, 4);
+    }
 
     fn entity(name: &str, aliases: &[&str], mode: MatchMode) -> Entity {
         Entity {

@@ -145,7 +145,7 @@
       onclick={() => appState.toggleCommandMenu(true)}
       aria-label="Commands"
       title="Commands"
-      class="flex items-center h-8 px-3 shrink-0 rounded-full bg-foreground/6 text-foreground hover:bg-foreground/10 transition-colors"
+      class="flex items-center h-8 px-3 shrink-0 rounded-full bg-foreground/6 text-foreground hover:bg-fill transition-colors"
     >
       <kbd class="font-sans">{shortcut('K')}</kbd>
     </button>
@@ -155,13 +155,13 @@
 <Dialog.Root bind:open={aiSetup.open}>
   <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Set up local AI</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground pt-2">
+      <Dialog.Title class="text-title font-semibold">Set up local AI</Dialog.Title>
+      <Dialog.Description class="text-sm text-muted-foreground pt-1">
         Memoire runs AI entirely on your machine. The first time it needs to download a
         language model (about 1.5 GB). Nothing you write leaves this device.
       </Dialog.Description>
     </Dialog.Header>
-    <Dialog.Footer class="mt-6 flex gap-2">
+    <Dialog.Footer class="mt-4 flex gap-2">
       <Button variant="ghost" class="flex-1" onclick={() => (aiSetup.open = false)}>
         Not now
       </Button>

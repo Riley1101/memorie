@@ -13,7 +13,7 @@
 </script>
 
 <div
-  class="w-72 bg-popover border border-border rounded-xl shadow-lg overflow-hidden not-prose"
+  class="w-72 glass rounded-group overflow-hidden not-prose font-sans"
   role="listbox"
 >
   <div class="max-h-72 overflow-y-auto p-1">
@@ -23,10 +23,10 @@
         onmousedown={(e) => e.preventDefault()}
         onclick={() => onSelect(item)}
         class={cn(
-          'w-full px-3 py-2 text-left text-sm flex flex-col rounded-sm transition-colors',
+          'w-full px-3 py-2 text-left text-sm flex flex-col rounded-[6px] transition-colors',
           index === selectedIndex
-            ? 'bg-accent text-accent-foreground'
-            : 'text-muted-foreground hover:bg-muted'
+            ? 'bg-selection text-foreground'
+            : 'text-muted-foreground hover:bg-fill'
         )}
         role="option"
         aria-selected={index === selectedIndex}

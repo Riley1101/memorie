@@ -282,10 +282,10 @@
     ondragover={handleDragOver}
     ondragleave={handleDragLeave}
     ondrop={handleDropOnFolder}
-    class="group/folder relative flex items-center gap-1.5 py-2 pr-1 rounded-md transition-colors
-      {isDragOver ? 'bg-primary/10 ring-1 ring-primary/40' : 'hover:bg-muted/20'}
+    class="group/folder relative flex items-center gap-1.5 py-1.5 pr-1 rounded-[7px] transition-colors
+      {isDragOver ? 'bg-selection ring-1 ring-primary/40' : 'hover:bg-fill'}
       {isDragging ? 'opacity-40' : ''}
-      {menuOpen ? 'bg-muted/20' : ''}"
+      {menuOpen ? 'bg-fill' : ''}"
     style="padding-left: {depth * 1.25}rem"
   >
     {#if isRenamingFolder}
@@ -303,7 +303,7 @@
         onblur={confirmRenameFolder}
         onclick={(e) => e.stopPropagation()}
         autofocus
-        class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+        class="flex-1 min-w-0 bg-fill rounded-[6px] px-2 py-0.5 text-sm outline-none"
       />
     {:else}
       <button
@@ -311,7 +311,7 @@
         data-tree-row
         onclick={() => treeState.toggle(folderPath)}
         onkeydown={handleFolderKeydown}
-        class="flex items-center gap-1.5 flex-1 min-w-0 text-left text-base text-foreground/90 hover:text-foreground transition-colors"
+        class="flex items-center gap-1.5 flex-1 min-w-0 text-left text-sm text-foreground hover:text-foreground transition-colors"
         aria-label="{open ? 'Collapse' : 'Expand'} {node.name}"
         aria-expanded={open}
       >
@@ -324,12 +324,12 @@
         {:else}
           <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
         {/if}
-        <span class="truncate font-writer font-medium">{node.name}</span>
+        <span class="truncate font-semibold">{node.name}</span>
         <span class="ml-1 text-xs tabular-nums text-muted-foreground shrink-0">
           {node.fileCount}
         </span>
         {#if node.lastModified}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata tabular-nums group-hover/folder:opacity-0 transition-opacity">
+          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 meta group-hover/folder:opacity-0 transition-opacity">
             <span>{formatDate(node.lastModified)}</span>
             <span class="opacity-30">•</span>
             <span>{formatTime(node.lastModified)}</span>
@@ -354,7 +354,7 @@
           }}
           aria-label="New writing in {node.name}"
           title="New writing here"
-          class="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+          class="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-fill transition-colors"
         >
           <PlusIcon class="size-3.5" strokeWidth={1.5} />
         </button>
@@ -366,7 +366,7 @@
                 type="button"
                 onclick={(e) => e.stopPropagation()}
                 aria-label="Folder actions"
-                class="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                class="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-fill transition-colors"
               >
                 <EllipsisIcon class="size-3.5" strokeWidth={1.5} />
               </button>
@@ -453,7 +453,7 @@
             onblur={handleDraftBlur}
             autofocus
             placeholder="Folder name"
-            class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+            class="flex-1 min-w-0 bg-fill rounded-[6px] px-2 py-0.5 text-sm outline-none"
           />
         </div>
       {/if}
@@ -496,8 +496,8 @@
     ondragover={handleFileDragOver}
     ondragleave={handleFileDragLeave}
     ondrop={handleFileDrop}
-    class="group/file relative flex items-center gap-2 py-2 pr-1 rounded-md hover:bg-muted/20 transition-colors
-      {isDragging ? 'opacity-40' : ''} {menuOpen ? 'bg-muted/20' : ''}"
+    class="group/file relative flex items-center gap-2 py-2 pr-1 rounded-[7px] hover:bg-fill transition-colors
+      {isDragging ? 'opacity-40' : ''} {menuOpen ? 'bg-fill' : ''}"
     style="padding-left: {depth * 1.25}rem"
   >
     <!-- Where the writing would land. Without this the drop target in a
@@ -524,7 +524,7 @@
           }}
           onblur={confirmRenameFile}
           autofocus
-          class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+          class="flex-1 min-w-0 bg-fill rounded-[6px] px-2 py-0.5 text-sm outline-none"
         />
       </div>
     {:else}
@@ -533,7 +533,7 @@
         data-tree-row
         onclick={handleFileClick}
         onkeydown={handleFileKeydown}
-        class="flex items-center gap-2 flex-1 min-w-0 text-base text-muted-foreground/90 hover:text-foreground transition-colors"
+        class="flex items-center gap-2 flex-1 min-w-0 text-sm text-foreground/85 hover:text-foreground transition-colors"
       >
         <span class="size-4 shrink-0"></span>
         <FileIcon class="size-4 shrink-0" strokeWidth={1.5} />
@@ -544,8 +544,8 @@
             aria-label="Status: {status}"
           ></span>
         {/if}
-        <span class="truncate font-writer" title={synopsis || undefined}>{formatFileName(node.name)}</span>
-        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 text-xs text-metadata tabular-nums group-hover/file:opacity-0 transition-opacity">
+        <span class="truncate" title={synopsis || undefined}>{formatFileName(node.name)}</span>
+        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 meta group-hover/file:opacity-0 transition-opacity">
           {#if words !== null && words > 0}
             <span>{wordLabel}</span>
             <span class="opacity-30">•</span>
@@ -567,7 +567,7 @@
                 {...props}
                 type="button"
                 aria-label="Writing actions"
-                class="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                class="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-fill transition-colors"
               >
                 <EllipsisIcon class="size-3.5" strokeWidth={1.5} />
               </button>

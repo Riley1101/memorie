@@ -420,6 +420,7 @@ pub async fn run() {
             commands::codex_delete,
             commands::codex_detect,
             commands::codex_matrix,
+            commands::codex_mentions,
             commands::codex_draft,
             prepare_for_update,
             restart_app,

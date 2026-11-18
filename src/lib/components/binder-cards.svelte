@@ -121,7 +121,7 @@
           class="h-7 px-2.5 rounded-full text-xs transition-colors border
             {statusFilter === option
               ? 'border-primary bg-primary/10 text-primary'
-              : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/40'}"
+              : 'border-hair text-muted-foreground hover:text-foreground hover:bg-fill'}"
         >
           {option === '' ? 'All' : option === '—' ? 'No status' : option}
         </button>
@@ -140,7 +140,7 @@
           {#each shown as file (file.name)}
             {@const card = cache.get(file.name)}
             <li
-              class="group relative flex flex-col min-h-40 rounded-xl border border-border/60 bg-muted/10 p-3 transition-colors hover:border-border hover:bg-muted/25"
+              class="group relative flex flex-col min-h-40 rounded-group bg-card p-3 shadow-[0_0_0_1px_var(--hair)] transition-shadow hover:shadow-[0_0_0_1px_var(--hair),0_6px_18px_-8px_rgb(0_0_0/0.25)]"
             >
               <div class="flex items-start gap-2">
                 <a
@@ -149,12 +149,12 @@
                     e.preventDefault();
                     goto(resolve(`/${encodeURIComponent(file.name)}`));
                   }}
-                  class="flex-1 min-w-0 font-writer text-base leading-snug hover:underline underline-offset-2"
+                  class="flex-1 min-w-0 text-[13.5px] font-medium leading-snug hover:underline underline-offset-2"
                 >
                   {formatFileName(baseOf(file.name))}
                 </a>
                 {#if card?.meta.status}
-                  <span class="shrink-0 rounded-full px-2 py-0.5 font-sans text-meta {statusTone(card.meta.status)}">
+                  <span class="shrink-0 rounded-full px-2 py-0.5 text-xs {statusTone(card.meta.status)}">
                     {card.meta.status}
                   </span>
                 {/if}
@@ -176,14 +176,14 @@
                       e.currentTarget.blur();
                     }
                   }}
-                  class="mt-2 flex-1 w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 font-sans text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  class="mt-2 flex-1 w-full resize-none rounded-field border border-hair bg-paper px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 ></textarea>
               {:else}
                 <button
                   type="button"
                   onclick={() => startEdit(file.name)}
                   title="Edit synopsis"
-                  class="mt-2 flex-1 text-left font-writer text-sm leading-snug rounded-md -mx-1 px-1 hover:bg-muted/40"
+                  class="mt-2 flex-1 text-left font-serif text-sm leading-snug rounded-[6px] -mx-1 px-1 hover:bg-fill"
                 >
                   {#if !card && loading}
                     <span class="text-muted-foreground">…</span>
@@ -197,7 +197,7 @@
                 </button>
               {/if}
 
-              <div class="mt-2 flex items-center justify-between text-meta text-metadata tabular-nums">
+              <div class="mt-2 flex items-center justify-between meta">
                 <span class="flex items-center gap-1.5">
                   {#if card}
                     <span>{formatDate(card.modified)}</span>

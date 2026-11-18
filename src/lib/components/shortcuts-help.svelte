@@ -68,27 +68,28 @@
 >
   <Dialog.Content class="sm:max-w-[480px] p-0 overflow-hidden" portalProps={{}}>
     <Dialog.Header class="px-6 pt-6 pb-2">
-      <Dialog.Title class="text-xl font-normal font-writer tracking-tight">Keyboard shortcuts</Dialog.Title>
-      <Dialog.Description class="text-sm text-muted-foreground">
+      <Dialog.Title class="text-title font-semibold">Keyboard shortcuts</Dialog.Title>
+      <Dialog.Description class="meta">
         {inEditor ? 'Everything you can do from the keyboard while writing.' : 'These work from here. Open a writing to see the editor’s shortcuts too.'}
       </Dialog.Description>
     </Dialog.Header>
 
-    <ul class="px-2 pb-4 max-h-[70vh] overflow-y-auto">
+    <div class="px-4 pb-4 max-h-[70vh] overflow-y-auto">
+    <ul class="inset-group">
       {#each shortcuts as { key, description, icon } (description)}
         {@const Icon = icon}
-        <li class="flex items-center justify-between gap-4 px-4 py-2">
+        <li class="inset-row min-h-9 py-1.5 justify-between">
           <div class="flex items-center gap-3">
             <Icon strokeWidth={1.5} class="size-3.5 text-muted-foreground shrink-0" />
-            <span class="text-[0.8125rem] text-foreground">{description}</span>
+            <span>{description}</span>
           </div>
 
           <div class="flex gap-1.5 items-center shrink-0">
             {#each key.split(' / ') as part, i (part + i)}
-              {#if i > 0}<span class="text-meta text-muted-foreground">or</span>{/if}
+              {#if i > 0}<span class="meta">or</span>{/if}
               <div class="flex gap-1">
                 {#each part.split(' + ') as k, j (k + j)}
-                  <kbd class="min-w-[1.375rem] h-5.5 px-1.5 flex items-center justify-center rounded bg-muted text-muted-foreground font-sans text-meta font-medium">
+                  <kbd class="min-w-[1.375rem] h-5.5 px-1.5 flex items-center justify-center rounded-[5px] bg-fill text-muted-foreground font-sans text-xs font-medium">
                     {k}
                   </kbd>
                 {/each}
@@ -98,5 +99,6 @@
         </li>
       {/each}
     </ul>
+    </div>
   </Dialog.Content>
 </Dialog.Root>

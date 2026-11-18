@@ -7,11 +7,8 @@
   import { syncTarget, refreshSyncStatus, publish } from '@/runes/sync.svelte.js';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import FileIcon from '@lucide/svelte/icons/file';
-  import FolderIcon from '@lucide/svelte/icons/folder';
   import BookUserIcon from '@lucide/svelte/icons/book-user';
   import PlusIcon from '@lucide/svelte/icons/plus';
-  import MenuIcon from '@lucide/svelte/icons/menu';
   import SearchIcon from '@lucide/svelte/icons/search';
   import SettingIcon from '@lucide/svelte/icons/settings';
   import UploadCloudIcon from '@lucide/svelte/icons/upload-cloud';
@@ -21,7 +18,10 @@
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import ScrollFade from './scroll-fade.svelte';
   import { appState } from '$lib/runes/app.svelte.js';
-  import { shortcut } from '$lib/keyboard.svelte.js';
+  import { shortcut, isMac } from '$lib/keyboard.svelte.js';
+  import { page } from '$app/state';
+  import ListIcon from '@lucide/svelte/icons/list';
+  import CloudIcon from '@lucide/svelte/icons/cloud';
   import { openCodex } from '$lib/runes/codex.svelte.js';
   import { offerUndo } from '$lib/runes/trash.svelte.js';
   import { BINDER_COLOURS, BINDER_COLOUR_NAMES } from '$lib/runes/app.svelte.js';
@@ -31,15 +31,32 @@
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import PaletteIcon from '@lucide/svelte/icons/palette';
 
-  let { activeBinder = $bindable(null) } = $props();
+  /**
+   * The library sidebar: a glass panel floating on the window frame.
+   * `docked` shows it as a column from 1024px up (the library screens); below
+   * that, and always where `docked` is false (the editor), it opens as a sheet
+   * from the toolbar's sidebar button, bound through `sheetOpen`.
+   */
+  let { activeBinder = $bindable(null), docked = true, sheetOpen = $bindable(false) } = $props();
 
   let isCreatingBinder = $state(false);
   let newBinderName = $state('');
-  let isMobileSheetOpen = $state(false);
+
+  const onMacOS = isMac();
+
+  /** Binders and "All writings" filter the library, so they lead home from anywhere else. */
+  function showInLibrary(/** @type {string | null} */ name) {
+    activeBinder = name;
+    if (page.url.pathname !== '/') goto(resolve('/'));
+  }
 
   function selectBinder(name) {
-    activeBinder = activeBinder === name ? null : name;
+    if (page.url.pathname === '/' && activeBinder === name) activeBinder = null;
+    else showInLibrary(name);
   }
+
+  let onCodex = $derived(page.url.pathname.startsWith('/codex'));
+  let onHome = $derived(page.url.pathname === '/');
 
   function binderCount(name) {
     return fileManager.files.filter((f) => f.folder === name).length;
@@ -68,7 +85,7 @@
   }
 
   function goToManageBinders() {
-    isMobileSheetOpen = false;
+    sheetOpen = false;
     goto(resolve('/binders'));
   }
 
@@ -200,313 +217,247 @@
 </script>
 
 {#snippet searchField(onSelect)}
-  <button
-    type="button"
-    onclick={() => openSearch(onSelect)}
-    class="flex items-center gap-2 w-full h-8 px-3 rounded-lg border border-border bg-input/40 text-left text-[0.8125rem] text-placeholder hover:border-ring/40 hover:text-muted-foreground transition-colors"
-  >
-    <SearchIcon strokeWidth={1.5} class="size-3.5 shrink-0" />
+  <button type="button" onclick={() => openSearch(onSelect)} class="field w-full text-left hover:text-foreground transition-colors">
+    <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
     <span class="flex-1 truncate">Search</span>
-    <span class="text-meta tabular-nums text-disabled shrink-0">{shortcut('K')}</span>
+    <kbd class="font-sans text-xs text-muted-foreground shrink-0">{shortcut('K')}</kbd>
   </button>
 {/snippet}
 
-{#snippet topActions(onSelect)}
-  {@render searchField(onSelect)}
-  <Tooltip.Root>
-    <Tooltip.Trigger>
-      {#snippet child({ props })}
-        <Button
-          {...props}
-          onclick={() => openSettings(onSelect)}
-          variant="ghost"
-          size="icon-sm"
-          class="text-muted-foreground hover:text-foreground shrink-0"
-          aria-label="Settings"
-        >
-          <SettingIcon strokeWidth={1.5} class="size-4" />
-        </Button>
-      {/snippet}
-    </Tooltip.Trigger>
-    <Tooltip.Content side="bottom" portalProps={{}}>Settings</Tooltip.Content>
-  </Tooltip.Root>
-{/snippet}
-
-{#snippet binderList(onSelect)}
-  <nav class="flex flex-col gap-0.5 px-2 pb-1.5">
-    <button
-      onclick={() => {
-        activeBinder = null;
-        onSelect?.();
-      }}
-      class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left transition-colors {activeBinder ===
-      null
-        ? 'bg-primary/10 text-primary font-medium'
-        : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
-    >
-      <FileIcon strokeWidth={1.5} class="size-4 shrink-0" />
-      <span class="truncate flex-1">All writings</span>
-      <span class="text-meta text-muted-foreground tabular-nums">{fileManager.files.length}</span>
-    </button>
-    <div class="my-1 border-t border-border/30"></div>
-    {#each fileManager.binders as binder (binder)}
-      {@const tint = binderTint(binder)}
-      {#if renamingBinder === binder}
-        <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem]">
-          <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground" />
-          <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
-          <!-- svelte-ignore a11y_autofocus -->
-          <input
-            bind:value={binderRenameValue}
-            type="text"
-            autofocus
-            onkeydown={(e) => {
-              if (e.key === 'Enter') confirmRenameBinder();
-              if (e.key === 'Escape') cancelRenameBinder();
-            }}
-            onblur={confirmRenameBinder}
-            class="flex-1 min-w-0 bg-muted rounded px-1.5 text-[0.8125rem] outline-none"
-          />
-        </div>
-      {:else}
-        <!-- Renaming, recolouring and deleting a binder used to live only in
-             the timeline, one view away from where binders are chosen. -->
-        <ContextMenu.Root>
-          <ContextMenu.Trigger class="">
-            <button
-              onclick={() => {
-                selectBinder(binder);
-                onSelect?.();
-              }}
-              class="flex w-full items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left transition-colors {activeBinder ===
-              binder
-                ? `${tint.activeBg} ${tint.activeText} font-medium`
-                : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground'}"
-            >
-              <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 {activeBinder === binder ? '' : tint.icon}" />
-              <span class="truncate flex-1">{binder}</span>
-              <span class="text-meta text-muted-foreground tabular-nums">{binderCount(binder)}</span>
-            </button>
-          </ContextMenu.Trigger>
-          <ContextMenu.Content class="w-48">
-            <ContextMenu.Item class="" inset={false} onclick={() => startRenameBinder(binder)}>
-              <PencilIcon class="size-3.5" strokeWidth={1.5} />
-              Rename
-            </ContextMenu.Item>
-            <ContextMenu.Sub>
-              <ContextMenu.SubTrigger class="" inset={false}>
-                <PaletteIcon class="size-3.5" strokeWidth={1.5} />
-                Colour
-              </ContextMenu.SubTrigger>
-              <ContextMenu.SubContent class="w-40">
-                {#each BINDER_COLOURS as colour (colour)}
-                  <ContextMenu.Item
-                    class=""
-                    inset={false}
-                    onclick={() => appState.setBinderColour(binder, colour)}
-                  >
-                    <span class="size-3 rounded-full {TINTS[colour].swatch}"></span>
-                    <span class="flex-1">{BINDER_COLOUR_NAMES[colour]}</span>
-                  </ContextMenu.Item>
-                {/each}
-                <ContextMenu.Separator class="" />
-                <ContextMenu.Item
-                  class=""
-                  inset={false}
-                  onclick={() => appState.setBinderColour(binder, null)}
-                >
-                  From the name
-                </ContextMenu.Item>
-              </ContextMenu.SubContent>
-            </ContextMenu.Sub>
-            <ContextMenu.Separator class="" />
-            <ContextMenu.Item
-              class=""
-              inset={false}
-              variant="destructive"
-              onclick={() => (binderToDelete = binder)}
-            >
-              <Trash2Icon class="size-3.5" strokeWidth={1.5} />
-              Delete binder
-            </ContextMenu.Item>
-          </ContextMenu.Content>
-        </ContextMenu.Root>
-      {/if}
-      {#if activeBinder === binder}
+{#snippet binderPanel(onSelect)}
+  <ScrollFade class="min-h-0 flex-1" fade={16}>
+    <ScrollArea type="scroll" class="h-full">
+      <nav aria-label="Library" class="flex flex-col pb-2">
+        <div class="sb-head">Library</div>
         <button
+          type="button"
+          class="sb-row"
+          aria-current={onHome && activeBinder === null ? 'page' : undefined}
+          onclick={() => {
+            showInLibrary(null);
+            onSelect?.();
+          }}
+        >
+          <ListIcon strokeWidth={1.7} />
+          <span class="truncate flex-1">All writings</span>
+          <span class="sb-count">{fileManager.files.length}</span>
+        </button>
+        <button
+          type="button"
+          class="sb-row"
+          aria-current={onCodex ? 'page' : undefined}
           onclick={() => {
             onSelect?.();
-            openCodex({ binder });
+            openCodex(activeBinder ? { binder: activeBinder } : {});
           }}
-          class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-xs text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
-          style="padding-left: 1.25rem"
         >
-          <BookUserIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
+          <BookUserIcon strokeWidth={1.7} />
           <span class="truncate flex-1">Codex</span>
         </button>
-        <!-- Chapters and scenes of the open binder: click jumps the tree to that folder. -->
-        {#each binderFolders as folder (folder.path)}
-          <button
-            onclick={() => {
-              jumpToFolder(folder.path);
-              onSelect?.();
-            }}
-            title={folder.path}
-            class="flex items-center gap-1.5 py-0.5 pr-2 rounded-md text-xs text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
-            style="padding-left: {0.5 + folder.depth * 0.75}rem"
-          >
-            <CornerDownRightIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/40" />
-            <span class="truncate flex-1">{folder.label}</span>
-          </button>
-        {/each}
-      {/if}
-    {/each}
-  </nav>
-{/snippet}
 
-{#snippet binderPanel(onSelect)}
-  <div class="flex items-center justify-between px-2 pb-1.5 shrink-0">
-    <button
-      onclick={goToManageBinders}
-      class="text-meta font-medium text-muted-foreground hover:text-foreground transition-colors"
-    >
-      Binders
-    </button>
-    <Tooltip.Root>
-      <Tooltip.Trigger>
-        {#snippet child({ props })}
-          <button
-            {...props}
-            onclick={startCreateBinder}
-            aria-label="New binder"
-            class="flex items-center justify-center size-7 -mr-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
-          >
-            <PlusIcon class="size-3.5 shrink-0" strokeWidth={1.5} />
+        <div class="sb-head">
+          <button type="button" onclick={goToManageBinders} class="hover:text-foreground transition-colors" title="Manage binders">
+            Binders
           </button>
-        {/snippet}
-      </Tooltip.Trigger>
-      <Tooltip.Content side="right" portalProps={{}}>New binder</Tooltip.Content>
-    </Tooltip.Root>
-  </div>
-  {#if isCreatingBinder}
-    <div class="px-2 pb-1.5 shrink-0">
-      <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem]">
-        <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-        <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
-        <!-- svelte-ignore a11y_autofocus -->
-        <input
-          bind:value={newBinderName}
-          type="text"
-          placeholder="Binder name"
-          autofocus
-          onkeydown={(e) => {
-            if (e.key === 'Enter') handleCreateBinder();
-            if (e.key === 'Escape') cancelCreateBinder();
-          }}
-          onblur={handleCreateBlur}
-          class="flex-1 min-w-0 bg-transparent text-[0.8125rem] outline-none"
- />
-      </div>
-    </div>
-  {/if}
-  <ScrollFade class="min-h-0" fadeSize="h-4">
-    <ScrollArea type="scroll" class="min-h-0">
-      {@render binderList(onSelect)}
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
+                  type="button"
+                  onclick={startCreateBinder}
+                  aria-label="New binder"
+                  class="ml-auto flex items-center justify-center size-5 rounded-[5px] text-muted-foreground hover:text-foreground hover:bg-fill transition-colors"
+                >
+                  <PlusIcon class="size-3.5" strokeWidth={1.8} />
+                </button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content side="right" portalProps={{}}>New binder</Tooltip.Content>
+          </Tooltip.Root>
+        </div>
+
+        {#if isCreatingBinder}
+          <div class="sb-row bg-fill">
+            <span class="binder-dot bg-muted-foreground/40"></span>
+            <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              bind:value={newBinderName}
+              type="text"
+              placeholder="Binder name"
+              aria-label="New binder name"
+              autofocus
+              onkeydown={(e) => {
+                if (e.key === 'Enter') handleCreateBinder();
+                if (e.key === 'Escape') cancelCreateBinder();
+              }}
+              onblur={handleCreateBlur}
+              class="flex-1 min-w-0 bg-transparent outline-none placeholder:text-placeholder"
+            />
+          </div>
+        {/if}
+
+        {#each fileManager.binders as binder (binder)}
+          {@const tint = binderTint(binder)}
+          {#if renamingBinder === binder}
+            <div class="sb-row bg-fill">
+              <span class="binder-dot {tint.swatch}"></span>
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                bind:value={binderRenameValue}
+                type="text"
+                aria-label="Binder name"
+                autofocus
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') confirmRenameBinder();
+                  if (e.key === 'Escape') cancelRenameBinder();
+                }}
+                onblur={confirmRenameBinder}
+                class="flex-1 min-w-0 bg-transparent outline-none"
+              />
+            </div>
+          {:else}
+            <!-- Renaming, recolouring and deleting a binder, right where binders are chosen. -->
+            <ContextMenu.Root>
+              <ContextMenu.Trigger class="">
+                <button
+                  type="button"
+                  class="sb-row"
+                  aria-current={onHome && activeBinder === binder ? 'page' : undefined}
+                  onclick={() => {
+                    selectBinder(binder);
+                    onSelect?.();
+                  }}
+                >
+                  <span class="binder-dot {tint.swatch}"></span>
+                  <span class="truncate flex-1">{binder}</span>
+                  <span class="sb-count">{binderCount(binder)}</span>
+                </button>
+              </ContextMenu.Trigger>
+              <ContextMenu.Content class="w-48">
+                <ContextMenu.Item class="" inset={false} onclick={() => startRenameBinder(binder)}>
+                  <PencilIcon class="size-3.5" strokeWidth={1.5} />
+                  Rename
+                </ContextMenu.Item>
+                <ContextMenu.Sub>
+                  <ContextMenu.SubTrigger class="" inset={false}>
+                    <PaletteIcon class="size-3.5" strokeWidth={1.5} />
+                    Colour
+                  </ContextMenu.SubTrigger>
+                  <ContextMenu.SubContent class="w-40">
+                    {#each BINDER_COLOURS as colour (colour)}
+                      <ContextMenu.Item class="" inset={false} onclick={() => appState.setBinderColour(binder, colour)}>
+                        <span class="binder-dot {TINTS[colour].swatch}"></span>
+                        <span class="flex-1">{BINDER_COLOUR_NAMES[colour]}</span>
+                      </ContextMenu.Item>
+                    {/each}
+                    <ContextMenu.Separator class="" />
+                    <ContextMenu.Item class="" inset={false} onclick={() => appState.setBinderColour(binder, null)}>
+                      From the name
+                    </ContextMenu.Item>
+                  </ContextMenu.SubContent>
+                </ContextMenu.Sub>
+                <ContextMenu.Separator class="" />
+                <ContextMenu.Item class="" inset={false} variant="destructive" onclick={() => (binderToDelete = binder)}>
+                  <Trash2Icon class="size-3.5" strokeWidth={1.5} />
+                  Delete binder
+                </ContextMenu.Item>
+              </ContextMenu.Content>
+            </ContextMenu.Root>
+          {/if}
+          {#if onHome && activeBinder === binder && binderFolders.length}
+            <!-- Chapters and scenes of the open binder: click jumps the tree to that folder. -->
+            {#each binderFolders as folder (folder.path)}
+              <button
+                type="button"
+                onclick={() => {
+                  jumpToFolder(folder.path);
+                  onSelect?.();
+                }}
+                title={folder.path}
+                class="sb-row h-6 text-xs text-muted-foreground hover:text-foreground"
+                style="padding-left: {10 + folder.depth * 12}px"
+              >
+                <CornerDownRightIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/50" />
+                <span class="truncate flex-1">{folder.label}</span>
+              </button>
+            {/each}
+          {/if}
+        {/each}
+      </nav>
     </ScrollArea>
   </ScrollFade>
 
-  <!-- Below the binders, where a deleted writing is looked for. Opens the
-       same sheet as "Recently deleted" in the ⌘K palette. -->
-  <div class="px-2 pb-1.5 pt-1 shrink-0 border-t border-border/30">
+  <!-- Bottom of the panel: where a deleted writing is looked for, whether the
+       work has left the machine, and the way into settings. -->
+  <div class="flex flex-col gap-px pt-1 shrink-0">
     <button
       type="button"
+      class="sb-row"
       onclick={() => {
         onSelect?.();
         appState.toggleTrash(true);
       }}
-      class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-left text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
     >
-      <Trash2Icon strokeWidth={1.5} class="size-4 shrink-0" />
+      <Trash2Icon strokeWidth={1.7} />
       <span class="truncate flex-1">Recently deleted</span>
     </button>
+    {#if target.provider !== 'none'}
+      {#if target.ready && target.pending > 0}
+        <button type="button" class="sb-row" onclick={publish} disabled={target.busy} title="Publish to {target.label}">
+          <UploadCloudIcon strokeWidth={1.7} />
+          <span class="truncate flex-1">{target.busy ? 'Publishing…' : 'Publish'}</span>
+          <span class="sb-count">{target.pending}</span>
+        </button>
+      {:else}
+        <div class="sb-row hover:bg-transparent" role="status">
+          <CloudIcon strokeWidth={1.7} />
+          <span class="truncate flex-1">{target.ready ? `Synced to ${target.label}` : `${target.label} not set up`}</span>
+        </div>
+      {/if}
+    {/if}
+    <button
+      type="button"
+      class="sb-row"
+      aria-current={page.url.pathname.startsWith('/settings') ? 'page' : undefined}
+      onclick={() => openSettings(onSelect)}
+    >
+      <SettingIcon strokeWidth={1.7} />
+      <span class="truncate flex-1">Settings</span>
+    </button>
   </div>
-
-  {#if target.ready && target.pending > 0}
-    <div class="px-2 pb-2 pt-2 shrink-0 border-t border-border/30">
-      <button
-        onclick={publish}
-        disabled={target.busy}
-        title="Publish to {target.label}"
-        class="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-      >
-        <UploadCloudIcon strokeWidth={1.5} class="size-4 shrink-0" />
-        <span
-          >{target.busy ? 'Publishing…' : `Publish (${target.pending})`}</span
-        >
-      </button>
-    </div>
-  {/if}
 {/snippet}
 
-<!-- Laptop and up: the binder rail is always there. From 1024px it takes its own
-     column beside the page. From ~1480px the centered page's side gutter is wider
-     than the rail (48rem of page plus 2 × (15rem rail + 2rem margin) = 82rem, ~1476px
-     at the default density's 18px root), so it floats over that gutter instead and
-     the page stays centred in the window. Media queries don't follow the root
-     size, so the breakpoints are in pixels.
-     Narrower windows (tablet, tiled/split desktop, phone) use the sheet trigger below. -->
-<aside
-  class="hidden lg:flex lg:relative min-[1480px]:absolute min-[1480px]:top-0 min-[1480px]:left-0 z-30 w-60 shrink-0 h-fit max-h-[calc(100%-2rem)] mb-4 ml-4 flex-col"
->
-  <div class="pt-8 flex items-center gap-2">
-    {@render topActions()}
-  </div>
-  <div class="mb-4 md:mb-6"></div>
-  {@render binderPanel()}
-</aside>
+{#snippet panel(onSelect)}
+  {#if onMacOS}
+    <!-- The traffic lights sit here; the strip moves the window. -->
+    <div data-tauri-drag-region class="h-9 shrink-0 -mt-2 -mx-2 mb-1"></div>
+  {/if}
+  {@render searchField(onSelect)}
+  {@render binderPanel(onSelect)}
+{/snippet}
 
-<!-- Narrower: trigger opens binders as a slide-in sheet (covers phone, tablet, and
-     shrunk/tiled desktop windows where there isn't room for the overlay). -->
-<button
-  onclick={() => (isMobileSheetOpen = true)}
-  aria-label="Open binders"
-  class="lg:hidden fixed top-4 left-[max(1rem,var(--titlebar-inset-left,0px))] z-30 flex items-center justify-center size-9 rounded-md bg-muted text-muted-foreground hover:text-foreground transition-colors"
->
-  <MenuIcon strokeWidth={1.5} class="size-4" />
-</button>
+{#if docked}
+  <!-- From 1024px the library sidebar is a glass panel floating on the frame. -->
+  <aside
+    aria-label="Library"
+    class="glass hidden lg:flex flex-col w-59 shrink-0 m-2 mr-0 p-2 rounded-group min-h-0 h-[calc(100%-16px)]"
+  >
+    {@render panel()}
+  </aside>
+{/if}
 
-<Sheet.Root bind:open={isMobileSheetOpen}>
-  <Sheet.Content side="left" class="w-64 flex flex-col" portalProps={{}}>
-    <Sheet.Header class="pb-0 flex-row items-center justify-between">
-      <button onclick={goToManageBinders} class="text-left">
-        <Sheet.Title class="font-writer text-lg font-normal hover:text-primary transition-colors"
-          >Binders</Sheet.Title
-        >
-      </button>
-      <div class="pr-8">
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                onclick={() => openSettings(() => (isMobileSheetOpen = false))}
-                variant="ghost"
-                size="icon-sm"
-                class="text-muted-foreground hover:text-foreground"
-                aria-label="Settings"
-              >
-                <SettingIcon strokeWidth={1.5} class="size-4" />
-              </Button>
-            {/snippet}
-          </Tooltip.Trigger>
-          <Tooltip.Content side="bottom" portalProps={{}}>Settings</Tooltip.Content>
-        </Tooltip.Root>
-      </div>
-    </Sheet.Header>
-    <div class="px-2 pt-2 pb-1.5 shrink-0">
-      {@render searchField(() => (isMobileSheetOpen = false))}
+<Sheet.Root bind:open={sheetOpen}>
+  <Sheet.Content side="left" class="w-64 p-2 gap-0 flex flex-col" portalProps={{}}>
+    <Sheet.Title class="sr-only">Library</Sheet.Title>
+    {#if onMacOS}
+      <div class="h-9 shrink-0 -mt-2"></div>
+    {/if}
+    <div class="pr-8 pb-1">
+      {@render searchField(() => (sheetOpen = false))}
     </div>
-    {@render binderPanel(() => (isMobileSheetOpen = false))}
+    {@render binderPanel(() => (sheetOpen = false))}
   </Sheet.Content>
 </Sheet.Root>
 
@@ -515,8 +466,8 @@
 <Dialog.Root open={binderToDelete !== null} onOpenChange={(v) => { if (!v) binderToDelete = null; }}>
   <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Move binder to trash?</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground pt-2">
+      <Dialog.Title class="text-title font-semibold">Move binder to trash?</Dialog.Title>
+      <Dialog.Description class="text-sm text-muted-foreground pt-1">
         <span class="font-medium text-foreground">"{binderToDelete}"</span>
         {#if binderToDelete && binderTotal(binderToDelete) > 0}
           holds {binderTotal(binderToDelete)} writing{binderTotal(binderToDelete) === 1 ? '' : 's'}.
@@ -526,7 +477,7 @@
         {/if}
       </Dialog.Description>
     </Dialog.Header>
-    <Dialog.Footer class="mt-6 flex gap-2">
+    <Dialog.Footer class="mt-4 flex gap-2">
       <Button variant="ghost" onclick={() => (binderToDelete = null)} class="flex-1">Cancel</Button>
       <Button variant="destructive" onclick={confirmDeleteBinder} class="flex-1">Move to trash</Button>
     </Dialog.Footer>
