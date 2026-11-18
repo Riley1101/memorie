@@ -210,6 +210,81 @@ footer a:hover { color: var(--ink); }
   .panel { animation: fade 180ms ease-out; }
   @keyframes fade { from { opacity: 0.4; } to { opacity: 1; } }
 }
+
+/* Assistant demo: one app window, three modes (rewrite / ask / codex). */
+:root { --glass-solid: #fbf8f2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --glass-solid: #2b2722; } }
+:root[data-theme="dark"] { --glass-solid: #2b2722; }
+.ai-top { display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+.ai-top .head, .ai-top .seg { margin: 0; }
+.ai-top .head p { margin: 0; font-size: 16px; }
+.ai-win { border-radius: var(--r-window); background: var(--frame); box-shadow: 0 0 0 1px var(--hair), var(--shadow); overflow: hidden; }
+.ai-bar { height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 14px; }
+.ai-bar .lights { display: flex; gap: 8px; }
+.ai-bar .lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.ai-bar .lights i:nth-child(2) { background: #febc2e; } .ai-bar .lights i:nth-child(3) { background: #28c840; }
+.ai-title { flex: 1; text-align: center; font-size: 13px; font-weight: 600; color: var(--ink); }
+.ai-title span { font-weight: 400; color: var(--meta); }
+.ai-tools { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--hair); }
+.ai-tools > span { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; color: var(--body); }
+.ai-tools svg { width: 14px; height: 14px; }
+[data-mode="ask"] .ai-tools .assist { background: var(--selection); color: var(--accent); }
+.ai-body { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 12px 12px; align-items: stretch; }
+.ai-desk { flex: 999 1 480px; min-width: 0; background: var(--desk); border-radius: 12px; padding: 28px clamp(12px, 3vw, 40px) 20px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.ai-page { width: 100%; max-width: 620px; background: var(--page); border-radius: 6px; box-shadow: 0 0 0 1px var(--hair), 0 2px 10px rgb(0 0 0 / 0.05); padding: clamp(28px, 5vw, 56px) clamp(20px, 5vw, 60px) 48px; font: 17px/1.75 var(--font-serif); color: var(--body); }
+.ai-page p { margin: 0 0 18px; }
+.ai-page .t { margin: 0; text-align: center; font: 600 30px/1.15 var(--font-serif); color: var(--ink); }
+.ai-page .sub { margin: 6px 0 28px; text-align: center; font: italic 14px var(--font-serif); color: var(--meta); }
+.ai-page .tail { margin: 18px 0 0; transition: opacity .2s; }
+.ai-anchor { position: relative; }
+.ai-anchor > p { margin: 0; }
+.ai-page .name { border-bottom: 1px dotted var(--meta); }
+[data-mode="codex"] .ai-page .name { background: var(--selection); border-bottom: 1.5px dotted var(--accent); border-radius: 2px; }
+[data-mode="codex"] .ai-page .tail { opacity: 0.35; }
+[data-mode="codex"] .ai-page { padding-bottom: 300px; }
+.ai-win.rw-open[data-mode="rewrite"] .sel { background: var(--selection); border-radius: 2px; }
+.rw-bar { width: fit-content; max-width: 100%; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; border-radius: 18px; background: rgb(28 24 20 / 0.9); box-shadow: 0 8px 24px rgb(0 0 0 / 0.22); }
+.rw-bar button { border: 0; padding: 5px 11px; border-radius: 999px; background: none; color: #f1e8d8; font: 500 12px var(--font-ui); cursor: pointer; white-space: nowrap; }
+.ai-win.rw-open .rw-bar button.on { background: rgb(255 255 255 / 0.16); }
+.rw-card { margin-top: 16px; border-radius: 12px; background: var(--glass-solid); box-shadow: 0 0 0 1px var(--hair), 0 12px 32px rgb(0 0 0 / 0.12); padding: 14px 16px; display: grid; gap: 10px; font-family: var(--font-ui); }
+.rw-card p { margin: 0; font: 16px/1.65 var(--font-serif); color: var(--ink); }
+.rw-card .acts { display: flex; gap: 8px; justify-content: flex-end; }
+.rw-card .acts button { height: 28px; font-size: 13px; }
+.ai-page .k, .ask .k { font: 600 12px var(--font-ui); color: var(--meta); }
+.cx-card { position: absolute; left: 0; top: 34px; z-index: 2; width: 320px; max-width: 100%; border-radius: 12px; background: var(--glass-solid); box-shadow: 0 0 0 1px var(--hair), 0 16px 40px rgb(0 0 0 / 0.16); padding: 16px; display: grid; gap: 12px; font: 13px/1.5 var(--font-ui); color: var(--body); }
+.cx-h { display: flex; align-items: center; gap: 8px; }
+.cx-h i { width: 8px; height: 8px; border-radius: 50%; background: var(--b-clay); }
+.cx-h b { font: 600 17px var(--font-serif); color: var(--ink); }
+.cx-h span { margin-left: auto; font-size: 12px; color: var(--meta); }
+.cx-f { display: grid; gap: 4px; }
+.cx-f .v { color: var(--ink); } .cx-f .e { color: var(--meta); }
+.cx-f .sug { display: flex; gap: 6px; align-items: center; border-radius: var(--r-field); background: var(--selection); padding: 6px 8px 6px 10px; }
+.cx-f .sug span { flex: 1; min-width: 0; }
+.cx-f .sug button { border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 4px; color: var(--accent); }
+.cx-f .sug button + button { color: var(--meta); font-size: 15px; line-height: 1; }
+.cx-note { font-size: 12px; color: var(--meta); }
+.ai-count { display: inline-flex; gap: 10px; align-items: center; height: 30px; padding: 0 6px 0 14px; border-radius: 999px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--hair), var(--shadow); font: 12px var(--font-ui); color: var(--meta); }
+.ai-count span { padding: 2px 8px; border-radius: 999px; background: var(--fill); color: var(--ink); }
+.ask { flex: 1 1 320px; max-width: 360px; min-width: 0; border-radius: 12px; background: var(--glass-solid); box-shadow: 0 0 0 1px var(--hair), var(--shadow); padding: 16px; display: flex; flex-direction: column; gap: 14px; font-size: 13px; }
+.ask-h { display: flex; justify-content: space-between; } .ask-h b { font-weight: 600; color: var(--ink); } .ask-h span { font-size: 12px; color: var(--meta); }
+.ask .q { align-self: flex-end; max-width: 85%; background: var(--selection); color: var(--ink); border-radius: 12px 12px 4px 12px; padding: 8px 12px; }
+.ask .a { line-height: 1.6; } .ask .a b { font-weight: 600; color: var(--ink); }
+.ask .src { display: grid; gap: 6px; }
+.ask .s { display: grid; gap: 2px; background: var(--page); border-radius: var(--r-field); box-shadow: 0 0 0 1px var(--hair); padding: 8px 10px; }
+.ask .s b { font-size: 12px; font-weight: 600; color: var(--ink); } .ask .s i { font: italic 13px/1.45 var(--font-serif); }
+.ask .in { margin-top: auto; display: flex; align-items: center; gap: 8px; border-radius: 999px; background: var(--page); box-shadow: 0 0 0 1px var(--hair); padding: 6px 6px 6px 12px; color: var(--meta); }
+.ask .in span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask .in i { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; flex: none; }
+.ask .in svg { width: 13px; height: 13px; }
+.ai-win:not([data-mode="rewrite"]) .rw-bar, .ai-win:not(.rw-open) .rw-card, .ai-win:not([data-mode="rewrite"]) .rw-card,
+.ai-win:not([data-mode="codex"]) .cx-card, .ai-win:not([data-mode="ask"]) .ask { display: none; }
+.ai-foot { display: flex; flex-wrap: wrap; gap: 8px 32px; justify-content: space-between; align-items: baseline; margin-top: 28px; }
+.ai-foot p { margin: 0; } .ai-foot #ai-desc { flex: 1 1 420px; } .ai-foot b { font-weight: 600; color: var(--ink); }
+.ai-foot .m { font-size: 13px; color: var(--meta); }
+.sync { display: flex; flex-wrap: wrap; gap: 32px 48px; align-items: center; }
+.sync > * { flex: 1 1 360px; min-width: 0; }
+.sync .head { margin: 0; } .sync .head p { margin: 0; font-size: 16px; }
+.sync-note { margin: 10px 16px 0; font-size: 13px; color: var(--meta); }
 </style>
 </head>
 <body>
@@ -367,9 +442,99 @@ footer a:hover { color: var(--ink); }
           <div class="inset">
             <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg></span><div><b>Export a manuscript</b><span class="d">PDF, Word, EPUB or Markdown, with a title page and contents</span></div></div>
             <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v3h16v-3M12 4v10m-4-4 4 4 4-4"/></svg></span><div><b>Import what you have</b><span class="d">Word, RTF, PDF, Markdown and plain text</span></div></div>
-            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 1 6 6c0 4-6 9-6 9s-6-5-6-9a6 6 0 0 1 6-6z"/><circle cx="12" cy="9" r="2"/></svg></span><div><b>An assistant, if you want one</b><span class="d">Off by default. Runs on your computer, or with your own OpenRouter key</span></div></div>
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><div><b>Readable anywhere</b><span class="d">Plain Markdown with front matter. Any editor can open your book</span></div></div>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="assistant">
+    <div class="wrap">
+      <div class="ai-top">
+        <div class="head">
+          <span class="label">Assistant</span>
+          <h2>Help when you ask. Quiet when you don't.</h2>
+          <p>Off until you turn it on. It works on the page you already have open, and nothing changes until you apply it.</p>
+        </div>
+        <div class="seg capsule" role="tablist" aria-label="Assistant features">
+          <button role="tab" type="button" id="t-ai-rewrite" aria-selected="true" data-ai="rewrite">Rewrite</button>
+          <button role="tab" type="button" id="t-ai-ask" aria-selected="false" data-ai="ask">Ask</button>
+          <button role="tab" type="button" id="t-ai-codex" aria-selected="false" data-ai="codex">Codex</button>
+        </div>
+      </div>
+
+      <div class="ai-win" id="ai-demo" role="tabpanel" data-mode="rewrite">
+        <div class="ai-bar" aria-hidden="true">
+          <span class="lights"><i></i><i></i><i></i></span>
+          <span class="ai-title">The keeper <span>· Lighthouse</span></span>
+          <span class="ai-tools"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg></span><span class="assist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg></span></span>
+        </div>
+        <div class="ai-body">
+          <div class="ai-desk">
+            <article class="ai-page">
+              <p class="t">The keeper</p>
+              <p class="sub">Lighthouse / Part One</p>
+              <p>Tomas came up at nine with bread and a letter he said had been waiting at the post office since spring.</p>
+              <div class="ai-anchor">
+                <div class="rw-bar" role="toolbar" aria-label="Rewrite the selection">
+                  <button type="button" data-rw="grammar">Polish grammar</button>
+                  <button type="button" data-rw="clarity" class="on">Improve clarity</button>
+                  <button type="button" data-rw="shorten">Shorten</button>
+                </div>
+                <p><span class="name">Elin</span> knew the handwriting before she knew she knew it. <span class="sel" id="rw-text">She set it down on the logbook, still unopened, and then she trimmed the wick of the lamp.</span></p>
+                <div class="cx-card">
+                  <div class="cx-h"><i></i><b>Elin Vask</b><span>Character</span></div>
+                  <span>Keeper of the Harrow Point light. Third generation.</span>
+                  <div class="cx-f" data-sug="Counts the steps out loud as she climbs, like her father"><span class="k">Appearance</span></div>
+                  <div class="cx-f" data-sug="To keep the lamp lit, as her father did"><span class="k">Wants</span></div>
+                  <span class="cx-note">Suggested from the 4 writings that mention Elin.</span>
+                </div>
+              </div>
+              <div class="rw-card" id="rw-card">
+                <span class="k" id="rw-label">Improve clarity</span>
+                <p id="rw-sug">She left it unopened on the logbook and trimmed the lamp.</p>
+                <div class="acts"><button type="button" class="tb" id="rw-discard">Discard</button><button type="button" class="btn" id="rw-apply">Apply</button></div>
+              </div>
+              <p class="tail">"You'll read it eventually," Tomas said.</p>
+              <p class="tail">"Eventually is a long word," said Elin, and went back to the lamp.</p>
+            </article>
+            <span class="ai-count" aria-hidden="true">1,284 words<span>⌘K</span></span>
+          </div>
+          <aside class="ask" aria-label="Assistant">
+            <div class="ask-h"><b>Assistant</b><span>Local model</span></div>
+            <div class="q">Where does the letter first show up?</div>
+            <div class="a">In <b>The keeper</b>, when Tomas brings it up the tower. Elin leaves it unopened on the logbook and opens it in <b>The letter</b>, four nights later.</div>
+            <div class="src">
+              <span class="k">Sources</span>
+              <span class="s"><b>The keeper · ¶3</b><i>Tomas came up at nine with bread and a letter…</i></span>
+              <span class="s"><b>The letter · ¶1</b><i>She opened it on the fourth night…</i></span>
+            </div>
+            <div class="in"><span>Ask about this document…</span><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></i></div>
+          </aside>
+        </div>
+      </div>
+
+      <div class="ai-foot">
+        <p id="ai-desc"><b>Rewrite a selection.</b> Select a sentence and pick Polish grammar, Improve clarity or Shorten. The suggestion waits until you apply it.</p>
+        <p class="m">Runs on your computer, or with your own OpenRouter key.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="storage">
+    <div class="wrap sync">
+      <div class="head">
+        <span class="label">Sync</span>
+        <h2>Optional sync, to storage you already own.</h2>
+        <p>Your book is saved on your computer first. Turn on sync if you want a backup, or want to pick up the same book on another computer. It goes to your own GitHub repository or Dropbox folder, never to a Memoire server.</p>
+      </div>
+      <div>
+        <div class="inset">
+          <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-4 1.5-4-2-6-2.5M15 21v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></span><div><b>GitHub</b><span class="d">Your own repository, with a commit for every push</span></div></div>
+          <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3 2 6.5 7 10l5-3.5zM17 3l-5 3.5 5 3.5 5-3.5zM2 13.5 7 17l5-3.5-5-3.5zM17 10l-5 3.5 5 3.5 5-3.5zM7 18.5l5 3.5 5-3.5"/></svg></span><div><b>Dropbox</b><span class="d">A folder you choose. Changed in both places? Both copies are kept</span></div></div>
+        </div>
+        <p class="sync-note">Off by default. Turn it on in Settings, and push when you quit if you like.</p>
       </div>
     </div>
   </section>
@@ -461,7 +626,8 @@ footer a:hover { color: var(--ink); }
         const on = t === tab;
         t.setAttribute('aria-selected', on);
         t.tabIndex = on ? 0 : -1;
-        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+        const panel = document.getElementById(t.getAttribute('aria-controls'));
+        if (panel) panel.hidden = !on;
       });
       if (cap) cap.textContent = tab.dataset.desc;
     }
@@ -482,6 +648,49 @@ footer a:hover { color: var(--ink); }
     root.dataset.theme = dark ? 'light' : 'dark';
     try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
   });
+
+  // Assistant demo: Rewrite (pick, apply, discard), Ask, Codex (use or dismiss a suggestion).
+  (() => {
+    const win = document.getElementById('ai-demo'); if (!win) return;
+    const ORIGINAL = 'She set it down on the logbook, still unopened, and then she trimmed the wick of the lamp.';
+    const RW = {
+      grammar: ['Polish grammar', 'She set it down on the logbook, still unopened, and trimmed the wick of the lamp.'],
+      clarity: ['Improve clarity', 'She left it unopened on the logbook and trimmed the lamp.'],
+      shorten: ['Shorten', 'She set it on the logbook, unopened, and trimmed the wick.']
+    };
+    const DESC = {
+      rewrite: ['Rewrite a selection.', 'Select a sentence and pick Polish grammar, Improve clarity or Shorten. The suggestion waits until you apply it.'],
+      ask: ['Ask about your book.', 'It searches your writings and notes, and shows the passages it used.'],
+      codex: ['Fill in a codex sheet.', 'Names from your codex are marked as you write. On a sheet, empty fields come with suggestions from the scenes that mention them.']
+    };
+    const $ = (id) => document.getElementById(id);
+    let opt = 'clarity';
+    win.classList.add('rw-open');
+    document.querySelectorAll('[data-ai]').forEach((b) => b.addEventListener('click', () => {
+      win.dataset.mode = b.dataset.ai;
+      const d = DESC[b.dataset.ai];
+      $('ai-desc').innerHTML = '<b>' + d[0] + '</b> ' + d[1];
+    }));
+    win.querySelectorAll('[data-rw]').forEach((b) => b.addEventListener('click', () => {
+      opt = b.dataset.rw;
+      win.querySelectorAll('[data-rw]').forEach((x) => x.classList.toggle('on', x === b));
+      $('rw-label').textContent = RW[opt][0]; $('rw-sug').textContent = RW[opt][1];
+      $('rw-text').textContent = ORIGINAL; win.classList.add('rw-open');
+    }));
+    $('rw-apply').addEventListener('click', () => { $('rw-text').textContent = RW[opt][1]; win.classList.remove('rw-open'); });
+    $('rw-discard').addEventListener('click', () => { $('rw-text').textContent = ORIGINAL; win.classList.remove('rw-open'); });
+    win.querySelectorAll('.cx-f').forEach((f) => {
+      const sug = f.dataset.sug;
+      const box = document.createElement('div'); box.className = 'sug';
+      box.innerHTML = '<span></span><button type="button">Use</button><button type="button" aria-label="Dismiss suggestion">×</button>';
+      box.firstChild.textContent = sug;
+      const [use, no] = box.querySelectorAll('button');
+      const done = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; box.replaceWith(s); };
+      use.addEventListener('click', () => done('v', sug));
+      no.addEventListener('click', () => done('e', 'Empty'));
+      f.appendChild(box);
+    });
+  })();
 </script>
 </body>
 </html>
