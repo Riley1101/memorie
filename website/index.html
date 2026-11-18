@@ -1,1478 +1,487 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- SEO -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Memoire — Write the whole book, on your own disk</title>
-<meta name="description" content="A local-first writing app for novelists and long-form writers. Distraction-free editor, a codex for your characters and places, scene cards, manuscript-ready export, and an optional private AI that knows your story.">
-
+<meta name="description" content="A local-first writing app for novelists and long-form writers. A calm editor, page styles, revise mode, margin notes, version history, a codex for your story and an optional private AI.">
 <link rel="icon" type="image/png" href="assets/icon-256.png">
 <link rel="apple-touch-icon" href="assets/icon.png">
 <meta property="og:title" content="Memoire — Write the whole book, on your own disk">
-<meta property="og:description" content="Distraction-free editor, story codex, scene cards and manuscript export. Local-first, open source, AI off by default.">
-<meta property="og:image" content="assets/icon.png">
-<meta name="twitter:card" content="summary">
-
-<!-- Tailwind (CDN build — instant, no toolchain) -->
-<script src="https://cdn.tailwindcss.com"></script>
-
-<!-- Fonts: Geist for UI, Noto Serif for prose -->
+<meta property="og:description" content="A calm, local-first writing app with revise mode, margin notes, version history and a story codex. Open source, AI off by default.">
+<meta property="og:image" content="assets/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<script>try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Noto+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-
-<script>
-  /* Design tokens mirrored from the app's OKLCH palette, flattened to hex for the CDN build. */
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        fontFamily: {
-          sans:  ['Geist', 'Inter', 'system-ui', 'sans-serif'],
-          serif: ['Noto Serif', 'Georgia', 'serif'],
-          mono:  ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
-        },
-        colors: {
-          background: '#08090a',          /* near-black canvas with a slate cast */
-          surface:    '#0e1012',          /* raised panels */
-          card:       '#121517',
-          border:     '#23272b',
-          'border-strong': '#31363b',
-          foreground: '#f5f6f7',
-          muted:      '#8b9299',          /* body copy */
-          'muted-dim':'#5f676e',          /* captions, metadata */
-          accent:     '#c8b89a',          /* warm parchment — used sparingly */
-          teal:       '#6fa8b5',          /* the app's Work-binder tint */
-          /* Codex kinds */
-          char:       '#d4a373',
-          place:      '#7fb59a',
-          faction:    '#a89bd4',
-          item:       '#d48a8a',
-        },
-        animation: {
-          'fade-in':  'fadeIn 0.9s ease-out forwards',
-          'slide-up': 'slideUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards',
-          'caret':    'caret 1.1s steps(1) infinite',
-        },
-        keyframes: {
-          fadeIn:  { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-          slideUp: { '0%': { transform: 'translateY(24px)', opacity: '0' },
-                     '100%': { transform: 'translateY(0)', opacity: '1' } },
-          caret:   { '0%,49%': { opacity: '1' }, '50%,100%': { opacity: '0' } },
-        },
-      },
-    },
-  }
-</script>
-
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
 <style>
-  body { background-color: #08090a; }
-
-  ::-webkit-scrollbar { width: 9px; }
-  ::-webkit-scrollbar-track { background: #08090a; }
-  ::-webkit-scrollbar-thumb { background: #2a2f34; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #3c4349; }
-
-  .text-balance { text-wrap: balance; }
-
-  .paper-lines {
-    background-image: linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
-    background-size: 100% 2rem;
-    mask-image: radial-gradient(ellipse 70% 55% at 50% 40%, #000 0%, transparent 78%);
-    -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 40%, #000 0%, transparent 78%);
+/* Layout: the page is the app's window. A tinted frame, an opaque paper
+   sheet that holds the content, glass only for what floats (nav, tour switch).
+   Tokens are lifted from src/app.css (Paper flavour, the app's default). */
+:root {
+  --frame: #d6cfc0;        /* window background behind the sidebar */
+  --desk: #e6dfd1;         /* Paper desk: the content plane */
+  --page: #f4eee0;         /* Paper page: where words sit */
+  --ink: #2e2419;
+  --body: #3a2f24;
+  --meta: #6e5f4e;
+  --accent: #7d5129;
+  --accent-hover: #6b4522;
+  --on-accent: #fdf8f0;
+  --hair: rgb(46 36 25 / 0.10);
+  --fill: rgb(46 36 25 / 0.055);
+  --selection: rgb(125 81 41 / 0.15);
+  --glass: rgb(250 247 241 / 0.68);
+  --glass-rim: rgb(255 255 255 / 0.72);
+  --shadow: 0 1px 2px rgb(46 36 25 / 0.06), 0 12px 32px rgb(46 36 25 / 0.07);
+  --b-teal: #4c8794; --b-clay: #9a5b3c; --b-ochre: #a5782a; --b-plum: #7f5875;
+  --glow: rgb(201 148 98 / 0.45); --glow-2: rgb(165 120 42 / 0.30);
+  --font-ui: -apple-system, BlinkMacSystemFont, "Public Sans", system-ui, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --r-field: 8px; --r-group: 12px; --r-window: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --frame: #22201e; --desk: #1d1a16; --page: #24201b;
+    --ink: #f1e8d8; --body: #ddd3c2; --meta: #9b8d79;
+    --accent: #c99462; --accent-hover: #d4a373; --on-accent: #1c0f08;
+    --hair: rgb(255 255 255 / 0.09); --fill: rgb(255 255 255 / 0.07);
+    --selection: rgb(201 148 98 / 0.32);
+    --glass: rgb(40 37 33 / 0.66); --glass-rim: rgb(255 255 255 / 0.12);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.28);
+    --b-teal: #6fa8b5; --b-clay: #c98a6a; --b-ochre: #c9a05a; --b-plum: #a8839e;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --frame: #22201e; --desk: #1d1a16; --page: #24201b;
+  --ink: #f1e8d8; --body: #ddd3c2; --meta: #9b8d79;
+  --accent: #c99462; --accent-hover: #d4a373; --on-accent: #1c0f08;
+  --hair: rgb(255 255 255 / 0.09); --fill: rgb(255 255 255 / 0.07);
+  --selection: rgb(201 148 98 / 0.32);
+  --glass: rgb(40 37 33 / 0.66); --glass-rim: rgb(255 255 255 / 0.12);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.28);
+  --b-teal: #6fa8b5; --b-clay: #c98a6a; --b-ochre: #c9a05a; --b-plum: #a8839e;
+  color-scheme: dark;
+}
 
-  .glow-ring {
-    box-shadow: 0 0 0 1px rgba(200,184,154,0.28),
-                0 0 60px -12px rgba(200,184,154,0.22),
-                inset 0 1px 0 0 rgba(255,255,255,0.05);
-  }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+body {
+  background: var(--frame); color: var(--body);
+  font: 15px/1.55 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+}
+::selection { background: var(--selection); }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+h1, h2, h3 { color: var(--ink); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+img { display: block; }
 
-  kbd {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.6875rem; line-height: 1;
-  }
-  .key {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 1.35rem; height: 1.35rem; padding: 0 .35rem;
-    border-radius: .3rem; border: 1px solid #31363b; background: #121517;
-    color: #f5f6f7; box-shadow: inset 0 -1px 0 #23272b;
-  }
+/* The sheet: one opaque desk, like a library page in the app */
+.sheet { background: var(--desk); border-radius: var(--r-window); box-shadow: 0 0 0 1px var(--hair); overflow: clip; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: max(16px, min(5vw, 48px)); }
 
-  /* Scroll reveal. Content is visible without JS; the script adds .js first. */
-  .js .reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s ease, transform .8s cubic-bezier(0.16,1,0.3,1); }
-  .js .reveal.is-in { opacity: 1; transform: none; }
+/* Shots swap with the theme */
+.shot-dark { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .shot-light { display: none; } :root:not([data-theme="light"]) .shot-dark { display: block; } }
+:root[data-theme="dark"] .shot-light { display: none; }
+:root[data-theme="dark"] .shot-dark { display: block; }
 
-  /* Codex names underlined in the prose, with a hover card — mirrors codex-mentions.js. */
-  .cx { position: relative; cursor: default; text-decoration: underline; text-decoration-style: dotted;
-        text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
-  .cx-char    { text-decoration-color: rgba(212,163,115,.7); }
-  .cx-place   { text-decoration-color: rgba(127,181,154,.7); }
-  .cx-faction { text-decoration-color: rgba(168,155,212,.7); }
-  .cx-card {
-    position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; width: 15rem;
-    padding: .7rem .8rem; border-radius: .75rem; border: 1px solid #31363b; background: rgba(14,16,18,.97);
-    font-family: 'Geist', system-ui, sans-serif; font-size: 11px; line-height: 1.45; color: #8b9299;
-    text-align: left; white-space: normal; text-decoration: none;
-    opacity: 0; transform: translateY(4px); pointer-events: none; transition: opacity .18s, transform .18s;
-    box-shadow: 0 20px 40px -10px rgba(0,0,0,.7);
-  }
-  .cx:hover .cx-card, .cx:focus .cx-card, .cx.cx-demo .cx-card { opacity: 1; transform: none; }
+/* Toolbar: 52px, title left, actions in glass capsules (the app's pattern) */
+.toolbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; height: 60px; display: flex; align-items: center; gap: 8px; }
+.toolbar .wrap { width: 100%; display: flex; align-items: center; gap: 8px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 15px; color: var(--ink); margin-right: auto; }
+.brand img { width: 28px; height: 28px; border-radius: 7px; box-shadow: 0 0 0 1px var(--hair); }
+.capsule { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 999px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--hair), inset 0 1px 0 var(--glass-rim), var(--shadow); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); }
+.tb { height: 28px; padding: 0 12px; border-radius: 999px; border: 0; background: none; color: var(--body); font: 500 13px/28px var(--font-ui); text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.tb:hover { background: var(--fill); }
+.tb.icon { width: 28px; padding: 0; justify-content: center; }
+.tb svg { width: 15px; height: 15px; }
+.btn { height: 34px; padding: 0 16px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font: 500 13px/34px var(--font-ui); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.btn:hover { background: var(--accent-hover); }
+.btn svg { width: 15px; height: 15px; }
+.btn.lg { height: 40px; line-height: 40px; padding: 0 20px; font-size: 14px; }
+.ghost { color: var(--accent); font: 500 14px var(--font-ui); text-decoration: none; }
+.ghost:hover { text-decoration: underline; text-underline-offset: 3px; }
+.hide-sm { }
+@media (max-width: 560px) { .hide-sm { display: none; } }
 
-  /* Find highlights — mirrors find.js decorations. */
-  .hit     { background: rgba(200,184,154,.18); border-radius: 2px; }
-  .hit-cur { background: rgba(200,184,154,.55); color: #08090a; border-radius: 2px; }
+/* Hero */
+.hero { padding-block: 56px 40px; display: grid; gap: 20px; justify-items: center; text-align: center; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px 0 4px; border-radius: 999px; background: var(--fill); font-size: 13px; color: var(--meta); text-decoration: none; }
+.pill b { background: var(--selection); color: var(--accent); font-weight: 600; border-radius: 999px; padding: 0 8px; line-height: 20px; font-size: 12px; }
+.hero h1 { font: 400 clamp(36px, 6vw, 64px)/1.06 var(--font-serif); letter-spacing: -0.015em; max-width: 17ch; }
+.hero h1 em { font-style: italic; color: var(--accent); }
+.lede { max-width: 54ch; font-size: 17px; color: var(--body); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 20px; margin-top: 4px; }
+.fine { font-size: 13px; color: var(--meta); }
 
-  /* ── Focus mode demo ──────────────────────────────────────────────
-     One loop of what ⌘. does: chrome fades, every block but the one
-     holding the caret drops to 30%, then Esc gives it all back. */
-  .fm-cycle { --fm: 9s; }
-  .fm-cycle.fm-playing .fm-chrome  { animation: fmChrome var(--fm) ease-in-out infinite; }
-  .fm-cycle.fm-playing .fm-dim     { animation: fmDim    var(--fm) ease-in-out infinite; }
-  .fm-cycle.fm-playing .fm-page    { animation: fmPage   var(--fm) ease-in-out infinite; }
-  .fm-cycle.fm-playing .fm-key-in  { animation: fmKeyIn  var(--fm) ease-in-out infinite; }
-  .fm-cycle.fm-playing .fm-key-out { animation: fmKeyOut var(--fm) ease-in-out infinite; }
-  @keyframes fmChrome { 0%,24% { opacity: 1; } 32%,70% { opacity: 0; } 78%,100% { opacity: 1; } }
-  @keyframes fmDim    { 0%,24% { opacity: 1; } 32%,70% { opacity: .3; } 78%,100% { opacity: 1; } }
-  @keyframes fmPage   { 0%,24% { transform: scale(1); } 34%,70% { transform: scale(1.015); } 80%,100% { transform: scale(1); } }
-  @keyframes fmKeyIn  { 0%,20% { opacity: 0; transform: translateY(4px); } 26%,34% { opacity: 1; transform: none; } 40%,100% { opacity: 0; } }
-  @keyframes fmKeyOut { 0%,66% { opacity: 0; transform: translateY(4px); } 72%,80% { opacity: 1; transform: none; } 86%,100% { opacity: 0; } }
+.window { border-radius: var(--r-window); overflow: hidden; box-shadow: 0 0 0 1px var(--hair), var(--shadow); background: var(--frame); max-width: 100%; }
+.window img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; }
+.hero-shot { margin-top: 24px; width: 100%; }
+.hero-shot .window img { aspect-ratio: 1680 / 1000; }
+.caption { margin-top: 12px; font-size: 13px; color: var(--meta); text-align: center; }
 
-  /* Writing styles in the focus demo — mirrors .style-* in src/app.css. */
-  .seg-btn { color: #8b9299; }
-  .seg-btn:hover { color: #f5f6f7; }
-  .seg-btn[aria-pressed="true"], .seg-btn[aria-selected="true"] { background: #f5f6f7; color: #08090a; }
+/* Section heads */
+section { padding-block: 72px; }
+section + section { border-top: 1px solid var(--hair); }
+.head { display: grid; gap: 10px; max-width: 640px; margin-bottom: 32px; }
+.label { font: 600 12px var(--font-ui); color: var(--meta); letter-spacing: 0.02em; }
+.head h2 { font: 400 clamp(28px, 4vw, 40px)/1.12 var(--font-serif); letter-spacing: -0.01em; }
+.head p { font-size: 16px; }
 
-  #fm .fm-page, #fm .fm-title, #fm .fm-body { transition: background-color .3s ease, padding .3s ease; }
-  #fm:not([data-style="paper"]) .fm-page { background: transparent; }
-  #fm:not([data-style="paper"]) .fm-byline,
-  #fm:not([data-style="paper"]) .fm-ornament { display: none; }
-  #fm:not([data-style="paper"]) .fm-title { text-align: left; }
-  #fm:not([data-style="paper"]) .fm-body { margin-top: 1.75rem; }
-  #fm:not([data-style="paper"]) .fm-dropcap::first-letter {
-    float: none; margin: 0; font-size: inherit; font-weight: inherit; line-height: inherit; color: inherit;
-  }
-  #fm[data-style="default"] .fm-body { line-height: 1.75; }
-  #fm[data-style="minimal"] .fm-title,
-  #fm[data-style="minimal"] .fm-body { font-family: 'Geist', system-ui, sans-serif; }
-  #fm[data-style="minimal"] .fm-title { font-weight: 600; letter-spacing: -0.025em; }
-  #fm[data-style="minimal"] .fm-body { line-height: 1.7; }
-  #fm[data-style="technical"] .fm-title,
-  #fm[data-style="technical"] .fm-body { font-family: 'Geist', system-ui, sans-serif; }
-  #fm[data-style="technical"] .fm-title { font-weight: 700; letter-spacing: -0.03em; font-size: 1.75rem; }
-  #fm[data-style="technical"] .fm-body { line-height: 1.65; font-size: 15px; }
-  #fm[data-style="technical"] .fm-body > * + * { margin-top: 1rem; }
-  #fm[data-style="technical"] .fm-page { padding-top: 2rem; padding-bottom: 2rem; }
+/* Tour: a segmented control over the real screens */
+.seg { display: flex; flex-wrap: wrap; gap: 2px; width: fit-content; max-width: 100%; margin-bottom: 20px; }
+.seg button { height: 30px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--body); font: 500 13px var(--font-ui); cursor: pointer; }
+.seg button:hover { background: var(--fill); }
+.seg button[aria-selected="true"] { background: var(--page); color: var(--ink); box-shadow: 0 0 0 1px var(--hair), 0 1px 2px rgb(0 0 0 / 0.06); }
+.tour { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; align-items: start; }
+.tour .text { display: grid; gap: 12px; padding-top: 8px; }
+.tour h3 { font: 600 22px/1.25 var(--font-serif); }
+.tour .text p { font-size: 15px; }
+.tour ul { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 14px; }
+.tour li { display: flex; gap: 10px; }
+.tour li::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 8px; }
+.kbd { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--meta); }
+kbd { font: 500 12px var(--font-ui); min-width: 22px; height: 22px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: 6px; background: var(--page); box-shadow: 0 0 0 1px var(--hair), 0 1px 0 var(--hair); color: var(--ink); }
+.new { display: inline-block; font: 600 11px/18px var(--font-ui); letter-spacing: 0.03em; color: var(--accent); background: var(--selection); border-radius: 999px; padding: 0 8px; vertical-align: 3px; margin-left: 6px; }
+.panel[hidden] { display: none; }
+@media (max-width: 860px) { .tour { grid-template-columns: minmax(0, 1fr); } .tour .text { order: -1; } }
 
-  /* Tab panels use Tailwind's grid/flex, which would beat [hidden]. */
-  [role="tabpanel"][hidden] { display: none !important; }
+/* Grouped inset list, System Settings style (the app's Settings and Binders) */
+.inset { background: var(--page); border-radius: var(--r-group); box-shadow: 0 0 0 1px var(--hair); overflow: hidden; }
+.inset > * + * { border-top: 1px solid var(--hair); }
+.row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; }
+.row .ic { width: 32px; height: 32px; border-radius: var(--r-field); display: grid; place-items: center; background: var(--fill); color: var(--accent); }
+.row .ic svg { width: 17px; height: 17px; }
+.row b { display: block; color: var(--ink); font-weight: 500; font-size: 14px; }
+.row span.d { display: block; color: var(--meta); font-size: 13px; }
+.row .end { font-size: 13px; color: var(--meta); white-space: nowrap; }
+.row .end a { color: var(--accent); font-weight: 500; text-decoration: none; }
+.row .end a:hover { text-decoration: underline; }
+.groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
+.group-h { font: 600 12px var(--font-ui); color: var(--meta); margin: 0 0 8px 16px; }
+@media (max-width: 760px) { .groups { grid-template-columns: minmax(0, 1fr); } }
 
-  /* Matrix heatmap cells */
-  .mx-cell { width: 100%; aspect-ratio: 1; border-radius: 3px; background: #121517; }
+/* Paper quote: the one place the writing surface shows on the site itself */
+.paper { background: var(--page); border-radius: var(--r-group); box-shadow: 0 0 0 1px var(--hair); padding: clamp(24px, 4vw, 48px); max-width: 760px; margin: 0 auto; }
+.paper p { font: 400 clamp(18px, 2.2vw, 21px)/1.7 var(--font-serif); color: var(--body); }
+.paper p:first-child::first-letter { font-size: 3.1em; float: left; line-height: 0.9; padding: 6px 8px 0 0; color: var(--accent); }
+.paper .by { margin-top: 16px; font: italic 15px var(--font-serif); color: var(--meta); }
 
-  details > summary { list-style: none; cursor: pointer; }
-  details > summary::-webkit-details-marker { display: none; }
-  details[open] .faq-plus { transform: rotate(45deg); }
+/* Download */
+.get { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 40px; align-items: start; }
+.get .head { margin: 0; }
+details { margin-top: 16px; font-size: 13px; color: var(--meta); }
+summary { cursor: pointer; color: var(--body); font-weight: 500; }
+details p { margin-top: 8px; }
+code { font: 12px var(--font-mono); background: var(--fill); border-radius: 6px; padding: 2px 6px; color: var(--ink); overflow-wrap: anywhere; }
+@media (max-width: 860px) { .get { grid-template-columns: minmax(0, 1fr); } }
 
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-    .animate-fade-in, .animate-slide-up { opacity: 1 !important; }
-    .js .reveal { opacity: 1; transform: none; }
-    /* Pressing Play is an explicit request, so the clamp must not swallow the loop. */
-    .fm-cycle.fm-playing .fm-chrome, .fm-cycle.fm-playing .fm-dim, .fm-cycle.fm-playing .fm-page,
-    .fm-cycle.fm-playing .fm-key-in, .fm-cycle.fm-playing .fm-key-out {
-      animation-duration: var(--fm) !important;
-      animation-iteration-count: infinite !important;
-    }
-  }
+.contrib { position: relative; isolation: isolate; margin-top: 32px; background: var(--page); border-radius: var(--r-group); box-shadow: 0 0 0 1px var(--hair); padding: clamp(20px, 3vw, 28px); display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: center; }
+.contrib::before { content: ""; position: absolute; inset: -28px -8%; z-index: -1; border-radius: 40px; background: radial-gradient(60% 70% at 30% 50%, var(--glow), transparent 70%), radial-gradient(50% 60% at 80% 55%, var(--glow-2), transparent 70%); filter: blur(28px); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) { .contrib::before { animation: breathe 6s ease-in-out infinite alternate; } @keyframes breathe { from { opacity: 0.7; } to { opacity: 1; } } }
+.contrib .ic-lg { flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--selection); color: var(--accent); display: grid; place-items: center; }
+.contrib .ic-lg svg { width: 22px; height: 22px; }
+.contrib .ct { flex: 1 1 340px; min-width: 0; display: grid; gap: 6px; justify-items: start; }
+.contrib b { font: 600 20px/1.25 var(--font-serif); color: var(--ink); }
+.contrib p { font-size: 14px; }
+.contrib .ca { display: flex; flex-wrap: wrap; gap: 8px; }
+.tb.quiet { height: 34px; line-height: 34px; padding: 0 14px; background: var(--fill); color: var(--ink); }
+
+footer { padding-block: 28px; font-size: 13px; color: var(--meta); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+footer .sp { flex: 1; }
+footer nav { display: flex; flex-wrap: wrap; gap: 16px; }
+footer a { text-decoration: none; }
+footer a:hover { color: var(--ink); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel { animation: fade 180ms ease-out; }
+  @keyframes fade { from { opacity: 0.4; } to { opacity: 1; } }
+}
 </style>
-<script>document.documentElement.classList.add('js');</script>
 </head>
+<body>
+<div class="sheet">
+  <header class="toolbar">
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="assets/icon-256.png" alt="">Memoire</a>
+      <nav class="capsule hide-sm" aria-label="Main">
+        <a class="tb" href="#tour">Tour</a>
+        <a class="tb" href="changelog.html">Changelog</a>
+      </nav>
+      <div class="capsule">
+        <button class="tb icon" id="theme" type="button" aria-label="Switch light or dark" title="Switch light or dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/></svg>
+        </button>
+      </div>
+      <a class="btn" href="#download">Download</a>
+    </div>
+  </header>
 
-<body class="bg-background text-foreground font-sans antialiased selection:bg-accent selection:text-background">
-
-<!-- ═══════════════════════════════ NAV ═══════════════════════════════ -->
-<nav class="fixed inset-x-0 top-4 z-50 flex justify-center gap-2 px-4">
-  <div class="flex w-full max-w-2xl items-center justify-between gap-3 rounded-full border border-border/70 bg-background/70 py-2 pl-5 pr-2 shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-xl backdrop-saturate-150">
-    <a href="#top" class="group flex items-center gap-2">
-      <img src="assets/icon-256.png" alt="" width="256" height="256" class="h-6 w-6 rounded-md transition-transform duration-300 group-hover:-rotate-6">
-      <span class="font-serif text-base tracking-tight">Memoire</span>
-    </a>
-    <div class="flex items-center gap-0.5">
-      <a href="#write"  class="hidden rounded-full px-3 py-1.5 text-sm text-muted transition-colors hover:bg-card hover:text-foreground md:inline-block">Write</a>
-      <a href="#codex"  class="hidden rounded-full px-3 py-1.5 text-sm text-muted transition-colors hover:bg-card hover:text-foreground md:inline-block">Codex</a>
-      <a href="#export" class="hidden rounded-full px-3 py-1.5 text-sm text-muted transition-colors hover:bg-card hover:text-foreground md:inline-block">Export</a>
-      <a href="#ai"     class="hidden rounded-full px-3 py-1.5 text-sm text-muted transition-colors hover:bg-card hover:text-foreground sm:inline-block">AI</a>
-      <a href="#download" class="ml-1 rounded-full bg-foreground px-3.5 py-1.5 text-sm font-medium text-background transition-colors hover:bg-white">Download</a>
+  <div class="wrap" id="top">
+    <div class="hero">
+      <a class="pill" href="#tour"><b>New</b>Revise mode, margin notes and a calmer new look</a>
+      <h1>A quiet place to write <em>a whole book.</em></h1>
+      <p class="lede">Memoire keeps your chapters, characters and notes in one window, shows you what you changed today, and saves every word as a plain file on your computer.</p>
+      <div class="actions">
+        <a class="btn lg" href="#download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12m0 0-5-5m5 5 5-5M5 20h14"/></svg>Download for macOS</a>
+        <a class="ghost" href="#download">Windows and Linux</a>
+      </div>
+      <p class="fine">Free and open source. No account.</p>
+      <figure class="hero-shot" style="margin:24px 0 0">
+        <div class="seg capsule styles" role="tablist" aria-label="Page styles" style="margin: 0 auto 16px">
+          <button role="tab" id="s-paper" aria-controls="sp-paper" aria-selected="true" data-desc="A warm page with a soft shadow and ornamental quotes. Reads like a printed manuscript.">Paper</button>
+          <button role="tab" id="s-default" aria-controls="sp-default" aria-selected="false" data-desc="Serif type on a plain background. Book-like, without the page effect.">Classic</button>
+          <button role="tab" id="s-minimal" aria-controls="sp-minimal" aria-selected="false" data-desc="Sans-serif and airy. Closer to a plain document than a book.">Minimal</button>
+          <button role="tab" id="s-technical" aria-controls="sp-technical" aria-selected="false" data-desc="Compact sans-serif with code-friendly quotes. Built for notes and docs.">Technical</button>
+        </div>
+        <div class="window">
+          <div class="panel" id="sp-paper" role="tabpanel" aria-labelledby="s-paper">
+            <img class="shot-light" src="assets/shots/style-paper-light.webp" width="1800" height="1071" alt="The editor in the Paper page style">
+            <img class="shot-dark" src="assets/shots/style-paper-dark.webp" width="1800" height="1071" alt="The editor in the Paper page style, dark">
+          </div>
+          <div class="panel" id="sp-default" role="tabpanel" aria-labelledby="s-default" hidden>
+            <img class="shot-light" src="assets/shots/style-default-light.webp" width="1800" height="1071" alt="The editor in the Classic page style">
+            <img class="shot-dark" src="assets/shots/style-default-dark.webp" width="1800" height="1071" alt="The editor in the Classic page style, dark">
+          </div>
+          <div class="panel" id="sp-minimal" role="tabpanel" aria-labelledby="s-minimal" hidden>
+            <img class="shot-light" src="assets/shots/style-minimal-light.webp" width="1800" height="1071" alt="The editor in the Minimal page style">
+            <img class="shot-dark" src="assets/shots/style-minimal-dark.webp" width="1800" height="1071" alt="The editor in the Minimal page style, dark">
+          </div>
+          <div class="panel" id="sp-technical" role="tabpanel" aria-labelledby="s-technical" hidden>
+            <img class="shot-light" src="assets/shots/style-technical-light.webp" width="1800" height="1071" alt="The editor in the Technical page style">
+            <img class="shot-dark" src="assets/shots/style-technical-dark.webp" width="1800" height="1071" alt="The editor in the Technical page style, dark">
+          </div>
+        </div>
+        <figcaption class="caption" id="style-desc">A warm page with a soft shadow and ornamental quotes. Reads like a printed manuscript.</figcaption>
+      </figure>
     </div>
   </div>
-  <a href="https://github.com/Riley1101/memorie" target="_blank" rel="noopener" aria-label="Star Memoire on GitHub"
-     class="group hidden shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-4 text-sm text-muted shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-xl backdrop-saturate-150 transition-colors hover:text-foreground sm:flex">
-    <svg viewBox="0 0 16 16" aria-hidden="true" class="h-4 w-4 fill-current"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-    <svg viewBox="0 0 16 16" aria-hidden="true" class="h-3.5 w-3.5 fill-current transition-colors group-hover:text-yellow-400"><path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/></svg>
-    <span id="gh-stars" class="tabular-nums">Star</span>
-  </a>
-</nav>
 
-<main id="top">
-
-<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
-<header class="relative overflow-hidden pt-32 pb-16 sm:pt-40 lg:pt-44">
-  <div class="pointer-events-none absolute inset-0 paper-lines" aria-hidden="true"></div>
-  <div class="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-accent/[0.07] blur-[140px]" aria-hidden="true"></div>
-
-  <div class="relative mx-auto max-w-4xl px-5 text-center sm:px-6">
-    <a href="#codex" class="animate-fade-in group mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 py-1 pl-1 pr-3.5 opacity-0 backdrop-blur transition-colors hover:border-border-strong" style="animation-delay:.1s">
-      <span class="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-background">New</span>
-      <span class="text-xs font-medium text-muted transition-colors group-hover:text-foreground">Codex, scene cards, find &amp; replace, and a rebuilt export</span>
-      <span class="text-xs text-muted-dim transition-transform group-hover:translate-x-0.5" aria-hidden="true">→</span>
-    </a>
-
-    <h1 class="animate-slide-up mb-7 text-balance font-serif text-[2.6rem] leading-[1.06] tracking-tight opacity-0 sm:text-6xl lg:text-7xl" style="animation-delay:.2s">
-      Write the whole book.<br class="hidden sm:block">
-      <span class="italic text-muted">Keep every word.</span>
-    </h1>
-
-    <p class="animate-slide-up mx-auto mb-10 max-w-2xl text-balance text-base font-light leading-relaxed text-muted opacity-0 sm:text-lg" style="animation-delay:.3s">
-      Memoire is a quiet, keyboard-first writing app with the tools a long project needs —
-      a codex for your cast and world, scene cards, and manuscript-ready export.
-      Everything lives as plain Markdown on your disk. AI is optional, and can run entirely offline.
-    </p>
-
-    <div class="animate-slide-up flex flex-col items-center justify-center gap-3 opacity-0 sm:flex-row" style="animation-delay:.4s">
-      <a href="#download" id="hero-dl" class="group inline-flex items-center justify-center gap-2.5 rounded-full bg-foreground px-6 py-3.5 text-sm font-medium text-background transition-all hover:bg-white">
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-        <span id="hero-dl-label">Download free</span>
-      </a>
-      <a href="#tour" class="inline-flex items-center justify-center gap-2 rounded-full border border-border px-6 py-3.5 text-sm text-foreground transition-colors hover:border-border-strong hover:bg-card">
-        Take the tour
-      </a>
-    </div>
-    <p class="animate-fade-in mt-5 text-xs text-muted-dim opacity-0" style="animation-delay:.5s">
-      Free &amp; open source · macOS, Windows, Linux · No account
-    </p>
-  </div>
-
-  <!-- ─── Hero mockup: focus mode, with the writing-style switcher ─── -->
-  <div class="animate-fade-in relative mx-auto mt-16 max-w-6xl px-4 opacity-0 sm:px-6" style="animation-delay:.6s">
-    <div class="pointer-events-none absolute left-1/2 top-1/3 h-[340px] w-[620px] -translate-x-1/2 rounded-full bg-accent/[0.06] blur-[120px]" aria-hidden="true"></div>
-
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <p class="text-xs text-muted-dim">Try a writing style — same page, set in Settings.</p>
-      <div id="fm-styles" role="group" aria-label="Writing style" class="inline-flex rounded-full border border-border bg-background p-1 text-xs">
-        <button type="button" data-style="default"   aria-pressed="false" class="seg-btn rounded-full px-3 py-1 transition-colors">Default</button>
-        <button type="button" data-style="minimal"   aria-pressed="false" class="seg-btn rounded-full px-3 py-1 transition-colors">Minimal</button>
-        <button type="button" data-style="paper"     aria-pressed="true"  class="seg-btn rounded-full px-3 py-1 transition-colors">Paper</button>
-        <button type="button" data-style="technical" aria-pressed="false" class="seg-btn rounded-full px-3 py-1 transition-colors">Technical</button>
-      </div>
-    </div>
-
-    <figure id="fm" data-style="paper" class="fm-cycle fm-playing relative overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/60">
-      <div class="pointer-events-none absolute left-1/2 top-0 h-[280px] w-[520px] -translate-x-1/2 rounded-full bg-accent/[0.05] blur-[110px]" aria-hidden="true"></div>
-
-      <div class="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2" aria-hidden="true">
-        <span class="fm-key-in absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-accent/30 bg-background/90 px-3 py-1.5 font-mono text-[11px] text-accent opacity-0 backdrop-blur">⌘ .</span>
-        <span class="fm-key-out absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-background/90 px-3 py-1.5 font-mono text-[11px] text-muted opacity-0 backdrop-blur">Esc</span>
+  <section id="tour">
+    <div class="wrap">
+      <div class="head">
+        <span class="label">What's new</span>
+        <h2>Write, then revise, without leaving the page.</h2>
+        <p>This release rebuilds every screen around the page you are writing on. Tools float above it and step aside when you are done.</p>
       </div>
 
-      <div class="fm-chrome relative flex h-10 items-center gap-3 px-4 font-mono text-[11px] text-muted-dim">
-        <div class="flex gap-2" aria-hidden="true">
-          <span class="h-3 w-3 rounded-full bg-[#ff5f56]"></span>
-          <span class="h-3 w-3 rounded-full bg-[#ffbd2e]"></span>
-          <span class="h-3 w-3 rounded-full bg-[#27c93f]"></span>
-        </div>
-        <span class="min-w-0 flex-1 truncate text-center"><span class="opacity-60">The Lighthouse Keeper / Chapter Nine /</span> The Lamp Room</span>
+      <div class="seg capsule" role="tablist" aria-label="Screens">
+        <button role="tab" id="t-revise" aria-controls="p-revise" aria-selected="true">Revise</button>
+        <button role="tab" id="t-notes" aria-controls="p-notes" aria-selected="false">Notes</button>
+        <button role="tab" id="t-history" aria-controls="p-history" aria-selected="false">History</button>
+        <button role="tab" id="t-codex" aria-controls="p-codex" aria-selected="false">Codex</button>
+        <button role="tab" id="t-library" aria-controls="p-library" aria-selected="false">Library</button>
+        <button role="tab" id="t-palette" aria-controls="p-palette" aria-selected="false">Commands</button>
       </div>
 
-      <div class="fm-page relative mx-3 rounded-t-xl bg-surface/70 px-6 pb-12 pt-12 sm:mx-8 sm:px-10 sm:pt-16">
-        <div class="mx-auto max-w-2xl">
-          <h3 class="fm-dim fm-title text-center font-serif text-3xl font-semibold tracking-tight sm:text-[2.6rem]">The Lamp Room</h3>
-          <p class="fm-dim fm-byline mt-4 text-center font-serif text-sm italic text-muted sm:text-base">The Lighthouse Keeper / Chapter Nine · Sep 17, 10:48 PM</p>
-          <p class="fm-dim fm-ornament my-8 text-center text-sm text-accent" aria-hidden="true">❧</p>
-          <div class="fm-body space-y-6 font-serif text-[15px] leading-[1.85] text-foreground/90 sm:text-lg">
-            <p class="fm-dim fm-dropcap first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.4rem] first-letter:font-semibold first-letter:leading-[0.8] first-letter:text-accent">
-              The lamp had not been lit in eleven years, and still she climbed the stairs each evening at dusk, counting them aloud against the wind.
-            </p>
-            <p class="fm-dim">
-              Forty-two — the same as the year her father stopped speaking. She had learned the number before she learned the word for it, and the sound of it in her mouth was the sound of the stair itself: worn granite, a hollow under the seventh tread, salt in every seam.
-            </p>
-            <p>What she wanted was not the light. What she wanted was the climbing.</p>
-          </div>
-          <p class="fm-dim fm-ornament mt-10 text-center text-sm text-accent/70" aria-hidden="true">❧</p>
+      <div class="panel tour" id="p-revise" role="tabpanel" aria-labelledby="t-revise">
+        <div class="window"><img class="shot-light" src="assets/shots/revise-light.webp" alt="Revise mode: changes since the start of today underlined on the page, with the words taken out struck through"><img class="shot-dark" src="assets/shots/revise-dark.webp" alt="Revise mode in dark mode"></div>
+        <div class="text">
+          <h3>See what you changed today<span class="new">New</span></h3>
+          <p>Revise mode compares the page with how it was this morning. New words are underlined, cut words are struck through, right where they happened.</p>
+          <ul><li>Step through each change from the bar above the page</li><li>Keep a change, or put the old words back</li><li>Compare with any earlier version, not only today</li></ul>
+          <span class="kbd"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>R</kbd></span>
         </div>
       </div>
 
-      <div class="fm-chrome relative flex items-center justify-between gap-4 px-4 py-3 font-mono text-[11px] text-muted-dim">
-        <span class="truncate">v7 · 153 words · 21% today</span>
-        <span class="shrink-0">? · : · ⌘K</span>
-      </div>
-
-      <figcaption class="relative flex items-center justify-between gap-4 border-t border-border px-5 py-3 text-xs text-muted-dim">
-        <span id="fm-label">Focus mode engaging and releasing, on a loop.</span>
-        <button id="fm-toggle" type="button" aria-controls="fm"
-                class="shrink-0 rounded-full border border-border px-3 py-1 text-[11px] text-muted transition-colors hover:border-border-strong hover:text-foreground">Pause</button>
-      </figcaption>
-    </figure>
-  </div>
-</header>
-
-<!-- ═══════════════════════ PROMISES STRIP ═══════════════════════ -->
-<section aria-label="Principles" class="border-y border-border bg-surface/40">
-  <div class="mx-auto grid max-w-6xl grid-cols-2 gap-px px-5 sm:px-6 md:grid-cols-5">
-    <div class="px-2 py-6 text-center md:px-4">
-      <p class="font-serif text-lg tracking-tight">Plain Markdown</p>
-      <p class="mt-1 text-xs text-muted-dim">Files you can open without us</p>
-    </div>
-    <div class="px-2 py-6 text-center md:px-4">
-      <p class="font-serif text-lg tracking-tight">Works offline</p>
-      <p class="mt-1 text-xs text-muted-dim">On a plane, in a cabin</p>
-    </div>
-    <div class="px-2 py-6 text-center md:px-4">
-      <p class="font-serif text-lg tracking-tight">No account</p>
-      <p class="mt-1 text-xs text-muted-dim">No telemetry, ever</p>
-    </div>
-    <div class="px-2 py-6 text-center md:px-4">
-      <p class="font-serif text-lg tracking-tight">AI off by default</p>
-      <p class="mt-1 text-xs text-muted-dim">Local or your own key</p>
-    </div>
-    <div class="col-span-2 px-2 py-6 text-center md:col-span-1 md:px-4">
-      <p class="font-serif text-lg tracking-tight">MIT licensed</p>
-      <p class="mt-1 text-xs text-muted-dim">Built in the open</p>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════════ TOUR — WRITE · PLAN · SHIP ═══════════════════════ -->
-<section id="tour" class="scroll-mt-24 py-24 sm:py-28">
-  <div class="mx-auto max-w-6xl px-5 sm:px-6">
-    <div class="reveal mb-14 max-w-2xl">
-      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">One app, the whole way through</p>
-      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-        From the first line to the file you send an agent.
-      </h2>
-      <p class="mt-4 text-muted">
-        Most writers juggle a notes app, a word processor and a spreadsheet of characters.
-        Memoire keeps drafting, planning and publishing in one place — without turning into a cockpit.
-      </p>
-    </div>
-
-    <ol class="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <li class="reveal">
-        <a href="#write" class="group flex h-full flex-col rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
-          <span class="font-mono text-xs text-accent">01 — Write</span>
-          <h3 class="mt-3 font-serif text-xl tracking-tight">A page that gets out of the way</h3>
-          <p class="mt-2.5 flex-1 text-sm leading-relaxed text-muted">
-            Focus mode, typewriter scrolling, smart punctuation, find &amp; replace, and links between
-            writings with <span class="font-mono text-foreground">[[</span>. History that branches instead of forgetting.
-          </p>
-          <span class="mt-6 text-sm text-foreground transition-colors group-hover:text-accent">The editor →</span>
-        </a>
-      </li>
-      <li class="reveal" style="transition-delay:.08s">
-        <a href="#codex" class="group flex h-full flex-col rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
-          <span class="font-mono text-xs text-accent">02 — Plan</span>
-          <h3 class="mt-3 font-serif text-xl tracking-tight">Your story bible, wired into the draft</h3>
-          <p class="mt-2.5 flex-1 text-sm leading-relaxed text-muted">
-            Sheets for characters, places, factions and items. Scene cards with status and synopsis.
-            A map of who appears where, built from what you actually wrote.
-          </p>
-          <span class="mt-6 text-sm text-foreground transition-colors group-hover:text-accent">The codex →</span>
-        </a>
-      </li>
-      <li class="reveal" style="transition-delay:.16s">
-        <a href="#export" class="group flex h-full flex-col rounded-2xl border border-border bg-surface p-7 transition-colors hover:border-border-strong">
-          <span class="font-mono text-xs text-accent">03 — Ship</span>
-          <h3 class="mt-3 font-serif text-xl tracking-tight">Manuscript-ready, in one sheet</h3>
-          <p class="mt-2.5 flex-1 text-sm leading-relaxed text-muted">
-            Word, PDF, EPUB, HTML or Markdown. Chapter headings, front and back matter, running heads,
-            standard manuscript format — all checkboxes.
-          </p>
-          <span class="mt-6 text-sm text-foreground transition-colors group-hover:text-accent">Export →</span>
-        </a>
-      </li>
-    </ol>
-  </div>
-</section>
-
-<!-- ═══════════════════ WRITE — THE EDITOR ═══════════════════ -->
-<section id="write" class="scroll-mt-24 border-t border-border bg-surface/40 py-24 sm:py-32">
-  <div class="mx-auto max-w-6xl px-5 sm:px-6">
-
-    <div class="reveal mb-12 max-w-2xl">
-      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Write</p>
-      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-        A quiet page that still knows your story.
-      </h2>
-      <p class="mt-5 text-base leading-relaxed text-muted">
-        Names from your codex light up as you type. The side panel keeps the scene's status, synopsis
-        and cast in reach, and <kbd class="key">⌘</kbd> <kbd class="key">.</kbd> folds it all away when
-        you just want to write. <kbd class="key">Esc</kbd> brings it back.
-      </p>
-    </div>
-
-    <div class="reveal relative overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/70">
-      <!-- Title bar + breadcrumb -->
-      <div class="flex h-10 items-center gap-4 border-b border-border px-4 font-mono text-[11px] text-muted-dim">
-        <div class="flex gap-2" aria-hidden="true">
-          <span class="h-3 w-3 rounded-full bg-[#ff5f56]"></span>
-          <span class="h-3 w-3 rounded-full bg-[#ffbd2e]"></span>
-          <span class="h-3 w-3 rounded-full bg-[#27c93f]"></span>
+      <div class="panel tour" id="p-notes" role="tabpanel" aria-labelledby="t-notes" hidden>
+        <div class="window"><img class="shot-light" src="assets/shots/inspector-light.webp" alt="The scene panel beside the page: status, synopsis, two margin notes, and the codex entries in this scene"><img class="shot-dark" src="assets/shots/inspector-dark.webp" alt="The scene panel in dark mode"></div>
+        <div class="text">
+          <h3>Notes in the margin<span class="new">New</span></h3>
+          <p>Select a line and leave yourself a note. It sits beside that line on wide screens, and in the scene panel on small ones.</p>
+          <ul><li>Notes are saved inside the writing's file and never reach an export</li><li>The scene panel holds status, synopsis, notes, and who appears in the scene</li><li>See which writings link to this one</li></ul>
+          <span class="kbd"><kbd>⌘</kbd><kbd>⌥</kbd><kbd>M</kbd> note &nbsp; <kbd>⌘</kbd><kbd>⇧</kbd><kbd>O</kbd> panel</span>
         </div>
-        <span class="min-w-0 flex-1 truncate text-center"><span class="opacity-60">The Ashborn / Part One /</span> The Crossing</span>
-        <span class="hidden sm:inline">⌘K</span>
       </div>
 
-      <div class="flex text-left">
-        <!-- Page -->
-        <div class="min-w-0 flex-1 px-6 pb-10 pt-10 sm:px-12 sm:pt-14">
-          <div class="mx-auto max-w-xl">
-            <h2 class="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">The Crossing</h2>
-            <div class="mt-7 space-y-5 font-serif text-[15px] leading-[1.85] text-foreground/90 sm:text-[17px]">
-              <p>
-                The ferry left <span class="cx cx-place" tabindex="0">Veyra<span class="cx-card" role="tooltip"><span class="mb-1 flex items-center gap-1.5 font-medium text-foreground"><span class="h-1.5 w-1.5 rounded-full bg-place"></span>Veyra · Location</span>Harbour city on the ash coast. Burned in the prologue; still smoking in Part One.</span></span>
-                an hour before dawn, and <span class="cx cx-char" tabindex="0">Aria<span class="cx-card" role="tooltip"><span class="mb-1 flex items-center gap-1.5 font-medium text-foreground"><span class="h-1.5 w-1.5 rounded-full bg-char"></span>Aria · Character</span>Exiled heir who hunts the man who burned Veyra. Ash-grey eyes, burn scar on her left hand.<span class="mt-2 block font-mono text-[10px] text-muted-dim">Rival of Kael · 14 scenes</span></span></span>
-                stood at the rail with her scarred hand in her pocket, as if the water might recognise it.
-              </p>
-              <p class="text-foreground/60">
-                Behind her, the <span class="cx cx-faction" tabindex="0">Grey Wardens<span class="cx-card" role="tooltip"><span class="mb-1 flex items-center gap-1.5 font-medium text-foreground"><span class="h-1.5 w-1.5 rounded-full bg-faction"></span>Grey Wardens · Faction</span>The city watch, now answering to Kael.</span></span>
-                were still counting passengers. She did not look back — looking back was how
-                <span class="cx cx-char" tabindex="0">Kael<span class="cx-card" role="tooltip"><span class="mb-1 flex items-center gap-1.5 font-medium text-foreground"><span class="h-1.5 w-1.5 rounded-full bg-char"></span>Kael · Character</span>Commander of the Wardens. The man Aria is hunting.</span></span>
-                found people.<span class="ml-px inline-block h-5 w-[2px] translate-y-1 animate-caret bg-accent align-baseline"></span>
-              </p>
-            </div>
+      <div class="panel tour" id="p-history" role="tabpanel" aria-labelledby="t-history" hidden>
+        <div class="window"><img class="shot-light" src="assets/shots/history-light.webp" alt="The history pane: a branching graph of saved versions with a line from each"><img class="shot-dark" src="assets/shots/history-dark.webp" alt="The history pane in dark mode"></div>
+        <div class="text">
+          <h3>History that branches</h3>
+          <p>Every save is a version. Go back to any of them, write something different, and the old path is still there.</p>
+          <ul><li>Each version shows when it was saved and how it began</li><li>Step back and forward with the keyboard</li><li>Back up to GitHub or Dropbox when you choose</li></ul>
+          <span class="kbd"><kbd>⌘</kbd><kbd>U</kbd></span>
+        </div>
+      </div>
+
+      <div class="panel tour" id="p-codex" role="tabpanel" aria-labelledby="t-codex" hidden>
+        <div class="window"><img class="shot-light" src="assets/shots/codex-light.webp" alt="The codex for the Lighthouse binder: cards for Elin Vask, Harrow, Harrow Point, the logbook and Tomas"><img class="shot-dark" src="assets/shots/codex-dark.webp" alt="The codex in dark mode"></div>
+        <div class="text">
+          <h3>A codex for your cast<span class="new">Redesigned</span></h3>
+          <p>Keep a sheet for every character, place, faction and object. Memoire finds them in your writing as you go.</p>
+          <ul><li>Mentions per writing, chapter by chapter</li><li>See which characters keep turning up together</li><li>The assistant reads the sheets a scene mentions</li></ul>
+        </div>
+      </div>
+
+      <div class="panel tour" id="p-library" role="tabpanel" aria-labelledby="t-library" hidden>
+        <div class="window"><img class="shot-light" src="assets/shots/grid-light.webp" alt="The library as cards: each writing shows its opening lines and binder"><img class="shot-dark" src="assets/shots/grid-dark.webp" alt="The library as cards in dark mode"></div>
+        <div class="text">
+          <h3>Your library, as a list or as pages<span class="new">New</span></h3>
+          <p>Binders hold a book, a collection or a journal, each with its own colour. Switch to cards to see how every writing opens.</p>
+          <ul><li>Grouped by Today, Yesterday and earlier</li><li>Parts and chapters nest inside a binder</li><li>Recently deleted keeps anything you throw away</li></ul>
+        </div>
+      </div>
+
+      <div class="panel tour" id="p-palette" role="tabpanel" aria-labelledby="t-palette" hidden>
+        <div class="window"><img class="shot-light" src="assets/shots/palette-light.webp" alt="The command palette over the page: focus mode, leave a note, show history, compare with the start of today, export"><img class="shot-dark" src="assets/shots/palette-dark.webp" alt="The command palette in dark mode"></div>
+        <div class="text">
+          <h3>Everything from one box</h3>
+          <p>Press ⌘K and type. Open a writing, find a codex entry, or run any command, each with its shortcut beside it.</p>
+          <ul><li>Search across the whole project with ⌘⇧F</li><li>Find and replace with match case, whole word and regex</li><li>Focus mode hides everything but the page</li></ul>
+          <span class="kbd"><kbd>⌘</kbd><kbd>K</kbd></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="head">
+        <span class="label">Also in Memoire</span>
+        <h2>From first draft to finished manuscript.</h2>
+      </div>
+      <div class="groups">
+        <div>
+          <p class="group-h">Writing</p>
+          <div class="inset">
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h3"/></svg></span><div><b>A page with nothing else on it</b><span class="d">Focus mode, page styles, drop caps, a daily word goal</span></div></div>
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 7h4v4H7zM13 13h4v4h-4z"/><path d="M9 11c0 3 2 4 4 4"/></svg></span><div><b>Smart punctuation</b><span class="d">Curly quotes, dashes and ellipses as you type</span></div></div>
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13h6l-1 8 8-10h-6z"/></svg></span><div><b>Quick at book length</b><span class="d">Typing and saving stay smooth at 500,000 words</span></div></div>
           </div>
         </div>
-
-        <!-- Right panel: scene info + codex mentions -->
-        <aside class="hidden w-64 shrink-0 border-l border-border bg-background/40 lg:block">
-          <div class="border-b border-border px-4 py-4">
-            <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Scene</p>
-            <p class="mb-1 text-[11px] text-muted-dim">Status</p>
-            <p class="mb-3 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground">
-              <span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span> First Draft
-            </p>
-            <p class="mb-1 text-[11px] text-muted-dim">Synopsis</p>
-            <p class="text-xs leading-relaxed text-muted">Aria slips out of Veyra on the dawn ferry; the Wardens nearly spot her.</p>
-          </div>
-          <div class="border-b border-border px-4 py-4">
-            <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">In this scene</p>
-            <div class="flex flex-wrap gap-1.5 text-[11px]">
-              <span class="rounded-full border border-char/40 bg-char/10 px-2.5 py-1 text-char">Aria <span class="opacity-50">×4</span></span>
-              <span class="rounded-full border border-border bg-card px-2.5 py-1 text-muted">Kael <span class="opacity-50">×2</span></span>
-              <span class="rounded-full border border-border bg-card px-2.5 py-1 text-muted">Veyra <span class="opacity-50">×2</span></span>
-              <span class="rounded-full border border-border bg-card px-2.5 py-1 text-muted">Grey Wardens <span class="opacity-50">×1</span></span>
-            </div>
-          </div>
-          <div class="px-4 py-4">
-            <p class="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Outline</p>
-            <div class="space-y-1 font-serif text-[12px]">
-              <p class="text-foreground">The Crossing</p>
-              <p class="pl-3 text-muted-dim">At the rail</p>
-              <p class="pl-3 text-muted-dim">The count</p>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      <!-- Status line -->
-      <div class="flex items-center justify-between gap-4 border-t border-border px-4 py-2.5 font-mono text-[11px] text-muted-dim">
-        <span class="truncate">v12 · 1,284 words · 68% today</span>
-        <span class="flex items-center gap-3"><span>?</span><span>:</span><span>⌘F</span></span>
-      </div>
-    </div>
-    <p class="reveal mt-4 text-center text-xs text-muted-dim">Hover the underlined names — the codex follows you into the prose.</p>
-
-    <!-- Editor details grid -->
-    <div class="mt-16 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-
-      <!-- Find & replace (new) -->
-      <article class="reveal flex flex-col rounded-2xl border border-border bg-background p-6 lg:col-span-2">
-        <div class="flex items-center gap-2">
-          <h3 class="font-serif text-lg tracking-tight">Find &amp; replace</h3>
-          <span class="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-accent">New</span>
-        </div>
-        <p class="mt-1.5 text-sm leading-relaxed text-muted">
-          <kbd class="key">⌘</kbd> <kbd class="key">F</kbd> in the open writing, <kbd class="key">⌘</kbd> <kbd class="key">⇧</kbd> <kbd class="key">F</kbd> across every writing you have.
-          Match case, whole word, or a regular expression — then replace one, or all.
-        </p>
-        <div class="mt-5 overflow-hidden rounded-xl border border-border bg-surface">
-          <div class="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 font-mono text-[11px]">
-            <span class="flex min-w-[9rem] flex-1 items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-foreground">
-              <svg class="h-3 w-3 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
-              Kael
-            </span>
-            <span class="flex min-w-[9rem] flex-1 items-center rounded-md border border-border bg-background px-2 py-1.5 text-muted">Kaelen</span>
-            <span class="flex items-center gap-1 text-muted-dim">
-              <span class="rounded border border-border px-1.5 py-0.5">Aa</span>
-              <span class="rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-accent">ab</span>
-              <span class="rounded border border-border px-1.5 py-0.5">.*</span>
-            </span>
-            <span class="text-muted-dim">2 of 3</span>
-            <span class="rounded-md border border-border px-2 py-1 text-muted">Replace all</span>
-          </div>
-          <p class="px-5 py-4 font-serif text-[14px] leading-relaxed text-muted">
-            …looking back was how <span class="hit">Kael</span> found people. By the second bell
-            <span class="hit-cur">Kael</span> had the harbour closed, and by the third the Wardens
-            were asking for <span class="hit">Kael</span>'s orders in writing.
-          </p>
-        </div>
-      </article>
-
-      <!-- Smart punctuation (new) -->
-      <article class="reveal flex flex-col rounded-2xl border border-border bg-background p-6">
-        <div class="flex items-center gap-2">
-          <h3 class="font-serif text-lg tracking-tight">Smart punctuation</h3>
-          <span class="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-accent">New</span>
-        </div>
-        <p class="mt-1.5 text-sm leading-relaxed text-muted">Type like a typist, get a typesetter's marks. Backspace undoes any swap.</p>
-        <div class="mt-auto space-y-2 pt-5 font-mono text-xs">
-          <p class="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2"><span class="text-muted-dim">"quotes"</span><span class="text-muted-dim">→</span><span class="font-serif text-sm text-foreground">“quotes”</span></p>
-          <p class="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2"><span class="text-muted-dim">it's</span><span class="text-muted-dim">→</span><span class="font-serif text-sm text-foreground">it’s</span></p>
-          <p class="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2"><span class="text-muted-dim">wait -- no</span><span class="text-muted-dim">→</span><span class="font-serif text-sm text-foreground">wait — no</span></p>
-          <p class="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2"><span class="text-muted-dim">and then...</span><span class="text-muted-dim">→</span><span class="font-serif text-sm text-foreground">and then…</span></p>
-        </div>
-      </article>
-
-      <!-- Links between writings -->
-      <article class="reveal flex flex-col rounded-2xl border border-border bg-background p-6">
-        <h3 class="font-serif text-lg tracking-tight">Link your writings</h3>
-        <p class="mt-1.5 text-sm leading-relaxed text-muted">
-          Type <span class="font-mono text-foreground">[[</span> to link another scene, or select text and press <kbd class="key">⌘</kbd> <kbd class="key">K</kbd>.
-          <kbd class="key">⌘</kbd>-click to follow. Backlinks show who points here.
-        </p>
-        <div class="mt-auto pt-5">
-          <div class="rounded-xl border border-border bg-surface p-1.5 text-[12px]">
-            <p class="px-2.5 pb-1 pt-1.5 font-mono text-[11px] text-muted-dim">[[lamp</p>
-            <p class="flex items-center justify-between rounded-md bg-card px-2.5 py-1.5 text-foreground"><span>The Lamp Room</span><span class="font-mono text-[10px] text-muted-dim">Lighthouse / Ch. 9</span></p>
-            <p class="flex items-center justify-between rounded-md px-2.5 py-1.5 text-muted"><span>Lamplighter's notes</span><span class="font-mono text-[10px] text-muted-dim">Research</span></p>
-          </div>
-        </div>
-      </article>
-
-      <!-- Branching history -->
-      <article class="reveal flex flex-col rounded-2xl border border-border bg-background p-6">
-        <h3 class="font-serif text-lg tracking-tight">History that branches</h3>
-        <p class="mt-1.5 text-sm leading-relaxed text-muted">
-          Every save is a node. Step back with <kbd class="key">⌘</kbd> <kbd class="key">⌥</kbd> <kbd class="key">Z</kbd>, write something new, and the old path stays — a branch, not a loss.
-        </p>
-        <div class="mt-auto flex gap-4 pt-5">
-          <svg class="w-10 shrink-0" viewBox="0 0 40 120" fill="none" aria-hidden="true">
-            <path d="M12 8 V 112" stroke="#31363b" stroke-width="1.5"/>
-            <path d="M12 44 C 12 60, 30 56, 30 72 V 88" stroke="#31363b" stroke-width="1.5"/>
-            <circle cx="12" cy="8" r="4" fill="#08090a" stroke="#5f676e" stroke-width="1.5"/>
-            <circle cx="12" cy="44" r="4" fill="#08090a" stroke="#8b9299" stroke-width="1.5"/>
-            <circle cx="30" cy="72" r="4" fill="#08090a" stroke="#5f676e" stroke-width="1.5"/>
-            <circle cx="30" cy="88" r="4" fill="#08090a" stroke="#5f676e" stroke-width="1.5"/>
-            <circle cx="12" cy="112" r="5.5" fill="#c8b89a"/>
-          </svg>
-          <ol class="flex-1 space-y-[9px] pt-0.5 font-mono text-[10px] text-muted-dim">
-            <li>v1 · 09:12</li>
-            <li class="pt-4">v3 · 10:05</li>
-            <li class="pt-3">v4a · 10:31 <span class="rounded border border-border px-1">branch</span></li>
-            <li>v4b · 10:47</li>
-            <li class="text-accent">v5 · 11:02 · current</li>
-          </ol>
-        </div>
-      </article>
-
-      <!-- Command bar -->
-      <article class="reveal flex flex-col rounded-2xl border border-border bg-background p-6">
-        <h3 class="font-serif text-lg tracking-tight">Type a colon. Run anything.</h3>
-        <p class="mt-1.5 text-sm leading-relaxed text-muted">
-          The status line doubles as a vim-style prompt. <span class="font-mono text-foreground">/</span> opens a block menu for headings, lists and quotes.
-        </p>
-        <div class="mt-auto pt-5">
-          <div class="overflow-hidden rounded-xl border border-border bg-surface font-mono text-[11px]">
-            <div class="p-1.5">
-              <p class="flex items-center gap-3 rounded-md bg-card px-2.5 py-1.5"><span class="w-14 text-accent">:export</span><span class="flex-1 truncate text-muted">Word, PDF, EPUB…</span></p>
-              <p class="flex items-center gap-3 rounded-md px-2.5 py-1.5"><span class="w-14 text-muted">:import</span><span class="flex-1 truncate text-muted-dim">Scrivener, Word, Markdown…</span></p>
-              <p class="flex items-center gap-3 rounded-md px-2.5 py-1.5"><span class="w-14 text-muted">:sync</span><span class="flex-1 truncate text-muted-dim">Sync now</span></p>
-            </div>
-            <p class="flex items-center border-t border-border px-3 py-2 text-foreground">:ex<span class="ml-px inline-block h-3.5 w-[2px] animate-caret bg-accent"></span></p>
-          </div>
-        </div>
-      </article>
-    </div>
-
-    <p class="reveal mt-8 text-sm text-muted-dim">
-      Also: typewriter scrolling · live outline · word goals without streaks · seven colour palettes · compact density · spellcheck · adjustable type size.
-    </p>
-  </div>
-</section>
-
-<!-- ═══════════════════ CODEX (NEW) ═══════════════════ -->
-<section id="codex" class="scroll-mt-24 border-t border-border py-24 sm:py-32">
-  <div class="mx-auto max-w-6xl px-5 sm:px-6">
-
-    <div class="reveal mb-12 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:items-end">
-      <div class="lg:col-span-3">
-        <p class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent">
-          Plan <span class="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] tracking-wider">New</span>
-        </p>
-        <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-5xl">
-          The codex remembers your world, so you don't have to.
-        </h2>
-      </div>
-      <p class="text-muted lg:col-span-2">
-        A sheet for every character, location, faction and item — each one a Markdown file in your
-        binder. Memoire spots them in your prose as you write, maps where they turn up, and can
-        fill a blank sheet from what you've already written.
-      </p>
-    </div>
-
-    <!-- Codex kinds -->
-    <div class="reveal mb-6 flex flex-wrap gap-2 text-xs">
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-char/30 bg-char/10 px-3 py-1.5 text-char"><span class="h-1.5 w-1.5 rounded-full bg-char"></span>Characters</span>
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-place/30 bg-place/10 px-3 py-1.5 text-place"><span class="h-1.5 w-1.5 rounded-full bg-place"></span>Locations</span>
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-faction/30 bg-faction/10 px-3 py-1.5 text-faction"><span class="h-1.5 w-1.5 rounded-full bg-faction"></span>Factions</span>
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-item/30 bg-item/10 px-3 py-1.5 text-item"><span class="h-1.5 w-1.5 rounded-full bg-item"></span>Items</span>
-    </div>
-
-    <!-- Tabs -->
-    <div role="tablist" aria-label="Codex views" id="cx-tabs" class="reveal mb-4 inline-flex flex-wrap rounded-full border border-border bg-surface p-1 text-sm">
-      <button type="button" role="tab" id="cx-tab-sheet"    aria-controls="cx-panel-sheet"    aria-selected="true"               class="seg-btn rounded-full px-4 py-1.5 transition-colors">Sheets</button>
-      <button type="button" role="tab" id="cx-tab-matrix"   aria-controls="cx-panel-matrix"   aria-selected="false" tabindex="-1" class="seg-btn rounded-full px-4 py-1.5 transition-colors">Mentions map</button>
-      <button type="button" role="tab" id="cx-tab-scenes"   aria-controls="cx-panel-scenes"   aria-selected="false" tabindex="-1" class="seg-btn rounded-full px-4 py-1.5 transition-colors">Scene cards</button>
-    </div>
-
-    <!-- Panel: sheet -->
-    <div role="tabpanel" id="cx-panel-sheet" aria-labelledby="cx-tab-sheet" tabindex="0"
-         class="reveal grid grid-cols-1 gap-8 rounded-2xl border border-border bg-surface/60 p-5 sm:p-8 lg:grid-cols-5 lg:gap-12">
-      <div class="lg:col-span-2 lg:py-4">
-        <h3 class="mb-3 font-serif text-2xl tracking-tight">A sheet per character — drafted from your pages.</h3>
-        <p class="mb-5 text-sm leading-relaxed text-muted">
-          Each kind starts with the fields writers reach for: role, appearance, goals, arc for a
-          character; region and atmosphere for a place. Add your own, list aliases, link rivals and allies.
-        </p>
-        <p class="mb-6 text-sm leading-relaxed text-muted">
-          Left a field blank? <span class="text-foreground">Suggest from writings</span> reads the passages
-          where that character appears and drafts the missing pieces. You accept each one, or don't.
-        </p>
-        <ul class="space-y-2.5 text-sm text-muted">
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Per-binder codex, or a shared one every book can use</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Rename an entry and carry the new name through your writings</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Plain Markdown with YAML front matter — it syncs and versions like any note</li>
-        </ul>
-      </div>
-
-      <!-- Sheet mockup -->
-      <div class="lg:col-span-3">
-        <div class="overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/50">
-          <div class="flex">
-            <!-- entry list -->
-            <aside class="hidden w-44 shrink-0 border-r border-border p-3 text-[12px] sm:block">
-              <p class="mb-2 flex h-7 items-center rounded-md border border-border bg-card px-2 text-[11px] text-muted-dim">Search codex</p>
-              <p class="mb-1 mt-3 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Characters</p>
-              <p class="rounded-md bg-card px-2 py-1 text-foreground">Aria</p>
-              <p class="px-2 py-1 text-muted">Kael</p>
-              <p class="px-2 py-1 text-muted">Old Maren</p>
-              <p class="mb-1 mt-3 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Locations</p>
-              <p class="px-2 py-1 text-muted">Veyra</p>
-              <p class="px-2 py-1 text-muted">The Iron Citadel</p>
-              <p class="mb-1 mt-3 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-dim">Factions</p>
-              <p class="px-2 py-1 text-muted">Grey Wardens</p>
-            </aside>
-            <!-- sheet -->
-            <div class="min-w-0 flex-1 space-y-4 p-5 text-xs">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="font-serif text-2xl tracking-tight text-foreground">Aria</p>
-                  <p class="mt-1 text-[11px] text-muted-dim">aka Ari, the Ashborn girl</p>
-                </div>
-                <div class="flex rounded-full border border-border p-0.5 text-[10px]">
-                  <span class="rounded-full bg-char/15 px-2 py-0.5 text-char">Character</span>
-                  <span class="px-2 py-0.5 text-muted-dim">Location</span>
-                </div>
-              </div>
-              <div>
-                <p class="mb-1 text-[11px] text-muted">Summary</p>
-                <p class="rounded-lg border border-border bg-surface px-3 py-2 text-foreground">Exiled heir who hunts the man who burned Veyra.</p>
-              </div>
-              <div class="grid grid-cols-[5.5rem_1fr] items-start gap-x-3 gap-y-2">
-                <p class="pt-2 text-[11px] text-muted">Role</p>
-                <p class="rounded-lg border border-border bg-surface px-3 py-2 text-foreground">Protagonist</p>
-                <p class="pt-2 text-[11px] text-muted">Appearance</p>
-                <p class="rounded-lg border border-border bg-surface px-3 py-2 text-foreground">Ash-grey eyes, burn scar on her left hand.</p>
-                <p class="pt-2 text-[11px] text-muted">Goals</p>
-                <div class="rounded-lg border border-dashed border-accent/40 bg-accent/[0.06] px-3 py-2">
-                  <p class="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-accent">
-                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
-                    Suggested from 6 passages
-                  </p>
-                  <p class="mt-1 text-foreground">Find Kael before the Wardens reach the Citadel; reclaim her mother's seal.</p>
-                  <p class="mt-2 flex gap-2 text-[10px]"><span class="rounded-full bg-foreground px-2.5 py-0.5 font-medium text-background">Use</span><span class="px-1 py-0.5 text-muted">Dismiss</span></p>
-                </div>
-                <p class="pt-2 text-[11px] text-muted">Relationships</p>
-                <p class="flex flex-wrap gap-1.5 pt-1">
-                  <span class="rounded-full border border-border px-2 py-0.5 text-muted">Kael · rival</span>
-                  <span class="rounded-full border border-border px-2 py-0.5 text-muted">Old Maren · mentor</span>
-                </p>
-              </div>
-              <label class="flex items-center gap-2 border-t border-border pt-3 text-[11px] text-muted">
-                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-[3px] bg-accent text-background"><svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span>
-                Always give this sheet to the assistant
-              </label>
-            </div>
+        <div>
+          <p class="group-h">Finishing</p>
+          <div class="inset">
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg></span><div><b>Export a manuscript</b><span class="d">PDF, Word, EPUB or Markdown, with a title page and contents</span></div></div>
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v3h16v-3M12 4v10m-4-4 4 4 4-4"/></svg></span><div><b>Import what you have</b><span class="d">Word, RTF, PDF, Markdown and plain text</span></div></div>
+            <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 1 6 6c0 4-6 9-6 9s-6-5-6-9a6 6 0 0 1 6-6z"/><circle cx="12" cy="9" r="2"/></svg></span><div><b>An assistant, if you want one</b><span class="d">Off by default. Runs on your computer, or with your own OpenRouter key</span></div></div>
           </div>
         </div>
       </div>
     </div>
+  </section>
 
-    <!-- Panel: mentions matrix -->
-    <div role="tabpanel" id="cx-panel-matrix" aria-labelledby="cx-tab-matrix" tabindex="0" hidden
-         class="grid grid-cols-1 gap-8 rounded-2xl border border-border bg-surface/60 p-5 sm:p-8 lg:grid-cols-5 lg:gap-12">
-      <div class="lg:col-span-2 lg:py-4">
-        <h3 class="mb-3 font-serif text-2xl tracking-tight">See who's been off the page too long.</h3>
-        <p class="mb-5 text-sm leading-relaxed text-muted">
-          The mentions map lays every entry against every scene, in binder order. Dark cells are
-          scenes where someone's named a lot; gaps are where they vanish. Catch the mentor who
-          disappears for eight chapters before your editor does.
-        </p>
-        <p class="text-sm leading-relaxed text-muted">
-          It also lists the pairs that most often share a scene. Click any cell to jump to it.
-        </p>
-      </div>
-      <div class="lg:col-span-3">
-        <div class="overflow-x-auto rounded-xl border border-border bg-background p-4 shadow-2xl shadow-black/50 sm:p-5">
-          <div id="cx-matrix" class="min-w-[420px] text-[11px]" aria-label="Example mentions heatmap: five entries across twelve scenes"></div>
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-[11px] text-muted-dim">
-            <span>Most together: <span class="text-foreground">Aria + Kael</span> · 7 scenes</span>
-            <span class="flex items-center gap-1.5">fewer
-              <span class="h-2.5 w-2.5 rounded-[2px] bg-accent/15"></span><span class="h-2.5 w-2.5 rounded-[2px] bg-accent/40"></span><span class="h-2.5 w-2.5 rounded-[2px] bg-accent/70"></span><span class="h-2.5 w-2.5 rounded-[2px] bg-accent"></span>
-            more</span>
-          </div>
-        </div>
+  <section>
+    <div class="wrap">
+      <div class="paper">
+        <p>The lamp at Harrow Point had not gone dark in forty-one years, and Elin Vask meant to keep it that way. She climbed the hundred and twelve steps each evening with a tin of oil in one hand and the logbook pressed under her arm.</p>
+        <p class="by">The page, as you'll see it. Source Serif, on paper, nothing else.</p>
       </div>
     </div>
+  </section>
 
-    <!-- Panel: scene cards -->
-    <div role="tabpanel" id="cx-panel-scenes" aria-labelledby="cx-tab-scenes" tabindex="0" hidden
-         class="grid grid-cols-1 gap-8 rounded-2xl border border-border bg-surface/60 p-5 sm:p-8 lg:grid-cols-5 lg:gap-12">
-      <div class="lg:col-span-2 lg:py-4">
-        <h3 class="mb-3 font-serif text-2xl tracking-tight">Every writing is a scene with a card.</h3>
-        <p class="mb-5 text-sm leading-relaxed text-muted">
-          Give a scene a status — To Do, First Draft, Revised, Final, Done, or your own — and a one-line
-          synopsis. Open a binder as cards to see the whole book at a glance and rewrite synopses in place.
-        </p>
-        <p class="text-sm leading-relaxed text-muted">
-          Status carries through to export: leave out everything still marked <span class="text-foreground">To Do</span> with one tick.
-        </p>
+  <section>
+    <div class="wrap">
+      <div class="head">
+        <span class="label">Privacy</span>
+        <h2>Your book stays yours.</h2>
+        <p>No account, no analytics, no copy on our servers. If Memoire disappeared tomorrow, your manuscript would still open.</p>
       </div>
-      <div class="lg:col-span-3">
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div class="rounded-xl border border-border bg-background p-4">
-            <div class="mb-2 flex items-center justify-between text-[10px]"><span class="font-mono uppercase tracking-widest text-muted-dim">Part One</span><span class="inline-flex items-center gap-1 text-emerald-300"><span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>Done</span></div>
-            <p class="font-serif text-base text-foreground">The Burning</p>
-            <p class="mt-1.5 text-xs leading-relaxed text-muted">Veyra falls in a night. Aria watches from the bell tower.</p>
-            <p class="mt-3 font-mono text-[10px] text-muted-dim">3,412 words</p>
-          </div>
-          <div class="rounded-xl border border-accent/30 bg-background p-4">
-            <div class="mb-2 flex items-center justify-between text-[10px]"><span class="font-mono uppercase tracking-widest text-muted-dim">Part One</span><span class="inline-flex items-center gap-1 text-amber-300"><span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span>First Draft</span></div>
-            <p class="font-serif text-base text-foreground">The Crossing</p>
-            <p class="mt-1.5 text-xs leading-relaxed text-muted">Aria slips out on the dawn ferry; the Wardens nearly spot her.</p>
-            <p class="mt-3 font-mono text-[10px] text-muted-dim">1,284 words</p>
-          </div>
-          <div class="rounded-xl border border-border bg-background p-4">
-            <div class="mb-2 flex items-center justify-between text-[10px]"><span class="font-mono uppercase tracking-widest text-muted-dim">Part One</span><span class="inline-flex items-center gap-1 text-sky-300"><span class="h-1.5 w-1.5 rounded-full bg-sky-300"></span>Revised Draft</span></div>
-            <p class="font-serif text-base text-foreground">Salt Road</p>
-            <p class="mt-1.5 text-xs leading-relaxed text-muted">Old Maren takes her in and asks nothing — yet.</p>
-            <p class="mt-3 font-mono text-[10px] text-muted-dim">2,907 words</p>
-          </div>
-          <div class="rounded-xl border border-dashed border-border bg-background/50 p-4">
-            <div class="mb-2 flex items-center justify-between text-[10px]"><span class="font-mono uppercase tracking-widest text-muted-dim">Part Two</span><span class="inline-flex items-center gap-1 text-muted"><span class="h-1.5 w-1.5 rounded-full bg-muted"></span>To Do</span></div>
-            <p class="font-serif text-base text-foreground/80">The Citadel Gate</p>
-            <p class="mt-1.5 text-xs italic leading-relaxed text-muted-dim">Kael's first scene on the page. Make him likeable.</p>
-            <p class="mt-3 font-mono text-[10px] text-muted-dim">0 words</p>
-          </div>
-        </div>
+      <div class="inset" style="max-width: 760px">
+        <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h6l2 2h8v10H4z"/></svg></span><div><b>Plain files on your disk</b><span class="d">Every writing is a Markdown file in <code>~/.memorie/content</code></span></div></div>
+        <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l18 18M8.5 8.5a5 5 0 0 0 7 7M5 12a9 9 0 0 1 2-3M12 3a9 9 0 0 1 9 9"/></svg></span><div><b>Works offline</b><span class="d">It goes online only for updates, model downloads and sync you turn on</span></div></div>
+        <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/></svg></span><div><b>Optional sync</b><span class="d">Sync to your own GitHub repository or Dropbox folder, with auto-push when you quit</span></div></div>
+        <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><div><b>Keys in your keychain</b><span class="d">Sync tokens and API keys stay in the system's secure store</span></div><span class="end"><a href="privacy.html">Privacy policy</a></span></div>
       </div>
     </div>
+  </section>
 
-    <!-- Codex supporting points -->
-    <dl class="reveal mt-12 grid grid-cols-1 gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-4">
-      <div>
-        <dt class="mb-2 font-serif text-lg tracking-tight">Names light up as you type</dt>
-        <dd class="text-sm leading-relaxed text-muted">Whole words only, longest match wins — "Iron Citadel" beats "Citadel". Hover for the summary.</dd>
+  <section id="download">
+    <div class="wrap get">
+      <div class="head">
+        <span class="label">Download</span>
+        <h2>Start your book tonight.</h2>
+        <p>Free for macOS, Windows and Linux. Updates install themselves, and every one is signed.</p>
+        <div><a class="btn lg" href="https://github.com/Riley1101/memorie/releases">Download for macOS</a></div>
       </div>
       <div>
-        <dt class="mb-2 font-serif text-lg tracking-tight">Who's in this scene</dt>
-        <dd class="text-sm leading-relaxed text-muted">The side panel lists everyone the open writing mentions, most-mentioned first. One click opens their sheet.</dd>
-      </div>
-      <div>
-        <dt class="mb-2 font-serif text-lg tracking-tight">The assistant knows the cast</dt>
-        <dd class="text-sm leading-relaxed text-muted">Ask about a scene and the relevant sheets ride along. Pin one for the whole chat, or leave one out.</dd>
-      </div>
-      <div>
-        <dt class="mb-2 font-serif text-lg tracking-tight">Works without AI, too</dt>
-        <dd class="text-sm leading-relaxed text-muted">Sheets, highlights and the mentions map are plain local features. Only "suggest" needs a model.</dd>
-      </div>
-    </dl>
-  </div>
-</section>
-
-<!-- ═══════════════════ EXPORT (REBUILT) ═══════════════════ -->
-<section id="export" class="scroll-mt-24 border-t border-border bg-surface/40 py-24 sm:py-32">
-  <div class="mx-auto max-w-6xl px-5 sm:px-6">
-    <div class="grid grid-cols-1 items-start gap-12 lg:grid-cols-2 lg:gap-16">
-
-      <div class="reveal lg:sticky lg:top-28">
-        <p class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent">
-          Ship <span class="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] tracking-wider">Rebuilt</span>
-        </p>
-        <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-          A manuscript an agent will open. A book a reader will buy.
-        </h2>
-        <p class="mt-4 text-muted">
-          Export one scene, a folder, or the whole binder. Pick what's in and in what order, add front
-          and back matter, and get a file that's ready — not one you fix in Word afterwards.
-        </p>
-
-        <dl class="mt-8 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div class="rounded-xl border border-border bg-background p-4"><dt class="text-foreground">Word</dt><dd class="mt-0.5 text-xs text-muted">For agents, editors, Word or Pages.</dd></div>
-          <div class="rounded-xl border border-border bg-background p-4"><dt class="text-foreground">PDF</dt><dd class="mt-0.5 text-xs text-muted">Typeset — read, print, or send.</dd></div>
-          <div class="rounded-xl border border-border bg-background p-4"><dt class="text-foreground">EPUB</dt><dd class="mt-0.5 text-xs text-muted">Apple Books, Kobo, or KDP.</dd></div>
-          <div class="rounded-xl border border-border bg-background p-4"><dt class="text-foreground">Web page &amp; Markdown</dt><dd class="mt-0.5 text-xs text-muted">One HTML file, or one combined .md.</dd></div>
-        </dl>
-
-        <ul class="mt-8 space-y-2.5 text-sm text-muted">
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Standard manuscript format, with a running head: <span class="font-mono text-xs text-foreground">MOREAU / THE ASHBORN / 12</span></li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Copyright, dedication, epigraph, foreword, afterword, acknowledgments, about the author</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Table of contents, chapter page breaks, your own scene separator</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> A4 or US Letter, picked from your region; book settings saved per binder</li>
-        </ul>
-      </div>
-
-      <!-- Export dialog mockup with live chapter-heading preview -->
-      <div class="reveal">
-        <div class="rounded-xl border border-border bg-surface p-5 shadow-2xl shadow-black/50 sm:p-6">
-          <div class="flex items-baseline justify-between">
-            <h3 class="font-serif text-lg tracking-tight">Export</h3>
-            <span class="font-mono text-[10px] text-muted-dim">⌘⇧E</span>
-          </div>
-
-          <div class="mt-5 space-y-5 text-xs">
-            <div>
-              <p class="mb-1.5 text-[11px] text-muted">What</p>
-              <div class="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-foreground">
-                <span class="truncate">Whole binder — The Ashborn (24 writings)</span>
-                <svg class="h-3 w-3 shrink-0 text-muted-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-              </div>
-            </div>
-
-            <div>
-              <p class="mb-1.5 text-[11px] text-muted">Format</p>
-              <div class="flex flex-wrap gap-1.5">
-                <span class="rounded-md border border-border bg-card px-3 py-1.5 text-foreground">Word</span>
-                <span class="rounded-md px-3 py-1.5 text-muted">PDF</span>
-                <span class="rounded-md px-3 py-1.5 text-muted">EPUB</span>
-                <span class="rounded-md px-3 py-1.5 text-muted">Web page</span>
-                <span class="rounded-md px-3 py-1.5 text-muted">Markdown</span>
-              </div>
-            </div>
-
-            <div>
-              <p class="mb-1.5 text-[11px] text-muted">Chapter headings <span class="text-muted-dim">— try one</span></p>
-              <div id="ch-presets" role="group" aria-label="Chapter heading style" class="flex flex-wrap gap-1.5">
-                <button type="button" data-tpl="{name}"            aria-pressed="false" class="seg-btn rounded-md border border-border px-2.5 py-1.5 transition-colors">Folder names</button>
-                <button type="button" data-tpl="Chapter {n}"       aria-pressed="false" class="seg-btn rounded-md border border-border px-2.5 py-1.5 transition-colors">Chapter 1</button>
-                <button type="button" data-tpl="Chapter {n}: {title}" aria-pressed="false" class="seg-btn rounded-md border border-border px-2.5 py-1.5 transition-colors">Chapter 1: Title</button>
-                <button type="button" data-tpl="Chapter {word}"    aria-pressed="true"  class="seg-btn rounded-md border border-border px-2.5 py-1.5 transition-colors">Chapter One</button>
-                <button type="button" data-tpl="{roman}. {title}"  aria-pressed="false" class="seg-btn rounded-md border border-border px-2.5 py-1.5 transition-colors">I. Title</button>
-              </div>
-            </div>
-
-            <div class="space-y-2 border-t border-border pt-4 text-muted">
-              <p class="flex items-center gap-2.5"><span class="flex h-3.5 w-3.5 items-center justify-center rounded-[3px] bg-accent text-background"><svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span> Standard manuscript format</p>
-              <p class="flex items-center gap-2.5"><span class="flex h-3.5 w-3.5 items-center justify-center rounded-[3px] bg-accent text-background"><svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span> Running head</p>
-              <p class="flex items-center gap-2.5"><span class="flex h-3.5 w-3.5 items-center justify-center rounded-[3px] bg-accent text-background"><svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg></span> Leave out writings marked <span class="rounded border border-border px-1.5 py-px text-[10px]">To Do · 3</span></p>
-              <p class="flex items-center gap-2.5"><span class="h-3.5 w-3.5 rounded-[3px] border border-border-strong"></span> Table of contents</p>
-            </div>
-          </div>
+        <div class="inset">
+          <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5a4.3 4.3 0 0 0-3.4-1.8c-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8a4.4 4.4 0 0 0-3.7 2.3c-1.6 2.8-.4 6.9 1.1 9.1.8 1.1 1.7 2.3 2.9 2.3s1.6-.7 3-.7 1.8.7 3 .7 2-1.1 2.8-2.2a9.5 9.5 0 0 0 1.2-2.6 4 4 0 0 1-2.4-3.6zM14.2 5.8a4 4 0 0 0 .9-2.8 4 4 0 0 0-2.6 1.3 3.7 3.7 0 0 0-.9 2.7 3.3 3.3 0 0 0 2.6-1.2z"/></svg></span><div><b>macOS</b><span class="d">Apple Silicon and Intel</span></div><span class="end"><a href="https://github.com/Riley1101/memorie/releases">.dmg</a></span></div>
+          <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10 4.5v7H3zM11 4.4 21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.4z"/></svg></span><div><b>Windows</b><span class="d">Microsoft Store</span></div><span class="end">Coming soon</span></div>
+          <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10 4.5v7H3zM11 4.4 21 3v8.5H11zM3 12.5h7v7l-7-1zM11 12.5h10V21l-10-1.4z"/></svg></span><div><b>Windows</b><span class="d">10 and 11, installer</span></div><span class="end"><a href="https://github.com/Riley1101/memorie/releases">.msi</a></span></div>
+          <div class="row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg></span><div><b>Linux</b><span class="d">AppImage and .deb</span></div><span class="end"><a href="https://github.com/Riley1101/memorie/releases">Download</a></span></div>
         </div>
-
-        <!-- Page preview -->
-        <div class="relative mx-auto -mt-2 w-[88%] rounded-b-lg border border-t-0 border-border bg-[#f4f1ea] px-8 pb-10 pt-6 text-[#1b1b1b] shadow-2xl shadow-black/60 sm:px-12">
-          <p class="text-right font-serif text-[10px] tracking-wide text-[#555]">Moreau / THE ASHBORN / 12</p>
-          <p id="ch-preview" class="mt-10 text-center font-serif text-xl font-semibold tracking-tight">Chapter Three</p>
-          <p class="mt-6 font-serif text-[12px] leading-[2] text-[#2a2a2a]">
-            <span class="pl-6"></span>The ferry left Veyra an hour before dawn, and Aria stood at the rail with her scarred hand in her pocket, as if the water might recognise it.
-          </p>
-          <p class="mt-3 text-center font-serif text-[12px] text-[#666]">* * *</p>
-        </div>
+        <details>
+          <summary>macOS says the app is damaged?</summary>
+          <p>Builds aren't notarized yet. Move Memoire to Applications, then run this once in Terminal:</p>
+          <p><code>xattr -dr com.apple.quarantine /Applications/memoire.app</code></p>
+        </details>
       </div>
     </div>
-
-    <!-- Import strip -->
-    <div class="reveal mt-20 flex flex-col gap-6 rounded-2xl border border-border bg-background p-6 sm:p-8 md:flex-row md:items-center md:justify-between">
-      <div class="max-w-md">
-        <h3 class="font-serif text-xl tracking-tight">Bring your drafts with you.</h3>
-        <p class="mt-1.5 text-sm leading-relaxed text-muted">
-          Import keeps your order and your scene notes, and never overwrites a thing.
-        </p>
+    <div class="wrap">
+    <div class="contrib">
+      <span class="ic-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9"/></svg></span>
+      <div class="ct">
+        <b>Help build Memoire</b>
+        <p>It's open source under the MIT licence: a SvelteKit front end over a Rust core, packaged with Tauri. Issues and pull requests are welcome, and the most useful report is often a bug with the file that caused it.</p>
+        <code>bun install &amp;&amp; bun run tauri dev</code>
       </div>
-      <div class="flex flex-wrap gap-2 text-sm">
-        <span class="rounded-full border border-border px-3.5 py-1.5 text-foreground">Scrivener</span>
-        <span class="rounded-full border border-border px-3.5 py-1.5 text-foreground">Word (.docx)</span>
-        <span class="rounded-full border border-border px-3.5 py-1.5 text-foreground">RTF</span>
-        <span class="rounded-full border border-border px-3.5 py-1.5 text-foreground">Markdown folders</span>
-        <span class="rounded-full border border-border px-3.5 py-1.5 text-foreground">Obsidian vaults</span>
+      <div class="ca">
+        <a class="tb quiet" href="https://github.com/Riley1101/memorie/issues/new">Report a bug</a>
+        <a class="btn" href="https://github.com/Riley1101/memorie/blob/main/CONTRIBUTING.md">Read the contributing guide</a>
       </div>
     </div>
-  </div>
-</section>
-
-<!-- ═══════════════════ AI ═══════════════════ -->
-<!-- ai_enabled defaults to false; provider is 'local' | 'openrouter'; default preset qwen_2_5_1_5b_instruct. -->
-<section id="ai" class="scroll-mt-24 border-t border-border py-24 sm:py-32">
-  <div class="mx-auto max-w-6xl px-5 sm:px-6">
-
-    <div class="reveal mb-14 max-w-2xl">
-      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Optional AI</p>
-      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-        An assistant that waits to be asked — and knows your book when you do.
-      </h2>
-      <p class="mt-4 text-muted">
-        Memoire ships with AI switched off: no model downloaded, no key, nothing listening. Turn it on
-        and choose where it runs — on your own machine, or through OpenRouter with your own key.
-      </p>
     </div>
+  </section>
+</div>
 
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-
-      <!-- Chat grounded in your notes -->
-      <article class="reveal flex flex-col rounded-2xl border border-border bg-surface p-6 sm:p-8">
-        <h3 class="font-serif text-xl tracking-tight">Ask your own notes</h3>
-        <p class="mt-2 text-sm leading-relaxed text-muted">
-          <kbd class="key">⌘</kbd> <kbd class="key">L</kbd> opens a chat that searches your writing first —
-          meaning, not just keywords — and shows you the passages it read before it answers.
-        </p>
-        <div class="mt-6 space-y-3 rounded-xl border border-border bg-background p-4 text-xs">
-          <p class="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-card px-3.5 py-2 text-foreground">When did Aria first see the Citadel?</p>
-          <div class="rounded-lg border border-border/70 px-3 py-2 text-[11px] text-muted-dim">
-            <p class="flex items-center gap-1.5"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg> Searched The Ashborn · 3 passages · 0.4s</p>
-          </div>
-          <p class="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-dim">
-            Using
-            <span class="rounded-full border border-char/40 bg-char/10 px-2 py-0.5 text-char">Aria 📌</span>
-            <span class="rounded-full border border-border px-2 py-0.5 text-muted">The Iron Citadel</span>
-            <span class="rounded-full border border-dashed border-border px-2 py-0.5 text-muted">Kael</span>
-          </p>
-          <p class="font-serif text-[13px] leading-relaxed text-foreground/90">
-            In <span class="underline decoration-accent/50 underline-offset-2">Salt Road</span>, from Maren's roof — she sees its
-            lamps before its walls. That's before <span class="underline decoration-accent/50 underline-offset-2">The Citadel Gate</span>, so the
-            reveal in chapter six is her second look, not her first.
-          </p>
-        </div>
-      </article>
-
-      <!-- Inline edits -->
-      <article class="reveal flex flex-col rounded-2xl border border-border bg-surface p-6 sm:p-8">
-        <h3 class="font-serif text-xl tracking-tight">Edits you accept, or don't</h3>
-        <p class="mt-2 text-sm leading-relaxed text-muted">
-          No ghost text finishing your sentences. Put the caret in a paragraph, pick one deliberate
-          change — or type your own — and read the rewrite in place before you take it.
-        </p>
-        <div class="mt-6 rounded-xl border border-border bg-background p-4">
-          <p class="font-serif text-[14px] leading-relaxed text-muted line-through decoration-muted-dim/60">
-            The lamp had not been lit in eleven years, and still she climbed the stairs each evening at dusk.
-          </p>
-          <p class="mt-2 font-serif text-[14px] leading-relaxed text-foreground">
-            Still, each evening at dusk, she climbed the stairs.
-          </p>
-          <div class="mt-3.5 flex items-center gap-2">
-            <span class="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3.5 py-1.5 text-[11px] font-medium text-background">Accept</span>
-            <span class="px-2 py-1.5 text-[11px] text-muted">Discard</span>
-          </div>
-          <div class="mt-4 flex flex-wrap gap-1.5 border-t border-border pt-4 text-[11px] text-muted-dim">
-            <span class="rounded-full border border-border px-2.5 py-1">Polish grammar</span>
-            <span class="rounded-full border border-border px-2.5 py-1">Improve clarity</span>
-            <span class="rounded-full border border-border px-2.5 py-1">Make formal</span>
-            <span class="rounded-full border border-border px-2.5 py-1">Shorten</span>
-            <span class="rounded-full border border-border px-2.5 py-1">Expand</span>
-            <span class="rounded-full border border-border px-2.5 py-1">Custom prompt…</span>
-          </div>
-        </div>
-      </article>
-    </div>
-
-    <!-- Where it runs -->
-    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-      <article class="reveal rounded-2xl border border-border bg-background p-6">
-        <p class="mb-2 font-mono text-[10px] uppercase tracking-widest text-emerald-300">On this device</p>
-        <h3 class="font-serif text-lg tracking-tight">Private by construction</h3>
-        <p class="mt-2 text-sm leading-relaxed text-muted">
-          Open GGUF models — Qwen, Llama, Mistral, Phi, DeepSeek R1 distills — download once and run
-          offline. Metal on Apple Silicon, CPU elsewhere. Your writing has nowhere to go.
-        </p>
-      </article>
-      <article class="reveal rounded-2xl border border-border bg-background p-6">
-        <p class="mb-2 font-mono text-[10px] uppercase tracking-widest text-accent">Or hosted</p>
-        <h3 class="font-serif text-lg tracking-tight">Bring a bigger model</h3>
-        <p class="mt-2 text-sm leading-relaxed text-muted">
-          Point it at OpenRouter with your own key and pick any model it offers. The key stays on your
-          machine; switching back to local is a dropdown.
-        </p>
-      </article>
-      <article class="reveal rounded-2xl border border-border bg-background p-6">
-        <p class="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted-dim">Or never</p>
-        <h3 class="font-serif text-lg tracking-tight">Leave it off</h3>
-        <p class="mt-2 text-sm leading-relaxed text-muted">
-          Leave the switch alone and Memoire stays a fast, plain editor. No model is fetched, no menu
-          nags you to try it.
-        </p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════ SYNC ═══════════════════ -->
-<section id="sync" class="scroll-mt-24 border-t border-border bg-surface/40 py-24 sm:py-32">
-  <div class="mx-auto max-w-6xl px-5 sm:px-6">
-
-    <div class="reveal mb-10 max-w-2xl">
-      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Backup &amp; sync</p>
-      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">
-        Your backup is plain Markdown, somewhere you already know how to read.
-      </h2>
-      <p class="mt-4 text-muted">
-        Pick one home off-disk: a GitHub repo if you like history you can diff, a Dropbox folder if
-        you'd rather never think about commits. Or neither — sync is optional.
-      </p>
-    </div>
-
-    <div role="tablist" aria-label="Sync provider" id="sync-tabs" class="reveal mb-6 inline-flex rounded-full border border-border bg-background p-1">
-      <button type="button" role="tab" id="sync-tab-github" aria-controls="sync-panel-github" aria-selected="true"
-        class="seg-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition-colors">GitHub</button>
-      <button type="button" role="tab" id="sync-tab-dropbox" aria-controls="sync-panel-dropbox" aria-selected="false" tabindex="-1"
-        class="seg-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition-colors">Dropbox</button>
-    </div>
-
-    <article role="tabpanel" id="sync-panel-github" aria-labelledby="sync-tab-github" tabindex="0"
-      class="reveal grid grid-cols-1 gap-8 rounded-2xl border border-border bg-background p-6 sm:p-9 lg:grid-cols-2 lg:gap-12">
-      <div>
-        <h3 class="mb-3 font-serif text-2xl tracking-tight">Every save, a commit you own</h3>
-        <p class="mb-5 text-sm leading-relaxed text-muted">
-          Sign in with GitHub, name an <span class="font-mono text-foreground">owner/repo</span>, and push with
-          <span class="font-mono text-foreground">:sync</span> — or let Memoire commit when you close it.
-          Already have drafts on GitHub? Import pulls them down.
-        </p>
-        <ul class="space-y-2.5 text-sm text-muted">
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Plain Markdown commits — no proprietary format</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Private repos; your token never leaves the machine</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Works alongside the local branching history</li>
-        </ul>
-      </div>
-      <div class="rounded-xl border border-border bg-surface p-5 text-xs">
-        <div class="mb-4 flex items-center justify-between border-b border-border pb-3">
-          <span class="font-serif text-base tracking-tight">Cloud Sync</span>
-          <span class="flex items-center gap-1.5 font-mono text-[10px] text-muted-dim"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Connected</span>
-        </div>
-        <p class="mb-1.5 text-[11px] text-muted">Repository</p>
-        <p class="rounded-lg border border-border bg-background px-3 py-2 font-mono text-foreground">i-moreau/ashborn</p>
-        <div class="mt-4 flex items-center justify-between border-t border-border pt-4">
-          <span class="text-foreground">Auto-push on exit</span>
-          <span class="relative h-5 w-9 shrink-0 rounded-full bg-accent" role="img" aria-label="Enabled"><span class="absolute right-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-background"></span></span>
-        </div>
-        <div class="mt-4 flex items-center justify-between border-t border-border pt-4">
-          <span class="font-mono text-[10px] text-muted-dim">3 changed · 2 ahead</span>
-          <span class="rounded-full bg-foreground px-3.5 py-1.5 text-[11px] font-medium text-background">Commit &amp; push</span>
-        </div>
-      </div>
-    </article>
-
-    <article role="tabpanel" id="sync-panel-dropbox" aria-labelledby="sync-tab-dropbox" tabindex="0" hidden
-      class="grid grid-cols-1 gap-8 rounded-2xl border border-border bg-background p-6 sm:p-9 lg:grid-cols-2 lg:gap-12">
-      <div>
-        <h3 class="mb-3 font-serif text-2xl tracking-tight">A Dropbox folder, and nothing to learn</h3>
-        <p class="mb-5 text-sm leading-relaxed text-muted">
-          Connect Dropbox, name a folder like <span class="font-mono text-foreground">/Memoire</span>, and your
-          chapters sit there as the same Markdown files you see on disk. Push what changed, pull what
-          changed elsewhere.
-        </p>
-        <ul class="space-y-2.5 text-sm text-muted">
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Only files that differ move</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> A conflict becomes <span class="font-mono text-xs text-foreground">Chapter 3 (Dropbox conflict).md</span> — never a lost draft</li>
-          <li class="flex gap-3"><span class="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-accent"></span> Browser sign-in; the token lives in your OS keychain</li>
-        </ul>
-      </div>
-      <div class="rounded-xl border border-border bg-surface p-5 text-xs">
-        <div class="mb-4 flex items-center justify-between border-b border-border pb-3">
-          <span class="font-serif text-base tracking-tight">Cloud Sync</span>
-          <span class="flex items-center gap-1.5 font-mono text-[10px] text-muted-dim"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Connected</span>
-        </div>
-        <p class="mb-1.5 text-[11px] text-muted">Folder</p>
-        <p class="rounded-lg border border-border bg-background px-3 py-2 font-mono text-foreground">/Memoire</p>
-        <div class="mt-4 space-y-1.5 border-t border-border pt-4 font-mono text-[11px]">
-          <p class="flex justify-between"><span class="text-foreground">Ashborn/The Crossing.md</span><span class="text-muted-dim">modified</span></p>
-          <p class="flex justify-between"><span class="text-foreground">Ashborn/Codex/Characters/Aria.md</span><span class="text-muted-dim">new</span></p>
-        </div>
-        <div class="mt-4 flex items-center justify-between">
-          <span class="font-mono text-[10px] text-muted-dim">2 to upload</span>
-          <span class="rounded-full bg-foreground px-3.5 py-1.5 text-[11px] font-medium text-background">Push to Dropbox</span>
-        </div>
-      </div>
-    </article>
-  </div>
-</section>
-
-<!-- ═══════════════════ SHORTCUTS ═══════════════════ -->
-<!-- Mirrors src/lib/components/shortcuts-help.svelte (⌘/ in the app). -->
-<section id="keys" class="scroll-mt-24 border-t border-border py-24 sm:py-28">
-  <div class="mx-auto max-w-6xl px-5 sm:px-6">
-    <div class="reveal mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div class="max-w-xl">
-        <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Keyboard-first</p>
-        <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">Your hands never leave the keys.</h2>
-      </div>
-      <p class="text-sm text-muted">Forget one? <kbd class="key">⌘</kbd> <kbd class="key">/</kbd> shows them all.</p>
-    </div>
-
-    <div class="reveal grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Search writings</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">K</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Find in this writing</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">F</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Find in all writings</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">⇧</kbd><kbd class="key">F</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Focus mode</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">.</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">New writing here</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">N</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Export</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">⇧</kbd><kbd class="key">E</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Version history</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">U</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Table of contents</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">⇧</kbd><kbd class="key">O</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">AI chat</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">L</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Previous saved version</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">⌥</kbd><kbd class="key">Z</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Link selected text</span><span class="flex gap-1"><kbd class="key">⌘</kbd><kbd class="key">K</kbd></span></div>
-      <div class="flex items-center justify-between border-b border-border py-3 text-sm"><span class="text-muted">Command mode</span><span class="flex gap-1"><kbd class="key">:</kbd></span></div>
-    </div>
-    <p class="reveal mt-4 text-xs text-muted-dim">On Windows and Linux, <span class="font-mono">⌘</span> is <span class="font-mono">Ctrl</span>.</p>
-  </div>
-</section>
-
-<!-- ═══════════════════ DOWNLOAD ═══════════════════ -->
-<!-- Platforms mirror .github/workflows/release.yml: macOS aarch64 + x86_64, Windows, Linux (AppImage/deb). -->
-<section id="download" class="scroll-mt-24 border-t border-border bg-surface/40 py-24 sm:py-32">
-  <div class="mx-auto max-w-5xl px-5 sm:px-6">
-
-    <div class="reveal mb-12 text-center">
-      <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Download</p>
-      <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-5xl">Begin your archive.</h2>
-      <p class="mx-auto mt-4 max-w-md text-muted">
-        A real desktop app — not a browser tab pretending to be one. Free, with no account to create before your first sentence.
-      </p>
-    </div>
-
-    <div class="reveal grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <a data-os="mac-arm" href="https://github.com/Riley1101/memorie/releases/latest" target="_blank" rel="noopener" class="dl-card group flex flex-col rounded-2xl border border-border bg-background p-6 transition-colors hover:border-border-strong">
-        <div class="mb-4 flex items-start justify-between">
-          <svg class="h-7 w-7 text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.54c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.71-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.18-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.61 2.25 2.75 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.33-3.54zM14.88 5.9c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.56 1.31-.56.65-1.05 1.69-.92 2.69.97.07 1.96-.49 2.58-1.22z"/></svg>
-          <span class="dl-badge hidden rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">For you</span>
-        </div>
-        <h3 class="font-serif text-lg tracking-tight">macOS</h3>
-        <p class="mt-1 text-xs text-muted-dim">Apple Silicon · M1 and later</p>
-        <p class="mt-5 text-sm text-muted transition-colors group-hover:text-foreground">Download .dmg ↓</p>
-      </a>
-      <a data-os="mac-intel" href="https://github.com/Riley1101/memorie/releases/latest" target="_blank" rel="noopener" class="dl-card group flex flex-col rounded-2xl border border-border bg-background p-6 transition-colors hover:border-border-strong">
-        <div class="mb-4 flex items-start justify-between">
-          <svg class="h-7 w-7 text-muted transition-colors group-hover:text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.54c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.71-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.18-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.61 2.25 2.75 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.33-3.54zM14.88 5.9c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.56 1.31-.56.65-1.05 1.69-.92 2.69.97.07 1.96-.49 2.58-1.22z"/></svg>
-          <span class="dl-badge hidden rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">For you</span>
-        </div>
-        <h3 class="font-serif text-lg tracking-tight">macOS</h3>
-        <p class="mt-1 text-xs text-muted-dim">Intel · x86_64</p>
-        <p class="mt-5 text-sm text-muted transition-colors group-hover:text-foreground">Download .dmg ↓</p>
-      </a>
-      <a data-os="windows" href="https://github.com/Riley1101/memorie/releases/latest" target="_blank" rel="noopener" class="dl-card group flex flex-col rounded-2xl border border-border bg-background p-6 transition-colors hover:border-border-strong">
-        <div class="mb-4 flex items-start justify-between">
-          <svg class="h-7 w-7 text-muted transition-colors group-hover:text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.4l6.9-.95v6.67H3V5.4zm0 13.2l6.9.95v-6.58H3v5.63zm7.65 1.05L21 21v-8.03h-10.35v6.68zM10.65 4.35v6.77H21V3l-10.35 1.35z"/></svg>
-          <span class="dl-badge hidden rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">For you</span>
-        </div>
-        <h3 class="font-serif text-lg tracking-tight">Windows</h3>
-        <p class="mt-1 text-xs text-muted-dim">10 and 11 · x64</p>
-        <p class="mt-5 text-sm text-muted transition-colors group-hover:text-foreground">Download .msi ↓</p>
-      </a>
-      <a data-os="linux" href="https://github.com/Riley1101/memorie/releases/latest" target="_blank" rel="noopener" class="dl-card group flex flex-col rounded-2xl border border-border bg-background p-6 transition-colors hover:border-border-strong">
-        <div class="mb-4 flex items-start justify-between">
-          <svg class="h-7 w-7 text-muted transition-colors group-hover:text-foreground" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="8.3" cy="20.6" rx="3.1" ry="1.5"/><ellipse cx="15.7" cy="20.6" rx="3.1" ry="1.5"/><path fill-rule="evenodd" d="M12 1.8c-2.3 0-4 1.8-4 4.1 0 .9.2 1.6.2 2.3 0 1.7-1.3 2.9-2.4 4.5C4.7 14.3 3.9 15.5 3.9 17c0 2.4 2.9 3.6 8.1 3.6s8.1-1.2 8.1-3.6c0-1.5-.8-2.7-1.9-4.3-1.1-1.6-2.4-2.8-2.4-4.5 0-.7.2-1.4.2-2.3 0-2.3-1.7-4.1-4-4.1zM8.5 14.9a3.5 4.1 0 1 0 7 0 3.5 4.1 0 1 0-7 0zM9.6 6.2a1 1.3 0 1 0 2 0 1 1.3 0 1 0-2 0zM12.4 6.2a1 1.3 0 1 0 2 0 1 1.3 0 1 0-2 0zM12 8.4l1.8 1.3-1.8 1.3-1.8-1.3z"/></svg>
-          <span class="dl-badge hidden rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">For you</span>
-        </div>
-        <h3 class="font-serif text-lg tracking-tight">Linux</h3>
-        <p class="mt-1 text-xs text-muted-dim">AppImage &amp; .deb</p>
-        <p class="mt-5 text-sm text-muted transition-colors group-hover:text-foreground">Download ↓</p>
-      </a>
-    </div>
-
-    <!-- macOS Gatekeeper: builds are not notarized yet. -->
-    <details class="reveal mt-6 rounded-2xl border border-border bg-background p-6">
-      <summary class="flex items-center justify-between gap-3">
-        <span class="flex items-center gap-3">
-          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-accent">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
-          </span>
-          <span class="font-serif text-lg tracking-tight">On a Mac? One extra step the first time.</span>
-        </span>
-        <span class="faq-plus text-xl text-muted-dim transition-transform" aria-hidden="true">+</span>
-      </summary>
-      <p class="mt-4 text-sm leading-relaxed text-muted">
-        Memoire isn't signed with an Apple Developer certificate yet, so macOS quarantines the download
-        and says the app is damaged. It isn't. Drag it to Applications, then run this once in Terminal:
-      </p>
-      <div class="mt-4 flex items-center gap-3 overflow-x-auto rounded-lg border border-border bg-surface px-4 py-3">
-        <code id="xattr-cmd" class="flex-1 whitespace-nowrap font-mono text-[13px] text-foreground">xattr -dr com.apple.quarantine /Applications/memoire.app</code>
-        <button id="xattr-copy" type="button" class="shrink-0 rounded-md border border-border px-2.5 py-1 text-[11px] text-muted transition-colors hover:text-foreground">Copy</button>
-      </div>
-      <p class="mt-3 text-xs leading-relaxed text-muted-dim">
-        It removes the quarantine flag from that one app and changes nothing else. Sorry about this —
-        once the developer account comes through, builds get notarized and this step goes away.
-      </p>
-    </details>
-
-    <div class="mt-8 flex flex-col items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-dim sm:flex-row">
-      <a href="https://github.com/Riley1101/memorie/releases/latest" target="_blank" rel="noopener" class="underline underline-offset-4 transition-colors hover:text-foreground">Release notes</a>
-      <span class="hidden sm:inline">·</span>
-      <a href="https://github.com/Riley1101/memorie/releases" target="_blank" rel="noopener" class="underline underline-offset-4 transition-colors hover:text-foreground">All builds &amp; checksums</a>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════ FAQ ═══════════════════ -->
-<section id="faq" class="scroll-mt-24 border-t border-border py-24 sm:py-28">
-  <div class="mx-auto max-w-3xl px-5 sm:px-6">
-    <h2 class="reveal mb-10 text-center font-serif text-3xl tracking-tight sm:text-4xl">Questions writers ask</h2>
-    <div class="reveal divide-y divide-border border-y border-border">
-      <details class="py-5">
-        <summary class="flex items-center justify-between gap-4 font-serif text-lg tracking-tight">Where do my files actually live?<span class="faq-plus text-xl text-muted-dim transition-transform" aria-hidden="true">+</span></summary>
-        <p class="mt-3 text-sm leading-relaxed text-muted">In a folder on your disk (<span class="font-mono text-xs text-foreground">~/.memorie/notes</span> by default, or wherever you choose). Binders are folders, writings are <span class="font-mono text-xs">.md</span> files, codex sheets are Markdown with a little YAML on top. Open them in any editor, today or in fifty years.</p>
-      </details>
-      <details class="py-5">
-        <summary class="flex items-center justify-between gap-4 font-serif text-lg tracking-tight">Does my writing get sent anywhere?<span class="faq-plus text-xl text-muted-dim transition-transform" aria-hidden="true">+</span></summary>
-        <p class="mt-3 text-sm leading-relaxed text-muted">Not unless you ask it to. There's no account and no telemetry. Sync only runs if you connect GitHub or Dropbox. AI is off by default; with a local model nothing leaves your machine, and with OpenRouter only what the assistant needs for your request is sent, under your own key.</p>
-      </details>
-      <details class="py-5">
-        <summary class="flex items-center justify-between gap-4 font-serif text-lg tracking-tight">Is it really free?<span class="faq-plus text-xl text-muted-dim transition-transform" aria-hidden="true">+</span></summary>
-        <p class="mt-3 text-sm leading-relaxed text-muted">Yes. Memoire is MIT-licensed open source. If you use a hosted model through OpenRouter, that's billed by OpenRouter to your key — local models cost nothing.</p>
-      </details>
-      <details class="py-5">
-        <summary class="flex items-center justify-between gap-4 font-serif text-lg tracking-tight">Can I move over from Scrivener or Word?<span class="faq-plus text-xl text-muted-dim transition-transform" aria-hidden="true">+</span></summary>
-        <p class="mt-3 text-sm leading-relaxed text-muted">Yes. Import reads Scrivener projects, Word documents, RTF and folders of Markdown (including Obsidian vaults). It keeps your order, never overwrites anything, and tells you about anything it couldn't convert.</p>
-      </details>
-      <details class="py-5">
-        <summary class="flex items-center justify-between gap-4 font-serif text-lg tracking-tight">What does a local model need?<span class="faq-plus text-xl text-muted-dim transition-transform" aria-hidden="true">+</span></summary>
-        <p class="mt-3 text-sm leading-relaxed text-muted">The default model is a small Qwen 2.5 (1.5B) that runs comfortably on a recent laptop — it downloads once, about 1.5&nbsp;GB. Larger models are there if your machine can hold them. Apple Silicon uses Metal; everything else runs on the CPU.</p>
-      </details>
-      <details class="py-5">
-        <summary class="flex items-center justify-between gap-4 font-serif text-lg tracking-tight">Is it finished?<span class="faq-plus text-xl text-muted-dim transition-transform" aria-hidden="true">+</span></summary>
-        <p class="mt-3 text-sm leading-relaxed text-muted">It's young and moving fast — expect rough edges, and please report them. On the way: a mobile companion for reading and capture, margin notes and tracked changes for review, and a plugin API. No dates; follow the repo to watch them land.</p>
-      </details>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════ OPEN SOURCE ═══════════════════ -->
-<!-- Stack facts mirror package.json (Svelte 5, MIT) and src-tauri/Cargo.toml (Tauri 2 / Rust). -->
-<section id="contribute" class="scroll-mt-24 border-t border-border py-24 sm:py-32">
-  <div class="mx-auto max-w-4xl px-5 sm:px-6">
-    <div class="reveal glow-ring relative overflow-hidden rounded-2xl border border-accent/25 bg-surface px-6 py-14 text-center sm:px-12">
-      <div class="pointer-events-none absolute left-1/2 top-0 h-72 w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-[110px]" aria-hidden="true"></div>
-      <div class="relative">
-        <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Open source</p>
-        <h2 class="text-balance font-serif text-3xl leading-tight tracking-tight sm:text-4xl">Built in the open. Come break something.</h2>
-        <p class="mx-auto mt-4 max-w-lg text-muted">
-          SvelteKit on a Rust core, in Tauri. Bug reports with the file that caused them, pull requests,
-          and blunt opinions about the typography are all welcome.
-        </p>
-        <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a href="https://github.com/Riley1101/memorie" target="_blank" rel="noopener"
-             class="inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-colors hover:bg-white sm:w-auto">
-            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/></svg>
-            Star on GitHub
-          </a>
-          <a href="https://github.com/Riley1101/memorie/issues" target="_blank" rel="noopener"
-             class="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-border px-6 py-3 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-card sm:w-auto">
-            Open an issue
-          </a>
-        </div>
-        <p class="mt-8 font-mono text-xs text-muted-dim">bun install &amp;&amp; bun run tauri dev</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-</main>
-
-<!-- ═══════════════════ FOOTER ═══════════════════ -->
-<footer class="border-t border-border py-12">
-  <div class="mx-auto flex max-w-3xl flex-col items-center gap-6 px-5 text-center">
-    <div class="flex items-center gap-2.5">
-      <img src="assets/icon-256.png" alt="" width="256" height="256" class="h-7 w-7 rounded-lg">
-      <span class="font-serif text-lg tracking-tight">Memoire</span>
-    </div>
-    <p class="max-w-sm text-sm leading-relaxed text-muted">
-      A writing tool should disappear. Your words belong to you, in files you can open without us.
-    </p>
-    <nav aria-label="Footer" class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted">
-      <a href="#write" class="transition-colors hover:text-foreground">Write</a>
-      <a href="#codex" class="transition-colors hover:text-foreground">Codex</a>
-      <a href="#export" class="transition-colors hover:text-foreground">Export</a>
-      <a href="#ai" class="transition-colors hover:text-foreground">AI</a>
-      <a href="#faq" class="transition-colors hover:text-foreground">FAQ</a>
-      <a href="#download" class="transition-colors hover:text-foreground">Download</a>
-      <a href="https://github.com/Riley1101/memorie" target="_blank" rel="noopener" class="transition-colors hover:text-foreground">GitHub</a>
+<footer>
+  <div class="wrap">
+    <span>Memoire · MIT licence</span>
+    <span class="sp"></span>
+    <nav aria-label="Footer">
+      <a href="privacy.html">Privacy</a>
+      <a href="support.html">Support</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="https://github.com/Riley1101/memorie">Source</a>
     </nav>
-    <nav aria-label="Legal and help" class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted">
-      <a href="privacy.html" class="transition-colors hover:text-foreground">Privacy</a>
-      <a href="support.html" class="transition-colors hover:text-foreground">Support</a>
-      <a href="changelog.html" class="transition-colors hover:text-foreground">Changelog</a>
-    </nav>
-    <p class="text-xs text-muted-dim">© 2026 Memoire Labs. Made for people with something to say.</p>
   </div>
 </footer>
 
 <script>
-  /* Scroll reveal. Without IntersectionObserver, everything is simply shown. */
-  (function () {
-    const els = document.querySelectorAll('.reveal');
-    if (!('IntersectionObserver' in window)) { els.forEach((el) => el.classList.add('is-in')); return; }
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
-    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
-    els.forEach((el) => io.observe(el));
-  })();
-
-  /* Focus-mode loop. Plays by default; "reduce motion" wins until Play is pressed. */
-  (function () {
-    const fig = document.getElementById('fm');
-    const btn = document.getElementById('fm-toggle');
-    const label = document.getElementById('fm-label');
-    if (!fig || !btn) return;
-    const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
-    function render() {
-      const playing = fig.classList.contains('fm-playing');
-      btn.textContent = playing ? 'Pause' : 'Play';
-      btn.setAttribute('aria-pressed', String(playing));
-      label.textContent = playing ? 'Focus mode engaging and releasing, on a loop.' : 'Focus mode, at rest. Press play to watch ⌘. engage it.';
-    }
-    if (calm.matches) fig.classList.remove('fm-playing');
-    calm.addEventListener('change', (e) => { fig.classList.toggle('fm-playing', !e.matches); render(); });
-    btn.addEventListener('click', () => { fig.classList.toggle('fm-playing'); render(); });
-    render();
-  })();
-
-  /* Toggle groups: writing styles and chapter-heading presets. */
-  function pressGroup(selector, onPick) {
-    const btns = document.querySelectorAll(selector);
-    btns.forEach((btn) => btn.addEventListener('click', () => {
-      btns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-      onPick(btn);
-    }));
-  }
-  pressGroup('#fm-styles [data-style]', (btn) => { document.getElementById('fm').dataset.style = btn.dataset.style; });
-
-  /* Chapter heading preview — the same templates as the export dialog. */
-  (function () {
-    const out = document.getElementById('ch-preview');
-    if (!out) return;
-    const ch = { n: 3, word: 'Three', roman: 'III', title: 'The Crossing', name: 'The Crossing' };
-    pressGroup('#ch-presets [data-tpl]', (btn) => {
-      out.textContent = btn.dataset.tpl.replace(/\{(\w+)\}/g, (_, k) => ch[k] ?? '');
-    });
-  })();
-
-  /* Tabs with arrow-key support (codex views, sync providers). */
-  function tabs(listId) {
-    const list = Array.from(document.querySelectorAll(`#${listId} [role="tab"]`));
+  // Tab groups (tour and page styles): one panel at a time, arrow keys move.
+  document.querySelectorAll('[role="tablist"]').forEach((list) => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const cap = list.classList.contains('styles') ? document.getElementById('style-desc') : null;
     function select(tab) {
-      for (const t of list) {
+      tabs.forEach((t) => {
         const on = t === tab;
-        t.setAttribute('aria-selected', String(on));
+        t.setAttribute('aria-selected', on);
         t.tabIndex = on ? 0 : -1;
-        const panel = document.getElementById(t.getAttribute('aria-controls'));
-        panel.hidden = !on;
-        if (on) panel.classList.add('is-in');
-      }
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+      if (cap) cap.textContent = tab.dataset.desc;
     }
-    list.forEach((tab, i) => {
-      tab.addEventListener('click', () => select(tab));
-      tab.addEventListener('keydown', (e) => {
-        const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
-        if (!step) return;
-        const next = list[(i + step + list.length) % list.length];
-        select(next);
-        next.focus();
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(t));
+      t.addEventListener('keydown', (e) => {
+        const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (d) { const n = tabs[(i + d + tabs.length) % tabs.length]; select(n); n.focus(); }
       });
     });
-  }
-  tabs('cx-tabs');
-  tabs('sync-tabs');
+    select(tabs.find((t) => t.getAttribute('aria-selected') === 'true') || tabs[0]);
+  });
 
-  /* Example mentions heatmap: entries × scenes, counts per cell. */
-  (function () {
-    const root = document.getElementById('cx-matrix');
-    if (!root) return;
-    const scenes = 12;
-    const rows = [
-      { name: 'Aria',         dot: 'bg-char',    counts: [6,4,5,3,7,2,4,6,5,8,3,6] },
-      { name: 'Kael',         dot: 'bg-char',    counts: [2,0,1,0,3,0,0,4,5,6,2,7] },
-      { name: 'Old Maren',    dot: 'bg-char',    counts: [0,0,4,5,2,0,0,0,0,0,0,1] },
-      { name: 'Veyra',        dot: 'bg-place',   counts: [5,3,0,0,1,0,0,0,2,0,0,3] },
-      { name: 'Grey Wardens', dot: 'bg-faction', counts: [1,2,0,0,0,3,4,1,0,2,5,4] },
-    ];
-    const shade = (n) => n === 0 ? '' : n <= 1 ? 'background:rgba(200,184,154,.15)' : n <= 3 ? 'background:rgba(200,184,154,.4)' : n <= 5 ? 'background:rgba(200,184,154,.7)' : 'background:#c8b89a';
-    const cols = `grid-template-columns: 6.5rem repeat(${scenes}, minmax(0,1fr))`;
-    let html = `<div class="grid items-center gap-1" style="${cols}"><span></span>`;
-    for (let i = 1; i <= scenes; i++) html += `<span class="text-center font-mono text-[9px] text-muted-dim">${i}</span>`;
-    html += '</div>';
-    for (const r of rows) {
-      html += `<div class="mt-1 grid items-center gap-1" style="${cols}"><span class="flex items-center gap-1.5 truncate pr-2 text-muted"><span class="h-1.5 w-1.5 shrink-0 rounded-full ${r.dot}"></span>${r.name}</span>`;
-      r.counts.forEach((n, i) => { html += `<span class="mx-cell" style="${shade(n)}" title="${r.name} · scene ${i + 1}: ${n} mention${n === 1 ? '' : 's'}"></span>`; });
-      html += '</div>';
-    }
-    root.innerHTML = html;
-  })();
-
-  /* Point the hero button and "For you" badge at the visitor's platform. */
-  (function () {
-    const ua = navigator.userAgent;
-    const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
-    let os = null, label = 'Download free';
-    if (/Mac/i.test(platform) || /Macintosh/.test(ua)) { os = 'mac-arm'; label = 'Download for macOS'; }
-    else if (/Win/i.test(platform) || /Windows/.test(ua)) { os = 'windows'; label = 'Download for Windows'; }
-    else if (/Linux/i.test(platform) && !/Android/i.test(ua)) { os = 'linux'; label = 'Download for Linux'; }
-    document.getElementById('hero-dl-label').textContent = label;
-    if (!os) return;
-    const card = document.querySelector(`.dl-card[data-os="${os}"]`);
-    if (!card) return;
-    card.classList.remove('border-border');
-    card.classList.add('border-accent/40');
-    card.querySelector('.dl-badge').classList.remove('hidden');
-  })();
-
-  /* Copy the xattr command. */
-  (function () {
-    const btn = document.getElementById('xattr-copy');
-    const code = document.getElementById('xattr-cmd');
-    if (!btn || !code || !navigator.clipboard) { if (btn) btn.hidden = true; return; }
-    btn.addEventListener('click', () => {
-      navigator.clipboard.writeText(code.textContent.trim()).then(() => {
-        btn.textContent = 'Copied';
-        setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
-      }).catch(() => {});
-    });
-  })();
-
-  /* Live star count for the nav's GitHub link. Keeps "Star" if the API fails. */
-  (function () {
-    const el = document.getElementById('gh-stars');
-    if (!el) return;
-    fetch('https://api.github.com/repos/Riley1101/memorie')
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(({ stargazers_count: n }) => {
-        if (typeof n !== 'number') return;
-        el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
-      })
-      .catch(() => {});
-  })();
+  // Light / dark switch. Follows the system until the visitor picks one.
+  const root = document.documentElement;
+  document.getElementById('theme').addEventListener('click', () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
+  });
 </script>
 </body>
 </html>
