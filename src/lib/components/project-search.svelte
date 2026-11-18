@@ -230,8 +230,8 @@
     aria-label={title}
     aria-pressed={pressed}
     {onclick}
-    class="h-7 min-w-7 px-1.5 rounded-md font-mono text-xs transition-colors
-      {pressed ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+    class="h-7 min-w-7 px-1.5 rounded-[6px] font-mono text-xs transition-colors
+      {pressed ? 'bg-selection text-foreground' : 'text-muted-foreground hover:bg-fill hover:text-foreground'}"
   >
     {label}
   </button>
@@ -252,14 +252,14 @@
     <Dialog.Title class="sr-only">Find in all writings</Dialog.Title>
     <Dialog.Description class="sr-only">Search and replace across every writing</Dialog.Description>
 
-    <div class="grid gap-2 p-3 pr-12 border-b border-border/50">
+    <div class="grid gap-2 p-3 pr-12 border-b border-hair">
       <div class="flex items-center gap-1">
         <button
           type="button"
           onclick={() => (showReplace = !showReplace)}
           aria-label={showReplace ? 'Hide replace' : 'Show replace'}
           aria-expanded={showReplace}
-          class="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+          class="size-7 flex items-center justify-center rounded-field text-muted-foreground hover:bg-fill hover:text-foreground"
         >
           <ChevronRightIcon
             strokeWidth={1.5}
@@ -273,8 +273,8 @@
           aria-label="Find"
           spellcheck="false"
           autocomplete="off"
-          class="flex-1 h-8 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50
-            {error ? 'border-destructive' : 'border-border'}"
+          class="flex-1 h-8 rounded-field bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50
+            {error ? 'ring-2 ring-destructive/60' : ''}"
         />
         {@render toggle('Aa', 'Match case', caseSensitive, () => (caseSensitive = !caseSensitive))}
         {@render toggle('ab', 'Whole word', wholeWord, () => (wholeWord = !wholeWord))}
@@ -284,7 +284,7 @@
       {#if scopeBinder}
         <div class="flex items-center gap-2 pl-8">
           <span class="text-xs text-muted-foreground">Search</span>
-          <div class="flex bg-muted/40 p-1 rounded-md border border-border/50 w-fit">
+          <div class="flex seg bg-fill p-0.5 rounded-full w-fit">
             <Button
               variant={scope === 'binder' ? 'secondary' : 'ghost'}
               size="sm"
@@ -321,7 +321,7 @@
             aria-label="Replace"
             spellcheck="false"
             autocomplete="off"
-            class="flex-1 h-8 rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            class="flex-1 h-8 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           />
           <Button
             size="sm"
@@ -344,7 +344,7 @@
       {#each scopedFiles as file (file.name)}
         {@const isOpen = !collapsed[file.name]}
         <section class="mb-1">
-          <div class="group flex items-center gap-1 rounded-md hover:bg-muted/40">
+          <div class="group flex items-center gap-1 rounded-[6px] hover:bg-fill">
             <button
               type="button"
               onclick={() => toggleFile(file.name)}
@@ -359,7 +359,7 @@
               {#if dirOf(file.name)}
                 <span class="truncate text-xs text-muted-foreground">{dirOf(file.name)}</span>
               {/if}
-              <span class="ml-auto shrink-0 rounded-full bg-muted px-1.5 text-meta tabular-nums text-muted-foreground">
+              <span class="ml-auto shrink-0 rounded-full bg-fill px-1.5 text-xs tabular-nums text-muted-foreground">
                 {file.matches.length}
               </span>
             </button>
@@ -383,9 +383,9 @@
                   <button
                     type="button"
                     onclick={() => openMatch(file, i)}
-                    class="w-full flex items-baseline gap-2 rounded-md pl-7 pr-2 py-1 text-left hover:bg-muted/60 focus-visible:bg-muted/60 outline-none"
+                    class="w-full flex items-baseline gap-2 rounded-[6px] pl-7 pr-2 py-1 text-left hover:bg-fill focus-visible:bg-fill outline-none"
                   >
-                    <span class="w-8 shrink-0 text-right text-meta tabular-nums text-muted-foreground">
+                    <span class="w-8 shrink-0 text-right meta">
                       {match.meta ? 'info' : match.line}
                     </span>
                     <span class="min-w-0 truncate font-writer text-sm text-muted-foreground">

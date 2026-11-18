@@ -52,7 +52,7 @@
 </script>
 
 <Command.Dialog bind:open {title} description="Choose a destination" portalProps={{}}>
-  <Command.Input placeholder={subject ? `Move “${subject}” to…` : 'Move to…'} class="border-border/20 bg-muted/10" />
+  <Command.Input placeholder={subject ? `Move “${subject}” to…` : 'Move to…'} class="" />
   <Command.List class="p-2">
     <Command.Empty class="py-10 text-muted-foreground font-sans">No such place.</Command.Empty>
 
@@ -62,11 +62,11 @@
           value="top level all writings"
           onSelect={() => choose('')}
           disabled={currentDir === ''}
-          class="rounded-lg px-3 py-2.5 mb-1 aria-selected:bg-muted/40"
+          class=""
         >
           <FileIcon strokeWidth={1.5} class="size-4 mr-1" />
-          <span class="font-writer text-base">Top level</span>
-          <span class="ml-auto text-meta text-muted-foreground tabular-nums">
+          <span class="text-sm">Top level</span>
+          <span class="ml-auto meta">
             {currentDir === '' ? 'already here' : 'no binder'}
           </span>
         </Command.Item>
@@ -76,7 +76,7 @@
           value={loc.dir}
           onSelect={() => choose(loc.dir)}
           disabled={loc.isCurrent}
-          class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
+          class=""
         >
           {#if loc.depth > 0}
             <span style="width: {loc.depth * 0.875}rem" class="shrink-0"></span>
@@ -84,8 +84,8 @@
           {:else}
             <FolderIcon strokeWidth={1.5} class="size-4 mr-1" />
           {/if}
-          <span class="font-writer text-base truncate">{loc.label}</span>
-          <span class="ml-auto text-meta text-muted-foreground tabular-nums truncate">
+          <span class="text-sm truncate">{loc.label}</span>
+          <span class="ml-auto meta truncate">
             {loc.isCurrent ? 'already here' : loc.parent}
           </span>
         </Command.Item>

@@ -14,7 +14,7 @@ writing without sending a word to the cloud.
 ## Features
 
 - **Distraction-free canvas** — the smallest surface area we could defend; every panel earns its place.
-- **Command palette** — type a colon, run anything.
+- **Command palette** — press ⌘K and ask in plain words.
 - **Branching undo tree** — history that branches instead of collapsing into a straight line.
 - **Local or hosted models** — run on-device, or point at a hosted model when you want one.
 - **Assistant that waits to be asked** — suggestions you accept, or don't.

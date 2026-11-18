@@ -12,6 +12,8 @@
   import { smartPunctuation, autoPair } from '$lib/components/plugins/typing.js';
   import { codexMentionsPlugin, setCodexMentions } from '$lib/components/plugins/codex-mentions.js';
   import { findPlugin, findAll, buildFindRegex } from '$lib/components/plugins/find.js';
+  import { marginNotesPlugin } from '$lib/components/plugins/margin-notes.js';
+  import { revisePlugin } from '$lib/components/plugins/revise.js';
   import { commonmark } from '@milkdown/kit/preset/commonmark';
   import { gfm } from '@milkdown/kit/preset/gfm';
   import { changesPlugin } from '$lib/components/plugins/changes.js';
@@ -294,6 +296,8 @@
         .use(smartPunctuation)
         .use(codexMentionsPlugin)
         .use(findPlugin)
+        .use(marginNotesPlugin)
+        .use(revisePlugin)
         .create()
         .then((editor) => {
           if (editor) {
@@ -457,6 +461,86 @@
     background-color: color-mix(in oklab, var(--warning) 80%, transparent);
     color: var(--warning-foreground);
     box-shadow: 0 0 0 1px var(--warning);
+  }
+
+  /* Text under a margin note: a light wash and an underline, in ochre so it
+     never reads as a search hit (warning) or a link (primary). */
+  main :global(.margin-note) {
+    background-color: color-mix(in oklab, var(--binder-ochre) 14%, transparent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--binder-ochre) 50%, transparent);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.22em;
+    border-radius: 2px;
+  }
+
+  main :global(.margin-note-active) {
+    background-color: color-mix(in oklab, var(--binder-ochre) 28%, transparent);
+  }
+
+  /* Revise mode: words added since the earlier version are underlined,
+     words taken out are shown where they were, struck through. */
+  main :global(.revise-added) {
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--binder-sage) 70%, transparent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.22em;
+    background-color: color-mix(in oklab, var(--binder-sage) 8%, transparent);
+    border-radius: 2px;
+  }
+
+  main :global(.revise-removed) {
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in oklab, var(--binder-clay) 70%, transparent);
+    color: var(--muted-foreground);
+    opacity: 0.75;
+    user-select: none;
+  }
+
+  main :global(.revise-added.revise-active) {
+    background-color: color-mix(in oklab, var(--binder-sage) 18%, transparent);
+  }
+
+  main :global(.revise-removed.revise-active) {
+    opacity: 1;
+    background-color: color-mix(in oklab, var(--binder-clay) 10%, transparent);
+    border-radius: 2px;
+  }
+
+  /* Keep / Put back, floating just above the end of the change. */
+  main :global(.revise-actions) {
+    position: relative;
+    display: inline-block;
+    width: 0;
+    height: 1em;
+    vertical-align: baseline;
+  }
+
+  main :global(.revise-actions-pop) {
+    position: absolute;
+    bottom: calc(100% + 0.5em);
+    left: 0;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 9999px;
+    white-space: nowrap;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  main :global(.revise-actions-pop button) {
+    padding: 6px 10px;
+    border-radius: 9999px;
+    color: var(--foreground);
+    cursor: pointer;
+  }
+
+  main :global(.revise-actions-pop button:hover) {
+    background-color: color-mix(in oklab, var(--foreground) 8%, transparent);
   }
 
   main :global(.ProseMirror p.is-empty:first-child::before) {

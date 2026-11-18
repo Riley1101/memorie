@@ -30,6 +30,9 @@ import { toast } from '$lib/toast.js';
  * @typedef {{ path: string, count: number, first: number }} Mention
  * @typedef {{ name: string, counts: Record<string, number> }} SceneMentions
  * @typedef {{ entities: Entity[], scenes: SceneMentions[] }} Matrix
+ * @typedef {{ text: string, hit: boolean }} SnippetPart
+ * @typedef {{ paragraph: number, parts: SnippetPart[] }} MentionSnippet
+ * @typedef {{ name: string, count: number, snippets: MentionSnippet[] }} WritingMentions
  * @typedef {{ summary: string, fields: Record<string, string> }} SheetDraft
  */
 
@@ -228,6 +231,16 @@ class CodexManager {
    */
   async matrix(binder) {
     return await invoke('codex_matrix', { binder });
+  }
+
+  /**
+   * The sentences in a binder's writings that mention one entry, by writing.
+   * @param {string} binder
+   * @param {string} path - The entry.
+   * @returns {Promise<WritingMentions[]>}
+   */
+  async mentions(binder, path) {
+    return await invoke('codex_mentions', { binder, path });
   }
 }
 

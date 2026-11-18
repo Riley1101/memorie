@@ -36,16 +36,43 @@ class DropboxManager {
 
   _pollTimer = null;
 
-  async checkSession() {
-    this.isCheckingSession = true;
-    this.error = null;
+  /** Whether the session was already read this run, so mounts don't re-read it. */
+  _sessionChecked = false;
+
+  /** The in-flight `checkSession`, shared by callers that arrive together. */
+  _sessionPromise = null;
+
+  /**
+   * Reads the Dropbox session once per run. Each read reaches into the OS
+   * keyring for the refresh token — which prompts the user on macOS — and
+   * several components ask for the session as they mount, so repeat calls
+   * reuse what the first one found.
+   * @param {{ force?: boolean }} [options] - `force` re-reads, e.g. after logout.
+   */
+  async checkSession({ force = false } = {}) {
+    if (!force) {
+      if (this._sessionPromise) return this._sessionPromise;
+      if (this._sessionChecked) return;
+    }
+
+    this._sessionPromise = (async () => {
+      this.isCheckingSession = true;
+      this.error = null;
+      try {
+        this.account = await invoke('dropbox_get_account');
+        this._sessionChecked = true;
+      } catch (err) {
+        console.error('Failed to check Dropbox session:', err);
+        this.error = err;
+      } finally {
+        this.isCheckingSession = false;
+      }
+    })();
+
     try {
-      this.account = await invoke('dropbox_get_account');
-    } catch (err) {
-      console.error('Failed to check Dropbox session:', err);
-      this.error = err;
+      await this._sessionPromise;
     } finally {
-      this.isCheckingSession = false;
+      this._sessionPromise = null;
     }
   }
 
@@ -74,6 +101,7 @@ class DropboxManager {
         const result = await invoke('dropbox_poll_login');
         if (result.status === 'success') {
           this.account = result.account;
+          this._sessionChecked = true;
           this.isConnecting = false;
         } else if (result.status === 'pending') {
           this._poll();
@@ -107,6 +135,8 @@ class DropboxManager {
       await invoke('dropbox_logout');
       this.account = null;
       this.status = [];
+      // The next login belongs to whoever signs in after this one.
+      this._sessionChecked = false;
     } catch (err) {
       console.error('Failed to disconnect Dropbox:', err);
       this.error = err;

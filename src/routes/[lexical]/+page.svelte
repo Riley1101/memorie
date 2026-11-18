@@ -1,7 +1,6 @@
 <script>
   import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
   import ScrollFade from '$lib/components/scroll-fade.svelte';
-  import HouseIcon from '@lucide/svelte/icons/house';
   import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import MarkdownEditor from '$lib/components/md-editor.svelte';
@@ -12,9 +11,19 @@
   import EditorSceneInfo from '$lib/components/editor-scene-info.svelte';
   import EditorCodex from '$lib/components/editor-codex.svelte';
   import EditorFind from '$lib/components/editor-find.svelte';
-  import TableOfContentsIcon from '@lucide/svelte/icons/table-of-contents';
+  import ReviseBar from '$lib/components/revise-bar.svelte';
+  import MarginNotes from '$lib/components/margin-notes.svelte';
+  import EditorNotes from '$lib/components/editor-notes.svelte';
+  import PanelLeftIcon from '@lucide/svelte/icons/panel-left';
+  import PanelRightIcon from '@lucide/svelte/icons/panel-right';
+  import HistoryIcon from '@lucide/svelte/icons/history';
+  import ShareIcon from '@lucide/svelte/icons/share';
+  import BinderSidebar from '$lib/components/binder-sidebar.svelte';
+  import EditorAssistant from '$lib/components/editor-assistant.svelte';
+  import PanelResizer from '$lib/components/panel-resizer.svelte';
+  import { IsMobile } from '$lib/hooks/is-mobile.svelte.js';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { shortcut, isMac } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { onMount, untrack } from 'svelte';
   import { editorState } from '$lib/runes/editor.svelte';
@@ -25,7 +34,7 @@
   import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte';
   import { configManager } from '$lib/runes/config.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
-  import { syncTarget, publish, refreshSyncStatus } from '$lib/runes/sync.svelte.js';
+  import { refreshSyncStatus } from '$lib/runes/sync.svelte.js';
   import { getCurrentWindow } from '@tauri-apps/api/window';
 
   let { data } = $props();
@@ -134,29 +143,61 @@
     }
   });
 
-  // Where this writing stands with the cloud, if the writer turned it on.
-  let sync = $derived(syncTarget());
-  let syncLabel = $derived.by(() => {
-    if (sync.provider === 'none') return '';
-    if (sync.busy) return 'Publishing…';
-    if (!sync.ready) return `${sync.label} not set up`;
-    if (sync.pending === 0) return `Published to ${sync.label}`;
-    return `${sync.pending} to publish`;
-  });
-
-  async function publishNow() {
-    if (editorState.flushSave) await editorState.flushSave();
-    await publish();
-  }
-
   // Colour is kept for the one state that needs the writer: a failed save.
   let saveTone = $derived(
     editorState.saveStatus.status === 'error' ? 'text-destructive' : 'text-muted-foreground'
   );
 
-  let binderLabel = $derived(dirOf(fileName));
+  /** The library sidebar, opened over the page from the toolbar. */
+  let librarySheetOpen = $state(false);
+
+  /**
+   * Below the docked breakpoint there is no room for the library beside the
+   * writing, so the toolbar button opens it as a sheet instead of docking it.
+   */
+  const narrow = new IsMobile(1024);
+
+  const SCENE_MIN = 240;
+  const SCENE_MAX = 720;
+  /** Untouched, the panel takes this share of the window. */
+  const SCENE_SHARE = 0.3;
+
+  /** The scene panel's width, dragged on its inner edge and remembered. */
+  let sceneWidth = $state(readSceneWidth());
+
+  function readSceneWidth() {
+    try {
+      const saved = Number(localStorage.getItem('scenePanelWidth'));
+      if (Number.isFinite(saved) && saved > 0) {
+        return Math.min(SCENE_MAX, Math.max(SCENE_MIN, saved));
+      }
+    } catch {
+      // Not remembered; the share below stands.
+    }
+    if (typeof window === 'undefined') return 360;
+    return Math.round(Math.min(SCENE_MAX, Math.max(SCENE_MIN, window.innerWidth * SCENE_SHARE)));
+  }
+
+  /** @param {number} next */
+  function setSceneWidth(next) {
+    sceneWidth = next;
+    try {
+      localStorage.setItem('scenePanelWidth', String(next));
+    } catch {
+      // Not remembered; fine.
+    }
+  }
 
   let focusMode = $derived(writingState.focusMode);
+
+  /**
+   * True while the library panel is a column on the left. It then covers the
+   * traffic lights with its own drag strip, as on the library screens; with it
+   * away the toolbar has to leave room for them instead.
+   */
+  let libraryDocked = $derived(appState.ui.isLibraryOpen && !focusMode && !narrow.current);
+
+  const onMacOS = isMac();
 
   /** Whether focus mode put the window into full screen (and so should undo it). */
   let enteredFullscreen = false;
@@ -190,192 +231,234 @@
   });
 </script>
 
-<div class="flex h-dvh w-full bg-background" class:focus-mode={focusMode}>
-  <aside
-    class="h-dvh bg-background
-    {appState.ui.isHistoryOpen && !focusMode ? 'w-60 border-r border-border/40' : 'w-0'} overflow-hidden"
-  >
-    {#if appState.ui.isHistoryOpen && !focusMode}
-      <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
-        <div class="flex items-center justify-between gap-2 border-b border-border/40 px-4 py-3">
-          <h2 class="text-[0.8125rem] font-medium text-muted-foreground">History</h2>
-          <span class="truncate text-meta tabular-nums text-metadata" title={baseOf(fileName)}>
-            {baseOf(fileName)}
-          </span>
-        </div>
-        <ScrollFade class="flex-1 h-full">
-          <ScrollArea class="h-full" type="scroll">
-            {#if history}
-              <EditorHistory {fileName} {history} />
-            {:else}
-              <div class="p-4 text-sm text-muted-foreground">No history available</div>
-            {/if}
-          </ScrollArea>
-        </ScrollFade>
-      </div>
-    {/if}
-  </aside>
+{#snippet iconButton(
+  /** @type {{ label: string, tip: string, onclick: () => void, pressed?: boolean, disabled?: boolean, icon: any }} */ b
+)}
+  <Tooltip.Root>
+    <Tooltip.Trigger>
+      {#snippet child({ props })}
+        <button
+          {...props}
+          type="button"
+          class="tb-btn"
+          aria-label={b.label}
+          aria-pressed={b.pressed}
+          disabled={b.disabled}
+          onclick={b.onclick}
+        >
+          <b.icon strokeWidth={1.7} />
+        </button>
+      {/snippet}
+    </Tooltip.Trigger>
+    <Tooltip.Content side="bottom" portalProps={{}}>{b.tip}</Tooltip.Content>
+  </Tooltip.Root>
+{/snippet}
 
-  <div class="w-full h-full flex flex-1 flex-col min-w-0">
-    <header
-      data-tauri-drag-region
-      class="focus-chrome relative z-20 flex items-center command-bar__inner h-9 text-meta tabular-nums shrink-0
-        {!appState.ui.isHistoryOpen ? 'pl-[max(var(--writer-padding-x),var(--titlebar-inset-left,0px))]' : ''}"
+<!-- The same frame as the library screens: panels and paper laid on the desk
+     with one gutter, and the toolbar inside the paper rather than across the
+     window. On macOS the library panel takes the traffic lights in its top
+     strip; with that panel away, the toolbar indents to leave them room. -->
+<div class="flex h-full w-full gap-3 p-3 bg-frame overflow-hidden" class:focus-mode={focusMode}>
+  <BinderSidebar
+    docked={appState.ui.isLibraryOpen && !focusMode}
+    bind:activeBinder={appState.ui.activeBinder}
+    bind:sheetOpen={librarySheetOpen}
+  />
+
+  {#if appState.ui.isHistoryOpen && !focusMode}
+    <aside
+      aria-label="History"
+      class="well flex flex-col w-66 shrink-0 rounded-group overflow-hidden"
     >
-<Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-      <button
-        {...props}
-        onclick={() => goto(resolve('/'))}
-        aria-label="Go home"
-        class="flex items-center justify-center size-7 -ml-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
-      >
-        <HouseIcon strokeWidth={1.5} class="size-3.5" />
-      </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>Go home</Tooltip.Content>
-      </Tooltip.Root>
-      <div class="flex-1 flex items-center justify-center gap-1 min-w-0 pointer-events-none">
-        {#if siblings.length > 1}
-          <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-<button
-            {...props}
-            onclick={() => goToWriting(prevWriting)}
-            disabled={!prevWriting}
-            aria-label="Previous writing"
-            class="pointer-events-auto flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
-          >
-            <ChevronLeftIcon strokeWidth={1.5} class="size-3.5" />
-          </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>{prevWriting ? `Previous writing: ${formatFileName(baseOf(prevWriting.name))}` : 'Previous writing'}</Tooltip.Content>
-      </Tooltip.Root>
-        {/if}
-        <span class="text-muted-foreground select-none truncate max-w-xs">
-          {#if binderLabel}
-            <span class="text-muted-foreground">{binderLabel.replaceAll('/', ' / ')} /</span>
+      {#if onMacOS && !libraryDocked}
+        <!-- Leftmost panel with the library away: the traffic lights land here,
+             so it keeps the same empty strip the library panel does. -->
+        <div data-tauri-drag-region="deep" class="h-[var(--titlebar-strip,14px)] shrink-0"></div>
+      {/if}
+      <div class="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+        <h2 class="text-xs font-semibold text-muted-foreground">History</h2>
+        <span class="meta truncate" title={baseOf(fileName)}
+          >{formatFileName(baseOf(fileName))}</span
+        >
+      </div>
+      <ScrollFade class="flex-1 min-h-0">
+        <ScrollArea class="h-full" type="scroll">
+          {#if history}
+            <EditorHistory {fileName} {history} />
+          {:else}
+            <div class="p-4 text-sm text-muted-foreground">No history yet.</div>
           {/if}
-          {editorState.name}
-        </span>
+        </ScrollArea>
+      </ScrollFade>
+    </aside>
+  {/if}
+
+  <main class="lifted relative h-full flex-1 min-w-0 flex flex-col overflow-hidden rounded-group">
+    <!-- The paper's own toolbar: the library on the left, the writing's title in
+         the middle, its panels and export on the right. -->
+    <header
+      data-tauri-drag-region="deep"
+      class="focus-chrome toolbar relative z-20 gap-3 {libraryDocked
+        ? ''
+        : 'pl-[max(20px,var(--titlebar-inset-left,0px))]'}"
+    >
+      <div class="capsule glass">
+        {@render iconButton({
+          label: 'Show library sidebar',
+          tip: 'Library',
+          onclick: () => (narrow.current ? (librarySheetOpen = true) : appState.toggleLibrary()),
+          icon: PanelLeftIcon,
+        })}
+      </div>
+
+      <div class="flex-1 min-w-0 flex items-center justify-center gap-1 pointer-events-none">
         {#if siblings.length > 1}
-          <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-<button
-            {...props}
-            onclick={() => goToWriting(nextWriting)}
-            disabled={!nextWriting}
-            aria-label="Next writing"
-            class="pointer-events-auto flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-0 disabled:pointer-events-none"
-          >
-            <ChevronRightIcon strokeWidth={1.5} class="size-3.5" />
-          </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>{nextWriting ? `Next writing: ${formatFileName(baseOf(nextWriting.name))}` : 'Next writing'}</Tooltip.Content>
-      </Tooltip.Root>
+          <span class="pointer-events-auto">
+            {@render iconButton({
+              label: 'Previous writing',
+              tip: prevWriting
+                ? `Previous writing: ${formatFileName(baseOf(prevWriting.name))}`
+                : 'Previous writing',
+              onclick: () => goToWriting(prevWriting),
+              disabled: !prevWriting,
+              icon: ChevronLeftIcon,
+            })}
+          </span>
+        {/if}
+        <div class="min-w-0 flex flex-col items-center leading-tight select-none">
+          <h1 class="m-0 max-w-[40ch] truncate text-sm font-semibold text-foreground">
+            {editorState.name || 'Untitled'}
+          </h1>
+        </div>
+        {#if siblings.length > 1}
+          <span class="pointer-events-auto">
+            {@render iconButton({
+              label: 'Next writing',
+              tip: nextWriting
+                ? `Next writing: ${formatFileName(baseOf(nextWriting.name))}`
+                : 'Next writing',
+              onclick: () => goToWriting(nextWriting),
+              disabled: !nextWriting,
+              icon: ChevronRightIcon,
+            })}
+          </span>
         {/if}
       </div>
-      <!-- One line for the state of the work: saved on disk, and whether it
-           has left the machine. They used to be separate signals in separate
-           places, and the second is the one that actually worries people. -->
-      <span class="flex items-center gap-1.5 shrink-0 tracking-wide" aria-live="polite">
-        {#if editorState.saveStatus.status === 'error'}
-          <button
-            type="button"
-            onclick={() => editorState.flushSave?.()}
-            class="{saveTone} rounded px-1 -mx-1 hover:underline underline-offset-2"
-          >
-            {saveLabel}
-          </button>
-        {:else}
-          <span class="{saveTone} transition-colors">{saveLabel}</span>
-        {/if}
-        {#if syncLabel}
-          <span class="opacity-30">•</span>
-          <button
-            type="button"
-            onclick={publishNow}
-            disabled={sync.busy}
-            title="Publish to {sync.label}"
-            class="transition-colors hover:text-foreground disabled:opacity-60 {sync.pending
-              ? 'text-foreground'
-              : 'text-muted-foreground'}"
-          >
-            {syncLabel}
-          </button>
-        {/if}
-      </span>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props })}
-<button
-        {...props}
-        onclick={() => appState.toggleOutline()}
-        aria-label={appState.ui.isOutlineOpen ? 'Hide table of contents' : 'Show table of contents'}
-        aria-pressed={appState.ui.isOutlineOpen}
-        class="flex items-center justify-center size-7 ml-1.5 -mr-1.5 rounded-md transition-colors hover:text-foreground hover:bg-foreground/5
-          {appState.ui.isOutlineOpen ? 'text-foreground' : 'text-muted-foreground'}"
-      >
-        <TableOfContentsIcon strokeWidth={1.5} class="size-3.5" />
-      </button>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content side="bottom" portalProps={{}}>{appState.ui.isOutlineOpen ? 'Hide' : 'Show'} scene panel <kbd class="ml-1 font-sans opacity-70">{MOD_KEY}⇧O</kbd></Tooltip.Content>
-      </Tooltip.Root>
+
+      {#if saveLabel}
+        <span class="meta max-w-[28ch] truncate" aria-live="polite">
+          {#if editorState.saveStatus.status === 'error'}
+            <button
+              type="button"
+              onclick={() => editorState.flushSave?.()}
+              class="{saveTone} hover:underline underline-offset-2"
+            >
+              {saveLabel}
+            </button>
+          {:else}
+            <span class="{saveTone} transition-colors">{saveLabel}</span>
+          {/if}
+        </span>
+      {/if}
+
+      <div class="capsule glass">
+        {@render iconButton({
+          label: appState.ui.isHistoryOpen ? 'Hide history' : 'Show history',
+          tip: `History · ${shortcut('U')}`,
+          onclick: () => appState.toggleChatHistory(),
+          pressed: appState.ui.isHistoryOpen,
+          disabled: isDraft,
+          icon: HistoryIcon,
+        })}
+        {@render iconButton({
+          label: appState.ui.isOutlineOpen ? 'Hide scene panel' : 'Show scene panel',
+          tip: `Scene panel · ${shortcut('shift', 'O')}`,
+          onclick: () => appState.toggleOutline(),
+          pressed: appState.ui.isOutlineOpen,
+          icon: PanelRightIcon,
+        })}
+      </div>
+      <div class="capsule glass">
+        {@render iconButton({
+          label: 'Export',
+          tip: 'Export…',
+          onclick: () => appState.openExport({ fileName, dir: dirOf(fileName) }),
+          disabled: isDraft,
+          icon: ShareIcon,
+        })}
+      </div>
     </header>
 
-    <main class="relative h-full flex-1 overflow-hidden">
+    <!-- The writing itself. Its own positioning context, so the find bar, the
+         revise bar and the command bar sit inside the paper, clear of the
+         toolbar above them. -->
+    <div class="relative flex-1 min-h-0">
       <EditorFind />
-      <ScrollFade class="h-full" fadeSize="h-12">
+      <ReviseBar />
+      <ScrollFade class="h-full" fade={24}>
         <ScrollArea class="h-full" type="scroll">
-          <div class="writing-surface pb-24">
+          <div class="writing-surface relative pb-24">
             <MarkdownEditor {fileName} {body} {isDraft} {docKey} />
+            <MarginNotes />
           </div>
         </ScrollArea>
       </ScrollFade>
-    </main>
+      <footer class="focus-chrome">
+        <EditorCommandbar {fileName} {isDraft} />
+      </footer>
+    </div>
+  </main>
 
-    <footer class="focus-chrome">
-      <EditorCommandbar {fileName} {isDraft} currentVersion={history?.current || 0} />
-    </footer>
-  </div>
-
-  <aside
-    class="h-dvh bg-background shrink-0
-    {appState.ui.isOutlineOpen && !focusMode ? 'w-65 border-l border-border/40' : 'w-0'} overflow-hidden"
-  >
-    {#if appState.ui.isOutlineOpen && !focusMode}
-      <div class="flex h-full flex-col pt-[var(--titlebar-height,0px)]">
-        <ScrollFade class="flex-1 h-full">
-          <ScrollArea class="h-full" type="scroll">
-            <h2 class="px-4 py-3 text-[0.8125rem] font-medium text-muted-foreground">Scene</h2>
+  {#if appState.ui.isOutlineOpen && !focusMode}
+    <!-- The scene panel: an inspector floating at the window's right edge. -->
+    <aside
+      aria-label="Scene"
+      class="well relative flex flex-col shrink-0 rounded-group overflow-hidden"
+      style="width: {sceneWidth}px"
+    >
+      <PanelResizer
+        width={sceneWidth}
+        min={SCENE_MIN}
+        max={SCENE_MAX}
+        label="Resize the scene panel"
+        onresize={setSceneWidth}
+      />
+      <ScrollFade class="flex-1 min-h-0">
+        <ScrollArea class="h-full" type="scroll">
+          <div class="pb-3">
+            <h2 class="inspector-head">Scene</h2>
             {#key fileName}
               <EditorSceneInfo {fileName} {isDraft} />
             {/key}
-            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">In this scene</h2>
+            <h2 class="inspector-head">Notes</h2>
+            <EditorNotes />
+            <h2 class="inspector-head">In this scene</h2>
             <EditorCodex {fileName} content={body} />
-            <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">Contents</h2>
+            <h2 class="inspector-head">Contents</h2>
             <EditorOutline />
             {#if !isDraft}
-              <h2 class="px-4 pt-4 pb-3 text-[0.8125rem] font-medium text-muted-foreground border-t border-border/40">
-                Referenced by
-              </h2>
+              <h2 class="inspector-head">Referenced by</h2>
               <EditorBacklinks {fileName} />
             {/if}
-          </ScrollArea>
-        </ScrollFade>
-      </div>
-    {/if}
-  </aside>
+          </div>
+        </ScrollArea>
+      </ScrollFade>
+    </aside>
+  {/if}
+
+  {#if configManager.config?.ai_enabled && appState.ui.isChatOpen}
+    <EditorAssistant />
+  {/if}
 </div>
 
 <style>
+  .inspector-head {
+    padding: 14px 14px 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
   /* Focus mode: chrome fades out and comes back when the pointer reaches it
      or something inside it takes focus (command mode, the stats popover). */
   .focus-chrome {

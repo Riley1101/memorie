@@ -17,7 +17,7 @@ import { toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm';
 import { mount, unmount } from 'svelte';
 import SlashMenu from './SlashMenu.svelte';
 import { editLink } from './link-popover.svelte.js';
-import { MOD_KEY } from '$lib/keyboard.svelte.js';
+import { shortcut } from '$lib/keyboard.svelte.js';
 import { fuzzyScore } from './fuzzy.js';
 
 /**
@@ -111,7 +111,7 @@ const items = [
   {
     id: 'link',
     label: 'Link',
-    description: `Insert a link (${MOD_KEY}K links a selection)`,
+    description: `Insert a link (${shortcut('K')} links a selection)`,
     keywords: ['link', 'url', 'href', 'web'],
     run: (ctx) => editLink(ctx.get(editorViewCtx)),
   },

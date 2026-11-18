@@ -50,7 +50,7 @@
           <button
             onclick={() => openCodex({ binder, entry: entity.path })}
             title={entity.summary ? `${entity.name}: ${entity.summary}` : entity.name}
-            class="max-w-full rounded-full border border-border bg-muted/30 px-2.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+            class="chip max-w-full text-left text-muted-foreground transition-colors hover:bg-selection hover:text-foreground"
           >
             <span class="truncate">{entity.name}</span>
             <span class="opacity-50 tabular-nums">×{mention.count}</span>

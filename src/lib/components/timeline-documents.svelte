@@ -14,8 +14,6 @@
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FolderInputIcon from '@lucide/svelte/icons/folder-input';
   import FileInputIcon from '@lucide/svelte/icons/file-input';
-  import ListTreeIcon from '@lucide/svelte/icons/list-tree';
-  import LayoutGridIcon from '@lucide/svelte/icons/layout-grid';
   import ArrowDownWideNarrowIcon from '@lucide/svelte/icons/arrow-down-wide-narrow';
   import CheckIcon from '@lucide/svelte/icons/check';
   import BinderCards from './binder-cards.svelte';
@@ -45,16 +43,21 @@
    * @type {Record<string, { tile: string, dot: string }>}
    */
   const TINTS = {
-    teal: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-teal' },
-    primary: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-clay' },
-    info: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-slate' },
-    success: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-sage' },
-    warning: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-ochre' },
-    accent: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-binder-plum' },
-    muted: { tile: 'bg-muted/60 text-muted-foreground', dot: 'bg-muted-foreground/50' },
+    teal: { tile: 'bg-binder-teal text-white', dot: 'bg-binder-teal' },
+    primary: { tile: 'bg-binder-clay text-white', dot: 'bg-binder-clay' },
+    info: { tile: 'bg-binder-slate text-white', dot: 'bg-binder-slate' },
+    success: { tile: 'bg-binder-sage text-white', dot: 'bg-binder-sage' },
+    warning: { tile: 'bg-binder-ochre text-white', dot: 'bg-binder-ochre' },
+    accent: { tile: 'bg-binder-plum text-white', dot: 'bg-binder-plum' },
+    muted: { tile: 'bg-muted-foreground/60 text-white', dot: 'bg-muted-foreground/50' },
   };
 
-  let { activeBinder = null } = $props();
+  /**
+   * `view` is chosen in the home toolbar: `list` is the dated list (or a
+   * binder's chapter tree), `cards` the page-preview grid (or a binder's
+   * corkboard).
+   */
+  let { activeBinder = null, view = 'list' } = $props();
 
   // Fills the shared scene cache so tree rows can show status and word count.
   // Unchanged writings cost nothing, so this is safe to re-run on any change.
@@ -169,28 +172,28 @@
   // date-grouped list.
   let showTree = $derived(activeBinder !== null);
 
-  /** Tree or corkboard-style cards for a binder. Remembered across launches. */
-  let binderView = $state(/** @type {'tree' | 'cards'} */ (readBinderView()));
+  let binderView = $derived(view === 'cards' ? 'cards' : 'tree');
 
   /** True when the writer has dragged writings into an order of their own. */
   let isOrdered = $derived(Boolean(activeBinder) && dirIsOrdered(activeBinder ?? ''));
 
-  function readBinderView() {
-    try {
-      return localStorage.getItem('binderView') === 'cards' ? 'cards' : 'tree';
-    } catch {
-      return 'tree';
-    }
+  /**
+   * When a row was last edited: the time for today and yesterday (the group
+   * heading already says which day), the date further back.
+   * @param {string} groupId
+   * @param {number} modified - unix seconds
+   */
+  function whenLabel(groupId, modified) {
+    return groupId === 'today' || groupId === 'yesterday' ? formatTime(modified) : formatDate(modified);
   }
 
-  /** @param {'tree' | 'cards'} view */
-  function setBinderView(view) {
-    binderView = view;
-    try {
-      localStorage.setItem('binderView', view);
-    } catch {
-      // Not remembered; fine.
-    }
+  /** "Essays · 2,031 words": where it lives and how long it is (C1). */
+  function rowMeta(item) {
+    const words = sceneCache.wordsOf(item.name);
+    const parts = [];
+    if (item.folder && activeBinder === null) parts.push(item.folder);
+    if (words != null) parts.push(`${words.toLocaleString()} word${words === 1 ? '' : 's'}`);
+    return parts.join(' · ');
   }
   let fileTree = $derived.by(() =>
     showTree ? buildFileTree(favourites, activeBinder, fileManager.folders, (a, b) => compareByOrder(a.name, b.name, (x, y) => naturalCollator.compare(baseOf(x), baseOf(y)))) : []
@@ -488,10 +491,10 @@
         ondragover={handleRootDragOver}
         ondragleave={handleRootDragLeave}
         ondrop={handleRootDrop}
-        class="min-h-full pb-20 pr-2 rounded-lg transition-colors {isRootDragOver ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''}"
+        class="min-h-full pb-24 rounded-group transition-colors {isRootDragOver ? 'bg-selection/40 ring-1 ring-inset ring-primary/30' : ''}"
       >
-        <div class="flex items-center justify-between gap-2 mb-4 py-1">
-          <span class="text-meta text-metadata tabular-nums">
+        <div class="flex items-center justify-between gap-2 mt-2 mb-2 px-1 h-8">
+          <span class="meta">
             {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
               · drop to move to {activeBinder}{/if}
           </span>
@@ -500,7 +503,7 @@
             <button
               type="button"
               onclick={() => clearOrder(activeBinder ?? '')}
-              class="text-meta tabular-nums text-metadata hover:text-foreground transition-colors"
+              class="meta hover:text-foreground transition-colors"
               title="Sort by name again"
             >
               manual order · reset
@@ -508,37 +511,11 @@
           {/if}
           <div class="flex items-center gap-1">
             {#if binderView === 'tree'}
-              <Button
-                variant="ghost"
-                size="sm"
-                class="text-muted-foreground hover:text-foreground gap-1.5"
-                onclick={() => handleTreeCreateFolder([])}
-                disabled={false}
-              >
-                <FolderPlusIcon class="size-3.5" strokeWidth={1.5} />
+              <button type="button" class="chip" onclick={() => handleTreeCreateFolder([])}>
+                <FolderPlusIcon class="size-3.5" strokeWidth={1.6} />
                 New folder
-              </Button>
+              </button>
             {/if}
-            <div class="flex rounded-md border border-border/50 p-0.5" role="group" aria-label="View">
-              <button
-                type="button"
-                onclick={() => setBinderView('tree')}
-                aria-pressed={binderView === 'tree'}
-                title="Tree"
-                class="size-7 flex items-center justify-center rounded {binderView === 'tree' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}"
-              >
-                <ListTreeIcon class="size-3.5" strokeWidth={1.5} />
-              </button>
-              <button
-                type="button"
-                onclick={() => setBinderView('cards')}
-                aria-pressed={binderView === 'cards'}
-                title="Cards"
-                class="size-7 flex items-center justify-center rounded {binderView === 'cards' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}"
-              >
-                <LayoutGridIcon class="size-3.5" strokeWidth={1.5} />
-              </button>
-            </div>
           </div>
         </div>
 
@@ -558,7 +535,7 @@
               onblur={handleDraftBlur}
               autofocus
               placeholder="Folder name"
-              class="flex-1 min-w-0 bg-muted rounded px-2 py-0.5 text-base outline-none"
+              class="flex-1 min-w-0 bg-fill rounded-[6px] px-2 py-0.5 text-sm outline-none"
  />
           </div>
         {/if}
@@ -568,15 +545,13 @@
         {:else if binderView === 'cards' && filteredFiles.length > 0}
           <BinderCards binder={activeBinder} />
         {:else if fileTree.length === 0 && !draft}
-          <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
-            <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
-              <FolderIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
-            </div>
-            <h3 class="font-writer text-xl font-normal">{activeBinder} is empty</h3>
+          <div class="flex flex-col items-center justify-center py-28 text-center gap-2">
+            <FolderIcon strokeWidth={1.4} class="size-8 text-muted-foreground/40 mb-1" />
+            <h3 class="text-title font-semibold">{activeBinder} is empty</h3>
             <p class="text-muted-foreground max-w-xs text-sm">
               Start writing here, or add a folder to group chapters and scenes.
             </p>
-            <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-4 gap-1.5" disabled={false}>
+            <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="mt-3 gap-1.5" disabled={false}>
               <PlusIcon class="size-3.5" strokeWidth={1.5} />
               Start writing
             </Button>
@@ -602,19 +577,15 @@
         {/if}
       </div>
     {:else}
-    <div class="space-y-6 pb-20 pr-2">
+    <div class="pb-24">
       <!-- The list was always by date; the other orders are the ones a writer
            reaches for when triaging rather than picking up where they left. -->
-      <div class="flex items-center justify-end -mb-2">
+      <div class="flex items-center justify-end h-8 mt-2 -mb-6 relative z-10 pointer-events-none">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
             {#snippet child({ props })}
-              <button
-                {...props}
-                type="button"
-                class="flex items-center gap-1.5 h-7 px-2 rounded-md text-meta tabular-nums text-metadata hover:text-foreground hover:bg-muted/40 transition-colors"
-              >
-                <ArrowDownWideNarrowIcon class="size-3.5" strokeWidth={1.5} />
+              <button {...props} type="button" class="chip bg-transparent text-muted-foreground hover:text-foreground pointer-events-auto">
+                <ArrowDownWideNarrowIcon class="size-3.5" strokeWidth={1.6} />
                 {sortLabel}
               </button>
             {/snippet}
@@ -636,55 +607,95 @@
         {@render loadingRows()}
       {/if}
       {#each groupedFiles as group (group.id)}
-        <div class="relative">
-          <div class="flex items-center mb-1 sticky top-0 py-1 bg-background">
-              <h3 class="text-[0.8125rem] font-medium text-muted-foreground bg-background pr-3">
-                  {group.label}
-              </h3>
-          </div>
+        <section class="relative">
+          <h3 class="group-head sticky top-0 z-[5] bg-page">{group.label}</h3>
 
+          {#if view === 'cards'}
+            <!-- Grid (C4): the shared card — a page preview with the opening
+                 lines, and under it the title and the binder. -->
+            <div class="wgrid">
+              {#each group.files as item (item.path)}
+                {@const tint = folderTint(item.folder)}
+                {@const title = formatFileName(item.name.split('/').pop())}
+                <ContextMenu.Root>
+                  <ContextMenu.Trigger>
+                    <a
+                      href={resolve(`/${encodeURIComponent(item.name)}`)}
+                      onclick={(e) => handleItemClick(e, item)}
+                      onkeydown={(e) => {
+                        if (e.key === 'F2') {
+                          e.preventDefault();
+                          startRename(item);
+                        }
+                      }}
+                      class="wcard"
+                    >
+                      <div aria-hidden="true" class="wcard-page">
+                        <div class="font-serif text-xs font-medium mb-1.5 truncate">{title}</div>
+                        <div class="font-serif text-xs leading-normal opacity-80 line-clamp-5">{sceneCache.get(item.name)?.excerpt ?? ''}</div>
+                        <span class="wcard-fade"></span>
+                      </div>
+                      <div class="wcard-body">
+                        {#if renamingItem === item}
+                          <!-- svelte-ignore a11y_autofocus -->
+                          <input
+                            value={renameValue}
+                            oninput={(e) => (renameValue = e.currentTarget.value)}
+                            onclick={(e) => e.preventDefault()}
+                            onkeydown={(e) => {
+                              if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+                              if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                            }}
+                            onblur={confirmRename}
+                            autofocus
+                            aria-label="Rename writing"
+                            class="block w-full min-w-0 bg-transparent text-[13.5px] font-medium outline-none shadow-[0_1px_0_0_var(--ring)]"
+                          />
+                        {:else}
+                          <div class="wcard-title">{title}</div>
+                        {/if}
+                        <div class="meta flex items-center gap-1.5 mt-0.5 min-w-0">
+                          <span class="binder-dot size-2 rounded-[2px] {tint.dot}"></span>
+                          <span class="truncate">{item.folder || 'Loose writing'}</span>
+                        </div>
+                      </div>
+                    </a>
+                  </ContextMenu.Trigger>
+                  <ContextMenu.Content class="w-52">
+                    {@render itemMenu(item, ContextMenu)}
+                  </ContextMenu.Content>
+                </ContextMenu.Root>
+              {/each}
+            </div>
+          {:else}
+          <div>
           {#each group.files as item (item.path)}
             {@const tint = folderTint(item.folder)}
+            {@const meta = rowMeta(item)}
             <ContextMenu.Root>
             <ContextMenu.Trigger>
-            <div
-              class="group/item relative flex items-center gap-4 py-3.5 px-2 rounded-md transition-colors hover:bg-muted/20 {menuOpenFor === item.name ? 'bg-muted/20' : ''}"
-            >
+            <!-- One shared row: the binder's colour, the title, and the time.
+                  Binder and length are in the row's tooltip and its menu. -->
+            <div class="wrow group/item {menuOpenFor === item.name ? 'is-open' : ''}">
               {#if renamingItem === item}
-                <!-- Same box as the row it replaces: the title becomes the field and the
-                     metadata line stays, so nothing below moves while renaming. -->
-                <div class="flex items-center gap-4 flex-1 min-w-0">
-                  <div class="size-10 rounded-md {tint.tile} flex items-center justify-center shrink-0">
-                    <FileIcon class="size-4" strokeWidth={1.5} />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
-                    <!-- svelte-ignore a11y_autofocus -->
-                    <input
-                      value={renameValue}
-                      oninput={(e) => (renameValue = e.currentTarget.value)}
-                      onkeydown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
-                        if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
-                      }}
-                      onblur={confirmRename}
-                      autofocus
-                      aria-label="Rename writing"
-                      class="block w-full min-w-0 p-0 m-0 border-0 bg-transparent font-writer text-base leading-normal text-foreground outline-none rounded-none shadow-[0_1px_0_0_var(--ring)]"
-                    />
-                    <div class="mt-0.5 flex items-center gap-1.5 text-meta tabular-nums text-metadata">
-                      {#if item.folder && activeBinder === null}
-                        <span class="flex items-center gap-1">
-                          <span class="size-1.5 rounded-full {tint.dot}"></span>
-                          {item.folder}
-                        </span>
-                        <span class="opacity-30">•</span>
-                      {/if}
-                      <span>{formatDate(item.last_modified)}</span>
-                      <span class="opacity-30">•</span>
-                      <span>{formatTime(item.last_modified)}</span>
-                    </div>
-                  </div>
+                <!-- Same box as the row it replaces: the title becomes the field,
+                     so nothing below moves while renaming. -->
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                  <span class="wrow-mark {tint.dot}"></span>
+                  <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+                  <!-- svelte-ignore a11y_autofocus -->
+                  <input
+                    value={renameValue}
+                    oninput={(e) => (renameValue = e.currentTarget.value)}
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                    }}
+                    onblur={confirmRename}
+                    autofocus
+                    aria-label="Rename writing"
+                    class="block w-full min-w-0 p-0 m-0 border-0 bg-transparent text-[13.5px] font-medium leading-normal text-foreground outline-none rounded-none shadow-[0_1px_0_0_var(--ring)]"
+                  />
                 </div>
               {:else}
                 <a
@@ -696,33 +707,19 @@
                       startRename(item);
                     }
                   }}
-                  class="flex items-center gap-4 flex-1 min-w-0"
+                  class="flex items-center gap-3 flex-1 min-w-0"
+                  title={meta || undefined}
                 >
-                  <div class="size-10 rounded-md {tint.tile} flex items-center justify-center shrink-0">
-                    <FileIcon class="size-4" strokeWidth={1.5} />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="truncate font-writer text-base text-foreground/90 group-hover/item:text-foreground transition-colors">
-                      {formatFileName(item.name.split('/').pop())}
-                    </div>
-                    <div class="mt-0.5 flex items-center gap-1.5 text-meta tabular-nums text-metadata">
-                      {#if item.folder && activeBinder === null}
-                        <span class="flex items-center gap-1">
-                          <span class="size-1.5 rounded-full {tint.dot}"></span>
-                          {item.folder}
-                        </span>
-                        <span class="opacity-30">•</span>
-                      {/if}
-                      <span>{formatDate(item.last_modified)}</span>
-                      <span class="opacity-30">•</span>
-                      <span>{formatTime(item.last_modified)}</span>
-                    </div>
-                  </div>
+                  <span class="wrow-mark {tint.dot}"></span>
+                  <span class="wrow-title">{formatFileName(item.name.split('/').pop())}</span>
+                  <span class="wrow-meta group-hover/item:opacity-0 group-focus-within/item:opacity-0 {menuOpenFor === item.name ? 'opacity-0' : ''}">
+                    {whenLabel(group.id, item.last_modified)}
+                  </span>
                 </a>
 
                 <!-- Hover actions: same menu as the tree rows, no right-click needed. -->
                 <div
-                  class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/item:opacity-100 focus-within:opacity-100 transition-opacity {menuOpenFor === item.name ? 'opacity-100' : ''}"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/item:opacity-100 focus-within:opacity-100 transition-opacity {menuOpenFor === item.name ? 'opacity-100' : ''}"
                 >
                   <DropdownMenu.Root
                     open={menuOpenFor === item.name}
@@ -734,9 +731,9 @@
                           {...props}
                           type="button"
                           aria-label="Actions for {formatFileName(item.name.split('/').pop())}"
-                          class="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                          class="tb-btn h-7 min-w-7 px-0 text-muted-foreground hover:text-foreground"
                         >
-                          <EllipsisIcon class="size-3.5" strokeWidth={1.5} />
+                          <EllipsisIcon strokeWidth={1.6} />
                         </button>
                       {/snippet}
                     </DropdownMenu.Trigger>
@@ -754,19 +751,19 @@
             </ContextMenu.Content>
             </ContextMenu.Root>
           {/each}
-        </div>
+          </div>
+          {/if}
+        </section>
       {/each}
 
       {#if fileManager.hasLoadedFiles && filteredFiles.length === 0}
-          <div class="flex flex-col items-center justify-center py-32 text-center space-y-4 animate-in fade-in slide-in-from-bottom-4">
-              <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center mb-2">
-                  <FileIcon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
-              </div>
-              <h3 class="font-writer text-xl font-normal">Nothing here yet</h3>
+          <div class="flex flex-col items-center justify-center py-28 text-center gap-2">
+              <FileIcon strokeWidth={1.4} class="size-8 text-muted-foreground/40 mb-1" />
+              <h3 class="text-title font-semibold">Nothing here yet</h3>
               <p class="text-muted-foreground max-w-xs text-sm">
                   Start writing and Memoire names the file from your first line. You can rename it any time.
               </p>
-              <div class="mt-4 flex gap-2">
+              <div class="mt-3 flex gap-2">
                 <Button onclick={() => handleTreeCreateFile([])} variant="outline" class="gap-1.5" disabled={false}>
                     <PlusIcon class="size-3.5" strokeWidth={1.5} />
                     Start writing
@@ -787,14 +784,14 @@
 <Dialog.Root bind:open={isDeleteDialogOpen}>
   <Dialog.Content class="sm:max-w-[400px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Move writing to trash?</Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground pt-2">
+      <Dialog.Title class="text-title font-semibold">Move writing to trash?</Dialog.Title>
+      <Dialog.Description class="text-sm text-muted-foreground pt-1">
         <span class="font-medium text-foreground">"{itemToDelete ? formatFileName(itemToDelete.name.split('/').pop()) : ''}"</span>{#if itemToDelete?.folder}
           from <span class="text-foreground">{itemToDelete.folder}</span>{/if}
         goes to the trash. You can put it back for {RETENTION_DAYS} days.
       </Dialog.Description>
     </Dialog.Header>
-    <Dialog.Footer class="mt-6 flex gap-2">
+    <Dialog.Footer class="mt-4 flex gap-2">
       <Button variant="ghost" onclick={handleCancelDelete} class="flex-1" disabled={false}>Cancel</Button>
       <Button variant="destructive" onclick={handleConfirmDelete} class="flex-1" disabled={false}>Move to trash</Button>
     </Dialog.Footer>
@@ -804,10 +801,10 @@
 <Dialog.Root bind:open={isDeleteFolderDialogOpen}>
   <Dialog.Content class="sm:max-w-[440px]" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">
+      <Dialog.Title class="text-title font-semibold">
         {folderToDeleteIsEmpty ? 'Delete folder' : 'Remove folder'}
       </Dialog.Title>
-      <Dialog.Description class="text-base text-muted-foreground pt-2">
+      <Dialog.Description class="text-sm text-muted-foreground pt-1">
         {#if folderToDeleteIsEmpty}
           <span class="font-medium text-foreground">"{folderPathToDelete[folderPathToDelete.length - 1]}"</span>
           is empty. Delete it?
@@ -818,7 +815,7 @@
         {/if}
       </Dialog.Description>
     </Dialog.Header>
-    <Dialog.Footer class="mt-6 flex flex-col sm:flex-col gap-2">
+    <Dialog.Footer class="mt-4 flex flex-col sm:flex-col gap-2">
       {#if folderToDeleteIsEmpty}
         <Button variant="destructive" onclick={confirmDeleteFolderEmpty} disabled={isDeletingFolder} class="w-full">
           Delete folder

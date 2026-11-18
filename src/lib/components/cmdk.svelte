@@ -1,4 +1,5 @@
 <script>
+  import FileTextIcon from '@lucide/svelte/icons/file-text';
   import CirclePlusIcon from '@lucide/svelte/icons/circle-plus';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import SettingsIcon from '@lucide/svelte/icons/settings';
@@ -13,14 +14,22 @@
   import * as Command from '$lib/components/ui/command/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
-  import { formatFileName, formatDate, formatTime } from '@/utils';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { formatFileName, formatDate } from '@/utils';
+  import { shortcut } from '$lib/keyboard.svelte.js';
   import { startNewWriting, sanitizeTitle } from '$lib/new-writing.js';
   import { toast } from '$lib/toast.js';
   import { goto } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
   import { editorState } from '$lib/runes/editor.svelte.js';
   import { resolve } from '$app/paths';
+  import { dirOf } from '$lib/runes/fs.svelte.js';
+  import {
+    editorSession,
+    editorCommands,
+    commandLabel,
+    commandSearchValue,
+    runEditorCommand,
+  } from '$lib/editor-commands.svelte.js';
 
   /**
    * The binder's colour as the home list shows it, so a writing reads the same
@@ -54,10 +63,35 @@
   /** Typing pause before the content search runs. */
   const SEARCH_DEBOUNCE_MS = 180;
 
-  // Where a writing created from the palette goes: the binder open on the
-  // home screen, or the top level.
-  let targetDir = $derived(appState.ui.activeBinder ?? '');
-  let targetLabel = $derived(appState.ui.activeBinder ?? 'top level');
+  /** The writing open in the editor, or null on the home screen. */
+  let openWriting = $derived(editorSession.fileName);
+
+  // Where a writing created from the palette goes: next to the open writing
+  // (as ⌘N does), else the binder open on the home screen, else the top level.
+  let targetDir = $derived(openWriting !== null ? dirOf(openWriting) : (appState.ui.activeBinder ?? ''));
+  let targetLabel = $derived(targetDir || 'top level');
+
+  const COMMAND_GROUPS = /** @type {const} */ ([
+    ['writing', 'This writing'],
+    ['assistant', 'Assistant'],
+    ['typing', 'Typing'],
+  ]);
+
+  /** The open writing's commands, by group. Empty on the home screen. */
+  let commandGroups = $derived.by(() => {
+    if (openWriting === null) return [];
+    const commands = editorCommands();
+    return COMMAND_GROUPS.map(([id, heading]) => ({
+      heading,
+      commands: commands.filter((c) => c.group === id),
+    })).filter((g) => g.commands.length > 0);
+  });
+
+  /** @param {import('$lib/editor-commands.svelte.js').EditorCommand} command */
+  function handleRunCommand(command) {
+    close();
+    runEditorCommand(command);
+  }
 
   let query = $derived(search.trim());
 
@@ -150,6 +184,8 @@
 
   /** Typed text as a usable title, if it doesn't already name a writing. */
   let creatableTitle = $derived.by(() => {
+    // ":toc" and friends are commands, not titles.
+    if (query.startsWith(':')) return '';
     const title = sanitizeTitle(search);
     if (!title) return '';
     const exists = fileManager.files.some(
@@ -214,21 +250,21 @@
     appState.toggleCommandMenu(v);
     if (!v) search = '';
   }}
-  title="Search Writings"
-  description="Search writings by title, or type a new title to create one"
+  title={openWriting !== null ? 'Commands' : 'Search Writings'}
+  description="Run a command, go to a writing, or type a new title to create one"
   portalProps={{}}
 >
   <Command.Input
     bind:value={search}
-    placeholder="Go to a writing, or type a new title…"
+    placeholder={openWriting !== null ? 'What would you like to do?' : 'Go to a writing, or type a new title…'}
     class=""
  />
-  <Command.List class="p-2">
-    <Command.Empty class="py-10 text-muted-foreground font-sans">
+  <Command.List class="p-1.5 max-h-105">
+    <Command.Empty class="py-10 text-center text-sm text-muted-foreground">
       {#if creatableTitle}
         Press Enter to create “{creatableTitle}”.
       {:else}
-        No writing matches “{search}”.
+        Nothing matches “{search}”.
       {/if}
     </Command.Empty>
 
@@ -238,13 +274,11 @@
           forceMount
           value={`create-named ${search}`}
           onSelect={handleCreateNamed}
-          class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40"
+          class=""
         >
-          <CirclePlusIcon strokeWidth={1.5} class="size-3.5 mr-2" />
-          <span class="font-writer text-base">
-            Create “{creatableTitle}”
-            <span class="text-muted-foreground text-sm">in {targetLabel}</span>
-          </span>
+          <CirclePlusIcon strokeWidth={1.7} class="" />
+          <span class="truncate">Create “{creatableTitle}”</span>
+          <span class="text-muted-foreground text-xs truncate">in {targetLabel}</span>
           <Command.Shortcut class="">↵</Command.Shortcut>
         </Command.Item>
       </Command.Group>
@@ -254,25 +288,38 @@
       <Command.Item
         value={`${formatFileName(baseOf(file.name))} ${file.folder ?? ''}`}
         onSelect={() => handleSelect(file.name)}
-        class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
+        class=""
       >
-        <div class="flex flex-col gap-0.5 min-w-0 font-writer">
-          <span class="text-base font-normal truncate">{formatFileName(baseOf(file.name))}</span>
-          <div class="flex items-center gap-2 text-meta text-metadata tabular-nums">
-            {#if file.folder}
-              <span class="flex items-center gap-1">
-                <span class="size-1.5 rounded-full {BINDER_DOTS[appState.binderColour(file.folder)] ?? 'bg-primary'}"></span>
-                {file.folder}
-              </span>
-              <span class="opacity-30">•</span>
-            {/if}
-            <span>{formatDate(file.last_modified)}</span>
-            <span class="opacity-30">•</span>
-            <span>{formatTime(file.last_modified)}</span>
-          </div>
-        </div>
+        <FileTextIcon strokeWidth={1.7} class="" />
+        <span class="truncate">{formatFileName(baseOf(file.name))}</span>
+        <span class="ml-auto flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground max-w-[45%]">
+          {#if file.folder}
+            <span class="binder-dot size-2 rounded-[2px] {BINDER_DOTS[appState.binderColour(file.folder)] ?? 'bg-primary'}"></span>
+            <span class="truncate">{file.folder}</span>
+          {:else}
+            <span class="tabular-nums">{formatDate(file.last_modified)}</span>
+          {/if}
+        </span>
       </Command.Item>
     {/snippet}
+
+    {#each commandGroups as group (group.heading)}
+      <Command.Group heading={group.heading} class="" value="">
+        {#each group.commands as command (command.name)}
+          <Command.Item
+            value={commandSearchValue(command)}
+            onSelect={() => handleRunCommand(command)}
+            class=""
+          >
+            <command.icon strokeWidth={1.7} class="" />
+            <span>{commandLabel(command)}</span>
+            {#if command.shortcutLabel}
+              <Command.Shortcut class="">{command.shortcutLabel}</Command.Shortcut>
+            {/if}
+          </Command.Item>
+        {/each}
+      </Command.Group>
+    {/each}
 
     <Command.Group heading={query ? 'Writings' : 'Recent'} class="" value="">
       {#each query ? titleMatches : recentFiles as file (file.name)}
@@ -283,7 +330,7 @@
     {#if query.length >= MIN_CONTENT_QUERY && (contentOnly.length > 0 || isSearchingContent)}
       <Command.Group heading="In your writing" class="" value="">
         {#if contentOnly.length === 0}
-          <p class="px-3 py-2 text-sm text-muted-foreground font-sans">Searching…</p>
+          <p class="px-3 py-2 text-sm text-muted-foreground">Searching…</p>
         {/if}
         <!-- cmdk filters on `value`; a content hit's title usually does not
              contain the query, so the query goes in the value to keep it. -->
@@ -291,64 +338,62 @@
           <Command.Item
             value={`${search} ${hit.name}`}
             onSelect={() => handleSelectContent(hit)}
-            class="rounded-lg px-3 py-2.5 mb-1 last:mb-0 aria-selected:bg-muted/40"
+            class=""
           >
-            <div class="flex flex-col gap-0.5 min-w-0">
-              <span class="font-writer text-base font-normal truncate">
-                {formatFileName(baseOf(hit.name))}
-              </span>
-              <span class="truncate text-xs text-muted-foreground font-sans">
-                {hit.preview}
-              </span>
-            </div>
-            <Command.Shortcut class="tabular-nums text-meta">line {hit.line}</Command.Shortcut>
+            <FileTextIcon strokeWidth={1.7} class="" />
+            <span class="truncate shrink-0 max-w-[45%]">{formatFileName(baseOf(hit.name))}</span>
+            <span class="ml-auto truncate text-xs text-muted-foreground">“{hit.preview}”</span>
           </Command.Item>
         {/each}
       </Command.Group>
     {/if}
 
     <Command.Group heading="Actions" class="" value="">
-      <Command.Item value="new writing blank create" onSelect={handleCreateBlank} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <CirclePlusIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="new writing blank create :n" onSelect={handleCreateBlank} class="">
+        <CirclePlusIcon strokeWidth={1.7} class="" />
         <span>New writing in {targetLabel}</span>
-        <Command.Shortcut class="">{MOD_KEY}N</Command.Shortcut>
+        <Command.Shortcut class="">{shortcut('N')}</Command.Shortcut>
       </Command.Item>
-      <Command.Item value="new writing in choose location" onSelect={() => { close(); appState.toggleNewPicker(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <FolderIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="new writing in choose location" onSelect={() => { close(); appState.toggleNewPicker(true); }} class="">
+        <FolderIcon strokeWidth={1.7} class="" />
         <span>New writing in…</span>
-        <Command.Shortcut class="">{MOD_KEY}⇧N</Command.Shortcut>
+        <Command.Shortcut class="">{shortcut('shift', 'N')}</Command.Shortcut>
       </Command.Item>
-      <Command.Item value="find replace text in all writings" onSelect={() => { close(); appState.toggleProjectSearch(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <TextSearchIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="find replace text in all writings :find" onSelect={() => { close(); appState.toggleProjectSearch(true); }} class="">
+        <TextSearchIcon strokeWidth={1.7} class="" />
         <span>Find and replace in all writings</span>
-        <Command.Shortcut class="">{MOD_KEY}⇧F</Command.Shortcut>
+        <Command.Shortcut class="">{shortcut('shift', 'F')}</Command.Shortcut>
       </Command.Item>
       {#if appState.ui.activeBinder}
-        <Command.Item value="export compile binder word pdf epub" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openExport({ fileName: null, dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-          <FileOutputIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+        <Command.Item value="export compile binder word pdf epub" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openExport({ fileName: null, dir }); }} class="">
+          <FileOutputIcon strokeWidth={1.7} class="" />
           <span>Export {appState.ui.activeBinder}…</span>
         </Command.Item>
       {/if}
-      <Command.Item value="import word docx scrivener markdown obsidian rtf" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openImport({ dir }); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <FileInputIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="import word docx scrivener markdown obsidian rtf :import" onSelect={() => { const dir = appState.ui.activeBinder ?? ''; close(); appState.openImport({ dir }); }} class="">
+        <FileInputIcon strokeWidth={1.7} class="" />
         <span>Import from Word, Scrivener, Markdown…</span>
       </Command.Item>
-      <Command.Item value="codex characters locations factions items lore" onSelect={handleOpenCodex} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <BookUserIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="codex characters locations factions items lore" onSelect={handleOpenCodex} class="">
+        <BookUserIcon strokeWidth={1.7} class="" />
         <span>Open codex{appState.ui.activeBinder ? ` for ${appState.ui.activeBinder}` : ''}</span>
       </Command.Item>
-      <Command.Item value="trash deleted restore recover undo bin" onSelect={() => { close(); appState.toggleTrash(true); }} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <Trash2Icon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="trash deleted restore recover undo bin :trash :deleted :restore" onSelect={() => { close(); appState.toggleTrash(true); }} class="">
+        <Trash2Icon strokeWidth={1.7} class="" />
         <span>Recently deleted</span>
       </Command.Item>
-      <Command.Item value="settings preferences" onSelect={handleOpenSettings} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <SettingsIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="settings preferences" onSelect={handleOpenSettings} class="">
+        <SettingsIcon strokeWidth={1.7} class="" />
         <span>Open settings</span>
       </Command.Item>
-      <Command.Item value="check for updates upgrade version" onSelect={handleCheckUpdates} class="rounded-lg px-3 py-2.5 aria-selected:bg-muted/40">
-        <RefreshCwIcon strokeWidth={1.5} class="size-3.5 mr-2" />
+      <Command.Item value="check for updates upgrade version" onSelect={handleCheckUpdates} class="">
+        <RefreshCwIcon strokeWidth={1.7} class="" />
         <span>{updaterManager.status === 'ready' ? 'Restart to update' : 'Check for updates'}</span>
       </Command.Item>
     </Command.Group>
   </Command.List>
+  <div class="flex items-center gap-4 h-9 px-4.5 text-xs text-muted-foreground shadow-[0_-1px_0_var(--hair)]">
+    <span>↩ Open</span><span>↑↓ Move</span>
+    <span class="ml-auto truncate">Type to search writings, the codex and commands</span>
+  </div>
 </Command.Dialog>

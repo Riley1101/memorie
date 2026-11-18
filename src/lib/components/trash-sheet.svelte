@@ -65,8 +65,8 @@
   onOpenChange={(v) => appState.toggleTrash(v)}
 >
   <Dialog.Content class="sm:max-w-[560px] p-0 overflow-hidden" portalProps={{}}>
-    <Dialog.Header class="px-6 pt-6 pb-4 border-b border-border/20">
-      <Dialog.Title class="text-xl font-normal font-writer tracking-tight">
+    <Dialog.Header class="px-6 pt-6 pb-4 border-b border-hair">
+      <Dialog.Title class="text-title font-semibold">
         Recently deleted
       </Dialog.Title>
       <Dialog.Description class="text-sm text-muted-foreground">
@@ -80,27 +80,27 @@
           <p class="px-6 py-10 text-center text-sm text-muted-foreground">Reading the trash…</p>
         {:else if trashManager.entries.length === 0}
           <div class="flex flex-col items-center gap-3 px-6 py-14 text-center">
-            <div class="size-12 rounded-full bg-muted/30 flex items-center justify-center">
+            <div class="size-12 rounded-full bg-fill flex items-center justify-center">
               <Trash2Icon strokeWidth={1.5} class="size-6 text-muted-foreground/40" />
             </div>
-            <p class="font-writer text-lg">Nothing deleted</p>
+            <p class="text-title font-semibold">Nothing deleted</p>
             <p class="max-w-xs text-sm text-muted-foreground">
               Anything you delete waits here, so a mis-click is never the end of a draft.
             </p>
           </div>
         {:else}
-          <ul class="p-2">
+          <ul class="inset-group mx-4 my-3">
             {#each trashManager.entries as entry (entry.id)}
               {@const where = dirOf(entry.original_path)}
-              <li class="flex items-center gap-3 rounded-lg px-4 py-2.5 hover:bg-muted/30">
+              <li class="inset-row py-2">
                 {#if entry.kind === 'folder'}
                   <FolderIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground" />
                 {:else}
                   <FileIcon strokeWidth={1.5} class="size-4 shrink-0 text-muted-foreground" />
                 {/if}
                 <div class="min-w-0 flex-1">
-                  <p class="truncate font-writer text-base">{label(entry.original_path)}</p>
-                  <p class="flex items-center gap-2 tabular-nums text-meta text-metadata">
+                  <p class="truncate font-medium">{label(entry.original_path)}</p>
+                  <p class="meta flex items-center gap-2">
                     {#if where}<span class="truncate">{where}</span><span class="opacity-30">•</span>{/if}
                     {#if entry.kind === 'folder'}
                       <span>{entry.item_count} writing{entry.item_count === 1 ? '' : 's'}</span>
@@ -153,7 +153,7 @@
               Delete “{label(confirming.entry.original_path)}” forever?
             {/if}
           </p>
-          <p class="text-xs text-muted-foreground">This can’t be undone.</p>
+          <p class="meta">This can’t be undone.</p>
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <Button
@@ -171,8 +171,8 @@
         </div>
       </div>
     {:else if trashManager.entries.length > 0}
-      <div class="flex items-center justify-between gap-3 border-t border-border/20 px-6 py-3">
-        <p class="text-xs text-muted-foreground">
+      <div class="flex items-center justify-between gap-3 border-t border-hair px-6 py-3">
+        <p class="meta">
           {trashManager.entries.length} item{trashManager.entries.length === 1 ? '' : 's'}
         </p>
         <Button variant="ghost" size="sm" onclick={() => (confirming = { kind: 'all' })}>

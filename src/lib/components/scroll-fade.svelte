@@ -2,21 +2,29 @@
   import { scrollShadow } from '@/actions/scroll-shadow.js';
 
   /**
-   * Wraps a ScrollArea and shows a fade at the top/bottom edges only while
-   * there is more content to scroll to in that direction.
-   * @type {{ class?: string, fadeSize?: string, children: import('svelte').Snippet }}
+   * Wraps a ScrollArea and fades the top/bottom edges only while there is more
+   * content to scroll to in that direction. A mask rather than a painted
+   * gradient, so it fades into whatever is behind: paper, glass or the frame.
+   * @type {{ class?: string, fade?: number, children: import('svelte').Snippet }}
    */
-  let { class: className = '', fadeSize = 'h-8', children } = $props();
+  let { class: className = '', fade = 32, children } = $props();
 
   let canScrollUp = $state(false);
   let canScrollDown = $state(false);
+
+  const mask = $derived(
+    `linear-gradient(to bottom, transparent 0, #000 ${canScrollUp ? fade : 0}px, #000 calc(100% - ${canScrollDown ? fade : 0}px), transparent 100%)`
+  );
 </script>
 
 <div
-    class="relative {className}"
-    use:scrollShadow={(s) => { canScrollUp = s.canScrollUp; canScrollDown = s.canScrollDown; }}
+  class="relative {className}"
+  style:mask-image={mask}
+  style:-webkit-mask-image={mask}
+  use:scrollShadow={(s) => {
+    canScrollUp = s.canScrollUp;
+    canScrollDown = s.canScrollDown;
+  }}
 >
   {@render children()}
-  <div class="pointer-events-none absolute top-0 inset-x-0 {fadeSize} bg-linear-to-b from-background to-transparent transition-opacity duration-200 {canScrollUp ? 'opacity-100' : 'opacity-0'}"></div>
-  <div class="pointer-events-none absolute bottom-0 inset-x-0 {fadeSize} bg-linear-to-t from-background to-transparent transition-opacity duration-200 {canScrollDown ? 'opacity-100' : 'opacity-0'}"></div>
 </div>

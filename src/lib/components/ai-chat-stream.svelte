@@ -101,15 +101,15 @@
   }
 </script>
 
-<div class="flex flex-col gap-6 p-4">
+<div class="flex flex-col gap-6 p-3.5">
   {#if messages.length === 0}
-    <div class="flex flex-col items-center justify-center text-center gap-5 pt-20 pb-12 px-6">
+    <div class="flex flex-col items-center justify-center text-center gap-5 pt-14 pb-10 px-3">
       <div class="size-12 rounded-full bg-primary/10 flex items-center justify-center">
         <SparklesIcon strokeWidth={1.5} class="size-5 text-primary/70" />
       </div>
 
       <div class="space-y-1">
-        <h3 class="font-writer text-lg font-normal">Your writing assistant</h3>
+        <h3 class="font-writer text-[22px] leading-tight font-normal">Your writing assistant</h3>
         <p class="text-sm text-muted-foreground max-w-xs">
           {configManager.config?.provider === "openrouter"
             ? "Answers via OpenRouter. Note search stays on this device."
@@ -153,7 +153,7 @@
               type="button"
               onclick={() => askStarter(prompt)}
               disabled={isBusy}
-              class="text-left text-sm px-3 py-2 rounded-lg border border-border/50 bg-muted/10 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors disabled:opacity-50"
+              class="text-left text-sm px-3 py-2 rounded-field bg-fill text-foreground/80 hover:text-foreground hover:bg-selection transition-colors disabled:opacity-50"
             >
               {prompt}
             </button>
@@ -213,12 +213,12 @@
                 <span
                   class="group/codex flex items-center rounded-full border text-xs transition-colors
                     {excluded
-                    ? 'border-border/40 text-muted-foreground line-through'
+                    ? 'border-hair text-muted-foreground line-through'
                     : pinned
-                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      ? 'border-transparent bg-selection text-foreground'
                       : ref.full
-                        ? 'border-border/60 bg-secondary/30 text-muted-foreground'
-                        : 'border-dashed border-border/60 text-muted-foreground'}"
+                        ? 'border-hair bg-fill text-muted-foreground'
+                        : 'border-dashed border-hair text-muted-foreground'}"
                   title={ref.full ? "Full sheet given to the assistant" : "Summary given to the assistant"}
                 >
                   <button type="button" class="pl-2.5 pr-1 py-0.5 hover:text-foreground" onclick={() => openCodexEntry(ref.path)}>
@@ -270,8 +270,8 @@
               {/if}
 
               {#if message.references && message.references.length > 0}
-                <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-3 font-sans">
-                  <span class="text-meta font-semibold text-muted-foreground mr-1">
+                <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-hair pt-3 font-sans">
+                  <span class="meta font-semibold mr-1">
                     {message.references.length > 1 ? "Sources" : "Source"}
                   </span>
                   {#each message.references as ref (ref.title)}
@@ -281,7 +281,7 @@
                       title={ref.title}
                       onclick={() => openNote(ref.title)}
                       disabled={isOpen}
-                      class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-secondary/30 text-xs text-muted-foreground border border-border/40 hover:bg-secondary/60 hover:text-foreground transition-colors disabled:cursor-default disabled:hover:bg-secondary/30 disabled:hover:text-muted-foreground"
+                      class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-fill text-xs text-muted-foreground hover:bg-selection hover:text-foreground transition-colors disabled:cursor-default disabled:hover:bg-fill disabled:hover:text-muted-foreground"
                     >
                       <FileText strokeWidth={1.5} class="size-3.5 opacity-60" />
                       <span>{noteLabel(ref.title)}</span>
@@ -330,7 +330,7 @@
   {/each}
 
   {#if llmManager.error && !isBusy}
-    <div class="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+    <div class="p-3 rounded-field bg-destructive/10 border border-destructive/20 text-sm text-destructive">
       {llmManager.error}
     </div>
   {/if}

@@ -130,7 +130,7 @@
         onclick={() => (picked = /** @type {any} */ (k.id))}
         aria-pressed={kind === k.id}
         class="h-7 px-2.5 rounded-md border text-xs transition-colors
-          {kind === k.id ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/60 text-muted-foreground hover:text-foreground'}"
+          {kind === k.id ? 'border-primary/40 bg-primary/10 text-primary' : 'border-hair text-muted-foreground hover:text-foreground'}"
       >
         {k.plural}
       </button>
@@ -146,10 +146,10 @@
   {:else}
     <section class="grid gap-3">
       <div class="flex items-baseline justify-between gap-4 flex-wrap">
-        <h3 class="text-[0.8125rem] font-medium text-muted-foreground">Mentions per writing</h3>
-        <div class="flex items-center gap-2 text-meta text-muted-foreground" aria-label="Legend: mentions per writing">
+        <h3 class="text-sm font-medium text-muted-foreground">Mentions per writing</h3>
+        <div class="flex items-center gap-2 meta" aria-label="Legend: mentions per writing">
           <span>Mentions</span>
-          <span class="flex items-center gap-1"><span class="size-3 rounded-[3px] bg-muted/40 border border-border/40"></span>0</span>
+          <span class="flex items-center gap-1"><span class="size-3 rounded-[3px] bg-muted/40 border border-hair"></span>0</span>
           {#each STEPS as step (step.min)}
             <span class="flex items-center gap-1"><span class="size-3 rounded-[3px] {step.cls}"></span>{step.label}</span>
           {/each}
@@ -161,12 +161,12 @@
           <thead>
             {#if chapters.some((c) => c.label)}
               <tr>
-                <th class="sticky left-0 bg-background"></th>
+                <th class="sticky left-0 bg-page"></th>
                 {#each chapters as chapter, i (i)}
                   <th colspan={chapter.span} class="p-0 text-left font-normal" title={chapter.label || binder}>
                     <!-- Fixed width, so a long folder name can't widen the columns under it. -->
                     <div
-                      class="truncate border-l border-border/60 pl-1 text-meta text-muted-foreground"
+                      class="truncate border-l border-hair pl-1 meta"
                       style="width: {chapter.span * (CELL + GAP) - GAP}px"
                     >
                       {chapter.label || '·'}
@@ -180,7 +180,7 @@
           <tbody>
             {#each rows as row (row.entity.path)}
               <tr>
-                <th scope="row" class="sticky left-0 z-10 bg-background pr-3 text-left font-normal whitespace-nowrap">
+                <th scope="row" class="sticky left-0 z-10 bg-page pr-3 text-left font-normal whitespace-nowrap">
                   <button type="button" onclick={() => onopen(row.entity)} class="text-foreground hover:text-primary max-w-44 truncate block">
                     {row.entity.name}
                   </button>
@@ -216,7 +216,7 @@
 
     {#if kind !== 'all' || rows.length > 1}
       <section class="grid gap-3 max-w-2xl">
-        <h3 class="text-[0.8125rem] font-medium text-muted-foreground">Often together</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">Often together</h3>
         {#if pairs.length}
           <table class="w-full text-sm">
             <thead class="sr-only">
@@ -224,7 +224,7 @@
             </thead>
             <tbody>
               {#each pairs as pair (pair.a.path + pair.b.path)}
-                <tr class="border-b border-border/30 last:border-0">
+                <tr class="border-b border-hair last:border-0">
                   <td class="py-1.5 pr-3 whitespace-nowrap">
                     <button type="button" class="hover:text-primary" onclick={() => onopen(pair.a)}>{pair.a.name}</button>
                     <span class="text-muted-foreground">&amp;</span>
@@ -255,7 +255,7 @@
 {#if hover}
   <div
     role="tooltip"
-    class="fixed z-50 -translate-x-1/2 -translate-y-full -mt-2 pointer-events-none rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md"
+    class="fixed z-50 -translate-x-1/2 -translate-y-full -mt-2 pointer-events-none glass rounded-field px-2.5 py-1.5 text-xs text-popover-foreground"
     style="left: {hover.x}px; top: {hover.y - 6}px"
   >
     <div class="font-medium">{hover.entity.name}</div>

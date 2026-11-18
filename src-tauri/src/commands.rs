@@ -673,6 +673,20 @@ pub async fn goto_file_version(
     Ok(result)
 }
 
+/// Reads one saved version without switching the writing to it, so Revise
+/// mode can compare the page against it.
+#[tauri::command]
+pub async fn get_file_version(
+    name: String,
+    node_id: usize,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let mut undo_tree = state.undotree.lock().await;
+    Ok(undo_tree
+        .get_history(&name)
+        .and_then(|h| h.content_of(super::undotree::NodeIndex(node_id))))
+}
+
 #[tauri::command]
 pub async fn undo_file(name: String, state: State<'_, AppState>) -> Result<Option<String>, String> {
     let mut undo_tree = state.undotree.lock().await;
@@ -1256,8 +1270,19 @@ pub async fn codex_matrix(
             .map_err(|e| e.to_string())??
     };
 
-    let binder_dir = content_dir.join(&binder);
-    let files: Vec<File> = fs::discover_files(&binder_dir)
+    let writings = binder_writings(&content_dir, &binder).await?;
+    tokio::task::spawn_blocking(move || crate::codex::matrix(entities, writings))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Every writing in a binder (codex sheets left out) with its contents, keyed
+/// by content-relative name.
+async fn binder_writings(
+    content_dir: &std::path::Path,
+    binder: &str,
+) -> Result<Vec<(String, String)>, String> {
+    let files: Vec<File> = fs::discover_files(&content_dir.join(binder))
         .map_err(|e| e.to_string())?
         .into_iter()
         .map(|mut file| {
@@ -1266,13 +1291,31 @@ pub async fn codex_matrix(
         })
         .filter(|file| !crate::codex::is_codex_name(&file.name))
         .collect();
-    let writings = fs::read_contents_batch(files)
+    Ok(fs::read_contents_batch(files)
         .await
         .into_iter()
         .filter_map(|(file, result)| result.ok().map(|content| (file.name, content)))
-        .collect();
+        .collect())
+}
 
-    tokio::task::spawn_blocking(move || crate::codex::matrix(entities, writings))
+/// The sentences in a binder's writings that mention one codex entry (`path`),
+/// grouped by writing, for the codex's Mentions view.
+#[tauri::command]
+pub async fn codex_mentions(
+    binder: String,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::codex::WritingMentions>, String> {
+    crate::codex::ensure_relative(&binder)?;
+    let content_dir = state.config.lock().await.content_directory.clone();
+    let entities = {
+        let (dir, binder) = (content_dir.clone(), binder.clone());
+        tokio::task::spawn_blocking(move || crate::codex::list_entities(&dir, Some(&binder)))
+            .await
+            .map_err(|e| e.to_string())??
+    };
+    let writings = binder_writings(&content_dir, &binder).await?;
+    tokio::task::spawn_blocking(move || crate::codex::mention_snippets(&entities, &path, &writings))
         .await
         .map_err(|e| e.to_string())
 }

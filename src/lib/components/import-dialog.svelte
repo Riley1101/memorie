@@ -149,8 +149,8 @@
 <Dialog.Root {open} onOpenChange={(v) => !v && close()}>
   <Dialog.Content class="sm:max-w-[520px] font-sans {appState.ui.theme}" portalProps={{}}>
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Import</Dialog.Title>
-      <Dialog.Description class="text-muted-foreground">
+      <Dialog.Title class="text-title font-semibold">Import</Dialog.Title>
+      <Dialog.Description class="meta">
         Word documents, Scrivener projects, RTF, Markdown, or a whole folder of notes (Obsidian vaults
         included). Nothing is changed in the originals.
       </Dialog.Description>
@@ -199,16 +199,16 @@
             </Button>
           </div>
           {#if sources.length}
-            <ul class="grid gap-1 max-h-48 overflow-y-auto rounded-md border border-border/50 p-1">
+            <ul class="inset-group max-h-48 overflow-y-auto">
               {#each sources as source (source)}
-                <li class="flex items-center gap-2 rounded px-2 py-1 hover:bg-muted/40">
-                  <span class="min-w-0 flex-1 truncate text-sm" title={source}>{baseOf(source)}</span>
-                  <span class="shrink-0 text-xs text-muted-foreground">{describe(source)}</span>
+                <li class="inset-row min-h-9 py-1 pr-2">
+                  <span class="min-w-0 flex-1 truncate" title={source}>{baseOf(source)}</span>
+                  <span class="meta shrink-0">{describe(source)}</span>
                   <button
                     type="button"
                     onclick={() => removeSource(source)}
                     aria-label="Remove {baseOf(source)}"
-                    class="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                    class="size-6 flex items-center justify-center rounded-[6px] text-muted-foreground hover:text-foreground hover:bg-fill"
                   >
                     <XIcon strokeWidth={1.5} class="size-3.5" />
                   </button>
@@ -216,23 +216,23 @@
               {/each}
             </ul>
           {:else}
-            <p class="text-xs text-muted-foreground">
+            <p class="meta">
               Scrivener projects are chosen with “Choose files…”.
             </p>
           {/if}
         </div>
 
         <label class="grid gap-1.5">
-          <span class="text-xs font-medium text-muted-foreground">Import into</span>
+          <span class="ex-label mb-0">Import into</span>
           <select
             bind:value={destination}
-            class="h-9 rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            class="h-8 rounded-field bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             {#each locations as location (location.dir)}
               <option value={location.dir}>{location.label}</option>
             {/each}
           </select>
-          <span class="text-xs text-muted-foreground">
+          <span class="meta">
             Projects and folders arrive as a new folder here, with their structure kept.
           </span>
         </label>
@@ -242,7 +242,7 @@
             <input type="checkbox" class="mt-1" bind:checked={splitDocx} />
             <span>
               Split Word documents at headings
-              <span class="block text-xs text-muted-foreground">
+              <span class="meta block">
                 One writing per chapter, in a folder named after the document.
               </span>
             </span>

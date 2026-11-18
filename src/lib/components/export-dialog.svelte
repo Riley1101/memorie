@@ -52,13 +52,13 @@
 
   /** @typedef {'docx' | 'pdf' | 'epub' | 'html' | 'markdown'} Format */
 
-  /** @type {{ id: Format, label: string, hint: string }[]} */
+  /** @type {{ id: Format, label: string, tag: string, tint: string, hint: string }[]} */
   const FORMATS = [
-    { id: 'docx', label: 'Word', hint: 'For agents, editors and Word or Pages.' },
-    { id: 'pdf', label: 'PDF', hint: 'Typeset and ready to read, print, or send.' },
-    { id: 'epub', label: 'EPUB', hint: 'E-book for Apple Books, Kobo, or uploading to KDP.' },
-    { id: 'html', label: 'Web page', hint: 'A single HTML file.' },
-    { id: 'markdown', label: 'Markdown', hint: 'Everything combined into one .md file.' },
+    { id: 'docx', label: 'Word', tag: 'DOC', tint: 'bg-[#3b6aa8]', hint: 'For agents, editors and Word or Pages.' },
+    { id: 'pdf', label: 'PDF', tag: 'PDF', tint: 'bg-[#b4483c]', hint: 'Typeset and ready to read, print, or send.' },
+    { id: 'epub', label: 'EPUB', tag: 'EPUB', tint: 'bg-[#5f7b45]', hint: 'E-book for Apple Books, Kobo, or uploading to KDP.' },
+    { id: 'html', label: 'Web page', tag: 'HTML', tint: 'bg-[#5d6b80]', hint: 'A single HTML file.' },
+    { id: 'markdown', label: 'Markdown', tag: 'MD', tint: 'bg-[#6f6457]', hint: 'Everything combined into one .md file.' },
   ];
 
   let target = $derived(appState.ui.exportTarget);
@@ -476,8 +476,8 @@
     portalProps={{}}
   >
     <Dialog.Header class="">
-      <Dialog.Title class="text-xl font-normal font-writer">Export</Dialog.Title>
-      <Dialog.Description class="text-muted-foreground">
+      <Dialog.Title class="text-title font-semibold">Export</Dialog.Title>
+      <Dialog.Description class="meta">
         Combine writings into one file for sharing, submitting, or publishing.
       </Dialog.Description>
     </Dialog.Header>
@@ -499,187 +499,187 @@
     >
       <div class="grid min-h-0 gap-6 {showContents ? 'md:grid-cols-2' : ''}">
         <div class="grid content-start gap-4 min-h-0 overflow-y-auto pr-1 -mr-1">
-          <label class="grid gap-1.5">
-            <span class="text-xs font-medium text-muted-foreground">What</span>
-            <select
-              value={scope?.id}
-              onchange={(e) => chooseScope(e.currentTarget.value)}
-              class="h-9 rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              {#each scopes as s (s.id)}
-                <option value={s.id}>{s.label}</option>
-              {/each}
-            </select>
-          </label>
-
-          <fieldset class="grid gap-1.5">
-            <legend class="text-xs font-medium text-muted-foreground mb-1.5">Format</legend>
-            <div class="flex flex-wrap gap-1 bg-muted/40 p-1 rounded-md border border-border/50">
-              {#each FORMATS as f (f.id)}
-                <Button
-                  type="button"
-                  variant={format === f.id ? 'secondary' : 'ghost'}
-                  size="sm"
-                  class="flex-1"
-                  aria-pressed={format === f.id}
-                  onclick={() => (format = f.id)}
-                  disabled={false}
-                >
-                  {f.label}
-                </Button>
-              {/each}
-            </div>
-            <p class="text-xs text-muted-foreground">{formatHint}</p>
-          </fieldset>
-
-          <div class="grid grid-cols-2 gap-3">
-            <label class="grid gap-1.5">
-              <span class="text-xs font-medium text-muted-foreground">Title</span>
-              <input bind:value={title} placeholder="Untitled" class="h-9 rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
-            </label>
-            <label class="grid gap-1.5">
-              <span class="text-xs font-medium text-muted-foreground">Author</span>
-              <input bind:value={author} placeholder="Optional" class="h-9 rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
-            </label>
-          </div>
-
-          {#if !isSingle}
-            <section class="grid gap-3">
-              <h3 class="text-xs font-medium text-muted-foreground">Chapters</h3>
-              <label class="flex items-center justify-between gap-2 text-sm">
-                Headings
+          <section>
+            <h3 class="ex-label">What</h3>
+            <div class="inset-group">
+              <label class="inset-row min-h-9.5 py-1.5">
+                <span class="flex-1 min-w-0">Export</span>
                 <select
-                  value={customHeading ? 'custom' : chapterHeading}
-                  onchange={(e) => {
-                    const value = e.currentTarget.value;
-                    customHeading = value === 'custom';
-                    if (!customHeading) chapterHeading = value;
-                  }}
-                  class="h-8 rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  value={scope?.id}
+                  onchange={(e) => chooseScope(e.currentTarget.value)}
+                  class="h-6.5 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 max-w-60"
                 >
-                  {#each HEADING_PRESETS as p (p.template)}
-                    <option value={p.template}>{p.label}</option>
+                  {#each scopes as s (s.id)}
+                    <option value={s.id}>{s.label}</option>
                   {/each}
-                  <option value="custom">Custom…</option>
                 </select>
               </label>
-              {#if customHeading}
-                <div class="grid gap-1">
-                  <input bind:value={chapterHeading} placeholder={'Chapter {n}: {title}'} class="h-8 rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
-                  <span class="text-xs text-muted-foreground">
-                    {'{n}'} 3, {'{word}'} Three, {'{roman}'} III, {'{title}'} the folder name.
+            </div>
+          </section>
+
+          <section>
+            <h3 class="ex-label" id="export-format">Format</h3>
+            <div class="inset-group grid grid-cols-5 gap-0.5 p-1" role="radiogroup" aria-labelledby="export-format">
+              {#each FORMATS as f (f.id)}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={format === f.id}
+                  onclick={() => (format = f.id)}
+                  class="flex flex-col items-center gap-1.5 rounded-[10px] px-1 pt-2.5 pb-2 text-xs transition-colors {format === f.id ? 'bg-selection' : 'hover:bg-fill'}"
+                >
+                  <span aria-hidden="true" class="flex h-9.5 w-7.5 items-end justify-center rounded-[4px] pb-1 text-[8px] font-bold tracking-wide text-white shadow-[0_0_0_1px_var(--hair),0_2px_4px_rgb(0_0_0/0.08)] {f.tint}">{f.tag}</span>
+                  {f.label}
+                </button>
+              {/each}
+            </div>
+            <p class="meta mt-1.5 mx-0.5">{formatHint}</p>
+          </section>
+
+          <section>
+            <h3 class="ex-label">Book</h3>
+            <div class="inset-group">
+              <label class="inset-row min-h-9.5 py-1.5">
+                <span class="flex-1 min-w-0">Title</span>
+                <input bind:value={title} placeholder="Untitled" class="h-6.5 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-full max-w-55" />
+              </label>
+              <label class="inset-row min-h-9.5 py-1.5">
+                <span class="flex-1 min-w-0">Author</span>
+                <input bind:value={author} placeholder="Optional" class="h-6.5 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-full max-w-55" />
+              </label>
+            </div>
+          </section>
+
+          {#if !isSingle}
+            <section>
+              <h3 class="ex-label">Chapters</h3>
+              <div class="inset-group">
+                <label class="inset-row min-h-9.5 py-1.5">
+                  <span class="flex-1 min-w-0">
+                    Chapter headings
+                    {#if chapterHeading.trim()}
+                      <span class="meta block">Innermost folders are chapters, or each writing if there are no folders.</span>
+                    {/if}
                   </span>
-                </div>
-              {/if}
-              {#if chapterHeading.trim()}
-                <span class="-mt-1.5 text-xs text-muted-foreground">
-                  Innermost folders are chapters, or each writing if there are no folders.
-                </span>
-              {/if}
-              <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" bind:checked={writingTitles} />
-                Use writing titles as headings
-              </label>
-              <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" bind:checked={chapterPageBreaks} />
-                Start each top-level folder on a new page
-              </label>
-              {#if hasContents}
-                <label class="flex items-center gap-2 text-sm">
-                  <input type="checkbox" bind:checked={tableOfContents} />
-                  Table of contents after the title page
+                  <select
+                    value={customHeading ? 'custom' : chapterHeading}
+                    onchange={(e) => {
+                      const value = e.currentTarget.value;
+                      customHeading = value === 'custom';
+                      if (!customHeading) chapterHeading = value;
+                    }}
+                    class="h-6.5 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  >
+                    {#each HEADING_PRESETS as p (p.template)}
+                      <option value={p.template}>{p.label}</option>
+                    {/each}
+                    <option value="custom">Custom…</option>
+                  </select>
                 </label>
-              {/if}
-              <label class="flex items-center justify-between gap-2 text-sm">
-                Between writings
-                <input bind:value={sceneSeparator} placeholder="Nothing" class="h-8 w-32 rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
-              </label>
+                {#if customHeading}
+                  <div class="inset-row flex-col items-stretch gap-1 py-2">
+                    <input bind:value={chapterHeading} placeholder={'Chapter {n}: {title}'} aria-label="Custom chapter heading" class="h-6.5 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
+                    <span class="meta">
+                      {'{n}'} 3, {'{word}'} Three, {'{roman}'} III, {'{title}'} the folder name.
+                    </span>
+                  </div>
+                {/if}
+                <label class="inset-row min-h-9.5 py-1.5">
+                  <input type="checkbox" bind:checked={writingTitles} />
+                  <span class="flex-1">Use writing titles as headings</span>
+                </label>
+                <label class="inset-row min-h-9.5 py-1.5">
+                  <input type="checkbox" bind:checked={chapterPageBreaks} />
+                  <span class="flex-1">Start each top-level folder on a new page</span>
+                </label>
+                {#if hasContents}
+                  <label class="inset-row min-h-9.5 py-1.5">
+                    <input type="checkbox" bind:checked={tableOfContents} />
+                    <span class="flex-1">Table of contents after the title page</span>
+                  </label>
+                {/if}
+                <label class="inset-row min-h-9.5 py-1.5">
+                  <span class="flex-1 min-w-0">Between writings</span>
+                  <input bind:value={sceneSeparator} placeholder="Nothing" class="h-6.5 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 w-30 text-center" />
+                </label>
+              </div>
             </section>
           {/if}
 
           {#if format === 'pdf' || format === 'docx'}
-            <section class="grid gap-3">
-              <h3 class="text-xs font-medium text-muted-foreground">Page</h3>
-              {#if format === 'pdf'}
-                <label class="flex items-center justify-between gap-2 text-sm">
-                  Page size
-                  <select bind:value={pageSize} class="h-8 rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
-                    <option value="a4">A4</option>
-                    <option value="letter">US Letter</option>
-                  </select>
+            <section>
+              <h3 class="ex-label">Page</h3>
+              <div class="inset-group">
+                {#if format === 'pdf'}
+                  <label class="inset-row min-h-9.5 py-1.5">
+                    <span class="flex-1">Page size</span>
+                    <select bind:value={pageSize} class="h-6.5 rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
+                      <option value="a4">A4</option>
+                      <option value="letter">US Letter</option>
+                    </select>
+                  </label>
+                {/if}
+                <label class="inset-row items-start py-2">
+                  <input type="checkbox" class="mt-0.5" bind:checked={manuscriptFormat} />
+                  <span class="flex-1">
+                    Standard manuscript format
+                    <span class="meta block">Times New Roman 12pt, double spaced, indented paragraphs.</span>
+                  </span>
                 </label>
-              {/if}
-              <label class="flex items-start gap-2 text-sm">
-                <input type="checkbox" class="mt-1" bind:checked={manuscriptFormat} />
-                <span>
-                  Standard manuscript format
-                  <span class="block text-xs text-muted-foreground">
-                    Times New Roman 12pt, double spaced, indented paragraphs.
+                <label class="inset-row items-start py-2">
+                  <input type="checkbox" class="mt-0.5" bind:checked={runningHead} />
+                  <span class="flex-1">
+                    Running head
+                    <span class="meta block">
+                      {[author.trim().split(/\s+/).at(-1), title.trim().toUpperCase()].filter(Boolean).join(' / ') ||
+                        'Page number'}{author.trim() || title.trim() ? ' / page' : ''} at the top of each page.
+                    </span>
                   </span>
-                </span>
-              </label>
-              <label class="flex items-start gap-2 text-sm">
-                <input type="checkbox" class="mt-1" bind:checked={runningHead} />
-                <span>
-                  Running head
-                  <span class="block text-xs text-muted-foreground">
-                    {[author.trim().split(/\s+/).at(-1), title.trim().toUpperCase()].filter(Boolean).join(' / ') ||
-                      'Page number'}{author.trim() || title.trim() ? ' / page' : ''} at the top of each page.
-                  </span>
-                </span>
-              </label>
+                </label>
+              </div>
             </section>
           {/if}
         </div>
 
         {#if showContents}
-          <section class="flex min-h-0 flex-col gap-3 rounded-md border border-border/50 p-3 md:max-h-[60vh]">
-            <div class="flex gap-1 rounded-md bg-muted/40 p-1" role="tablist">
-              <Button
+          <section class="flex min-h-0 flex-col gap-3 rounded-group bg-card p-3 shadow-[0_0_0_1px_var(--hair)] md:max-h-[60vh]">
+            <div class="seg flex gap-0.5 rounded-full bg-fill p-0.5" role="tablist">
+              <button
                 type="button"
                 role="tab"
-                variant={panel === 'contents' ? 'secondary' : 'ghost'}
-                size="sm"
-                class="flex-1"
+                class="flex h-6.5 flex-1 items-center justify-center gap-1.5 text-sm"
                 aria-selected={panel === 'contents'}
                 onclick={() => (panel = 'contents')}
-                disabled={false}
               >
                 Contents
-                <span class="text-muted-foreground tabular-nums">{includedCount}/{fileEntries.length}</span>
-              </Button>
-              <Button
+                <span class="meta">{includedCount}/{fileEntries.length}</span>
+              </button>
+              <button
                 type="button"
                 role="tab"
-                variant={panel === 'matter' ? 'secondary' : 'ghost'}
-                size="sm"
-                class="flex-1"
+                class="flex h-6.5 flex-1 items-center justify-center gap-1.5 text-sm"
                 aria-selected={panel === 'matter'}
                 onclick={() => (panel = 'matter')}
-                disabled={false}
               >
                 Front &amp; back matter
-                {#if matterCount > 0}<span class="text-muted-foreground tabular-nums">{matterCount}</span>{/if}
-              </Button>
+                {#if matterCount > 0}<span class="meta">{matterCount}</span>{/if}
+              </button>
             </div>
 
             {#if panel === 'contents'}
               {#if statusCounts.length > 0}
                 <div class="grid gap-1.5">
-                  <span class="text-sm">Leave out writings marked</span>
+                  <span class="meta">Leave out writings marked</span>
                   <div class="flex flex-wrap gap-1">
                     {#each statusCounts as [key, { label, count }] (key)}
-                      <Button
+                      <button
                         type="button"
-                        variant={excludeStatuses.includes(key) ? 'secondary' : 'outline'}
-                        size="sm"
-                        class="h-7 text-xs {excludeStatuses.includes(key) ? 'line-through' : ''}"
+                        class="chip {excludeStatuses.includes(key) ? 'line-through' : ''}"
                         aria-pressed={excludeStatuses.includes(key)}
                         onclick={() => toggleStatus(key)}
-                        disabled={false}
                       >
-                        {label} <span class="text-muted-foreground tabular-nums">{count}</span>
-                      </Button>
+                        {label} <span class="tabular-nums opacity-60">{count}</span>
+                      </button>
                     {/each}
                   </div>
                 </div>
@@ -713,7 +713,7 @@
                 </p>
                 {#each ['front', 'back'] as place (place)}
                   <div class="grid gap-2">
-                    <h4 class="text-xs font-medium text-muted-foreground">
+                    <h4 class="ex-label mb-0">
                       {place === 'front' ? 'Before the contents' : 'After the last chapter'}
                     </h4>
                     {#each MATTER.filter((m) => m.place === place) as m (m.kind)}
@@ -738,7 +738,7 @@
                               value={slot.name}
                               onchange={(e) => (slot.name = e.currentTarget.value)}
                               aria-label="{m.label} source"
-                              class="h-7 max-w-[55%] text-xs rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                              class="h-6.5 max-w-[55%] rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                             >
                               <option value="">Write here</option>
                               {#each fileEntries as f (f.path)}
@@ -753,7 +753,7 @@
                             rows={m.kind === 'foreword' || m.kind === 'afterword' ? 5 : 3}
                             placeholder={m.placeholder}
                             aria-label={m.label}
-                            class="py-1.5 resize-y rounded-md border border-border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                            class="py-1.5 resize-y rounded-[6px] bg-fill px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                           ></textarea>
                         {/if}
                       </div>
@@ -766,7 +766,10 @@
         {/if}
       </div>
 
-      <Dialog.Footer class="">
+      <Dialog.Footer class="items-center">
+        {#if !isSingle && fileEntries.length > 0}
+          <span class="meta mr-auto">{includedCount} of {fileEntries.length} writings</span>
+        {/if}
         <Button type="button" variant="ghost" onclick={close} disabled={busy}>Cancel</Button>
         <Button type="submit" disabled={busy || !scope}>
           {busy ? 'Exporting…' : 'Export'}

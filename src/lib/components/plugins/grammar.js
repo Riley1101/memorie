@@ -6,9 +6,10 @@ import GrammarBox from './GrammarBox.svelte';
 import { applySuggestion } from './apply-suggestion.js';
 
 /**
- * A Milkdown plugin that shows a toolbar under a text selection: formatting
- * buttons always, and AI suggestions for the paragraph when AI is enabled
- * (GrammarBox decides).
+ * A Milkdown plugin that shows a toolbar over a text selection: formatting,
+ * a link, a margin note, the codex, and AI rewrites of the paragraph when AI
+ * is enabled (GrammarBox decides). It sits above the selection, where it
+ * covers text already read, and drops below it near the top of the window.
  *
  * @returns {Plugin} - The Milkdown plugin for grammar correction.
  */
@@ -74,14 +75,23 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
     const { node, pos } = lastSelected;
     const nodeEnd = pos + node.nodeSize;
     const container = document.createElement('div');
+    container.className = 'group/box';
     container.style.position = 'fixed';
     container.style.zIndex = '50';
 
+    /** Below this distance from the top of the window there is no room above the selection. */
+    const ROOM_ABOVE = 120;
+
     /** @param {import("prosemirror-view").EditorView} view */
     const reposition = (view) => {
-      const coords = view.coordsAtPos(Math.min(selTo, view.state.doc.content.size));
-      container.style.top = `${coords.bottom + 8}px`;
-      container.style.left = `${coords.left}px`;
+      const size = view.state.doc.content.size;
+      const start = view.coordsAtPos(Math.min(selFrom, size));
+      const end = view.coordsAtPos(Math.min(selTo, size));
+      const above = start.top >= ROOM_ABOVE;
+      container.dataset.placement = above ? 'above' : 'below';
+      container.style.top = above ? `${start.top - 8}px` : `${end.bottom + 8}px`;
+      container.style.transform = above ? 'translateY(-100%)' : '';
+      container.style.left = `${Math.max(8, Math.min(start.left, window.innerWidth - 8 - container.offsetWidth))}px`;
     };
 
     decos.push(
@@ -112,6 +122,8 @@ function createSelectionDecoration(doc, selFrom = 0, selTo = 0) {
               view,
             },
           });
+          // Its width is known only once it is on the page; keep it inside the window.
+          requestAnimationFrame(() => reposition(view));
           /** @type {HTMLDivElement & { _cleanup?: () => void }} */ (container)._cleanup = () => {
             window.removeEventListener('scroll', onScrollOrResize, { capture: true });
             window.removeEventListener('resize', onScrollOrResize);

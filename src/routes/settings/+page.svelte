@@ -3,7 +3,6 @@
   import { configManager } from '$lib/runes/config.svelte.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
   import ScrollFade from '$lib/components/scroll-fade.svelte';
-  import { Separator } from '@/components/ui/separator/index.js';
   import FolderIcon from '@lucide/svelte/icons/folder';
   import CpuIcon from '@lucide/svelte/icons/cpu';
   import SunIcon from '@lucide/svelte/icons/sun';
@@ -11,12 +10,11 @@
   import MonitorIcon from '@lucide/svelte/icons/monitor';
   import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
   import CheckIcon from '@lucide/svelte/icons/check';
-  import AlignJustifyIcon from '@lucide/svelte/icons/align-justify';
-  import Rows3Icon from '@lucide/svelte/icons/rows-3';
+  import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
   import PaletteIcon from '@lucide/svelte/icons/palette';
   import CloudIcon from '@lucide/svelte/icons/cloud';
   import PenLineIcon from '@lucide/svelte/icons/pen-line';
-  import { MOD_KEY } from '$lib/keyboard.svelte.js';
+  import { MOD_KEY, isMac } from '$lib/keyboard.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
   import { appState, THEME_PALETTES, STYLE_FLAVOURS } from '$lib/runes/app.svelte.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -35,14 +33,48 @@
   import { updaterManager } from '$lib/runes/updater.svelte.js';
 
   const SECTIONS = [
-    { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
     { id: 'writing', label: 'Writing', icon: PenLineIcon },
+    { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
     { id: 'ai', label: 'AI', icon: CpuIcon },
-    { id: 'sync', label: 'Cloud Sync', icon: CloudIcon },
+    { id: 'sync', label: 'Cloud sync', icon: CloudIcon },
+    { id: 'storage', label: 'Storage', icon: HardDriveIcon },
     { id: 'updates', label: 'Updates', icon: SparklesIcon },
   ];
 
-  let activeSection = $state('appearance');
+  const PALETTE_DOT = {
+    default: 'bg-[#7d5129]',
+    zinc: 'bg-zinc-500',
+    slate: 'bg-slate-500',
+    rose: 'bg-rose-500',
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    violet: 'bg-violet-500',
+  };
+
+  /** Text fields and popups in a row: an 8px fill well, like the sidebar search. */
+  const FIELD =
+    'h-7 min-w-0 rounded-field bg-fill px-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50';
+  const NOTICE =
+    'rounded-field px-3 py-2 text-sm wrap-anywhere max-h-40 overflow-y-auto overscroll-contain';
+
+  const PARAGRAPH_STYLES = /** @type {const} */ ([
+    { id: 'spaced', name: 'Spaced' },
+    { id: 'indented', name: 'Indented' },
+  ]);
+  const THEMES = /** @type {const} */ ([
+    { id: 'system', name: 'System', icon: MonitorIcon },
+    { id: 'light', name: 'Light', icon: SunIcon },
+    { id: 'dark', name: 'Dark', icon: MoonIcon },
+  ]);
+  const SYNC_PROVIDERS = [
+    { id: 'none', name: 'This machine', icon: null },
+    { id: 'github', name: 'GitHub', icon: GithubIcon },
+    { id: 'dropbox', name: 'Dropbox', icon: DropboxIcon },
+  ];
+
+  const onMacOS = isMac();
+  let activeSection = $state('writing');
+  const activeLabel = $derived(SECTIONS.find((s) => s.id === activeSection)?.label ?? 'Settings');
   let repoInput = $state('');
   let commitMessage = $state('');
   let dropboxFolderInput = $state('');
@@ -176,1230 +208,965 @@
   }
 </script>
 
-<!-- Same width and left edge as every other page, so the header doesn't jump. -->
-<div class="page-container w-full h-full flex flex-col overflow-hidden">
-  <div class="mb-8 shrink-0">
-    <a
-      href={resolve('/')}
-      class="inline-flex items-center gap-1.5 -ml-1 mb-2 h-7 px-1 rounded-md text-[0.8125rem] text-muted-foreground hover:text-foreground transition-colors"
+{#snippet label(title, hint, forId = undefined)}
+  <div class="flex-1 min-w-0">
+    {#if forId}
+      <label for={forId} class="block text-foreground">{title}</label>
+    {:else}
+      <p class="text-foreground">{title}</p>
+    {/if}
+    {#if hint}
+      <p class="meta mt-0.5 leading-snug">{hint}</p>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet toggle(checked, onToggle, name)}
+  <button
+    type="button"
+    role="switch"
+    aria-label={name}
+    aria-checked={checked}
+    onclick={onToggle}
+    class="relative inline-flex h-5.5 w-9 shrink-0 items-center rounded-full transition-colors
+      {checked ? 'bg-primary' : 'bg-foreground/15'}"
+  >
+    <span
+      class="inline-block size-4.5 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.25)] transition-transform
+        {checked ? 'translate-x-4' : 'translate-x-0.5'}"
+    ></span>
+  </button>
+{/snippet}
+
+{#snippet spinner()}
+  <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+  ></span>
+{/snippet}
+
+{#snippet paneNav(row)}
+  {#each SECTIONS as section (section.id)}
+    <button
+      type="button"
+      aria-current={activeSection === section.id ? 'page' : undefined}
+      onclick={() => (activeSection = section.id)}
+      class={row}
     >
-      <ArrowLeftIcon strokeWidth={1.5} class="size-3.5" />
+      <section.icon strokeWidth={1.75} />
+      <span>{section.label}</span>
+    </button>
+  {/each}
+{/snippet}
+
+<!-- System Settings layout: a sidebar of panes and one pane at a time on paper. -->
+<div class="relative flex w-full h-full overflow-hidden gap-3 p-3">
+  <aside
+    aria-label="Settings"
+    class="well hidden md:flex flex-col w-60 shrink-0 p-3 rounded-group h-full"
+  >
+    {#if onMacOS}
+      <!-- The traffic lights sit here; the strip moves the window. -->
+      <div
+        data-tauri-drag-region="deep"
+        class="h-[var(--titlebar-strip,14px)] shrink-0 -mt-3 -mx-3 mb-2"
+      ></div>
+    {/if}
+    <a href={resolve('/')} class="sb-row text-muted-foreground">
+      <ArrowLeftIcon strokeWidth={1.75} />
       Writings
     </a>
-    <h2 class="font-writer text-5xl font-normal text-heading-foreground">Settings</h2>
-  </div>
+    <h2 class="sb-head">Settings</h2>
+    <nav aria-label="Settings panes" class="flex flex-col gap-px">
+      {@render paneNav('sb-row')}
+    </nav>
+  </aside>
 
-  <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-6 md:gap-10">
-    <!-- Side nav -->
-    <!-- Wraps on narrow screens instead of scrolling sideways, so every section stays in sight. -->
-    <nav aria-label="Settings sections" class="flex flex-wrap md:flex-nowrap md:flex-col gap-1 shrink-0 md:w-40">
-      {#each SECTIONS as section (section.id)}
-        <button
-          type="button"
-          aria-current={activeSection === section.id ? 'page' : undefined}
-          onclick={() => (activeSection = section.id)}
-          class="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors shrink-0
-            {activeSection === section.id
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'}"
-        >
-          <section.icon strokeWidth={1.5} class="size-4 shrink-0" />
-          <span>{section.label}</span>
-        </button>
-      {/each}
+  <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
+    <header
+      data-tauri-drag-region="deep"
+      class="toolbar max-md:pl-[max(20px,var(--titlebar-inset-left,0px))]"
+    >
+      <a href={resolve('/')} class="tb-btn md:hidden -ml-2" aria-label="Back to writings">
+        <ArrowLeftIcon strokeWidth={1.7} />
+      </a>
+      <h1 class="toolbar-title">{activeLabel}</h1>
+    </header>
+
+    <!-- Below 768px the panes wrap as chips instead of a sidebar, so every pane stays in sight. -->
+    <nav aria-label="Settings panes" class="md:hidden flex flex-wrap gap-2 px-8 pb-3">
+      {@render paneNav(
+        'chip [&>svg]:size-3.5 aria-[current=page]:bg-foreground aria-[current=page]:text-paper'
+      )}
     </nav>
 
-    <ScrollFade class="flex-1 min-w-0 overflow-hidden">
+    <ScrollFade class="flex-1 min-h-0">
       <ScrollArea type="scroll" class="w-full h-full">
-        <div class="space-y-12 pr-4 pb-4">
-          {#if activeSection === 'appearance'}
-            <!-- Appearance Section -->
-            <section>
-              <div class="flex items-center gap-2 mb-6">
-                <h3 class="font-writer text-2xl font-normal">Appearance</h3>
-              </div>
-              <div class="grid grid-cols-1 gap-8">
-                <div class="p-6 rounded-lg bg-muted/40">
-                  <p class="text-lg font-normal">Style</p>
-                  <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
-                    How the page itself looks: typeface, spacing and the paper effect. The accent
-                    color is set separately below.
-                  </p>
-                  <div class="grid gap-2 sm:grid-cols-2">
-                    {#each STYLE_FLAVOURS as flavour (flavour.id)}
-                      <button
-                        type="button"
-                        onclick={() => appState.setStyleFlavour(flavour.id)}
-                        aria-pressed={appState.ui.styleFlavour === flavour.id}
-                        class="text-left p-4 rounded-lg border transition-colors
-                          {appState.ui.styleFlavour === flavour.id
-                            ? 'bg-primary/10 border-primary/60'
-                            : 'border-border hover:bg-background/60 hover:border-ring/40'}"
-                      >
-                        <span class="flex items-center gap-1.5 text-sm font-medium">
-                          {flavour.label}
-                          {#if appState.ui.styleFlavour === flavour.id}
-                            <CheckIcon strokeWidth={2} class="size-3.5 text-primary" />
-                          {/if}
-                        </span>
-                        <p class="text-xs text-muted-foreground mt-1 leading-snug">{flavour.description}</p>
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Theme</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Light, dark, or follow your system setting.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={appState.ui.themePreference === 'system' ? 'default' : 'ghost'}
-                      size="sm"
-                      class="gap-2 px-3 h-8 text-xs font-medium"
-                      onclick={() => appState.setTheme('system')}
-                      disabled={false}
+        <div class="mx-auto max-w-160 flex flex-col px-8 pt-2 pb-16">
+          {#if activeSection === 'writing'}
+            <h2 class="group-head">Editor</h2>
+            <div class="inset-group">
+              <div class="inset-row">
+                {@render label(
+                  'Paragraph style',
+                  'Spaced reads like a document; indented reads like a printed manuscript page, the style export uses for "Standard manuscript format".'
+                )}
+                <div class="seg flex shrink-0 gap-0.5 rounded-full bg-fill p-0.5">
+                  {#each PARAGRAPH_STYLES as { id, name } (id)}
+                    <button
+                      type="button"
+                      aria-pressed={writingState.paragraphStyle === id}
+                      class="h-6 px-3 text-xs font-medium text-muted-foreground"
+                      onclick={() => writingState.setParagraphStyle(id)}
                     >
-                      <MonitorIcon strokeWidth={1.5} class="size-3.5" />
-                      System
-                    </Button>
-                    <Button
-                      variant={appState.ui.themePreference === 'light' ? 'default' : 'ghost'}
-                      size="sm"
-                      class="gap-2 px-3 h-8 text-xs font-medium"
-                      onclick={() => appState.setTheme('light')}
-                      disabled={false}
-                    >
-                      <SunIcon strokeWidth={1.5} class="size-3.5" />
-                      Light
-                    </Button>
-                    <Button
-                      variant={appState.ui.themePreference === 'dark' ? 'default' : 'ghost'}
-                      size="sm"
-                      class="gap-2 px-3 h-8 text-xs font-medium"
-                      onclick={() => appState.setTheme('dark')}
-                      disabled={false}
-                    >
-                      <MoonIcon strokeWidth={1.5} class="size-3.5" />
-                      Dark
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Density</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Overall text size and spacing across the app.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={appState.ui.density === 'default' ? 'default' : 'ghost'}
-                      size="sm"
-                      class="gap-2 px-3 h-8 text-xs font-medium"
-                      onclick={() => appState.setDensity('default')}
-                      disabled={false}
-                    >
-                      <Rows3Icon strokeWidth={1.5} class="size-3.5" />
-                      Default
-                    </Button>
-                    <Button
-                      variant={appState.ui.density === 'compact' ? 'default' : 'ghost'}
-                      size="sm"
-                      class="gap-2 px-3 h-8 text-xs font-medium"
-                      onclick={() => appState.setDensity('compact')}
-                      disabled={false}
-                    >
-                      <AlignJustifyIcon strokeWidth={1.5} class="size-3.5" />
-                      Compact
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40">
-                  <p class="text-lg font-normal">Color palette</p>
-                  <p class="text-sm text-muted-foreground mt-1 mb-4 tracking-tight">
-                    Accent and primary colors (shadcn-style).
-                  </p>
-                  <div class="flex flex-wrap gap-2">
-                    {#each THEME_PALETTES as palette (palette)}
-                      <button
-                        type="button"
-                        onclick={() => appState.setThemePalette(palette)}
-                        class="flex items-center gap-2 px-3 py-2 rounded-md border text-sm font-medium transition-colors
-                          {appState.ui.themePalette === palette
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background hover:bg-accent border-border'}"
-                      >
-                        <span
-                          class="size-3.5 rounded-full shrink-0
-                            {palette === 'default' ? 'bg-[#7d5129]' : ''}
-                            {palette === 'zinc' ? 'bg-zinc-500' : ''}
-                            {palette === 'slate' ? 'bg-slate-500' : ''}
-                            {palette === 'rose' ? 'bg-rose-500' : ''}
-                            {palette === 'blue' ? 'bg-blue-500' : ''}
-                            {palette === 'green' ? 'bg-green-500' : ''}
-                            {palette === 'violet' ? 'bg-violet-500' : ''}"
-                          aria-hidden="true"
-                        ></span>
-                        <span class="capitalize">{palette}</span>
-                      </button>
-                    {/each}
-                  </div>
+                      {name}
+                    </button>
+                  {/each}
                 </div>
               </div>
-            </section>
-
-            <Separator class="opacity-10" />
-
-            <!-- App Paths Section -->
-            <section>
-              <div class="flex items-center gap-2 mb-8">
-                <h3 class="font-writer text-2xl font-normal">Storage</h3>
+              <div class="inset-row">
+                {@render label('Spellcheck', 'Underline misspelled words while you write.')}
+                {@render toggle(
+                  writingState.spellcheck,
+                  () => writingState.setSpellcheck(!writingState.spellcheck),
+                  'Spellcheck'
+                )}
               </div>
+              <div class="inset-row">
+                {@render label(
+                  'Smart punctuation',
+                  'Curly quotes, em dashes from -- and ellipses from ... as you type. Backspace right after undoes one.'
+                )}
+                {@render toggle(
+                  writingState.smartPunctuation,
+                  () => writingState.setSmartPunctuation(!writingState.smartPunctuation),
+                  'Smart punctuation'
+                )}
+              </div>
+              <div class="inset-row">
+                {@render label(
+                  'Auto-close brackets',
+                  'Typing an opening bracket adds its closing pair; with text selected, it wraps the selection.'
+                )}
+                {@render toggle(
+                  writingState.autoPair,
+                  () => writingState.setAutoPair(!writingState.autoPair),
+                  'Auto-close brackets'
+                )}
+              </div>
+              <div class="inset-row">
+                {@render label(
+                  'Highlight codex names',
+                  `Dotted underline under characters, places and things from the binder's codex. Hover one for its summary, or ${MOD_KEY}-click to open its entry.`
+                )}
+                {@render toggle(
+                  writingState.codexHighlight,
+                  () => writingState.setCodexHighlight(!writingState.codexHighlight),
+                  'Highlight codex names'
+                )}
+              </div>
+            </div>
 
-              <div class="grid grid-cols-1 gap-8">
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">Content directory</span>
-                  </div>
-                  <code class="text-sm break-all font-mono text-foreground/90">
-                    {configManager.config?.content_directory || 'Loading...'}
+            <h2 class="group-head">Focus and goals</h2>
+            <div class="inset-group">
+              <div class="inset-row">
+                {@render label(
+                  'Focus mode goes full screen',
+                  "Off, focus mode just hides the app's own chrome. On, it takes the whole screen, which on macOS moves the window to its own Space."
+                )}
+                {@render toggle(
+                  writingState.focusFullscreen,
+                  () => writingState.setFocusFullscreen(!writingState.focusFullscreen),
+                  'Focus mode goes full screen'
+                )}
+              </div>
+              <div class="inset-row">
+                {@render label(
+                  'Daily word goal',
+                  'Shown next to the word count in the editor. Leave empty for no goal. Binder goals are set from the word count while writing.',
+                  'settings-daily-goal'
+                )}
+                <input
+                  id="settings-daily-goal"
+                  type="number"
+                  min="0"
+                  step="100"
+                  placeholder="No goal"
+                  value={writingState.dailyGoal || ''}
+                  onchange={(e) => writingState.setDailyGoal(Number(e.currentTarget.value))}
+                  class="{FIELD} w-24 shrink-0 text-right tabular-nums"
+                />
+              </div>
+            </div>
+          {:else if activeSection === 'appearance'}
+            <h2 class="group-head">Look</h2>
+            <div class="inset-group">
+              <div class="inset-row">
+                {@render label('Theme', 'Light, dark, or follow your system setting.')}
+                <div class="seg flex shrink-0 gap-0.5 rounded-full bg-fill p-0.5">
+                  {#each THEMES as { id, name, icon: Icon } (id)}
+                    <button
+                      type="button"
+                      aria-pressed={appState.ui.themePreference === id}
+                      class="flex h-6 items-center gap-1.5 px-2.5 text-xs font-medium text-muted-foreground"
+                      onclick={() => appState.setTheme(id)}
+                    >
+                      <Icon strokeWidth={1.75} class="size-3.5" />
+                      {name}
+                    </button>
+                  {/each}
+                </div>
+              </div>
+              <div class="inset-row">
+                {@render label('Density', 'Text size and spacing of the writing.')}
+                <div class="seg flex shrink-0 gap-0.5 rounded-full bg-fill p-0.5">
+                  {#each [['default', 'Default'], ['compact', 'Compact']] as [id, name] (id)}
+                    <button
+                      type="button"
+                      aria-pressed={appState.ui.density === id}
+                      class="h-6 px-3 text-xs font-medium text-muted-foreground"
+                      onclick={() => appState.setDensity(id)}
+                    >
+                      {name}
+                    </button>
+                  {/each}
+                </div>
+              </div>
+              <div class="inset-row flex-wrap">
+                {@render label('Accent colour')}
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Accent colour">
+                  {#each THEME_PALETTES as palette (palette)}
+                    <button
+                      type="button"
+                      title={palette}
+                      aria-label={palette}
+                      aria-pressed={appState.ui.themePalette === palette}
+                      onclick={() => appState.setThemePalette(palette)}
+                      class="size-5.5 rounded-full {PALETTE_DOT[palette] ??
+                        'bg-muted-foreground'} ring-offset-2 ring-offset-card transition-shadow hover:ring-2 hover:ring-hair aria-pressed:ring-2 aria-pressed:ring-foreground/60"
+                    ></button>
+                  {/each}
+                </div>
+              </div>
+            </div>
+
+            <h2 class="group-head">Style</h2>
+            <p class="meta -mt-1 mb-2 mx-3">
+              How the page itself looks: typeface, spacing and the paper effect.
+            </p>
+            <div class="inset-group">
+              {#each STYLE_FLAVOURS as flavour (flavour.id)}
+                <button
+                  type="button"
+                  onclick={() => appState.setStyleFlavour(flavour.id)}
+                  aria-pressed={appState.ui.styleFlavour === flavour.id}
+                  class="inset-row w-full text-left hover:bg-fill aria-pressed:bg-selection"
+                >
+                  {@render label(flavour.label, flavour.description)}
+                  {#if appState.ui.styleFlavour === flavour.id}
+                    <CheckIcon strokeWidth={2} class="size-4 shrink-0 text-primary" />
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {:else if activeSection === 'storage'}
+            <h2 class="group-head">On this machine</h2>
+            <div class="inset-group">
+              <div class="inset-row items-start">
+                <FolderIcon strokeWidth={1.75} class="size-4 mt-0.5 shrink-0 text-primary" />
+                <div class="flex-1 min-w-0">
+                  <p>Content directory</p>
+                  <p class="meta mt-0.5">Where your writings are stored as Markdown files.</p>
+                  <code class="mt-1.5 block text-xs break-all font-mono text-foreground/80">
+                    {configManager.config?.content_directory || 'Loading…'}
                   </code>
-                  <p class="text-sm text-muted-foreground mt-3 tracking-tight">
-                    Where your writings are stored as Markdown files.
-                  </p>
                 </div>
-
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">History directory</span>
-                  </div>
-                  <code class="text-sm break-all font-mono text-foreground/90">
-                    {configManager.config?.undotree_dir || 'Loading...'}
+              </div>
+              <div class="inset-row items-start">
+                <FolderIcon strokeWidth={1.75} class="size-4 mt-0.5 shrink-0 text-primary" />
+                <div class="flex-1 min-w-0">
+                  <p>History directory</p>
+                  <p class="meta mt-0.5">Where version history for each writing is kept.</p>
+                  <code class="mt-1.5 block text-xs break-all font-mono text-foreground/80">
+                    {configManager.config?.undotree_dir || 'Loading…'}
                   </code>
-                  <p class="text-sm text-muted-foreground mt-3 tracking-tight">
-                    Where version history for each writing is kept.
-                  </p>
                 </div>
               </div>
-            </section>
-          {:else if activeSection === 'writing'}
-            <section>
-              <div class="flex items-center gap-2 mb-6">
-                <h3 class="font-writer text-2xl font-normal">Writing</h3>
-              </div>
-              <div class="grid grid-cols-1 gap-8">
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Paragraph style</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Spaced reads like a document; indented reads like a printed manuscript page —
-                      the style export uses for "Standard manuscript format".
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={writingState.paragraphStyle === 'spaced' ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setParagraphStyle('spaced')}
-                      disabled={false}
-                    >
-                      Spaced
-                    </Button>
-                    <Button
-                      variant={writingState.paragraphStyle === 'indented' ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setParagraphStyle('indented')}
-                      disabled={false}
-                    >
-                      Indented
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Spellcheck</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Underline misspelled words while you write.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={writingState.spellcheck ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setSpellcheck(true)}
-                      disabled={false}
-                    >
-                      On
-                    </Button>
-                    <Button
-                      variant={!writingState.spellcheck ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setSpellcheck(false)}
-                      disabled={false}
-                    >
-                      Off
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Focus mode goes full screen</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Off, focus mode just hides the app's own chrome. On, it takes the whole
-                      screen — which on macOS moves the window to its own Space.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={writingState.focusFullscreen ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setFocusFullscreen(true)}
-                      disabled={false}
-                    >
-                      On
-                    </Button>
-                    <Button
-                      variant={!writingState.focusFullscreen ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setFocusFullscreen(false)}
-                      disabled={false}
-                    >
-                      Off
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Highlight codex names</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Dotted underline under characters, places and things from the binder's codex.
-                      Hover one for its summary, or {MOD_KEY}-click to open its entry.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={writingState.codexHighlight ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setCodexHighlight(true)}
-                      disabled={false}
-                    >
-                      On
-                    </Button>
-                    <Button
-                      variant={!writingState.codexHighlight ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setCodexHighlight(false)}
-                      disabled={false}
-                    >
-                      Off
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Smart punctuation</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Curly quotes, em dashes from <code>--</code> and ellipses from <code>...</code> as you type. Backspace right after undoes one.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={writingState.smartPunctuation ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setSmartPunctuation(true)}
-                      disabled={false}
-                    >
-                      On
-                    </Button>
-                    <Button
-                      variant={!writingState.smartPunctuation ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setSmartPunctuation(false)}
-                      disabled={false}
-                    >
-                      Off
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-lg font-normal">Auto-close brackets</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Typing an opening bracket adds its closing pair; with text selected, it wraps the selection.
-                    </p>
-                  </div>
-                  <div class="flex flex-wrap shrink-0 bg-background/60 p-1 rounded-md w-fit max-w-full">
-                    <Button
-                      variant={writingState.autoPair ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setAutoPair(true)}
-                      disabled={false}
-                    >
-                      On
-                    </Button>
-                    <Button
-                      variant={!writingState.autoPair ? 'default' : 'ghost'}
-                      size="sm"
-                      class="px-3 h-8 text-xs font-medium"
-                      onclick={() => writingState.setAutoPair(false)}
-                      disabled={false}
-                    >
-                      Off
-                    </Button>
-                  </div>
-                </div>
-
-                <div class="p-6 rounded-lg bg-muted/40 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <label for="settings-daily-goal" class="text-lg font-normal">Daily word goal</label>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Shown next to the word count in the editor. Leave empty for no goal.
-                      Binder goals are set from the word count while writing.
-                    </p>
-                  </div>
-                  <input
-                    id="settings-daily-goal"
-                    type="number"
-                    min="0"
-                    step="100"
-                    placeholder="No goal"
-                    value={writingState.dailyGoal || ''}
-                    onchange={(e) => writingState.setDailyGoal(Number(e.currentTarget.value))}
-                    class="w-32 h-9 rounded-md border border-border bg-transparent px-3 text-right text-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                  />
-                </div>
-              </div>
-            </section>
+            </div>
           {:else if activeSection === 'ai'}
-            <!-- AI Section -->
-            <section>
-              <div class="flex items-center gap-2 mb-8">
-                <h3 class="font-writer text-2xl font-normal">AI Configuration</h3>
+            <h2 class="group-head">Assistant</h2>
+            <div class="inset-group">
+              <div class="inset-row">
+                {@render label(
+                  'Enable AI',
+                  'Turns on AI chat, autocomplete, and model downloads. Off by default so Memoire starts as a plain writing app.'
+                )}
+                {@render toggle(
+                  configManager.config?.ai_enabled ?? false,
+                  handleToggleAiEnabled,
+                  'Enable AI'
+                )}
               </div>
-
-              <div class="grid grid-cols-1 gap-8">
-                <!-- Enable AI -->
-                <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/40">
-                  <div>
-                    <p class="text-lg font-normal">Enable AI</p>
-                    <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                      Turns on AI chat, autocomplete, and model downloads. Off by default so
-                      Memoire starts as a plain writing app.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-label="Enable AI"
-                    aria-checked={configManager.config?.ai_enabled ?? false}
-                    onclick={handleToggleAiEnabled}
-                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
-                      {configManager.config?.ai_enabled ? 'bg-primary' : 'bg-muted-foreground/30'}"
-                  >
-                    <span
-                      class="inline-block size-4 transform rounded-full bg-background transition-transform
-                        {configManager.config?.ai_enabled ? 'translate-x-6' : 'translate-x-1'}"
-                    ></span>
-                  </button>
-                </div>
-
-                {#if configManager.config?.ai_enabled}
-                <!-- Provider selector -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">AI provider</span>
-                  </div>
-                  <p class="text-sm text-muted-foreground">
-                    Choose whether chat, autocomplete, and grammar checks run locally on your
-                    machine or through OpenRouter. Note search always stays local.
-                  </p>
-                  <div class="flex flex-wrap gap-2 mt-2">
-                    <Button
-                      variant={(configManager.config?.provider ?? 'local') === 'local' ? 'default' : 'outline'}
-                      size="sm"
-                      onclick={() => handleSelectProvider('local')}
-                    >
-                      Local (Kalosm)
-                    </Button>
-                    <Button
-                      variant={configManager.config?.provider === 'openrouter' ? 'default' : 'outline'}
-                      size="sm"
-                      onclick={() => handleSelectProvider('openrouter')}
-                    >
-                      OpenRouter
-                    </Button>
+              {#if configManager.config?.ai_enabled}
+                <div class="inset-row">
+                  {@render label(
+                    'Provider',
+                    'Whether chat, autocomplete, and grammar checks run on this machine or through OpenRouter. Note search always stays local.'
+                  )}
+                  <div class="seg flex shrink-0 gap-0.5 rounded-full bg-fill p-0.5">
+                    {#each [['local', 'Local'], ['openrouter', 'OpenRouter']] as [id, name] (id)}
+                      <button
+                        type="button"
+                        aria-pressed={(configManager.config?.provider ?? 'local') === id}
+                        class="h-6 px-3 text-xs font-medium text-muted-foreground"
+                        onclick={() => handleSelectProvider(id)}
+                      >
+                        {name}
+                      </button>
+                    {/each}
                   </div>
                 </div>
+              {/if}
+            </div>
 
-                {#if configManager.config?.provider === 'openrouter'}
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">OpenRouter</span>
-                  </div>
-
+            {#if configManager.config?.ai_enabled}
+              {#if configManager.config?.provider === 'openrouter'}
+                <h2 class="group-head">OpenRouter</h2>
+                <div class="inset-group">
                   {#if configManager.hasOpenRouterApiKey}
-                    <div class="flex items-center justify-between gap-3">
-                      <p class="text-sm text-muted-foreground">API key saved.</p>
-                      <Button variant="ghost" size="sm" class="text-xs h-8" onclick={() => configManager.clearOpenRouterApiKey()}>
+                    <div class="inset-row">
+                      {@render label('API key', 'Saved on this machine.')}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onclick={() => configManager.clearOpenRouterApiKey()}
+                      >
                         Remove key
                       </Button>
                     </div>
-
-                    <p class="text-sm text-muted-foreground mt-2">
-                      Model: <strong class="wrap-anywhere">{configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}</strong>
-                    </p>
-
-                    {#if configManager.isLoadingOpenRouterModels}
-                      <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
-                        <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-meta text-muted-foreground">Loading models…</span>
-                      </div>
-                    {:else if configManager.openRouterModels.length > 0}
-                      <select
-                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        value={configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}
-                        onchange={(e) => configManager.setOpenRouterModel(e.currentTarget.value)}
-                      >
-                        {#each configManager.openRouterModels as m (m.id)}
-                          <option value={m.id}>{m.name}</option>
-                        {/each}
-                      </select>
-                    {:else}
-                      <Button variant="outline" size="sm" class="text-xs h-8 w-fit" onclick={() => configManager.fetchOpenRouterModels()}>
-                        Load model list
-                      </Button>
-                    {/if}
+                    <div class="inset-row">
+                      {#if configManager.isLoadingOpenRouterModels}
+                        {@render label('Model')}
+                        <span class="meta flex items-center gap-2"
+                          >{@render spinner()} Loading models…</span
+                        >
+                      {:else if configManager.openRouterModels.length > 0}
+                        {@render label('Model', undefined, 'settings-openrouter-model')}
+                        <select
+                          id="settings-openrouter-model"
+                          class="{FIELD} w-56 max-w-[50%]"
+                          value={configManager.config?.openrouter_model ??
+                            'meta-llama/llama-3.1-8b-instruct:free'}
+                          onchange={(e) => configManager.setOpenRouterModel(e.currentTarget.value)}
+                        >
+                          {#each configManager.openRouterModels as m (m.id)}
+                            <option value={m.id}>{m.name}</option>
+                          {/each}
+                        </select>
+                      {:else}
+                        {@render label(
+                          'Model',
+                          configManager.config?.openrouter_model ??
+                            'meta-llama/llama-3.1-8b-instruct:free'
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onclick={() => configManager.fetchOpenRouterModels()}
+                        >
+                          Load model list
+                        </Button>
+                      {/if}
+                    </div>
                   {:else}
-                    <p class="text-sm text-muted-foreground">
-                      Enter an OpenRouter API key to use remote models for chat, autocomplete, and grammar checks.
-                    </p>
-                    <div class="flex gap-2 mt-2">
-                      <input
-                        type="password"
-                        class="flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        placeholder="sk-or-..."
-                        bind:value={openRouterKeyInput}
-                      />
-                      <Button size="sm" onclick={handleSaveOpenRouterKey} disabled={!openRouterKeyInput.trim()}>
-                        Save
-                      </Button>
-                    </div>
-                  {/if}
-                </div>
-                {/if}
-
-                {#if (configManager.config?.provider ?? 'local') === 'local'}
-                <div class="flex flex-col gap-1.5 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">Supported models (Kalosm)</span>
-                  </div>
-
-                  {#if llmManager.error}
-                    <div class="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                      {llmManager.error}
-                    </div>
-                  {/if}
-
-                  <p class="text-sm text-muted-foreground mt-2">
-                    Default model: <strong>{llmManager.supportedModels.find(m => m.id === (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct'))?.name ?? (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct')}</strong>
-                  </p>
-
-                  <div class="space-y-3 mt-2">
-                    {#if llmManager.supportedModels.length > 0}
-                      {#each llmManager.supportedModels as model (model.id)}
-                        <div class="flex items-center justify-between gap-3 p-3 rounded-md bg-background/50 border border-border/50">
-                          <div class="flex flex-col min-w-0 flex-1">
-                            <span class="text-sm font-medium truncate">{model.name}</span>
-                            <div class="flex items-center gap-2 mt-1">
-                              <span
-                                class="inline-flex px-2 py-0.5 rounded text-meta font-medium {model.model_type === 'chat'
-                                  ? 'bg-success/10 text-success border border-success/20'
-                                  : model.model_type === 'reasoning'
-                                    ? 'bg-primary/10 text-primary border border-primary/20'
-                                    : 'bg-warning/10 text-warning border border-warning/20'}"
-                              >
-                                {model.model_type}
-                              </span>
-                            </div>
-                          </div>
-                          <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                            {#if model.downloaded}
-                              <span class="flex items-center gap-1 text-meta text-muted-foreground">
-                                <CheckIcon strokeWidth={1.75} class="size-3" />
-                                Downloaded
-                              </span>
-                              {@const isDefault = (configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct') === model.id}
-                              {#if !isDefault}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  class="text-xs h-8"
-                                  onclick={() => configManager.setDefaultLlmModel(model.id)}
-                                >
-                                  Set as default
-                                </Button>
-                              {:else}
-                                <span class="text-meta font-medium text-muted-foreground">Default</span>
-                              {/if}
-                            {:else}
-                              {@const isDownloading = llmManager.downloadingModelId === model.id}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                class="text-xs h-8"
-                                onclick={() => llmManager.downloadModel(model.id)}
-                                disabled={isDownloading || !!llmManager.downloadingModelId}
-                              >
-                                {#if isDownloading}
-                                  <span class="flex items-center gap-1.5">
-                                    <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                                    Downloading {llmManager.loadingProgress}%
-                                  </span>
-                                {:else}
-                                  Download
-                                {/if}
-                              </Button>
-                            {/if}
-                          </div>
-                        </div>
-                      {/each}
-                    {:else}
-                      <div class="p-4 rounded-md bg-muted/10 border border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
-                        <div class="size-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                        <span class="text-meta text-muted-foreground">Loading supported models…</span>
+                    <div class="inset-row flex-col items-stretch gap-2">
+                      {@render label(
+                        'API key',
+                        'Enter an OpenRouter API key to use remote models for chat, autocomplete, and grammar checks.'
+                      )}
+                      <div class="flex gap-2">
+                        <input
+                          type="password"
+                          aria-label="OpenRouter API key"
+                          class="{FIELD} flex-1"
+                          placeholder="sk-or-..."
+                          bind:value={openRouterKeyInput}
+                        />
+                        <Button
+                          size="sm"
+                          onclick={handleSaveOpenRouterKey}
+                          disabled={!openRouterKeyInput.trim()}
+                        >
+                          Save
+                        </Button>
                       </div>
-                    {/if}
-                  </div>
-
-                  <p class="text-sm text-muted-foreground mt-6 tracking-tight">
-                    Models are stored locally in your app directory. Only downloaded models can be set as default.
-                  </p>
+                    </div>
+                  {/if}
                 </div>
-                {/if}
+              {/if}
 
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">Note search</span>
+              {#if (configManager.config?.provider ?? 'local') === 'local'}
+                {@const defaultId =
+                  configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct'}
+                <h2 class="group-head">Local models</h2>
+                {#if llmManager.error}
+                  <div class="{NOTICE} mb-2 bg-destructive/10 text-destructive">
+                    {llmManager.error}
                   </div>
-                  <p class="text-sm text-muted-foreground">
-                    Your notes are indexed on this device so the assistant can search them. Saved
-                    changes are picked up automatically; reindex after importing notes from elsewhere.
-                  </p>
+                {/if}
+                <div class="inset-group">
+                  {#if llmManager.supportedModels.length > 0}
+                    {#each llmManager.supportedModels as model (model.id)}
+                      <div class="inset-row">
+                        <div class="flex-1 min-w-0">
+                          <p class="truncate">{model.name}</p>
+                          <p class="meta mt-0.5 capitalize">{model.model_type}</p>
+                        </div>
+                        {#if model.downloaded}
+                          {#if model.id === defaultId}
+                            <span class="meta flex items-center gap-1">
+                              <CheckIcon strokeWidth={2} class="size-3.5 text-primary" />
+                              Default
+                            </span>
+                          {:else}
+                            <span class="meta">Downloaded</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onclick={() => configManager.setDefaultLlmModel(model.id)}
+                            >
+                              Set as default
+                            </Button>
+                          {/if}
+                        {:else}
+                          {@const isDownloading = llmManager.downloadingModelId === model.id}
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onclick={() => llmManager.downloadModel(model.id)}
+                            disabled={isDownloading || !!llmManager.downloadingModelId}
+                          >
+                            {#if isDownloading}
+                              {@render spinner()}
+                              Downloading {llmManager.loadingProgress}%
+                            {:else}
+                              Download
+                            {/if}
+                          </Button>
+                        {/if}
+                      </div>
+                    {/each}
+                  {:else}
+                    <div class="inset-row meta">{@render spinner()} Loading supported models…</div>
+                  {/if}
+                </div>
+                <p class="meta mt-2 mx-3">
+                  Models are stored in your app directory. Only downloaded models can be set as
+                  default.
+                </p>
+              {/if}
 
-                  <div class="flex items-center justify-between gap-3 mt-2">
-                    <p class="text-sm">
+              <h2 class="group-head">Note search</h2>
+              <div class="inset-group">
+                <div class="inset-row">
+                  <div class="flex-1 min-w-0">
+                    <p>
                       {#if memoryManager.indexProgress}
                         {memoryManager.indexProgress.total
                           ? `Indexing ${memoryManager.indexProgress.done} of ${memoryManager.indexProgress.total} notes…`
                           : 'Preparing to index…'}
                       {:else if memoryManager.indexStatus}
-                        {memoryManager.indexStatus.documents} notes · {memoryManager.indexStatus.passages} passages indexed
+                        {memoryManager.indexStatus.documents} notes · {memoryManager.indexStatus
+                          .passages} passages indexed
                       {:else}
                         Checking index…
                       {/if}
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="text-xs h-8 shrink-0"
-                      disabled={!!memoryManager.indexProgress}
-                      onclick={() => memoryManager.reindexNotes(true)}
-                    >
-                      Reindex notes
-                    </Button>
+                    <p class="meta mt-0.5 leading-snug">
+                      Notes are indexed on this device so the assistant can search them. Saved
+                      changes are picked up automatically; reindex after importing notes from
+                      elsewhere.
+                    </p>
+                    {#if memoryManager.indexProgress?.total}
+                      <div class="mt-2 h-1 w-full rounded-full bg-fill overflow-hidden">
+                        <div
+                          class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
+                          style="transform: scaleX({memoryManager.indexProgress.done /
+                            memoryManager.indexProgress.total})"
+                        ></div>
+                      </div>
+                    {/if}
                   </div>
-
-                  {#if memoryManager.indexProgress?.total}
-                    <div class="h-1 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
-                        style="transform: scaleX({memoryManager.indexProgress.done / memoryManager.indexProgress.total})"
-                      ></div>
-                    </div>
-                  {/if}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!!memoryManager.indexProgress}
+                    onclick={() => memoryManager.reindexNotes(true)}
+                  >
+                    Reindex notes
+                  </Button>
                 </div>
-
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CpuIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">System prompt</span>
-                  </div>
-                  <p class="text-sm text-muted-foreground">
-                    Set the instructions that guide the behavior of the AI in the sidebar chat.
-                  </p>
-
-                  <div class="flex flex-col gap-2 mt-2">
-                    <textarea
-                      class="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="e.g. You are a helpful AI assistant..."
-                      value={configManager.config?.system_prompt ?? ''}
-                      onchange={(e) => {
-                        const val = e.currentTarget.value;
-                        configManager.setSystemPrompt(val);
-                      }}
-                    ></textarea>
-                  </div>
-                </div>
-                {/if}
               </div>
-            </section>
+
+              <h2 class="group-head">System prompt</h2>
+              <div class="inset-group">
+                <textarea
+                  aria-label="System prompt"
+                  class="block min-h-30 w-full resize-y bg-transparent px-5 py-3.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:bg-fill"
+                  placeholder="e.g. You are a helpful AI assistant..."
+                  value={configManager.config?.system_prompt ?? ''}
+                  onchange={(e) => configManager.setSystemPrompt(e.currentTarget.value)}></textarea>
+              </div>
+              <p class="meta mt-2 mx-3">
+                The instructions that guide the assistant in the chat panel.
+              </p>
+            {/if}
           {:else if activeSection === 'sync'}
-            <!-- Cloud Sync Section -->
-            <section>
-              <div class="flex items-center gap-2 mb-8">
-                <h3 class="font-writer text-2xl font-normal">Cloud Sync</h3>
-              </div>
-
-              <div class="grid grid-cols-1 gap-8">
-                <!-- Preferred storage -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <CloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">Preferred storage</span>
-                  </div>
-                  <p class="text-sm text-muted-foreground">
-                    Where your writing is synced. One backend is active at a time; the other keeps
-                    its settings and stays idle.
-                  </p>
-                  <div class="flex flex-wrap gap-2 mt-2">
-                    <Button
-                      variant={syncProvider === 'none' ? 'default' : 'outline'}
-                      size="sm"
-                      onclick={() => handleSelectSyncProvider('none')}
+            <h2 class="group-head">Sync</h2>
+            <div class="inset-group">
+              <div class="inset-row flex-wrap">
+                {@render label(
+                  'Preferred storage',
+                  'One backend is active at a time; the other keeps its settings and stays idle.'
+                )}
+                <div class="seg flex shrink-0 gap-0.5 rounded-full bg-fill p-0.5">
+                  {#each SYNC_PROVIDERS as { id, name, icon: Icon } (id)}
+                    <button
+                      type="button"
+                      aria-pressed={syncProvider === id}
+                      class="flex h-6 items-center gap-1.5 px-2.5 text-xs font-medium text-muted-foreground"
+                      onclick={() => handleSelectSyncProvider(id)}
                     >
-                      This machine only
-                    </Button>
-                    <Button
-                      variant={syncProvider === 'github' ? 'default' : 'outline'}
-                      size="sm"
-                      class="gap-1.5"
-                      onclick={() => handleSelectSyncProvider('github')}
-                    >
-                      <GithubIcon strokeWidth={1.5} class="size-3.5" />
-                      GitHub
-                    </Button>
-                    <Button
-                      variant={syncProvider === 'dropbox' ? 'default' : 'outline'}
-                      size="sm"
-                      class="gap-1.5"
-                      onclick={() => handleSelectSyncProvider('dropbox')}
-                    >
-                      <DropboxIcon strokeWidth={1.5} class="size-3.5" />
-                      Dropbox
-                    </Button>
-                  </div>
+                      {#if Icon}<Icon strokeWidth={1.75} class="size-3.5" />{/if}
+                      {name}
+                    </button>
+                  {/each}
                 </div>
+              </div>
+              {#if syncProvider === 'none'}
+                <div class="inset-row meta leading-snug">
+                  Nothing leaves your machine. Pick GitHub or Dropbox to sync your writing;
+                  whichever you've already set up stays configured.
+                </div>
+              {/if}
+            </div>
 
-                {#if syncProvider === 'github'}
-                <!-- Account -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">Account</span>
-                  </div>
-
-                  {#if gitManager.error}
-                    <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                      {typeof gitManager.error === 'string' ? gitManager.error : 'Something went wrong.'}
-                    </div>
-                  {/if}
-
-                  {#if gitManager.isCheckingSession}
-                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                      Checking session…
-                    </div>
-                  {:else if gitManager.user}
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="flex items-center gap-3 min-w-0">
-                        {#if gitManager.user.avatar_url}
-                          <img src={gitManager.user.avatar_url} alt="" class="size-9 rounded-full" />
-                        {/if}
-                        <div class="flex flex-col min-w-0">
-                          <span class="text-sm font-medium truncate">{gitManager.user.name || gitManager.user.login}</span>
-                          <span class="text-xs text-muted-foreground truncate">@{gitManager.user.login}</span>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" class="text-xs h-8" onclick={() => gitManager.logout()}>
-                        Disconnect
-                      </Button>
-                    </div>
-                  {:else if gitManager.deviceCode}
-                    <div class="flex flex-col items-start gap-2">
-                      <p class="text-sm text-muted-foreground">
-                        Enter this code at
-                        <span class="font-mono text-primary">{gitManager.deviceCode.verification_uri}</span>
-                        (opened in your browser):
+            {#if syncProvider === 'github'}
+              <h2 class="group-head">GitHub account</h2>
+              {#if gitManager.error}
+                <div class="{NOTICE} mb-2 bg-destructive/10 text-destructive">
+                  {typeof gitManager.error === 'string'
+                    ? gitManager.error
+                    : 'Something went wrong.'}
+                </div>
+              {/if}
+              <div class="inset-group">
+                {#if gitManager.isCheckingSession}
+                  <div class="inset-row meta">{@render spinner()} Checking session…</div>
+                {:else if gitManager.user}
+                  <div class="inset-row">
+                    {#if gitManager.user.avatar_url}
+                      <img src={gitManager.user.avatar_url} alt="" class="size-8 rounded-full" />
+                    {/if}
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium truncate">
+                        {gitManager.user.name || gitManager.user.login}
                       </p>
-                      <span class="text-2xl font-mono tracking-widest font-medium">{gitManager.deviceCode.user_code}</span>
-                      <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Waiting for approval…
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7 mt-1" onclick={() => gitManager.cancelLogin()}>
-                        Cancel
-                      </Button>
+                      <p class="meta truncate">@{gitManager.user.login}</p>
                     </div>
-                  {:else}
+                    <Button variant="secondary" size="sm" onclick={() => gitManager.logout()}
+                      >Disconnect</Button
+                    >
+                  </div>
+                  <div class="inset-row">
+                    {@render label(
+                      'Auto-push on exit',
+                      'Commit and push any pending changes to GitHub when you close Memoire.'
+                    )}
+                    {@render toggle(
+                      configManager.config?.auto_push_on_exit ?? false,
+                      () =>
+                        configManager.setAutoPushOnExit(
+                          !(configManager.config?.auto_push_on_exit ?? false)
+                        ),
+                      'Auto-push on exit'
+                    )}
+                  </div>
+                {:else if gitManager.deviceCode}
+                  <div class="inset-row flex-col items-start gap-2">
+                    <p class="meta">
+                      Enter this code at
+                      <span class="font-mono text-primary"
+                        >{gitManager.deviceCode.verification_uri}</span
+                      >
+                      (opened in your browser):
+                    </p>
+                    <span class="text-2xl font-mono tracking-widest font-medium"
+                      >{gitManager.deviceCode.user_code}</span
+                    >
+                    <div class="flex w-full items-center gap-2 meta">
+                      {@render spinner()} Waiting for approval…
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="ml-auto"
+                        onclick={() => gitManager.cancelLogin()}>Cancel</Button
+                      >
+                    </div>
+                  </div>
+                {:else}
+                  <div class="inset-row">
+                    {@render label(
+                      'Not connected',
+                      'Sign in to sync your content directory with a GitHub repository.'
+                    )}
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
-                      class="gap-2 text-xs h-8 w-fit"
                       onclick={() => gitManager.startLogin()}
                       disabled={gitManager.isConnecting}
                     >
-                      <GithubIcon strokeWidth={1.5} class="size-3.5" />
+                      <GithubIcon strokeWidth={1.75} />
                       Login with GitHub
                     </Button>
-                  {/if}
-                </div>
-
-                {#if gitManager.user}
-                  <!-- Auto push on exit -->
-                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/40">
-                    <div>
-                      <p class="text-lg font-normal">Auto-push on exit</p>
-                      <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                        Commit & push any pending changes to GitHub when you close Memoire.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-label="Auto-push on exit"
-                      aria-checked={configManager.config?.auto_push_on_exit ?? false}
-                      onclick={() =>
-                        configManager.setAutoPushOnExit(!(configManager.config?.auto_push_on_exit ?? false))}
-                      class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
-                        {configManager.config?.auto_push_on_exit ? 'bg-primary' : 'bg-muted-foreground/30'}"
-                    >
-                      <span
-                        class="inline-block size-4 transform rounded-full bg-background transition-transform
-                          {configManager.config?.auto_push_on_exit ? 'translate-x-6' : 'translate-x-1'}"
-                      ></span>
-                    </button>
                   </div>
+                {/if}
+              </div>
 
-                  <!-- Repository -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                      <GithubIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                      <span class="text-sm font-medium text-muted-foreground">Repository</span>
-                    </div>
-                    <p class="text-sm text-muted-foreground">
-                      Writing in your content directory is committed &amp; pushed to this GitHub repository.
-                      Already have writing on GitHub? Import pulls it into this content directory.
-                    </p>
-                    <div class="flex flex-wrap items-center gap-2 mt-1">
+              {#if gitManager.user}
+                <h2 class="group-head">Repository</h2>
+                <div class="inset-group">
+                  <div class="inset-row flex-col items-stretch gap-2">
+                    {@render label(
+                      'owner/repo',
+                      'Writing in your content directory is committed and pushed here. Already have writing on GitHub? Import pulls it into this content directory.'
+                    )}
+                    <div class="flex flex-wrap items-center gap-2">
                       <input
                         type="text"
+                        aria-label="GitHub repository"
                         bind:value={repoInput}
                         placeholder="owner/repo"
-                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
- />
-                      <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveRepo}>
-                        Save
-                      </Button>
+                        class="{FIELD} flex-1 basis-40"
+                      />
+                      <Button variant="secondary" size="sm" onclick={handleSaveRepo}>Save</Button>
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
-                        class="gap-1.5 text-xs h-9"
                         onclick={handleImport}
                         disabled={gitManager.isImporting || !repoInput.trim()}
                       >
                         {#if gitManager.isImporting}
-                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                          Importing…
+                          {@render spinner()} Importing…
                         {:else}
-                          <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                          Import
+                          <DownloadCloudIcon strokeWidth={1.75} /> Import
                         {/if}
                       </Button>
                     </div>
                     {#if gitManager.importResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Imported from GitHub.
-                      </div>
+                      <div class="{NOTICE} bg-success/10 text-success">Imported from GitHub.</div>
                     {:else if gitManager.importResult === 'error'}
-                      <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Import failed: {typeof gitManager.error === 'string' ? gitManager.error : 'unknown error'}
+                      <div class="{NOTICE} bg-destructive/10 text-destructive">
+                        Import failed: {typeof gitManager.error === 'string'
+                          ? gitManager.error
+                          : 'unknown error'}
                       </div>
                     {/if}
                   </div>
+                </div>
 
-                  <!-- Status & push -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                    <div class="flex items-center justify-between mb-1">
-                      <div class="flex items-center gap-2 text-muted-foreground">
-                        <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                        <span class="text-sm font-medium text-muted-foreground">Changes</span>
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => gitManager.refreshStatus()}>
-                        Refresh
-                      </Button>
+                <div class="flex items-end">
+                  <h2 class="group-head flex-1">Changes</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="mb-1"
+                    onclick={() => gitManager.refreshStatus()}>Refresh</Button
+                  >
+                </div>
+                <div class="inset-group">
+                  {#if gitManager.isLoadingStatus}
+                    <div class="inset-row meta">{@render spinner()} Loading status…</div>
+                  {:else if gitManager.status.length === 0}
+                    <div class="inset-row meta">No changes to commit.</div>
+                  {:else}
+                    <div class="max-h-40 overflow-y-auto">
+                      {#each gitManager.status as file (file.path)}
+                        <div class="flex items-center justify-between gap-3 px-5 py-1.5 text-xs">
+                          <span class="font-mono truncate">{file.path}</span>
+                          <span class="meta shrink-0">{file.status}</span>
+                        </div>
+                      {/each}
                     </div>
-
-                    {#if gitManager.isLoadingStatus}
-                      <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Loading status…
-                      </div>
-                    {:else if gitManager.status.length === 0}
-                      <p class="text-sm text-muted-foreground italic">No changes to commit.</p>
-                    {:else}
-                      <div class="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                        {#each gitManager.status as file (file.path)}
-                          <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
-                            <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-meta text-muted-foreground shrink-0">{file.status}</span>
-                          </div>
-                        {/each}
-                      </div>
-                    {/if}
-
-                    <textarea
-                      class="flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mt-2"
-                      placeholder="Commit message"
-                      bind:value={commitMessage}
-                    ></textarea>
-
+                  {/if}
+                  <textarea
+                    aria-label="Commit message"
+                    class="block min-h-20 w-full resize-y bg-transparent px-5 py-3.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:bg-fill"
+                    placeholder="Commit message"
+                    bind:value={commitMessage}></textarea>
+                  <div class="inset-row justify-end">
                     {#if gitManager.pushResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Pushed to GitHub.
-                      </div>
+                      <span class="meta text-success! mr-auto">Pushed to GitHub.</span>
                     {/if}
-
                     <Button
-                      class="gap-2 w-fit"
+                      size="sm"
                       onclick={handleCommitPush}
                       disabled={gitManager.isPushing || !commitMessage.trim()}
                     >
                       {#if gitManager.isPushing}
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Pushing…
+                        {@render spinner()} Pushing…
                       {:else}
-                        <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                        Commit & Push
+                        <UploadCloudIcon strokeWidth={1.75} /> Commit & Push
                       {/if}
                     </Button>
                   </div>
-                {/if}
-                {:else if syncProvider === 'dropbox'}
-                <!-- Dropbox account -->
-                <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                    <DropboxIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                    <span class="text-sm font-medium text-muted-foreground">Account</span>
-                  </div>
-
-                  {#if dropboxManager.error}
-                    <div class="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                      {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'Something went wrong.'}
-                    </div>
-                  {/if}
-
-                  {#if dropboxManager.isCheckingSession}
-                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                      Checking session…
-                    </div>
-                  {:else if dropboxManager.account}
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="flex items-center gap-3 min-w-0">
-                        {#if dropboxManager.account.photo_url}
-                          <img src={dropboxManager.account.photo_url} alt="" class="size-9 rounded-full" />
-                        {/if}
-                        <div class="flex flex-col min-w-0">
-                          <span class="text-sm font-medium truncate">{dropboxManager.account.name}</span>
-                          {#if dropboxManager.account.email}
-                            <span class="text-xs text-muted-foreground truncate">{dropboxManager.account.email}</span>
-                          {/if}
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" class="text-xs h-8" onclick={() => dropboxManager.logout()}>
-                        Disconnect
-                      </Button>
-                    </div>
-                  {:else if dropboxManager.isConnecting}
-                    <div class="flex flex-col items-start gap-2">
-                      <p class="text-sm text-muted-foreground">
-                        Approve Memoire in the Dropbox page that opened in your browser.
-                      </p>
-                      <div class="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Waiting for approval…
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7 mt-1" onclick={() => dropboxManager.cancelLogin()}>
-                        Cancel
-                      </Button>
-                    </div>
-                  {:else}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="gap-2 text-xs h-8 w-fit"
-                      onclick={() => dropboxManager.startLogin()}
-                    >
-                      <DropboxIcon strokeWidth={1.5} class="size-3.5" />
-                      Connect Dropbox
-                    </Button>
-                  {/if}
                 </div>
-
-                {#if dropboxManager.account}
-                  <!-- Auto push on exit -->
-                  <div class="flex items-center justify-between gap-6 p-6 rounded-lg bg-muted/40">
-                    <div>
-                      <p class="text-lg font-normal">Auto-push on exit</p>
-                      <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                        Upload any changed writing to Dropbox when you close Memoire.
-                      </p>
+              {/if}
+            {:else if syncProvider === 'dropbox'}
+              <h2 class="group-head">Dropbox account</h2>
+              {#if dropboxManager.error}
+                <div class="{NOTICE} mb-2 bg-destructive/10 text-destructive">
+                  {typeof dropboxManager.error === 'string'
+                    ? dropboxManager.error
+                    : 'Something went wrong.'}
+                </div>
+              {/if}
+              <div class="inset-group">
+                {#if dropboxManager.isCheckingSession}
+                  <div class="inset-row meta">{@render spinner()} Checking session…</div>
+                {:else if dropboxManager.account}
+                  <div class="inset-row">
+                    {#if dropboxManager.account.photo_url}
+                      <img
+                        src={dropboxManager.account.photo_url}
+                        alt=""
+                        class="size-8 rounded-full"
+                      />
+                    {/if}
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium truncate">{dropboxManager.account.name}</p>
+                      {#if dropboxManager.account.email}
+                        <p class="meta truncate">{dropboxManager.account.email}</p>
+                      {/if}
                     </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-label="Auto-push to Dropbox on exit"
-                      aria-checked={configManager.config?.dropbox_auto_push_on_exit ?? false}
-                      onclick={() =>
+                    <Button variant="secondary" size="sm" onclick={() => dropboxManager.logout()}
+                      >Disconnect</Button
+                    >
+                  </div>
+                  <div class="inset-row">
+                    {@render label(
+                      'Auto-push on exit',
+                      'Upload any changed writing to Dropbox when you close Memoire.'
+                    )}
+                    {@render toggle(
+                      configManager.config?.dropbox_auto_push_on_exit ?? false,
+                      () =>
                         configManager.setDropboxAutoPushOnExit(
                           !(configManager.config?.dropbox_auto_push_on_exit ?? false)
-                        )}
-                      class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
-                        {configManager.config?.dropbox_auto_push_on_exit ? 'bg-primary' : 'bg-muted-foreground/30'}"
-                    >
-                      <span
-                        class="inline-block size-4 transform rounded-full bg-background transition-transform
-                          {configManager.config?.dropbox_auto_push_on_exit ? 'translate-x-6' : 'translate-x-1'}"
-                      ></span>
-                    </button>
+                        ),
+                      'Auto-push to Dropbox on exit'
+                    )}
                   </div>
-
-                  <!-- Folder -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                    <div class="flex items-center gap-2 text-muted-foreground mb-1">
-                      <FolderIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                      <span class="text-sm font-medium text-muted-foreground">Folder</span>
+                {:else if dropboxManager.isConnecting}
+                  <div class="inset-row">
+                    <div class="flex-1 min-w-0">
+                      <p>Approve Memoire in the Dropbox page that opened in your browser.</p>
+                      <p class="meta mt-0.5 flex items-center gap-2">
+                        {@render spinner()} Waiting for approval…
+                      </p>
                     </div>
-                    <p class="text-sm text-muted-foreground">
-                      Writing in your content directory is uploaded to this Dropbox folder, which is
-                      created if it doesn't exist yet. Pull brings writing from Dropbox down into
-                      this content directory.
-                    </p>
-                    <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <Button variant="ghost" size="sm" onclick={() => dropboxManager.cancelLogin()}
+                      >Cancel</Button
+                    >
+                  </div>
+                {:else}
+                  <div class="inset-row">
+                    {@render label(
+                      'Not connected',
+                      'Connect to sync your content directory with a Dropbox folder.'
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onclick={() => dropboxManager.startLogin()}
+                    >
+                      <DropboxIcon strokeWidth={1.75} />
+                      Connect Dropbox
+                    </Button>
+                  </div>
+                {/if}
+              </div>
+
+              {#if dropboxManager.account}
+                <h2 class="group-head">Folder</h2>
+                <div class="inset-group">
+                  <div class="inset-row flex-col items-stretch gap-2">
+                    {@render label(
+                      'Dropbox folder',
+                      "Writing in your content directory is uploaded here; the folder is created if it doesn't exist yet. Pull brings writing from Dropbox down into this content directory."
+                    )}
+                    <div class="flex flex-wrap items-center gap-2">
                       <input
                         type="text"
+                        aria-label="Dropbox folder"
                         bind:value={dropboxFolderInput}
                         placeholder="/Memoire"
-                        class="flex h-9 flex-1 basis-40 min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
- />
-                      <Button variant="secondary" size="sm" class="text-xs h-9" onclick={handleSaveDropboxFolder}>
-                        Save
-                      </Button>
+                        class="{FIELD} flex-1 basis-40"
+                      />
+                      <Button variant="secondary" size="sm" onclick={handleSaveDropboxFolder}
+                        >Save</Button
+                      >
                       <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
-                        class="gap-1.5 text-xs h-9"
                         onclick={handleDropboxPull}
                         disabled={dropboxManager.isPulling || !dropboxFolderInput.trim()}
                       >
                         {#if dropboxManager.isPulling}
-                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                          Pulling…
+                          {@render spinner()} Pulling…
                         {:else}
-                          <DownloadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                          Pull
+                          <DownloadCloudIcon strokeWidth={1.75} /> Pull
                         {/if}
                       </Button>
                     </div>
                     {#if dropboxManager.pullResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
+                      <div class="{NOTICE} bg-success/10 text-success">
                         Pulled {dropboxManager.lastSync?.downloaded ?? 0} file(s) from Dropbox.
                         {#if dropboxManager.lastSync?.conflicts}
-                          {dropboxManager.lastSync.conflicts} file(s) changed on both sides — Dropbox's version
-                          was saved beside yours as "(Dropbox conflict)".
+                          {dropboxManager.lastSync.conflicts} file(s) changed on both sides — Dropbox's
+                          version was saved beside yours as "(Dropbox conflict)".
                         {/if}
                       </div>
                     {:else if dropboxManager.pullResult === 'error'}
-                      <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
-                        Pull failed: {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'unknown error'}
+                      <div class="{NOTICE} bg-destructive/10 text-destructive">
+                        Pull failed: {typeof dropboxManager.error === 'string'
+                          ? dropboxManager.error
+                          : 'unknown error'}
                       </div>
                     {/if}
                   </div>
+                </div>
 
-                  <!-- Status & push -->
-                  <div class="flex flex-col gap-3 p-6 rounded-lg bg-muted/40">
-                    <div class="flex items-center justify-between mb-1">
-                      <div class="flex items-center gap-2 text-muted-foreground">
-                        <UploadCloudIcon strokeWidth={1.5} class="size-4 opacity-50" />
-                        <span class="text-sm font-medium text-muted-foreground">Changes</span>
-                      </div>
-                      <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => dropboxManager.refreshStatus()}>
-                        Refresh
-                      </Button>
+                <div class="flex items-end">
+                  <h2 class="group-head flex-1">Changes</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="mb-1"
+                    onclick={() => dropboxManager.refreshStatus()}>Refresh</Button
+                  >
+                </div>
+                <div class="inset-group">
+                  {#if dropboxManager.isLoadingStatus}
+                    <div class="inset-row meta">{@render spinner()} Loading status…</div>
+                  {:else if dropboxManager.status.length === 0}
+                    <div class="inset-row meta">Everything is in sync.</div>
+                  {:else}
+                    <div class="max-h-40 overflow-y-auto">
+                      {#each dropboxManager.status as file (file.path)}
+                        <div class="flex items-center justify-between gap-3 px-5 py-1.5 text-xs">
+                          <span class="font-mono truncate">{file.path}</span>
+                          <span
+                            class="meta shrink-0 {file.status === 'conflict'
+                              ? 'text-destructive!'
+                              : ''}">{file.status.replace('_', ' ')}</span
+                          >
+                        </div>
+                      {/each}
                     </div>
-
-                    {#if dropboxManager.isLoadingStatus}
-                      <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Loading status…
-                      </div>
-                    {:else if dropboxManager.status.length === 0}
-                      <p class="text-sm text-muted-foreground italic">Everything is in sync.</p>
-                    {:else}
-                      <div class="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                        {#each dropboxManager.status as file (file.path)}
-                          <div class="flex items-center justify-between gap-2 text-sm px-2 py-1 rounded bg-background/50">
-                            <span class="font-mono truncate">{file.path}</span>
-                            <span class="text-meta shrink-0 {file.status === 'conflict' ? 'text-destructive' : 'text-muted-foreground'}">{file.status.replace('_', ' ')}</span>
-                          </div>
-                        {/each}
-                      </div>
-                    {/if}
-
+                  {/if}
+                  <div class="inset-row justify-end">
                     {#if dropboxManager.pushResult === 'success'}
-                      <div class="p-2 rounded-md bg-success/10 border border-success/20 text-sm text-success wrap-anywhere max-h-40 overflow-y-auto overscroll-contain">
+                      <span class="meta text-success! mr-auto">
                         Pushed {dropboxManager.lastSync?.uploaded ?? 0} file(s) to Dropbox.
                         {#if dropboxManager.lastSync?.conflicts}
-                          Skipped {dropboxManager.lastSync.conflicts} file(s) changed on both sides — pull to
-                          keep both versions.
+                          Skipped {dropboxManager.lastSync.conflicts} file(s) changed on both sides —
+                          pull to keep both versions.
                         {/if}
-                      </div>
+                      </span>
                     {/if}
-
                     <Button
-                      class="gap-2 w-fit mt-2"
+                      size="sm"
                       onclick={() => dropboxManager.push()}
                       disabled={dropboxManager.isPushing || !configManager.config?.dropbox_folder}
                     >
                       {#if dropboxManager.isPushing}
-                        <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                        Pushing…
+                        {@render spinner()} Pushing…
                       {:else}
-                        <UploadCloudIcon strokeWidth={1.5} class="size-3.5" />
-                        Push to Dropbox
+                        <UploadCloudIcon strokeWidth={1.75} /> Push to Dropbox
                       {/if}
                     </Button>
                   </div>
-                {/if}
-                {:else}
-                <div class="flex flex-col gap-2 p-6 rounded-lg bg-muted/40">
-                  <p class="text-lg font-normal">This machine only</p>
-                  <p class="text-sm text-muted-foreground tracking-tight">
-                    Nothing leaves your machine. Pick GitHub or Dropbox above to sync your writing —
-                    whichever you've already set up stays configured.
-                  </p>
                 </div>
+              {/if}
+            {/if}
+          {:else if activeSection === 'updates'}
+            <h2 class="group-head">Software update</h2>
+            <div class="inset-group">
+              <div class="inset-row">
+                {@render label(
+                  `Memoire ${updaterManager.currentVersion ?? ''}`,
+                  'Memoire checks for new versions in the background and downloads them quietly. Nothing installs until you restart.'
+                )}
+                {#if updaterManager.status === 'ready'}
+                  <Button size="sm" onclick={() => updaterManager.installAndRestart()}>
+                    <RefreshCwIcon strokeWidth={1.75} />
+                    Restart to update
+                  </Button>
+                {:else}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onclick={() => updaterManager.check()}
+                    disabled={updaterManager.isBusy}
+                  >
+                    {#if updaterManager.status === 'checking'}
+                      {@render spinner()} Checking…
+                    {:else if updaterManager.status === 'downloading'}
+                      {@render spinner()} Downloading…
+                    {:else if updaterManager.status === 'installing'}
+                      {@render spinner()} Installing…
+                    {:else}
+                      <RefreshCwIcon strokeWidth={1.75} /> Check for updates
+                    {/if}
+                  </Button>
                 {/if}
               </div>
-            </section>
-          {:else if activeSection === 'updates'}
-            <!-- Updates Section -->
-            <section>
-              <div class="flex items-center gap-2 mb-6">
-                <h3 class="font-writer text-2xl font-normal">Updates</h3>
-              </div>
-              <div class="grid grid-cols-1 gap-8">
-                <div class="flex flex-col gap-4 p-6 rounded-lg bg-muted/40">
-                  <div class="flex items-start justify-between gap-6">
-                    <div>
-                      <p class="text-lg font-normal">Memoire {updaterManager.currentVersion ?? ''}</p>
-                      <p class="text-sm text-muted-foreground mt-1 tracking-tight">
-                        Memoire checks for new versions in the background and downloads them
-                        quietly. Nothing installs until you restart.
-                      </p>
-                    </div>
-                    {#if updaterManager.status === 'ready'}
-                      <Button class="gap-2 shrink-0" onclick={() => updaterManager.installAndRestart()}>
-                        <RefreshCwIcon strokeWidth={1.5} class="size-3.5" />
-                        Restart to update
-                      </Button>
-                    {:else}
-                      <Button
-                        variant="outline"
-                        class="gap-2 shrink-0"
-                        onclick={() => updaterManager.check()}
-                        disabled={updaterManager.isBusy}
-                      >
-                        {#if updaterManager.status === 'checking'}
-                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                          Checking…
-                        {:else if updaterManager.status === 'downloading'}
-                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                          Downloading…
-                        {:else if updaterManager.status === 'installing'}
-                          <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
-                          Installing…
-                        {:else}
-                          <RefreshCwIcon strokeWidth={1.5} class="size-3.5" />
-                          Check for updates
-                        {/if}
-                      </Button>
-                    {/if}
+
+              {#if updaterManager.status === 'downloading' && updaterManager.progress !== null}
+                <div class="inset-row">
+                  <div class="h-1.5 w-full rounded-full bg-fill overflow-hidden">
+                    <div
+                      class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
+                      style="transform: scaleX({updaterManager.progress})"
+                    ></div>
                   </div>
+                </div>
+              {/if}
 
-                  {#if updaterManager.status === 'downloading' && updaterManager.progress !== null}
-                    <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
-                        style="transform: scaleX({updaterManager.progress})"
-                      ></div>
-                    </div>
-                  {/if}
-
-                  {#if updaterManager.available && ['downloading', 'ready', 'installing'].includes(updaterManager.status)}
-                    <div class="p-3 rounded-md bg-primary/5 border border-primary/20 text-sm">
-                      <p class="font-medium">Version {updaterManager.available.version}</p>
-                      {#if updaterManager.available.notes}
-                        <p class="text-muted-foreground mt-1 whitespace-pre-line max-h-40 overflow-y-auto">{updaterManager.available.notes}</p>
-                      {/if}
-                    </div>
-                  {:else if updaterManager.status === 'up-to-date'}
-                    <p class="text-sm text-muted-foreground italic">You're on the latest version.</p>
-                  {:else if updaterManager.status === 'error'}
-                    <div class="p-2 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive wrap-anywhere">
-                      {updaterManager.error ?? 'Update check failed.'}
-                    </div>
-                  {/if}
-
-                  {#if updaterManager.lastChecked}
-                    <p class="text-xs tabular-nums text-metadata">
-                      Last checked {updaterManager.lastChecked.toLocaleString()}
+              {#if updaterManager.available && ['downloading', 'ready', 'installing'].includes(updaterManager.status)}
+                <div class="inset-row flex-col items-start gap-1">
+                  <p class="font-medium">Version {updaterManager.available.version}</p>
+                  {#if updaterManager.available.notes}
+                    <p class="meta whitespace-pre-line max-h-40 overflow-y-auto">
+                      {updaterManager.available.notes}
                     </p>
                   {/if}
                 </div>
-              </div>
-            </section>
+              {:else if updaterManager.status === 'up-to-date'}
+                <div class="inset-row meta">You're on the latest version.</div>
+              {:else if updaterManager.status === 'error'}
+                <div class="inset-row text-destructive wrap-anywhere">
+                  {updaterManager.error ?? 'Update check failed.'}
+                </div>
+              {/if}
+            </div>
+            {#if updaterManager.lastChecked}
+              <p class="meta mt-2 mx-3">
+                Last checked {updaterManager.lastChecked.toLocaleString()}
+              </p>
+            {/if}
           {/if}
         </div>
       </ScrollArea>
     </ScrollFade>
-  </div>
+  </main>
 </div>

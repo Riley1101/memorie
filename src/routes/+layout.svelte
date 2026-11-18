@@ -143,6 +143,9 @@
     if (localStorage.getItem('outlineOpen') === 'true') {
       appState.toggleOutline(true);
     }
+    if (localStorage.getItem('libraryOpen') === 'true') {
+      appState.toggleLibrary(true);
+    }
     // The listings have to be in before the welcome writing can tell whether
     // this is a first run or an existing library.
     Promise.all([fileManager.getRecents(), fileManager.getBinders(), fileManager.getFolders()])
@@ -215,19 +218,28 @@
       ? `theme-${appState.ui.themePalette}`
       : ''} style-{appState.ui.styleFlavour} density-{appState.ui.density} {onMacOS
       ? 'platform-mac'
-      : ''} font-sans font-normal w-full h-dvh bg-background text-foreground overflow-hidden relative"
+      : ''} font-sans font-normal text-sm w-full h-dvh bg-frame text-foreground overflow-hidden relative"
   >
+    <!-- The window frame. Each screen puts its floating sidebar and its paper
+         on it; their toolbars are the drag region (on macOS the traffic lights
+         sit in the sidebar's top strip, or the toolbar indents for them). -->
     {#if onMacOS}
-      <!-- Overlay title bar: this strip is what the user grabs to move the window. -->
+      <!-- The notch the traffic lights sit in: a bite out of the frame's
+           top-left corner, over whatever panel is beneath, plus the frame's
+           bare top edge beside it. Both drag the window, as a title bar does. -->
       <div
-        data-tauri-drag-region
-        class="fixed inset-x-0 top-0 z-10 h-(--titlebar-height) bg-titlebar-background cursor-default select-none"
+        data-tauri-drag-region="deep"
+        class="pointer-events-auto absolute top-0 left-0 z-30 h-[var(--notch-height,28px)] w-[var(--notch-width,108px)] rounded-br-window bg-notch shadow-[inset_-1px_-1px_0_var(--well-rim),inset_0_2px_3px_var(--well-shade)]"
+      ></div>
+      <div
+        data-tauri-drag-region="deep"
+        class="pointer-events-auto absolute inset-x-0 top-0 z-0 h-3"
       ></div>
     {/if}
     {@render children()}
     {#if isClosing}
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-background"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-paper"
         role="status"
         aria-live="polite"
       >
@@ -247,8 +259,7 @@
       offset={56}
       closeButton
       toastOptions={{
-        class:
-          'font-sans !bg-popover !text-popover-foreground !border-border !shadow-md !rounded-lg',
+        class: 'font-sans glass !bg-glass !text-popover-foreground !border-hair !rounded-group',
         descriptionClass: '!text-muted-foreground',
       }}
     />
@@ -305,9 +316,7 @@
       appState.toggleProjectSearch(true);
     }
 
-    // ⌘⇧P belongs to the editor's ":" command bar, which takes it on capture
-    // and stops it reaching here. Outside the editor there is no command bar,
-    // so the palette answers instead and the chord always does something.
+    // ⌘⇧P is the other common chord for a command palette; it opens the same one.
     if (e.key.toLowerCase() === 'p' && isMod(e) && e.shiftKey && !e.altKey) {
       e.preventDefault();
       appState.toggleCommandMenu(!appState.ui.isCommandMenuOpen);

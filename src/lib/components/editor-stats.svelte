@@ -92,7 +92,7 @@
 
 {#snippet goalBar(/** @type {number} */ value, /** @type {number} */ goal)}
   <div
-    class="h-1 w-full rounded-full bg-muted overflow-hidden"
+    class="h-1 w-full rounded-full bg-fill overflow-hidden"
     role="progressbar"
     aria-valuemin={0}
     aria-valuemax={goal}
@@ -120,34 +120,42 @@
     placeholder="No goal"
     value={value || ''}
     onchange={(e) => onchange(Number(e.currentTarget.value))}
-    class="w-24 h-7 rounded-md border border-border bg-transparent px-2 text-right text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+    class="w-24 h-7 rounded-[6px] bg-fill px-2 text-right text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
   />
 {/snippet}
 
 <Popover.Root bind:open>
   <Popover.Trigger
-    class="flex items-center gap-2 px-2 -mx-2 h-7 rounded-md tracking-wide tabular-nums hover:text-foreground hover:bg-foreground/5 transition-colors"
+    class="flex items-center gap-2 px-3 h-8 rounded-full tracking-wide tabular-nums hover:text-foreground hover:bg-fill transition-colors"
     aria-label="Word count and goals"
   >
     <span>{label}</span>
     {#if activeGoal}
+      {@const done = percent(activeGoal.value, activeGoal.goal)}
       <!-- A goal you have to open a popover to see is a goal you forget. The
-           bar is small and quiet on purpose: progress, not a scoreboard. -->
-      <span
-        class="h-1 w-10 rounded-full bg-muted overflow-hidden"
-        title="{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)}"
+           ring is small and quiet on purpose: progress, not a scoreboard. -->
+      <svg
+        viewBox="0 0 36 36"
+        class="size-4 -rotate-90 shrink-0 order-first"
+        role="img"
+        aria-label="{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)} words"
       >
-        <span
-          class="block h-full w-full origin-left rounded-full transition-transform duration-200 ease-out {activeGoal.value >=
-          activeGoal.goal
-            ? 'bg-success'
-            : 'bg-primary'}"
-          style="transform: scaleX({percent(activeGoal.value, activeGoal.goal) / 100})"
-        ></span>
-      </span>
-      <span class="text-muted-foreground tabular-nums">
-        {percent(activeGoal.value, activeGoal.goal)}%
-      </span>
+        <title>{activeGoal.label}: {format.format(activeGoal.value)} of {format.format(activeGoal.goal)}</title>
+        <circle cx="18" cy="18" r="15" fill="none" stroke-width="4" class="stroke-muted"></circle>
+        <circle
+          cx="18"
+          cy="18"
+          r="15"
+          fill="none"
+          stroke-width="4"
+          stroke-linecap="round"
+          pathLength="100"
+          stroke-dasharray="{done} 100"
+          class="transition-[stroke-dasharray] duration-200 ease-out {activeGoal.value >= activeGoal.goal
+            ? 'stroke-success'
+            : 'stroke-primary'}"
+        ></circle>
+      </svg>
     {/if}
   </Popover.Trigger>
   <Popover.Content
@@ -156,7 +164,7 @@
     class="{appState.ui.theme} w-80 font-sans text-sm"
     portalProps={{}}
   >
-    <dl class="grid grid-cols-3 gap-3 pb-4 border-b border-border/50">
+    <dl class="grid grid-cols-3 gap-3 pb-4 border-b border-hair">
       <div>
         <dt class="text-xs text-muted-foreground">Words</dt>
         <dd class="text-lg tabular-nums">{format.format(writingState.docWords)}</dd>
@@ -190,7 +198,7 @@
     </div>
 
     {#if !isDraft}
-      <div class="pt-4 mt-4 border-t border-border/50 space-y-2">
+      <div class="pt-4 mt-4 border-t border-hair space-y-2">
         <div class="flex items-center justify-between gap-3">
           <label for="scene-goal" class="font-medium">This writing</label>
           {@render goalInput('scene-goal', sceneGoal, (n) => writingState.setSceneGoal(fileName, n))}
@@ -209,7 +217,7 @@
     {/if}
 
     {#if binder && !isDraft}
-      <div class="pt-4 mt-4 border-t border-border/50 space-y-2">
+      <div class="pt-4 mt-4 border-t border-hair space-y-2">
         <div class="flex items-center justify-between gap-3">
           <label for="project-goal" class="font-medium truncate" title={binder}>{binder}</label>
           {@render goalInput('project-goal', projectGoal, (n) => writingState.setProjectGoal(binder, n))}

@@ -41,12 +41,15 @@
    * @type {{ path: string, depth: number, files: { name: string }[] }[]}
    */
   let sections = $derived.by(() => {
-    const tree = buildFileTree(fileManager.files, binder, fileManager.folders, (a, b) => compareByOrder(a.name, b.name, (x, y) => naturalCollator.compare(baseOf(x), baseOf(y))));
+    const tree = buildFileTree(fileManager.files, binder, fileManager.folders, (a, b) =>
+      compareByOrder(a.name, b.name, (x, y) => naturalCollator.compare(baseOf(x), baseOf(y)))
+    );
     /** @type {{ path: string, depth: number, files: { name: string }[] }[]} */
     const out = [];
     const walk = (/** @type {any[]} */ nodes, /** @type {string[]} */ path) => {
       const own = nodes.filter((n) => n.type === 'file').map((n) => n.file);
-      if (own.length || path.length === 0) out.push({ path: path.join(' / '), depth: path.length, files: own });
+      if (own.length || path.length === 0)
+        out.push({ path: path.join(' / '), depth: path.length, files: own });
       for (const node of nodes) {
         if (node.type === 'folder') walk(node.children, [...path, node.name]);
       }
@@ -110,9 +113,13 @@
   }
 </script>
 
-<div class="pb-20 pr-2">
+<div class="pb-20">
   {#if statuses.length}
-    <div class="flex flex-wrap items-center gap-1.5 mb-4 font-sans" role="group" aria-label="Filter by status">
+    <div
+      class="flex flex-wrap items-center gap-1.5 mb-4 font-sans"
+      role="group"
+      aria-label="Filter by status"
+    >
       {#each ['', ...statuses, '—'] as option (option)}
         <button
           type="button"
@@ -120,8 +127,8 @@
           aria-pressed={statusFilter === option}
           class="h-7 px-2.5 rounded-full text-xs transition-colors border
             {statusFilter === option
-              ? 'border-primary bg-primary/10 text-primary'
-              : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/40'}"
+            ? 'border-primary bg-primary/10 text-primary'
+            : 'border-hair text-muted-foreground hover:text-foreground hover:bg-fill'}"
         >
           {option === '' ? 'All' : option === '—' ? 'No status' : option}
         </button>
@@ -136,36 +143,18 @@
         {#if section.path}
           <h3 class="mb-3 text-sm font-medium text-muted-foreground">{section.path}</h3>
         {/if}
-        <ul class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(14rem,1fr))]">
+        <ul class="wgrid">
           {#each shown as file (file.name)}
             {@const card = cache.get(file.name)}
-            <li
-              class="group relative flex flex-col min-h-40 rounded-xl border border-border/60 bg-muted/10 p-3 transition-colors hover:border-border hover:bg-muted/25"
-            >
-              <div class="flex items-start gap-2">
-                <a
-                  href={resolve(`/${encodeURIComponent(file.name)}`)}
-                  onclick={(e) => {
-                    e.preventDefault();
-                    goto(resolve(`/${encodeURIComponent(file.name)}`));
-                  }}
-                  class="flex-1 min-w-0 font-writer text-base leading-snug hover:underline underline-offset-2"
-                >
-                  {formatFileName(baseOf(file.name))}
-                </a>
-                {#if card?.meta.status}
-                  <span class="shrink-0 rounded-full px-2 py-0.5 font-sans text-meta {statusTone(card.meta.status)}">
-                    {card.meta.status}
-                  </span>
-                {/if}
-              </div>
-
+            <li class="wcard group relative">
+              <!-- The page carries the synopsis, or the opening lines until one
+                   is written; clicking it edits in place, so the title and the
+                   meta line below never move. -->
               {#if editing === file.name}
                 <!-- svelte-ignore a11y_autofocus -->
                 <textarea
                   bind:value={draftSynopsis}
                   autofocus
-                  rows="4"
                   aria-label="Synopsis"
                   placeholder="What happens here"
                   onblur={() => saveSynopsis(file.name)}
@@ -176,38 +165,63 @@
                       e.currentTarget.blur();
                     }
                   }}
-                  class="mt-2 flex-1 w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 font-sans text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  class="wcard-page resize-none font-serif text-xs leading-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 ></textarea>
               {:else}
                 <button
                   type="button"
                   onclick={() => startEdit(file.name)}
                   title="Edit synopsis"
-                  class="mt-2 flex-1 text-left font-writer text-sm leading-snug rounded-md -mx-1 px-1 hover:bg-muted/40"
+                  class="wcard-page"
                 >
-                  {#if !card && loading}
-                    <span class="text-muted-foreground">…</span>
-                  {:else if card?.meta.synopsis}
-                    <span class="line-clamp-5 whitespace-pre-line">{card.meta.synopsis}</span>
-                  {:else if card?.excerpt}
-                    <span class="line-clamp-4 italic text-muted-foreground">{card.excerpt}</span>
-                  {:else}
-                    <span class="text-muted-foreground">Add a synopsis</span>
+                  {#if card?.meta.status}
+                    <span
+                      class="absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-sans {statusTone(card.meta.status)}"
+                    >
+                      {card.meta.status}
+                    </span>
                   {/if}
+                  {#if !card && loading}
+                    <span class="font-serif text-xs text-muted-foreground">…</span>
+                  {:else if card?.meta.synopsis}
+                    <span class="block font-serif text-xs leading-normal line-clamp-5 whitespace-pre-line"
+                      >{card.meta.synopsis}</span
+                    >
+                  {:else if card?.excerpt}
+                    <span class="block font-serif text-xs leading-normal italic opacity-80 line-clamp-5"
+                      >{card.excerpt}</span
+                    >
+                  {:else}
+                    <span class="font-serif text-xs text-muted-foreground">Add a synopsis</span>
+                  {/if}
+                  <span class="wcard-fade"></span>
                 </button>
               {/if}
 
-              <div class="mt-2 flex items-center justify-between text-meta text-metadata tabular-nums">
-                <span class="flex items-center gap-1.5">
+              <div class="wcard-body">
+                <a
+                  href={resolve(`/${encodeURIComponent(file.name)}`)}
+                  onclick={(e) => {
+                    e.preventDefault();
+                    goto(resolve(`/${encodeURIComponent(file.name)}`));
+                  }}
+                  class="wcard-title block hover:underline underline-offset-2"
+                >
+                  {formatFileName(baseOf(file.name))}
+                </a>
+                <div class="meta flex items-center gap-1.5 mt-0.5 min-w-0">
                   {#if card}
-                    <span>{formatDate(card.modified)}</span>
-                    <span class="opacity-30">|</span>
-                    <span>{format.format(card.words)} words</span>
+                    <span class="truncate">{formatDate(card.modified)}</span>
+                    <span class="opacity-30">·</span>
+                    <span class="truncate">{format.format(card.words)} words</span>
                   {/if}
-                </span>
-                {#if editing !== file.name}
-                  <PencilIcon strokeWidth={1.5} class="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                {/if}
+                  {#if editing !== file.name}
+                    <PencilIcon
+                      strokeWidth={1.5}
+                      class="ml-auto shrink-0 size-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                  {/if}
+                </div>
               </div>
             </li>
           {/each}
@@ -218,8 +232,12 @@
 
   {#if !loading && statusFilter && sections.every((s) => !s.files.some((f) => visible(f.name)))}
     <div class="flex flex-col items-center gap-3 py-16 text-center">
-      <p class="text-sm text-muted-foreground">No writings are marked “{statusFilter === '—' ? 'no status' : statusFilter}”.</p>
-      <Button variant="outline" size="sm" onclick={() => (statusFilter = '')} disabled={false}>Clear filter</Button>
+      <p class="text-sm text-muted-foreground">
+        No writings are marked “{statusFilter === '—' ? 'no status' : statusFilter}”.
+      </p>
+      <Button variant="outline" size="sm" onclick={() => (statusFilter = '')} disabled={false}
+        >Clear filter</Button
+      >
     </div>
   {/if}
 </div>

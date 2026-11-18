@@ -61,18 +61,18 @@
   }
 
   const button =
-    'size-7 shrink-0 flex items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors';
+    'size-7 shrink-0 flex items-center justify-center rounded-[6px] text-muted-foreground hover:bg-fill hover:text-foreground transition-colors';
 </script>
 
 {#if mode === 'view'}
   <div
-    class="flex items-center gap-1 max-w-sm bg-popover border border-border rounded-lg shadow-lg p-1 not-prose font-sans"
+    class="flex items-center gap-1 max-w-sm glass rounded-group p-1 not-prose font-sans"
     role="toolbar"
     aria-label="Link"
   >
     <button
       type="button"
-      class="min-w-0 flex items-center gap-2 px-2 h-7 rounded-sm text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+      class="min-w-0 flex items-center gap-2 px-2 h-7 rounded-[6px] text-xs text-muted-foreground hover:bg-fill hover:text-foreground transition-colors"
       title={isDocRef ? 'Open writing' : `Open link (${MOD_KEY}-click)`}
       onmousedown={(e) => e.preventDefault()}
       onclick={onOpen}
@@ -108,7 +108,7 @@
 {:else if mode === 'edit'}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="w-80 flex flex-col gap-1 bg-popover border border-border rounded-lg shadow-lg p-1.5 not-prose font-sans"
+    class="w-80 flex flex-col gap-1 glass rounded-group p-1.5 not-prose font-sans"
     onkeydown={onKeydown}
     onfocusout={onFocusout}
     {@attach startForm}
@@ -116,7 +116,7 @@
     {#if needsText}
       <input
         bind:value={textInput}
-        class="h-8 px-2 rounded-sm bg-muted/40 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+        class="h-8 px-2 rounded-[6px] bg-fill text-sm text-foreground outline-none placeholder:text-muted-foreground"
         placeholder="Text"
         aria-label="Link text"
         spellcheck="false"
@@ -125,7 +125,7 @@
     {/if}
     <input
       bind:value={hrefInput}
-      class="h-8 px-2 rounded-sm bg-muted/40 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+      class="h-8 px-2 rounded-[6px] bg-fill text-sm text-foreground outline-none placeholder:text-muted-foreground"
       placeholder="Paste or type a link"
       aria-label="Link address"
       spellcheck="false"
