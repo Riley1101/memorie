@@ -17,7 +17,7 @@ Memoire is a free, open-source writing app for whole books. Your writing is
 plain Markdown in a folder on your own disk. An assistant can help when you ask,
 running on your own computer or through a hosted model you choose.
 
-## What's new in {{VERSION}}
+## What's new in 0.3.3
 
 A new look, and room for the whole book. See the full
 [changelog](https://github.com/Riley1101/memorie/blob/main/website/changelog.html)
