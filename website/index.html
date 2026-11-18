@@ -7,10 +7,37 @@
 <meta name="description" content="A local-first writing app for novelists and long-form writers. A calm editor, page styles, revise mode, margin notes, version history, a codex for your story and an optional private AI.">
 <link rel="icon" type="image/png" href="assets/icon-256.png">
 <link rel="apple-touch-icon" href="assets/icon.png">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#d6cfc0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#22201e" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Memoire">
 <meta property="og:title" content="Memoire — Write the whole book, on your own disk">
 <meta property="og:description" content="A calm, local-first writing app with revise mode, margin notes, version history and a story codex. Open source, AI off by default.">
 <meta property="og:image" content="assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Memoire editor in the Paper page style, with margin notes beside the page">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Memoire — Write the whole book, on your own disk">
+<meta name="twitter:description" content="A calm, local-first writing app with revise mode, margin notes, version history and a story codex. Open source, AI off by default.">
+<meta name="twitter:image" content="assets/og-image.png">
+<link rel="preload" as="image" href="assets/shots/style-paper-light-900.webp" imagesrcset="assets/shots/style-paper-light-900.webp 900w, assets/shots/style-paper-light.webp 1800w" imagesizes="(max-width: 1120px) 100vw, 1024px" media="(prefers-color-scheme: light)">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Memoire",
+  "applicationCategory": "ProductivityApplication",
+  "applicationSubCategory": "Writing",
+  "operatingSystem": "macOS, Windows, Linux",
+  "description": "A local-first writing app for novelists and long-form writers, with revise mode, margin notes, version history, a story codex and an optional private AI assistant.",
+  "image": "assets/og-image.png",
+  "license": "https://opensource.org/licenses/MIT",
+  "downloadUrl": "https://github.com/Riley1101/memorie/releases/latest",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
 <meta name="color-scheme" content="light dark">
 <script>try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +53,7 @@
   --page: #f4eee0;         /* Paper page: where words sit */
   --ink: #2e2419;
   --body: #3a2f24;
-  --meta: #6e5f4e;
+  --meta: #5f5142;
   --accent: #7d5129;
   --accent-hover: #6b4522;
   --on-accent: #fdf8f0;
@@ -119,7 +146,7 @@ img { display: block; }
 /* Hero */
 .hero { padding-block: 56px 40px; display: grid; gap: 20px; justify-items: center; text-align: center; }
 .pill { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px 0 4px; border-radius: 999px; background: var(--fill); font-size: 13px; color: var(--meta); text-decoration: none; }
-.pill b { background: var(--selection); color: var(--accent); font-weight: 600; border-radius: 999px; padding: 0 8px; line-height: 20px; font-size: 12px; }
+.pill b { background: var(--selection); color: var(--accent-hover); font-weight: 600; border-radius: 999px; padding: 0 8px; line-height: 20px; font-size: 12px; }
 .hero h1 { font: 400 clamp(36px, 6vw, 64px)/1.06 var(--font-serif); letter-spacing: -0.015em; max-width: 17ch; }
 .hero h1 em { font-style: italic; color: var(--accent); }
 .lede { max-width: 54ch; font-size: 17px; color: var(--body); }
@@ -154,7 +181,7 @@ section + section { border-top: 1px solid var(--hair); }
 .tour li::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 8px; }
 .kbd { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--meta); }
 kbd { font: 500 12px var(--font-ui); min-width: 22px; height: 22px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: 6px; background: var(--page); box-shadow: 0 0 0 1px var(--hair), 0 1px 0 var(--hair); color: var(--ink); }
-.new { display: inline-block; font: 600 11px/18px var(--font-ui); letter-spacing: 0.03em; color: var(--accent); background: var(--selection); border-radius: 999px; padding: 0 8px; vertical-align: 3px; margin-left: 6px; }
+.new { display: inline-block; font: 600 11px/18px var(--font-ui); letter-spacing: 0.03em; color: var(--accent-hover); background: var(--selection); border-radius: 999px; padding: 0 8px; vertical-align: 3px; margin-left: 6px; }
 .panel[hidden] { display: none; }
 @media (max-width: 860px) { .tour { grid-template-columns: minmax(0, 1fr); } .tour .text { order: -1; } }
 
@@ -291,7 +318,7 @@ footer a:hover { color: var(--ink); }
 <div class="sheet">
   <header class="toolbar">
     <div class="wrap">
-      <a class="brand" href="#top"><img src="assets/icon-256.png" alt="">Memoire</a>
+      <a class="brand" href="#top"><img src="assets/icon-64.png" width="32" height="32" alt="">Memoire</a>
       <nav class="capsule hide-sm" aria-label="Main">
         <a class="tb" href="#tour">Tour</a>
         <a class="tb" href="changelog.html">Changelog</a>
@@ -324,20 +351,20 @@ footer a:hover { color: var(--ink); }
         </div>
         <div class="window">
           <div class="panel" id="sp-paper" role="tabpanel" aria-labelledby="s-paper">
-            <img class="shot-light" src="assets/shots/style-paper-light.webp" width="1800" height="1071" alt="The editor in the Paper page style">
-            <img class="shot-dark" src="assets/shots/style-paper-dark.webp" width="1800" height="1071" alt="The editor in the Paper page style, dark">
+            <img class="shot-light" src="assets/shots/style-paper-light.webp" srcset="assets/shots/style-paper-light-900.webp 900w, assets/shots/style-paper-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" decoding="async" width="1800" height="1071" alt="The editor in the Paper page style">
+            <img class="shot-dark" src="assets/shots/style-paper-dark.webp" srcset="assets/shots/style-paper-dark-900.webp 900w, assets/shots/style-paper-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" loading="lazy" decoding="async" width="1800" height="1071" alt="The editor in the Paper page style, dark">
           </div>
           <div class="panel" id="sp-default" role="tabpanel" aria-labelledby="s-default" hidden>
-            <img class="shot-light" src="assets/shots/style-default-light.webp" width="1800" height="1071" alt="The editor in the Classic page style">
-            <img class="shot-dark" src="assets/shots/style-default-dark.webp" width="1800" height="1071" alt="The editor in the Classic page style, dark">
+            <img class="shot-light" src="assets/shots/style-default-light.webp" srcset="assets/shots/style-default-light-900.webp 900w, assets/shots/style-default-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" loading="lazy" decoding="async" width="1800" height="1071" alt="The editor in the Classic page style">
+            <img class="shot-dark" src="assets/shots/style-default-dark.webp" srcset="assets/shots/style-default-dark-900.webp 900w, assets/shots/style-default-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" loading="lazy" decoding="async" width="1800" height="1071" alt="The editor in the Classic page style, dark">
           </div>
           <div class="panel" id="sp-minimal" role="tabpanel" aria-labelledby="s-minimal" hidden>
-            <img class="shot-light" src="assets/shots/style-minimal-light.webp" width="1800" height="1071" alt="The editor in the Minimal page style">
-            <img class="shot-dark" src="assets/shots/style-minimal-dark.webp" width="1800" height="1071" alt="The editor in the Minimal page style, dark">
+            <img class="shot-light" src="assets/shots/style-minimal-light.webp" srcset="assets/shots/style-minimal-light-900.webp 900w, assets/shots/style-minimal-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" loading="lazy" decoding="async" width="1800" height="1071" alt="The editor in the Minimal page style">
+            <img class="shot-dark" src="assets/shots/style-minimal-dark.webp" srcset="assets/shots/style-minimal-dark-900.webp 900w, assets/shots/style-minimal-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" loading="lazy" decoding="async" width="1800" height="1071" alt="The editor in the Minimal page style, dark">
           </div>
           <div class="panel" id="sp-technical" role="tabpanel" aria-labelledby="s-technical" hidden>
-            <img class="shot-light" src="assets/shots/style-technical-light.webp" width="1800" height="1071" alt="The editor in the Technical page style">
-            <img class="shot-dark" src="assets/shots/style-technical-dark.webp" width="1800" height="1071" alt="The editor in the Technical page style, dark">
+            <img class="shot-light" src="assets/shots/style-technical-light.webp" srcset="assets/shots/style-technical-light-900.webp 900w, assets/shots/style-technical-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" loading="lazy" decoding="async" width="1800" height="1071" alt="The editor in the Technical page style">
+            <img class="shot-dark" src="assets/shots/style-technical-dark.webp" srcset="assets/shots/style-technical-dark-900.webp 900w, assets/shots/style-technical-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" loading="lazy" decoding="async" width="1800" height="1071" alt="The editor in the Technical page style, dark">
           </div>
         </div>
         <figcaption class="caption" id="style-desc">A warm page with a soft shadow and ornamental quotes. Reads like a printed manuscript.</figcaption>
@@ -363,7 +390,7 @@ footer a:hover { color: var(--ink); }
       </div>
 
       <div class="panel tour" id="p-revise" role="tabpanel" aria-labelledby="t-revise">
-        <div class="window"><img class="shot-light" src="assets/shots/revise-light.webp" alt="Revise mode: changes since the start of today underlined on the page, with the words taken out struck through"><img class="shot-dark" src="assets/shots/revise-dark.webp" alt="Revise mode in dark mode"></div>
+        <div class="window"><img class="shot-light" src="assets/shots/revise-light.webp" srcset="assets/shots/revise-light-900.webp 900w, assets/shots/revise-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="Revise mode: changes since the start of today underlined on the page, with the words taken out struck through"><img class="shot-dark" src="assets/shots/revise-dark.webp" srcset="assets/shots/revise-dark-900.webp 900w, assets/shots/revise-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="Revise mode in dark mode"></div>
         <div class="text">
           <h3>See what you changed today<span class="new">New</span></h3>
           <p>Revise mode compares the page with how it was this morning. New words are underlined, cut words are struck through, right where they happened.</p>
@@ -373,7 +400,7 @@ footer a:hover { color: var(--ink); }
       </div>
 
       <div class="panel tour" id="p-notes" role="tabpanel" aria-labelledby="t-notes" hidden>
-        <div class="window"><img class="shot-light" src="assets/shots/inspector-light.webp" alt="The scene panel beside the page: status, synopsis, two margin notes, and the codex entries in this scene"><img class="shot-dark" src="assets/shots/inspector-dark.webp" alt="The scene panel in dark mode"></div>
+        <div class="window"><img class="shot-light" src="assets/shots/inspector-light.webp" srcset="assets/shots/inspector-light-900.webp 900w, assets/shots/inspector-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The scene panel beside the page: status, synopsis, two margin notes, and the codex entries in this scene"><img class="shot-dark" src="assets/shots/inspector-dark.webp" srcset="assets/shots/inspector-dark-900.webp 900w, assets/shots/inspector-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The scene panel in dark mode"></div>
         <div class="text">
           <h3>Notes in the margin<span class="new">New</span></h3>
           <p>Select a line and leave yourself a note. It sits beside that line on wide screens, and in the scene panel on small ones.</p>
@@ -383,7 +410,7 @@ footer a:hover { color: var(--ink); }
       </div>
 
       <div class="panel tour" id="p-history" role="tabpanel" aria-labelledby="t-history" hidden>
-        <div class="window"><img class="shot-light" src="assets/shots/history-light.webp" alt="The history pane: a branching graph of saved versions with a line from each"><img class="shot-dark" src="assets/shots/history-dark.webp" alt="The history pane in dark mode"></div>
+        <div class="window"><img class="shot-light" src="assets/shots/history-light.webp" srcset="assets/shots/history-light-900.webp 900w, assets/shots/history-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The history pane: a branching graph of saved versions with a line from each"><img class="shot-dark" src="assets/shots/history-dark.webp" srcset="assets/shots/history-dark-900.webp 900w, assets/shots/history-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The history pane in dark mode"></div>
         <div class="text">
           <h3>History that branches</h3>
           <p>Every save is a version. Go back to any of them, write something different, and the old path is still there.</p>
@@ -393,7 +420,7 @@ footer a:hover { color: var(--ink); }
       </div>
 
       <div class="panel tour" id="p-codex" role="tabpanel" aria-labelledby="t-codex" hidden>
-        <div class="window"><img class="shot-light" src="assets/shots/codex-light.webp" alt="The codex for the Lighthouse binder: cards for Elin Vask, Harrow, Harrow Point, the logbook and Tomas"><img class="shot-dark" src="assets/shots/codex-dark.webp" alt="The codex in dark mode"></div>
+        <div class="window"><img class="shot-light" src="assets/shots/codex-light.webp" srcset="assets/shots/codex-light-900.webp 900w, assets/shots/codex-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The codex for the Lighthouse binder: cards for Elin Vask, Harrow, Harrow Point, the logbook and Tomas"><img class="shot-dark" src="assets/shots/codex-dark.webp" srcset="assets/shots/codex-dark-900.webp 900w, assets/shots/codex-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The codex in dark mode"></div>
         <div class="text">
           <h3>A codex for your cast<span class="new">Redesigned</span></h3>
           <p>Keep a sheet for every character, place, faction and object. Memoire finds them in your writing as you go.</p>
@@ -402,7 +429,7 @@ footer a:hover { color: var(--ink); }
       </div>
 
       <div class="panel tour" id="p-library" role="tabpanel" aria-labelledby="t-library" hidden>
-        <div class="window"><img class="shot-light" src="assets/shots/grid-light.webp" alt="The library as cards: each writing shows its opening lines and binder"><img class="shot-dark" src="assets/shots/grid-dark.webp" alt="The library as cards in dark mode"></div>
+        <div class="window"><img class="shot-light" src="assets/shots/grid-light.webp" srcset="assets/shots/grid-light-900.webp 900w, assets/shots/grid-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The library as cards: each writing shows its opening lines and binder"><img class="shot-dark" src="assets/shots/grid-dark.webp" srcset="assets/shots/grid-dark-900.webp 900w, assets/shots/grid-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The library as cards in dark mode"></div>
         <div class="text">
           <h3>Your library, as a list or as pages<span class="new">New</span></h3>
           <p>Binders hold a book, a collection or a journal, each with its own colour. Switch to cards to see how every writing opens.</p>
@@ -411,7 +438,7 @@ footer a:hover { color: var(--ink); }
       </div>
 
       <div class="panel tour" id="p-palette" role="tabpanel" aria-labelledby="t-palette" hidden>
-        <div class="window"><img class="shot-light" src="assets/shots/palette-light.webp" alt="The command palette over the page: focus mode, leave a note, show history, compare with the start of today, export"><img class="shot-dark" src="assets/shots/palette-dark.webp" alt="The command palette in dark mode"></div>
+        <div class="window"><img class="shot-light" src="assets/shots/palette-light.webp" srcset="assets/shots/palette-light-900.webp 900w, assets/shots/palette-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The command palette over the page: focus mode, leave a note, show history, compare with the start of today, export"><img class="shot-dark" src="assets/shots/palette-dark.webp" srcset="assets/shots/palette-dark-900.webp 900w, assets/shots/palette-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The command palette in dark mode"></div>
         <div class="text">
           <h3>Everything from one box</h3>
           <p>Press ⌘K and type. Open a writing, find a codex entry, or run any command, each with its shortcut beside it.</p>
