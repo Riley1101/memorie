@@ -1,12 +1,26 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
+// Tauri doesn't have a Node.js server to do proper SSR
+// so we use adapter-static to prerender the app (SSG)
+// See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
+import adapter from '@sveltejs/adapter-static';
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [sveltekit(), tailwindcss()],
+  plugins: [
+    sveltekit({
+      adapter: adapter(),
+      alias: {
+        // Kit 3 dropped the built-in `$lib`; keep it so existing imports resolve.
+        $lib: 'src/lib',
+        '@/*': './src/lib/*',
+      },
+    }),
+    tailwindcss(),
+  ],
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent vite from obscuring rust errors

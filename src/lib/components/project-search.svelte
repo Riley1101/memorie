@@ -1,7 +1,7 @@
 <script>
   import { invoke } from '@tauri-apps/api/core';
   import { goto, invalidateAll } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import { page } from '$app/state';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -139,7 +139,7 @@
       openCodexEntry(name);
       return;
     }
-    const url = resolve(`/${encodeURIComponent(name)}`);
+    const url = writingUrl(name);
     if (page.params.lexical === name) {
       editorState.revealPending?.();
     } else {

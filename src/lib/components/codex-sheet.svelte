@@ -5,7 +5,7 @@
    * over whenever a different entry is opened.
    */
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import XIcon from '@lucide/svelte/icons/x';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
@@ -444,7 +444,7 @@
           {#each appearances as a (a.name)}
             <button
               type="button"
-              onclick={() => goto(resolve(`/${encodeURIComponent(a.name)}`))}
+              onclick={() => goto(writingUrl(a.name))}
               title={a.name}
               class="chip"
             >

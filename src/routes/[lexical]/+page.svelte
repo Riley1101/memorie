@@ -30,6 +30,7 @@
   import { syncGrammarChecks } from '$lib/hooks/editor-sync.svelte.js';
   import { goto, afterNavigate } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import { formatTimeAgo, formatFileName } from '@/utils.js';
   import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte';
   import { configManager } from '$lib/runes/config.svelte.js';
@@ -120,7 +121,7 @@
   );
 
   function goToWriting(file) {
-    if (file) goto(resolve(`/${encodeURIComponent(file.name)}`));
+    if (file) goto(writingUrl(file.name));
   }
 
   let saveLabel = $derived.by(() => {

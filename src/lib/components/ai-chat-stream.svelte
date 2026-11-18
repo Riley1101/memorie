@@ -15,7 +15,7 @@
   import MessageSquareIcon from "@lucide/svelte/icons/message-square";
   import FileText from "@lucide/svelte/icons/file-text";
   import { goto } from "$app/navigation";
-  import { resolve } from "$app/paths";
+  import { writingUrl } from "$lib/new-writing.js";
   import { llmManager } from "@/runes/llm.svelte";
   import { memoryManager } from "@/runes/memory.svelte";
   import { configManager } from "@/runes/config.svelte.js";
@@ -85,7 +85,7 @@
   function openNote(title) {
     // Codex entries turn up in note searches too; they open as sheets.
     if (isCodexPath(title)) return openCodexEntry(title);
-    goto(resolve(`/${encodeURIComponent(title)}`));
+    goto(writingUrl(title));
   }
 
   /** What to show before the first token arrives, based on how the reply was routed. */

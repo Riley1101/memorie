@@ -16,7 +16,7 @@
   import { fileManager, baseOf } from '$lib/runes/fs.svelte.js';
   import { formatFileName, formatDate } from '@/utils';
   import { shortcut } from '$lib/keyboard.svelte.js';
-  import { startNewWriting, sanitizeTitle } from '$lib/new-writing.js';
+  import { startNewWriting, sanitizeTitle, writingUrl } from '$lib/new-writing.js';
   import { toast } from '$lib/toast.js';
   import { goto } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
@@ -201,7 +201,7 @@
 
   function handleSelect(fileName) {
     close();
-    goto(resolve(`/${encodeURIComponent(fileName)}`));
+    goto(writingUrl(fileName));
   }
 
   function handleCreateBlank() {
@@ -217,7 +217,7 @@
     const full = targetDir ? `${targetDir}/${base}.md` : `${base}.md`;
     try {
       await fileManager.createFileAt(full, '');
-      goto(resolve(`/${encodeURIComponent(full)}`));
+      goto(writingUrl(full));
     } catch (e) {
       toast.error(`Could not create "${title}"`, e);
     }

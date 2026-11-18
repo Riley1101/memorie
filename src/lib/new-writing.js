@@ -84,7 +84,17 @@ export function isUntitled(base) {
  */
 export function draftUrl(dir = '') {
   const planned = dir ? `${dir}/${UNTITLED}.md` : `${UNTITLED}.md`;
-  return resolve(`/${encodeURIComponent(planned)}`);
+  return writingUrl(planned);
+}
+
+/**
+ * Route for an existing writing. The whole name, folders included, is one
+ * encoded segment of the `[lexical]` route.
+ * @param {string} name Content-relative file name, e.g. "Novel/Chapter 1.md".
+ * @returns {string}
+ */
+export function writingUrl(name) {
+  return resolve('/[lexical]', { lexical: encodeURIComponent(name) });
 }
 
 /**

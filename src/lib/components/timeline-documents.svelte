@@ -1,6 +1,5 @@
 <script>
   import { fileManager } from '@/runes/fs.svelte';
-  import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import PlusIcon from '@lucide/svelte/icons/plus';
@@ -28,7 +27,7 @@
   import BinderTreeNode from './binder-tree-node.svelte';
   import MovePicker from './move-picker.svelte';
   import { buildFileTree } from '@/utils';
-  import { startNewWriting } from '$lib/new-writing.js';
+  import { startNewWriting, writingUrl } from '$lib/new-writing.js';
   import { baseOf, dirOf } from '@/runes/fs.svelte';
   import { DRAG_MIME, readDragPayload } from '$lib/tree-dnd.js';
   import { toast } from '$lib/toast.js';
@@ -412,7 +411,7 @@
   function handleItemClick(e, item) {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    goto(resolve(`/${encodeURIComponent(item.name)}`));
+    goto(writingUrl(item.name));
   }
 
   function handleDeleteClick(item) {
@@ -620,7 +619,7 @@
                 <ContextMenu.Root>
                   <ContextMenu.Trigger>
                     <a
-                      href={resolve(`/${encodeURIComponent(item.name)}`)}
+                      href={writingUrl(item.name)}
                       onclick={(e) => handleItemClick(e, item)}
                       onkeydown={(e) => {
                         if (e.key === 'F2') {
@@ -699,7 +698,7 @@
                 </div>
               {:else}
                 <a
-                  href={resolve(`/${encodeURIComponent(item.name)}`)}
+                  href={writingUrl(item.name)}
                   onclick={(e) => handleItemClick(e, item)}
                   onkeydown={(e) => {
                     if (e.key === 'F2') {
