@@ -3,11 +3,10 @@
   import { fileManager, baseOf, dirOf } from '$lib/runes/fs.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
   import { toast } from '$lib/toast.js';
-  import { deriveTitle, sanitizeTitle, isUntitled, UNTITLED } from '$lib/new-writing.js';
+  import { deriveTitle, sanitizeTitle, isUntitled, UNTITLED, writingUrl } from '$lib/new-writing.js';
   import Editor from './editor.svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
-  import { resolve } from '$app/paths';
   import { editorViewCtx } from '@milkdown/kit/core';
   import { getMarkdown } from '@milkdown/kit/utils';
   import { untrack } from 'svelte';
@@ -129,10 +128,9 @@
 
     editorState.silentNavigation = true;
     try {
-      await goto(resolve(`/${encodeURIComponent(newName)}`), {
-        replaceState: true,
-        keepFocus: true,
-        noScroll: true,
+      await goto(writingUrl(newName), {
+        replace: true,
+        reset: false,
       });
     } finally {
       editorState.silentNavigation = false;

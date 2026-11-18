@@ -4,6 +4,7 @@
   import { open as openPicker } from '@tauri-apps/plugin-dialog';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { appState } from '$lib/runes/app.svelte.js';
@@ -134,7 +135,7 @@
   /** Takes the writer to what they just imported. @param {ImportReport} result */
   function revealImported(result) {
     if (result.created.length === 1 && result.folders.length === 0) {
-      goto(resolve(`/${encodeURIComponent(result.created[0])}`));
+      goto(writingUrl(result.created[0]));
       return;
     }
     const first = result.folders[0] ?? destination;

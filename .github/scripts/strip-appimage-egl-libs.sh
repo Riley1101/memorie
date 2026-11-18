@@ -65,6 +65,10 @@ for appimage in "${appimages[@]}"; do
     continue
   fi
 
+  # appimagetool refuses AppDirs that other users can't read/execute, and
+  # the extracted tree keeps restrictive modes (root dir 0700, files 0770).
+  chmod -R a+rX "$work_dir/squashfs-root"
+
   rm -f "$appimage"
   ARCH="$arch" APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool" --appimage-extract-and-run "$work_dir/squashfs-root" "$appimage" >/dev/null
   chmod +x "$appimage"

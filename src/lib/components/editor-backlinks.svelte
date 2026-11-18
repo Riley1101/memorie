@@ -3,7 +3,7 @@
    * EditorBacklinks - writings that reference the open one through `[[` links.
    */
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import { fileManager } from '$lib/runes/fs.svelte.js';
   import { findBacklinks } from '$lib/components/plugins/doc-ref.svelte.js';
 
@@ -48,7 +48,7 @@
     <div class="flex flex-wrap gap-1.5">
       {#each backlinks as link (link.name)}
         <button
-          onclick={() => goto(resolve(`/${encodeURIComponent(link.name)}`))}
+          onclick={() => goto(writingUrl(link.name))}
           title={link.snippet ? `${link.name}\n${link.snippet}` : link.name}
           class="chip max-w-full text-left text-muted-foreground transition-colors hover:bg-selection hover:text-foreground"
         >

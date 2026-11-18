@@ -4,7 +4,7 @@ import { posToDOMRect } from '@milkdown/kit/prose';
 import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import { mount, unmount } from 'svelte';
 import { goto } from '$app/navigation';
-import { resolve } from '$app/paths';
+import { writingUrl } from '$lib/new-writing.js';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { baseOf } from '$lib/runes/fs.svelte.js';
 import { isMod } from '$lib/keyboard.svelte.js';
@@ -22,7 +22,7 @@ export function openHref(href) {
   if (!href) return;
   if (href.startsWith(DOC_REF_PREFIX)) {
     const name = decodeURIComponent(href.slice(DOC_REF_PREFIX.length));
-    goto(resolve(`/${encodeURIComponent(name)}`));
+    goto(writingUrl(name));
     return;
   }
   openUrl(href);

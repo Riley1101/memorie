@@ -1,6 +1,6 @@
 <script>
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import { sceneCache } from '$lib/runes/scenes.svelte.js';
   import { compareByOrder } from '$lib/runes/ordering.svelte.js';
   import { naturalCollator } from '$lib/utils.js';
@@ -200,10 +200,10 @@
 
               <div class="wcard-body">
                 <a
-                  href={resolve(`/${encodeURIComponent(file.name)}`)}
+                  href={writingUrl(file.name)}
                   onclick={(e) => {
                     e.preventDefault();
-                    goto(resolve(`/${encodeURIComponent(file.name)}`));
+                    goto(writingUrl(file.name));
                   }}
                   class="wcard-title block hover:underline underline-offset-2"
                 >

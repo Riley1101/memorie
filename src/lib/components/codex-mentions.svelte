@@ -6,7 +6,7 @@
    * writing with that mention selected.
    */
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
   import CheckIcon from '@lucide/svelte/icons/check';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
@@ -112,7 +112,7 @@
       options: { caseSensitive: false, wholeWord: true, regex: false },
       occurrence,
     };
-    goto(resolve(`/${encodeURIComponent(writing.name)}`));
+    goto(writingUrl(writing.name));
   }
 
   /** "Chapter 3" or the folder the writing sits in, beside its title. */

@@ -1,5 +1,5 @@
 <script>
-  import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import { goto } from '$app/navigation';
   import * as ContextMenu from './ui/context-menu/index.js';
   import * as DropdownMenu from './ui/dropdown-menu/index.js';
@@ -102,7 +102,7 @@
   function handleFileClick(e) {
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    goto(resolve(`/${encodeURIComponent(node.file.name)}`));
+    goto(writingUrl(node.file.name));
   }
 
   /** Blur commits a typed draft name; an empty box just closes. */
@@ -523,7 +523,7 @@
       </div>
     {:else}
       <a
-        href={resolve(`/${encodeURIComponent(node.file.name)}`)}
+        href={writingUrl(node.file.name)}
         data-tree-row
         onclick={handleFileClick}
         onkeydown={handleFileKeydown}

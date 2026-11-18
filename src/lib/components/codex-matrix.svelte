@@ -5,7 +5,7 @@
    * that most often share a writing.
    */
   import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
+  import { writingUrl } from '$lib/new-writing.js';
   import { fileManager } from '$lib/runes/fs.svelte.js';
   import { KINDS } from '$lib/runes/codex.svelte.js';
   import { buildFileTree, formatFileName } from '$lib/utils.js';
@@ -189,7 +189,7 @@
                   <td class="p-0">
                     <button
                       type="button"
-                      onclick={() => goto(resolve(`/${encodeURIComponent(scenes[k].name)}`))}
+                      onclick={() => goto(writingUrl(scenes[k].name))}
                       onmouseenter={(e) => showTip(e, row.entity, scenes[k], count)}
                       onfocus={(e) => showTip(/** @type {any} */ (e), row.entity, scenes[k], count)}
                       onmouseleave={() => (hover = null)}
