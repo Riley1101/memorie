@@ -145,9 +145,10 @@ body,
   --well-rim: color-mix(in oklch, var(--foreground) 7%, transparent);
   --well-lip: color-mix(in oklch, white 90%, transparent);
   --riser: var(--paper);
-  /* The notch under the traffic lights: cut deeper than the desk, so it reads
-     as window shell rather than as another panel. */
-  --notch: color-mix(in oklch, var(--frame), black 9%);
+  /* The notch under the traffic lights: the desk, barely shaded, so it blends
+     into the frame instead of reading as a dark patch cut out of it. The inner
+     shade shows the cut; the colour stays close to the frame's own. */
+  --notch: color-mix(in oklch, var(--frame), black 3.5%);
 }
 .dark {
   /* Dark depth comes from lifting the frame, not from digging the floor: a
@@ -167,9 +168,9 @@ body,
   --fill: color-mix(in oklch, white 7%, transparent);
   --selection: color-mix(in oklch, var(--primary) 32%, transparent);
   --glass-rim: color-mix(in oklch, white 12%, transparent);
-  /* Darker than the window background, which is the darkest surface the app
-     otherwise draws: the notch is meant to read as a hole in the shell. */
-  --notch: color-mix(in oklch, var(--background), black 55%);
+  /* The window background itself — already a step under the lifted frame, so
+     the notch belongs to the shell without turning into a black patch. */
+  --notch: var(--background);
 }
 
 .dark {
@@ -855,25 +856,31 @@ body [data-slot='sheet-content'] {
 }
 
 /* macOS overlay title bar: a notch, not a band. macOS draws the three buttons
-   itself at the one offset `trafficLightPosition` gives (24/15, so their 12px
-   row sits at 15–27px); all we decide is what lies under them. A shallow bite
-   out of the frame's top-left corner — `--notch-width` by `--notch-height`, a
-   shade darker than the desk, rounded into the window's own corner — puts them
-   outside every panel instead of on one, and costs the window 42px at one
-   corner rather than a 72px strip across the whole top.
+   itself and seats them its own way — measured on screen they occupy x 24–83
+   and y 7–20 in window coordinates, a 60x14 box about 7px below the window's
+   top edge, which `trafficLightPosition` nudges but does not dictate. The
+   notch is sized around that measured box so the buttons sit centred in it:
+   24px of desk left and right (100 → 108 wide), and the 7px macOS leaves above
+   them repeated underneath (28 tall). Re-measure before changing either
+   number; the offset in tauri.conf.json is not what lands on screen.
 
-   Three measurements follow from it, for whatever sits beneath the notch:
+   A shallow bite out of the frame's top-left corner, rounded into the window's
+   own corner, puts the buttons outside every panel instead of on one, and
+   costs the window 28px at one corner rather than a 72px strip across the top.
+
+   Two measurements follow from it, for whatever sits beneath the notch:
    `--titlebar-strip` is the empty height a panel keeps at its top (the frame's
-   12px gutter and an 8px gap are already counted, so 28 clears the notch by
-   6px), and `--titlebar-inset-left` is the padding a toolbar at the frame's
-   left edge needs so its first control clears the notch across (96 wide, 8
-   clear, less that 12px gutter). Both stay fixed: the lights do not follow
-   interface density, so neither does the room kept for them. */
+   12px gutter and the 8px gap under the strip are already counted, so 14
+   clears the notch by 6px), and `--titlebar-inset-left` is the padding a
+   toolbar at the frame's left edge needs so its first control clears the notch
+   across (108 wide, 8 clear, less that 12px gutter). Both stay fixed: the
+   buttons do not follow interface density, so neither does the room kept for
+   them. */
 .platform-mac {
-  --notch-width: 96px;
-  --notch-height: 28px;
-  --titlebar-strip: 28px;
-  --titlebar-inset-left: 92px;
+  --notch-width: 108px;
+  --notch-height: 30px;
+  --titlebar-strip: 14px;
+  --titlebar-inset-left: 104px;
   --titlebar-height: var(--notch-height);
 }
 
@@ -887,13 +894,17 @@ body [data-slot='sheet-content'] {
     @apply border-border outline-ring/50;
   }
 
+  /* The window is the app shell, never the document: the shell sizes itself
+     to the viewport and scrolls inside its own panels. Without this lock the
+     document can briefly outgrow the viewport while a page mounts, and
+     SvelteKit's scroll restoration then applies a stored offset to the window
+     — which showed up as a screen rendered "at the bottom" after navigating. */
   html,
   body {
     @apply bg-background text-foreground;
-  }
-
-  body {
-    @apply bg-background text-foreground;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
   .markdown {

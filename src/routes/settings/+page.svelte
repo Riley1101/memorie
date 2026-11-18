@@ -267,7 +267,7 @@
       <!-- The traffic lights sit here; the strip moves the window. -->
       <div
         data-tauri-drag-region="deep"
-        class="h-[var(--titlebar-strip,28px)] shrink-0 -mt-3 -mx-3 mb-2"
+        class="h-[var(--titlebar-strip,14px)] shrink-0 -mt-3 -mx-3 mb-2"
       ></div>
     {/if}
     <a href={resolve('/')} class="sb-row text-muted-foreground">

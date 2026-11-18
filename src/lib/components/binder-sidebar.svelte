@@ -535,7 +535,7 @@
     <!-- The traffic lights sit here; the strip moves the window. -->
     <div
       data-tauri-drag-region="deep"
-      class="h-[var(--titlebar-strip,28px)] shrink-0 -mt-3 -mx-3 mb-2"
+      class="h-[var(--titlebar-strip,14px)] shrink-0 -mt-3 -mx-3 mb-2"
     ></div>
   {/if}
   {@render searchField(onSelect)}
@@ -558,7 +558,7 @@
     {#if onMacOS}
       <div
         data-tauri-drag-region="deep"
-        class="h-[var(--titlebar-strip,28px)] shrink-0 -mt-3"
+        class="h-[var(--titlebar-strip,14px)] shrink-0 -mt-3"
       ></div>
     {/if}
     <div class="pr-8 pb-2">

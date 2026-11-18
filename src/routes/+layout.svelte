@@ -229,7 +229,7 @@
            bare top edge beside it. Both drag the window, as a title bar does. -->
       <div
         data-tauri-drag-region="deep"
-        class="pointer-events-auto absolute top-0 left-0 z-30 h-[var(--notch-height,42px)] w-[var(--notch-width,96px)] rounded-br-window bg-frame shadow-[inset_-1px_-1px_0_var(--hair)]"
+        class="pointer-events-auto absolute top-0 left-0 z-30 h-[var(--notch-height,28px)] w-[var(--notch-width,108px)] rounded-br-window bg-notch shadow-[inset_-1px_-1px_0_var(--well-rim),inset_0_2px_3px_var(--well-shade)]"
       ></div>
       <div
         data-tauri-drag-region="deep"

@@ -17,6 +17,7 @@
   import PlusIcon from '@lucide/svelte/icons/plus';
   import SearchIcon from '@lucide/svelte/icons/search';
   import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
+  import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import BookUserIcon from '@lucide/svelte/icons/book-user';
   import { Button } from '$lib/components/ui/button/index.js';
   import { ScrollArea } from '@/components/ui/scroll-area/index.js';
@@ -27,7 +28,13 @@
   import { appState } from '$lib/runes/app.svelte.js';
   import ReplaceIcon from '@lucide/svelte/icons/replace';
   import XIcon from '@lucide/svelte/icons/x';
-  import { codexManager, codexHref, KINDS, blankEntity } from '$lib/runes/codex.svelte.js';
+  import {
+    codexManager,
+    codexHref,
+    KINDS,
+    kindInfo,
+    blankEntity,
+  } from '$lib/runes/codex.svelte.js';
   import { buildFileTree, formatFileName } from '$lib/utils.js';
 
   /** @typedef {import('$lib/runes/codex.svelte.js').Entity} Entity */
@@ -48,6 +55,8 @@
   let binder = $state(appState.ui.activeBinder ?? '');
   let tab = $state('entries');
   let search = $state('');
+  /** The kind shown on the shelf, '' for all of them. */
+  let kindFilter = $state('');
 
   let selectedPath = $state('');
   /** A sheet not saved yet. @type {Entity | null} */
@@ -77,9 +86,25 @@
     );
   });
 
-  let groups = $derived(
-    KINDS.map((kind) => ({ kind, items: filtered.filter((e) => e.kind === kind.id) }))
+  /** What the shelf shows: the search, narrowed to one kind if asked. */
+  let visible = $derived(
+    (kindFilter ? filtered.filter((e) => e.kind === kindFilter) : filtered)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
   );
+
+  /** The shelf the open sheet came from, so prev/next walk what was browsed. */
+  let neighbours = $derived(visible.length ? visible : entities);
+  let entryIndex = $derived(neighbours.findIndex((e) => e.path === selectedPath));
+  let prevEntry = $derived(entryIndex > 0 ? neighbours[entryIndex - 1] : null);
+  let nextEntry = $derived(
+    entryIndex >= 0 && entryIndex < neighbours.length - 1 ? neighbours[entryIndex + 1] : null
+  );
+
+  /** The first filled field of a sheet, for a card with no summary. @param {Entity} entity */
+  function firstField(entity) {
+    return entity.fields.find((f) => f.value.trim())?.value.trim() ?? '';
+  }
 
   /** Writings (in binder order) that mention the open entry. */
   let appearances = $derived.by(() => {
@@ -373,105 +398,79 @@
       </DropdownMenu.Root>
     </header>
 
-    <div class="flex-1 min-h-0 flex gap-3 p-3">
-      <!-- Entries, grouped by kind: a well beside the sheet, as the binder rail
-           is on the library screen. Narrow windows show the list or the sheet. -->
-      <nav
-        aria-label="Entries"
-        class="well min-h-0 w-full md:w-60 shrink-0 flex-col gap-1 rounded-group px-1.5 pt-2 {selected
-          ? 'hidden md:flex'
-          : 'flex'}"
-      >
-        <label class="field shrink-0 mx-1">
-          <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
-          <input bind:value={search} placeholder="Find an entry" aria-label="Find an entry" />
-        </label>
-        <ScrollFade class="flex-1 min-h-0" fade={16}>
-          <ScrollArea type="scroll" class="h-full">
-            <div class="flex flex-col pb-4">
-              {#each groups as group (group.kind.id)}
-                <div class="flex flex-col gap-px">
-                  <div class="sb-head gap-1">
-                    {group.kind.plural}
-                    <span class="ml-auto font-normal tabular-nums">{group.items.length || ''}</span>
-                    <button
-                      type="button"
-                      onclick={() => startNew(group.kind.id)}
-                      aria-label="New {group.kind.label.toLowerCase()}"
-                      class="flex items-center justify-center size-5 rounded-[5px] hover:bg-fill hover:text-foreground"
-                    >
-                      <PlusIcon strokeWidth={1.8} class="size-3" />
-                    </button>
-                  </div>
-                  {#each group.items as entity (entity.path)}
-                    {@const on = entity.path === selectedPath && !creating}
-                    <button
-                      type="button"
-                      onclick={() => open(entity)}
-                      aria-current={on ? 'true' : undefined}
-                      class="sb-row"
-                    >
-                      <span class="binder-dot {KIND_DOT[entity.kind] ?? KIND_DOT.character}"></span>
-                      <span class="truncate flex-1">{entity.name}</span>
-                      {#if !entity.scope && binder}
-                        <span class="text-xs text-muted-foreground" title="Shared by every binder"
-                          >shared</span
-                        >
-                      {/if}
-                      {#if mentionCounts[entity.path]}
-                        <span class="sb-count" title="Mentions in {binder}"
-                          >{mentionCounts[entity.path]}</span
-                        >
-                      {/if}
-                    </button>
-                  {/each}
-                </div>
-              {/each}
-            </div>
-          </ScrollArea>
-        </ScrollFade>
-      </nav>
-
-      <ScrollFade class="flex-1 min-w-0 min-h-0 {selected ? '' : 'hidden md:block'}">
-        <ScrollArea type="scroll" class="h-full">
-          <article class="px-9 pt-6 pb-14">
-            {#if selected}
-              <button
-                type="button"
-                onclick={closeSheet}
-                class="md:hidden mb-4 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <ChevronLeftIcon strokeWidth={1.7} class="size-4" /> All entries
-              </button>
+    <!-- Browse, then open: the codex reads like the library. A grid of entry
+         cards on the paper, and opening one gives the sheet the full width,
+         with the way back and the neighbours in its header. -->
+    <ScrollFade class="flex-1 min-h-0" fade={20}>
+      <ScrollArea type="scroll" class="h-full">
+        {#if selected}
+          <div class="flex items-center gap-1 px-6 pt-4">
+            <button
+              type="button"
+              onclick={closeSheet}
+              class="flex items-center gap-1 h-7 -ml-2 px-2 rounded-full text-sm text-muted-foreground hover:bg-fill hover:text-foreground transition-colors"
+            >
+              <ChevronLeftIcon strokeWidth={1.7} class="size-4" />
+              All entries
+            </button>
+            {#if !creating && neighbours.length > 1}
+              <!-- The writing editor's own pattern: step to the next sheet
+                   without going back to the grid first. -->
+              <span class="ml-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  onclick={() => prevEntry && open(prevEntry)}
+                  disabled={!prevEntry}
+                  aria-label="Previous entry"
+                  title={prevEntry ? `Previous: ${prevEntry.name}` : 'Previous entry'}
+                  class="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:bg-fill hover:text-foreground disabled:opacity-35 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronLeftIcon strokeWidth={1.7} class="size-4" />
+                </button>
+                <span class="meta tabular-nums">{entryIndex + 1} / {neighbours.length}</span>
+                <button
+                  type="button"
+                  onclick={() => nextEntry && open(nextEntry)}
+                  disabled={!nextEntry}
+                  aria-label="Next entry"
+                  title={nextEntry ? `Next: ${nextEntry.name}` : 'Next entry'}
+                  class="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:bg-fill hover:text-foreground disabled:opacity-35 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronRightIcon strokeWidth={1.7} class="size-4" />
+                </button>
+              </span>
             {/if}
+          </div>
+        {/if}
 
-            {#if tab === 'mentions'}
-              {#if !binder}
-                <!-- Mentions are counted per binder; say so here instead of disabling the tab. -->
-                <div class="flex flex-col gap-1 py-10">
-                  <p class="text-title font-semibold">Pick a binder to see mentions</p>
-                  <p class="text-sm text-muted-foreground max-w-sm">
-                    Mentions show where each entry is named in a binder’s writings. Choose a binder
-                    in the toolbar.
-                  </p>
-                </div>
-              {:else if selected && !creating}
-                {#key selected.path}
-                  <CodexMentions {binder} entity={selected} />
-                {/key}
-              {:else}
-                <!-- No entry picked: the whole binder at a glance. -->
-                <div class="max-w-4xl">
-                  <CodexMatrix {binder} {matrix} loading={matrixLoading} onopen={open} />
-                </div>
-              {/if}
+        <article class="px-6 pt-4 pb-14">
+          {#if tab === 'mentions' && !selected}
+            {#if !binder}
+              <!-- Mentions are counted per binder; say so here instead of disabling the tab. -->
+              <div class="flex flex-col gap-1 py-10">
+                <p class="text-title font-semibold">Pick a binder to see mentions</p>
+                <p class="text-sm text-muted-foreground max-w-sm">
+                  Mentions show where each entry is named in a binder's writings. Choose a binder in
+                  the toolbar.
+                </p>
+              </div>
+            {:else}
+              <div class="max-w-4xl">
+                <CodexMatrix {binder} {matrix} loading={matrixLoading} onopen={open} />
+              </div>
+            {/if}
+          {:else if selected}
+            {#if tab === 'mentions' && !creating}
+              {#key selected.path}
+                <CodexMentions {binder} entity={selected} />
+              {/key}
             {:else}
               <div class="max-w-2xl">
                 {#if renamed && selected?.name === renamed.to}
                   <div class="mb-6 flex items-center gap-3 rounded-group bg-fill px-3 py-2 text-sm">
                     <ReplaceIcon strokeWidth={1.6} class="size-4 shrink-0 text-muted-foreground" />
                     <span class="flex-1 min-w-0">
-                      Renamed from “{renamed.from}”. Your writings still say “{renamed.from}”.
+                      Renamed from "{renamed.from}". Your writings still say "{renamed.from}".
                     </span>
                     <Button
                       size="sm"
@@ -500,26 +499,99 @@
                     </button>
                   </div>
                 {/if}
-                {#if selected}
-                  {#key creating ? `new:${creating.kind}` : selected.path}
-                    <CodexSheet
-                      bind:this={sheet}
-                      entity={selected}
-                      binders={fileManager.binders}
-                      names={entities.filter((e) => e.path !== selected.path).map((e) => e.name)}
-                      {appearances}
-                      {onsaved}
-                      {ondeleted}
-                    />
-                  {/key}
-                {:else}
-                  {@render emptySheet()}
-                {/if}
+                {#key creating ? `new:${creating.kind}` : selected.path}
+                  <CodexSheet
+                    bind:this={sheet}
+                    entity={selected}
+                    binders={fileManager.binders}
+                    names={entities.filter((e) => e.path !== selected.path).map((e) => e.name)}
+                    {appearances}
+                    {onsaved}
+                    {ondeleted}
+                  />
+                {/key}
               </div>
             {/if}
-          </article>
-        </ScrollArea>
-      </ScrollFade>
-    </div>
+          {:else if entities.length}
+            <!-- The shelf: one card per entry, in the grid the library uses. -->
+            <div class="flex flex-wrap items-center gap-2 pb-5">
+              <button
+                type="button"
+                class="chip"
+                aria-pressed={kindFilter === ''}
+                onclick={() => (kindFilter = '')}
+              >
+                All <span class="tabular-nums opacity-70">{entities.length}</span>
+              </button>
+              {#each KINDS as kind (kind.id)}
+                {@const count = entities.filter((e) => e.kind === kind.id).length}
+                <button
+                  type="button"
+                  class="chip"
+                  aria-pressed={kindFilter === kind.id}
+                  onclick={() => (kindFilter = kind.id)}
+                >
+                  <span class="size-2 rounded-full {KIND_DOT[kind.id]}"></span>
+                  {kind.plural}
+                  <span class="tabular-nums opacity-70">{count}</span>
+                </button>
+              {/each}
+              <label class="field ml-auto w-48 max-sm:w-full">
+                <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
+                <input bind:value={search} placeholder="Find an entry" aria-label="Find an entry" />
+              </label>
+            </div>
+
+            {#if visible.length}
+              <div class="wgrid">
+                {#each visible as entity (entity.path)}
+                  <div class="wcard">
+                    <button
+                      type="button"
+                      onclick={() => open(entity)}
+                      class="wcard-page"
+                      aria-label="Open {entity.name}"
+                    >
+                      <p class="text-xs leading-relaxed text-muted-foreground line-clamp-6">
+                        {#if entity.summary}
+                          {entity.summary}
+                        {:else if firstField(entity)}
+                          {firstField(entity)}
+                        {:else}
+                          <span class="italic">No summary yet</span>
+                        {/if}
+                      </p>
+                      <span class="wcard-fade"></span>
+                    </button>
+                    <div class="wcard-body">
+                      <div class="wcard-title">{entity.name}</div>
+                      <div class="flex items-center gap-1.5 meta">
+                        <span
+                          class="size-2 rounded-full shrink-0 {KIND_DOT[entity.kind] ??
+                            KIND_DOT.character}"
+                        ></span>
+                        <span class="truncate">{kindInfo(entity.kind).label}</span>
+                        {#if !entity.scope && binder}
+                          <span title="Shared by every binder">· shared</span>
+                        {/if}
+                        {#if mentionCounts[entity.path]}
+                          <span class="ml-auto shrink-0" title="Mentions in {binder}"
+                            >{mentionCounts[entity.path]}</span
+                          >
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <p class="py-16 text-center text-sm text-muted-foreground">No entry matches that.</p>
+            {/if}
+          {:else}
+            {@render emptySheet()}
+          {/if}
+        </article>
+      </ScrollArea>
+    </ScrollFade>
   </main>
 </div>

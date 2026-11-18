@@ -18,12 +18,14 @@ class AppState {
     {
       id: 'paper',
       label: 'Paper',
-      description: 'A warm page with a soft shadow and ornamental quotes. Reads like a printed manuscript.',
+      description:
+        'A warm page with a soft shadow and ornamental quotes. Reads like a printed manuscript.',
     },
     {
       id: 'default',
       label: 'Classic',
-      description: 'Serif type on a plain background. Understated and book-like without the page effect.',
+      description:
+        'Serif type on a plain background. Understated and book-like without the page effect.',
     },
     {
       id: 'minimal',
@@ -33,7 +35,8 @@ class AppState {
     {
       id: 'technical',
       label: 'Technical',
-      description: 'Compact sans-serif with code-friendly quotes. Built for notes and docs, not prose.',
+      description:
+        'Compact sans-serif with code-friendly quotes. Built for notes and docs, not prose.',
     },
   ];
 
@@ -164,10 +167,15 @@ class AppState {
   /**
    * @public
    *
-   * Toggles the chat history panel visibility.
+   * Toggles the history panel. It stands in the library's place on the left of
+   * the writing, so opening one closes the other; the library's remembered
+   * setting is left alone, so closing history brings it back next time it is
+   * asked for.
+   * @param {boolean} [state]
    */
-  toggleChatHistory() {
-    this.ui.isHistoryOpen = !this.ui.isHistoryOpen;
+  toggleChatHistory(state) {
+    this.ui.isHistoryOpen = state ?? !this.ui.isHistoryOpen;
+    if (this.ui.isHistoryOpen) this.ui.isLibraryOpen = false;
   }
 
   /**
@@ -180,6 +188,8 @@ class AppState {
    */
   toggleLibrary(state) {
     this.ui.isLibraryOpen = state ?? !this.ui.isLibraryOpen;
+    // The two share the left side, so only one of them is ever docked.
+    if (this.ui.isLibraryOpen) this.ui.isHistoryOpen = false;
     if (typeof window !== 'undefined') {
       localStorage.setItem('libraryOpen', String(this.ui.isLibraryOpen));
     }

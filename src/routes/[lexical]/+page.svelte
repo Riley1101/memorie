@@ -258,7 +258,7 @@
      with one gutter, and the toolbar inside the paper rather than across the
      window. On macOS the library panel takes the traffic lights in its top
      strip; with that panel away, the toolbar indents to leave them room. -->
-<div class="flex h-dvh w-full gap-3 p-3 bg-frame overflow-hidden" class:focus-mode={focusMode}>
+<div class="flex h-full w-full gap-3 p-3 bg-frame overflow-hidden" class:focus-mode={focusMode}>
   <BinderSidebar
     docked={appState.ui.isLibraryOpen && !focusMode}
     bind:activeBinder={appState.ui.activeBinder}
@@ -268,12 +268,12 @@
   {#if appState.ui.isHistoryOpen && !focusMode}
     <aside
       aria-label="History"
-      class="well flex flex-col w-60 shrink-0 rounded-group overflow-hidden"
+      class="well flex flex-col w-66 shrink-0 rounded-group overflow-hidden"
     >
       {#if onMacOS && !libraryDocked}
         <!-- Leftmost panel with the library away: the traffic lights land here,
              so it keeps the same empty strip the library panel does. -->
-        <div data-tauri-drag-region="deep" class="h-[var(--titlebar-strip,28px)] shrink-0"></div>
+        <div data-tauri-drag-region="deep" class="h-[var(--titlebar-strip,14px)] shrink-0"></div>
       {/if}
       <div class="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 class="text-xs font-semibold text-muted-foreground">History</h2>
