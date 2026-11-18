@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Memoire — Write the whole book, on your own disk</title>
-<meta name="description" content="A local-first writing app for novelists and long-form writers. A calm editor, page styles, revise mode, margin notes, version history, a codex for your story and an optional private AI.">
+<meta name="description" content="A calm, local-first writing app for novelists and long-form writers. Margin notes, branching history, a story codex, four page styles, a fast editor for long books and an optional private AI.">
 <link rel="icon" type="image/png" href="assets/icon-256.png">
 <link rel="apple-touch-icon" href="assets/icon.png">
 <meta name="robots" content="index, follow">
@@ -13,14 +13,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Memoire">
 <meta property="og:title" content="Memoire — Write the whole book, on your own disk">
-<meta property="og:description" content="A calm, local-first writing app with revise mode, margin notes, version history and a story codex. Open source, AI off by default.">
+<meta property="og:description" content="A calm, local-first writing app with margin notes, branching history, a story codex and four page styles. Open source, AI off by default.">
 <meta property="og:image" content="assets/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Memoire editor in the Paper page style, with margin notes beside the page">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Memoire — Write the whole book, on your own disk">
-<meta name="twitter:description" content="A calm, local-first writing app with revise mode, margin notes, version history and a story codex. Open source, AI off by default.">
+<meta name="twitter:description" content="A calm, local-first writing app with margin notes, branching history, a story codex and four page styles. Open source, AI off by default.">
 <meta name="twitter:image" content="assets/og-image.png">
 <link rel="preload" as="image" href="assets/shots/style-paper-light-900.webp" imagesrcset="assets/shots/style-paper-light-900.webp 900w, assets/shots/style-paper-light.webp 1800w" imagesizes="(max-width: 1120px) 100vw, 1024px" media="(prefers-color-scheme: light)">
 <script type="application/ld+json">
@@ -334,9 +334,9 @@ footer a:hover { color: var(--ink); }
 
   <div class="wrap" id="top">
     <div class="hero">
-      <a class="pill" href="#tour"><b>New</b>Revise mode, margin notes and a calmer new look</a>
+      <a class="pill" href="#tour"><b>New</b>A full redesign, margin notes, a new library and a faster editor</a>
       <h1>A quiet place to write <em>a whole book.</em></h1>
-      <p class="lede">Memoire keeps your chapters, characters and notes in one window, shows you what you changed today, and saves every word as a plain file on your computer.</p>
+      <p class="lede">Memoire keeps your chapters, characters and notes in one calm window, and saves every word as a plain file on your computer.</p>
       <div class="actions">
         <a class="btn lg" href="#download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12m0 0-5-5m5 5 5-5M5 20h14"/></svg>Download for macOS</a>
         <a class="ghost" href="#download">Windows and Linux</a>
@@ -376,20 +376,20 @@ footer a:hover { color: var(--ink); }
     <div class="wrap">
       <div class="head">
         <span class="label">What's new</span>
-        <h2>Write, then revise, without leaving the page.</h2>
-        <p>This release rebuilds every screen around the page you are writing on. Tools float above it and step aside when you are done.</p>
+        <h2>A new Memoire, built around the page.</h2>
+        <p>This release rebuilds every screen. Notes sit in the margin, history branches, the codex and library are redesigned, and long books stay fast. Tools float above the page and step aside when you are done.</p>
       </div>
 
       <div class="seg capsule" role="tablist" aria-label="Screens">
-        <button role="tab" id="t-revise" aria-controls="p-revise" aria-selected="true">Revise</button>
-        <button role="tab" id="t-notes" aria-controls="p-notes" aria-selected="false">Notes</button>
-        <button role="tab" id="t-history" aria-controls="p-history" aria-selected="false">History</button>
+        <button role="tab" id="t-notes" aria-controls="p-notes" aria-selected="true">Notes</button>
         <button role="tab" id="t-codex" aria-controls="p-codex" aria-selected="false">Codex</button>
+        <button role="tab" id="t-history" aria-controls="p-history" aria-selected="false">History</button>
         <button role="tab" id="t-library" aria-controls="p-library" aria-selected="false">Library</button>
+        <button role="tab" id="t-revise" aria-controls="p-revise" aria-selected="false">Revise</button>
         <button role="tab" id="t-palette" aria-controls="p-palette" aria-selected="false">Commands</button>
       </div>
 
-      <div class="panel tour" id="p-revise" role="tabpanel" aria-labelledby="t-revise">
+      <div class="panel tour" id="p-revise" role="tabpanel" aria-labelledby="t-revise" hidden>
         <div class="window"><img class="shot-light" src="assets/shots/revise-light.webp" srcset="assets/shots/revise-light-900.webp 900w, assets/shots/revise-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="Revise mode: changes since the start of today underlined on the page, with the words taken out struck through"><img class="shot-dark" src="assets/shots/revise-dark.webp" srcset="assets/shots/revise-dark-900.webp 900w, assets/shots/revise-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="Revise mode in dark mode"></div>
         <div class="text">
           <h3>See what you changed today<span class="new">New</span></h3>
@@ -399,7 +399,7 @@ footer a:hover { color: var(--ink); }
         </div>
       </div>
 
-      <div class="panel tour" id="p-notes" role="tabpanel" aria-labelledby="t-notes" hidden>
+      <div class="panel tour" id="p-notes" role="tabpanel" aria-labelledby="t-notes">
         <div class="window"><img class="shot-light" src="assets/shots/inspector-light.webp" srcset="assets/shots/inspector-light-900.webp 900w, assets/shots/inspector-light.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The scene panel beside the page: status, synopsis, two margin notes, and the codex entries in this scene"><img class="shot-dark" src="assets/shots/inspector-dark.webp" srcset="assets/shots/inspector-dark-900.webp 900w, assets/shots/inspector-dark.webp 1800w" sizes="(max-width: 1120px) 100vw, 1024px" width="1800" height="1125" loading="lazy" decoding="async" alt="The scene panel in dark mode"></div>
         <div class="text">
           <h3>Notes in the margin<span class="new">New</span></h3>
