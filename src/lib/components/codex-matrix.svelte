@@ -161,7 +161,7 @@
           <thead>
             {#if chapters.some((c) => c.label)}
               <tr>
-                <th class="sticky left-0 bg-paper"></th>
+                <th class="sticky left-0 bg-page"></th>
                 {#each chapters as chapter, i (i)}
                   <th colspan={chapter.span} class="p-0 text-left font-normal" title={chapter.label || binder}>
                     <!-- Fixed width, so a long folder name can't widen the columns under it. -->
@@ -180,7 +180,7 @@
           <tbody>
             {#each rows as row (row.entity.path)}
               <tr>
-                <th scope="row" class="sticky left-0 z-10 bg-paper pr-3 text-left font-normal whitespace-nowrap">
+                <th scope="row" class="sticky left-0 z-10 bg-page pr-3 text-left font-normal whitespace-nowrap">
                   <button type="button" onclick={() => onopen(row.entity)} class="text-foreground hover:text-primary max-w-44 truncate block">
                     {row.entity.name}
                   </button>

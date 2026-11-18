@@ -5,15 +5,13 @@
   import * as DropdownMenu from './ui/dropdown-menu/index.js';
   import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
   import FolderIcon from '@lucide/svelte/icons/folder';
-  import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
   import FolderPlusIcon from '@lucide/svelte/icons/folder-plus';
-  import FileIcon from '@lucide/svelte/icons/file';
   import PlusIcon from '@lucide/svelte/icons/plus';
   import Trash2Icon from '@lucide/svelte/icons/trash-2';
   import PencilIcon from '@lucide/svelte/icons/pencil';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FolderInputIcon from '@lucide/svelte/icons/folder-input';
-  import { formatFileName, formatDate, formatTime } from '@/utils';
+  import { formatFileName, formatDate, formatTime, formatTimeAgo } from '@/utils';
   import { fileManager, dirOf } from '@/runes/fs.svelte';
   import { reorderWithin } from '@/runes/ordering.svelte.js';
   import { treeState } from '@/runes/tree.svelte.js';
@@ -55,6 +53,19 @@
   let words = $derived(scene?.words ?? null);
   let wordLabel = $derived(
     words === null ? '' : words === 1 ? '1 word' : `${wordFormat.format(words)} words`
+  );
+  /** What the row used to print inline: status, length, synopsis, exact time. */
+  let rowTitle = $derived(
+    node.type === 'file'
+      ? [
+          status,
+          wordLabel,
+          `${formatDate(node.file.last_modified)} ${formatTime(node.file.last_modified)}`,
+          synopsis,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : ''
   );
   let open = $derived(node.type === 'folder' ? treeState.isOpen(folderPath) : true);
 
@@ -282,11 +293,11 @@
     ondragover={handleDragOver}
     ondragleave={handleDragLeave}
     ondrop={handleDropOnFolder}
-    class="group/folder relative flex items-center gap-1.5 py-1.5 pr-1 rounded-[7px] transition-colors
-      {isDragOver ? 'bg-selection ring-1 ring-primary/40' : 'hover:bg-fill'}
+    class="wrow group/folder
+      {isDragOver ? 'bg-selection ring-1 ring-primary/40' : ''}
       {isDragging ? 'opacity-40' : ''}
-      {menuOpen ? 'bg-fill' : ''}"
-    style="padding-left: {depth * 1.25}rem"
+      {menuOpen ? 'is-open' : ''}"
+    style="padding-left: {12 + depth * 20}px"
   >
     {#if isRenamingFolder}
       <span class="size-4 shrink-0"></span>
@@ -311,39 +322,24 @@
         data-tree-row
         onclick={() => treeState.toggle(folderPath)}
         onkeydown={handleFolderKeydown}
-        class="flex items-center gap-1.5 flex-1 min-w-0 text-left text-sm text-foreground hover:text-foreground transition-colors"
+        class="flex items-center gap-2.5 flex-1 min-w-0 text-left"
         aria-label="{open ? 'Collapse' : 'Expand'} {node.name}"
         aria-expanded={open}
+        title={node.lastModified ? `Edited ${formatDate(node.lastModified)} ${formatTime(node.lastModified)}` : 'Empty'}
       >
         <ChevronRightIcon
-          class="size-4 shrink-0 text-muted-foreground transition-transform duration-150 {open ? 'rotate-90' : ''}"
-          strokeWidth={1.5}
+          class="size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 {open ? 'rotate-90' : ''}"
+          strokeWidth={2}
         />
-        {#if open}
-          <FolderOpenIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-        {:else}
-          <FolderIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-        {/if}
-        <span class="truncate font-semibold">{node.name}</span>
-        <span class="ml-1 text-xs tabular-nums text-muted-foreground shrink-0">
-          {node.fileCount}
+        <span class="wrow-title wrow-title--folder">{node.name}</span>
+        <span class="wrow-meta group-hover/folder:opacity-0">
+          {node.fileCount === 0 ? 'empty' : node.fileCount}
         </span>
-        {#if node.lastModified}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 meta group-hover/folder:opacity-0 transition-opacity">
-            <span>{formatDate(node.lastModified)}</span>
-            <span class="opacity-30">•</span>
-            <span>{formatTime(node.lastModified)}</span>
-          </span>
-        {:else}
-          <span class="ml-auto pl-3 shrink-0 hidden sm:inline text-xs text-muted-foreground italic group-hover/folder:opacity-0 transition-opacity">
-            empty
-          </span>
-        {/if}
       </button>
 
       <!-- Hover actions. Absolutely placed so the row's date can sit under them. -->
       <div
-        class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover/folder:opacity-100 focus-within:opacity-100 transition-opacity
+        class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover/folder:opacity-100 focus-within:opacity-100 transition-opacity
           {menuOpen ? 'opacity-100' : ''}"
       >
         <button
@@ -496,9 +492,8 @@
     ondragover={handleFileDragOver}
     ondragleave={handleFileDragLeave}
     ondrop={handleFileDrop}
-    class="group/file relative flex items-center gap-2 py-2 pr-1 rounded-[7px] hover:bg-fill transition-colors
-      {isDragging ? 'opacity-40' : ''} {menuOpen ? 'bg-fill' : ''}"
-    style="padding-left: {depth * 1.25}rem"
+    class="wrow group/file {isDragging ? 'opacity-40' : ''} {menuOpen ? 'is-open' : ''}"
+    style="padding-left: {12 + (depth + 1) * 20}px"
   >
     <!-- Where the writing would land. Without this the drop target in a
          nested tree is a guess. -->
@@ -510,9 +505,8 @@
       ></div>
     {/if}
     {#if isRenaming}
-      <div class="flex items-center gap-2 flex-1 min-w-0">
-        <span class="size-4 shrink-0"></span>
-        <FileIcon class="size-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+      <div class="flex items-center gap-3 flex-1 min-w-0">
+        <span class="wrow-mark {status ? statusTone(status).dot : 'bg-muted-foreground/35'}"></span>
         <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
         <!-- svelte-ignore a11y_autofocus -->
         <input
@@ -533,31 +527,21 @@
         data-tree-row
         onclick={handleFileClick}
         onkeydown={handleFileKeydown}
-        class="flex items-center gap-2 flex-1 min-w-0 text-sm text-foreground/85 hover:text-foreground transition-colors"
+        class="flex items-center gap-3 flex-1 min-w-0"
+        title={rowTitle || undefined}
       >
-        <span class="size-4 shrink-0"></span>
-        <FileIcon class="size-4 shrink-0" strokeWidth={1.5} />
-        {#if status}
-          <span
-            class="size-1.5 shrink-0 rounded-full {statusTone(status).dot}"
-            title={status}
-            aria-label="Status: {status}"
-          ></span>
-        {/if}
-        <span class="truncate" title={synopsis || undefined}>{formatFileName(node.name)}</span>
-        <span class="ml-auto pl-3 shrink-0 hidden sm:flex items-center gap-1.5 meta group-hover/file:opacity-0 transition-opacity">
-          {#if words !== null && words > 0}
-            <span>{wordLabel}</span>
-            <span class="opacity-30">•</span>
-          {/if}
-          <span>{formatDate(node.file.last_modified)}</span>
-          <span class="opacity-30">•</span>
-          <span>{formatTime(node.file.last_modified)}</span>
+        <span
+          class="wrow-mark {status ? statusTone(status).dot : 'bg-muted-foreground/35'}"
+          aria-label={status ? `Status: ${status}` : undefined}
+        ></span>
+        <span class="wrow-title">{formatFileName(node.name)}</span>
+        <span class="wrow-meta group-hover/file:opacity-0">
+          {formatTimeAgo(node.file.last_modified * 1000)}
         </span>
       </a>
 
       <div
-        class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/file:opacity-100 focus-within:opacity-100 transition-opacity
+        class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/file:opacity-100 focus-within:opacity-100 transition-opacity
           {menuOpen ? 'opacity-100' : ''}"
       >
         <DropdownMenu.Root bind:open={menuOpen}>

@@ -45,6 +45,7 @@ class AppState {
    * @type {{
    *   isChatOpen: boolean,
    *   isHistoryOpen: boolean,
+   *   isLibraryOpen: boolean,
    *   isOutlineOpen: boolean,
    *   isSidebarOpen: boolean,
    *   isCommandMenuOpen: boolean,
@@ -68,6 +69,8 @@ class AppState {
   ui = $state({
     isChatOpen: false,
     isHistoryOpen: false,
+    /** Library docked beside the writing, as on the home screen. Persisted. */
+    isLibraryOpen: false,
     /** Table of contents on the right of the writing. Persisted. */
     isOutlineOpen: false,
     isSidebarOpen: false,
@@ -165,6 +168,21 @@ class AppState {
    */
   toggleChatHistory() {
     this.ui.isHistoryOpen = !this.ui.isHistoryOpen;
+  }
+
+  /**
+   * @public
+   *
+   * Toggles the library panel docked beside the writing. Omit `state` to flip
+   * it. Below the docked breakpoint the library opens as a sheet instead, so
+   * this only decides the docked panel.
+   * @param {boolean} [state]
+   */
+  toggleLibrary(state) {
+    this.ui.isLibraryOpen = state ?? !this.ui.isLibraryOpen;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('libraryOpen', String(this.ui.isLibraryOpen));
+    }
   }
 
   /**

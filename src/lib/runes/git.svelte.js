@@ -27,16 +27,43 @@ class GitManager {
 
   _pollTimer = null;
 
-  async checkSession() {
-    this.isCheckingSession = true;
-    this.error = null;
+  /** Whether the session was already read this run, so mounts don't re-read it. */
+  _sessionChecked = false;
+
+  /** The in-flight `checkSession`, shared by callers that arrive together. */
+  _sessionPromise = null;
+
+  /**
+   * Reads the GitHub session once per run. Several components mount and ask for
+   * it (the sidebar, a writing page, Settings), and each read reaches into the
+   * OS keyring for the token — which prompts the user on macOS — so repeat
+   * calls reuse what the first one found.
+   * @param {{ force?: boolean }} [options] - `force` re-reads, e.g. after logout.
+   */
+  async checkSession({ force = false } = {}) {
+    if (!force) {
+      if (this._sessionPromise) return this._sessionPromise;
+      if (this._sessionChecked) return;
+    }
+
+    this._sessionPromise = (async () => {
+      this.isCheckingSession = true;
+      this.error = null;
+      try {
+        this.user = await invoke('github_get_user');
+        this._sessionChecked = true;
+      } catch (err) {
+        console.error('Failed to check GitHub session:', err);
+        this.error = err;
+      } finally {
+        this.isCheckingSession = false;
+      }
+    })();
+
     try {
-      this.user = await invoke('github_get_user');
-    } catch (err) {
-      console.error('Failed to check GitHub session:', err);
-      this.error = err;
+      await this._sessionPromise;
     } finally {
-      this.isCheckingSession = false;
+      this._sessionPromise = null;
     }
   }
 
@@ -62,6 +89,7 @@ class GitManager {
         const result = await invoke('github_device_poll', { deviceCode });
         if (result.status === 'success') {
           this.user = result.user;
+          this._sessionChecked = true;
           this.deviceCode = null;
           this.isConnecting = false;
         } else if (result.status === 'pending') {
@@ -96,6 +124,9 @@ class GitManager {
     try {
       await invoke('github_logout');
       this.user = null;
+      // The next login belongs to whoever signs in after this one.
+      this._sessionChecked = false;
+      this.status = [];
     } catch (err) {
       console.error('Failed to log out of GitHub:', err);
       this.error = err;

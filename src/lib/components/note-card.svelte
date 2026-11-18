@@ -67,7 +67,7 @@
 
 <article
   class={cn(
-    'glass rounded-group px-3.5 py-3 text-sm leading-normal text-foreground transition-shadow',
+    'glass rounded-group px-4.5 py-4 text-sm leading-normal text-foreground transition-shadow',
     (active || editing) && 'ring-2 ring-primary/40',
     className
   )}

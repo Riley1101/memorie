@@ -191,7 +191,7 @@
 />
 <form
 	class={cn(
-		"bg-paper w-full divide-y divide-hair overflow-hidden rounded-group shadow-[0_0_0_1px_var(--hair),0_1px_2px_rgb(0_0_0/0.05)]",
+		"bg-riser w-full divide-y divide-hair overflow-hidden rounded-group shadow-[0_0_0_1px_var(--hair),0_1px_2px_rgb(0_0_0/0.05)]",
 		className
 	)}
 	onsubmit={handleSubmit}

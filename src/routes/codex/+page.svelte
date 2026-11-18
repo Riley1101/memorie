@@ -72,12 +72,19 @@
   /** Writings (in binder order) that mention the open entry. */
   let appearances = $derived.by(() => {
     if (!matrix || !selected?.path || !binder) return null;
-    const counts = Object.fromEntries(matrix.scenes.map((s) => [s.name, s.counts[selected.path] ?? 0]));
+    const counts = Object.fromEntries(
+      matrix.scenes.map((s) => [s.name, s.counts[selected.path] ?? 0])
+    );
     const out = [];
     const walk = (nodes) => {
       for (const node of nodes) {
         if (node.type === 'folder') walk(node.children);
-        else if (counts[node.file.name]) out.push({ name: node.file.name, label: formatFileName(node.name), count: counts[node.file.name] });
+        else if (counts[node.file.name])
+          out.push({
+            name: node.file.name,
+            label: formatFileName(node.name),
+            count: counts[node.file.name],
+          });
       }
     };
     walk(buildFileTree(fileManager.files, binder, fileManager.folders));
@@ -219,7 +226,10 @@
       if (name) await codexManager.load(binder || null);
       const lower = name.toLowerCase();
       const existing = name
-        ? entities.find((e) => e.name.toLowerCase() === lower || e.aliases.some((a) => a.toLowerCase() === lower))
+        ? entities.find(
+            (e) =>
+              e.name.toLowerCase() === lower || e.aliases.some((a) => a.toLowerCase() === lower)
+          )
         : null;
       if (existing) open(existing);
       else startNew(/** @type {any} */ (newKind), name);
@@ -249,7 +259,12 @@
   <!-- A chip in the toolbar; the native control stays for its keyboard and
        screen reader behaviour. -->
   <span class="relative shrink-0 min-w-0 max-w-56">
-    <span aria-hidden="true" class="binder-dot pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 {binder ? binderDot(binder) : 'bg-muted-foreground/40'}"></span>
+    <span
+      aria-hidden="true"
+      class="binder-dot pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 {binder
+        ? binderDot(binder)
+        : 'bg-muted-foreground/40'}"
+    ></span>
     <select
       value={binder}
       onchange={(e) => switchBinder(e.currentTarget.value)}
@@ -261,7 +276,10 @@
         <option value={b}>{b}</option>
       {/each}
     </select>
-    <ChevronDownIcon strokeWidth={2} class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+    <ChevronDownIcon
+      strokeWidth={2}
+      class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground"
+    />
   </span>
 {/snippet}
 
@@ -276,7 +294,13 @@
     <div class="flex flex-wrap justify-center gap-2 pt-2">
       <!-- One clear first step (most codexes start with people), the rest secondary. -->
       {#each KINDS as kind, i (kind.id)}
-        <Button variant={i === 0 ? 'default' : 'ghost'} size="sm" class="gap-1.5" onclick={() => startNew(kind.id)} disabled={false}>
+        <Button
+          variant={i === 0 ? 'default' : 'ghost'}
+          size="sm"
+          class="gap-1.5"
+          onclick={() => startNew(kind.id)}
+          disabled={false}
+        >
           <PlusIcon strokeWidth={1.8} class="size-3" />
           New {kind.label.toLowerCase()}
         </Button>
@@ -285,19 +309,33 @@
   </div>
 {/snippet}
 
-<div class="relative flex w-full h-full overflow-hidden">
+<div class="relative flex w-full h-full overflow-hidden gap-3 p-3">
   <BinderSidebar bind:activeBinder={appState.ui.activeBinder} bind:sheetOpen={sidebarOpen} />
 
-  <main class="flex-1 min-w-0 h-full flex flex-col bg-paper shadow-[-1px_0_0_var(--hair)]">
-    <header data-tauri-drag-region class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]">
-      <button type="button" class="tb-btn lg:hidden -ml-2" aria-label="Show library sidebar" onclick={() => (sidebarOpen = true)}>
+  <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
+    <header
+      data-tauri-drag-region
+      class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]"
+    >
+      <button
+        type="button"
+        class="tb-btn lg:hidden -ml-2"
+        aria-label="Show library sidebar"
+        onclick={() => (sidebarOpen = true)}
+      >
         <PanelLeftIcon strokeWidth={1.7} />
       </button>
       <h1 class="toolbar-title shrink-0" data-tauri-drag-region>Codex</h1>
       {@render binderSelect()}
       <div class="capsule glass ml-auto" role="tablist" aria-label="Codex view">
         {#each [{ id: 'entries', label: 'Sheets' }, { id: 'mentions', label: 'Mentions' }] as t (t.id)}
-          <button type="button" role="tab" class="tb-btn px-2.5" aria-selected={tab === t.id} onclick={() => switchTab(t.id)}>
+          <button
+            type="button"
+            role="tab"
+            class="tb-btn px-2.5"
+            aria-selected={tab === t.id}
+            onclick={() => switchTab(t.id)}
+          >
             {t.label}
           </button>
         {/each}
@@ -315,7 +353,9 @@
         </DropdownMenu.Trigger>
         <DropdownMenu.Content class="w-44" align="end" portalProps={{}}>
           {#each KINDS as kind (kind.id)}
-            <DropdownMenu.Item class="" inset={false} onclick={() => startNew(kind.id)}>New {kind.label.toLowerCase()}</DropdownMenu.Item>
+            <DropdownMenu.Item class="" inset={false} onclick={() => startNew(kind.id)}
+              >New {kind.label.toLowerCase()}</DropdownMenu.Item
+            >
           {/each}
         </DropdownMenu.Content>
       </DropdownMenu.Root>
@@ -323,7 +363,12 @@
 
     <div class="flex-1 min-h-0 flex">
       <!-- Entries, grouped by kind. Narrow windows show the list or the sheet, not both. -->
-      <nav aria-label="Entries" class="min-h-0 w-full md:w-60 shrink-0 flex-col gap-1 pl-3 pr-2 pt-1 shadow-[1px_0_0_var(--hair)] {selected ? 'hidden md:flex' : 'flex'}">
+      <nav
+        aria-label="Entries"
+        class="min-h-0 w-full md:w-60 shrink-0 flex-col gap-1 pl-3 pr-2 pt-1 shadow-[1px_0_0_var(--hair)] {selected
+          ? 'hidden md:flex'
+          : 'flex'}"
+      >
         <label class="field shrink-0">
           <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
           <input bind:value={search} placeholder="Find an entry" aria-label="Find an entry" />
@@ -333,7 +378,9 @@
             <div class="flex flex-col pb-4">
               {#each groups as group (group.kind.id)}
                 <div class="flex flex-col gap-px">
-                  <div class="flex items-center gap-1 px-2.5 pt-3 pb-1 text-xs font-semibold text-muted-foreground">
+                  <div
+                    class="flex items-center gap-1 px-2.5 pt-4 pb-1.5 text-xs font-semibold text-muted-foreground"
+                  >
                     {group.kind.plural}
                     <span class="ml-auto font-normal tabular-nums">{group.items.length || ''}</span>
                     <button
@@ -352,14 +399,19 @@
                       onclick={() => open(entity)}
                       aria-current={on ? 'true' : undefined}
                       class="flex items-center gap-2 h-7.5 px-2.5 rounded-[7px] text-sm text-left transition-colors
-                        {on ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-fill'}"
+                        {on
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-foreground hover:bg-fill'}"
                     >
                       <span class="truncate flex-1">{entity.name}</span>
                       {#if !entity.scope && binder}
-                        <span class="text-xs opacity-70" title="Shared by every binder">shared</span>
+                        <span class="text-xs opacity-70" title="Shared by every binder">shared</span
+                        >
                       {/if}
                       {#if mentionCounts[entity.path]}
-                        <span class="text-xs tabular-nums opacity-75" title="Mentions in {binder}">{mentionCounts[entity.path]}</span>
+                        <span class="text-xs tabular-nums opacity-75" title="Mentions in {binder}"
+                          >{mentionCounts[entity.path]}</span
+                        >
                       {/if}
                     </button>
                   {/each}
@@ -372,7 +424,7 @@
 
       <ScrollFade class="flex-1 min-w-0 min-h-0 {selected ? '' : 'hidden md:block'}">
         <ScrollArea type="scroll" class="h-full">
-          <article class="px-7 pt-5 pb-8">
+          <article class="px-9 pt-6 pb-14">
             {#if selected}
               <button
                 type="button"
@@ -389,7 +441,8 @@
                 <div class="flex flex-col gap-1 py-10">
                   <p class="text-title font-semibold">Pick a binder to see mentions</p>
                   <p class="text-sm text-muted-foreground max-w-sm">
-                    Mentions show where each entry is named in a binder’s writings. Choose a binder in the toolbar.
+                    Mentions show where each entry is named in a binder’s writings. Choose a binder
+                    in the toolbar.
                   </p>
                 </div>
               {:else if selected && !creating}
@@ -415,7 +468,11 @@
                       variant="outline"
                       onclick={() => {
                         if (!renamed) return;
-                        appState.openProjectSearch({ query: renamed.from, replacement: renamed.to, binder: renamed.binder });
+                        appState.openProjectSearch({
+                          query: renamed.from,
+                          replacement: renamed.to,
+                          binder: renamed.binder,
+                        });
                         renamed = null;
                       }}
                       disabled={false}
@@ -423,7 +480,12 @@
                     >
                       Find and replace…
                     </Button>
-                    <button type="button" onclick={() => (renamed = null)} aria-label="Dismiss" class="text-muted-foreground hover:text-foreground">
+                    <button
+                      type="button"
+                      onclick={() => (renamed = null)}
+                      aria-label="Dismiss"
+                      class="text-muted-foreground hover:text-foreground"
+                    >
                       <XIcon strokeWidth={1.6} class="size-3.5" />
                     </button>
                   </div>

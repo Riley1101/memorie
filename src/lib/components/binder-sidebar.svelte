@@ -80,7 +80,9 @@
     tick().then(() => {
       const row = document.querySelector(`[data-tree-folder="${CSS.escape(path)}"]`);
       row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      /** @type {HTMLElement | null} */ (row?.querySelector('[data-tree-row]'))?.focus({ preventScroll: true });
+      /** @type {HTMLElement | null} */ (row?.querySelector('[data-tree-row]'))?.focus({
+        preventScroll: true,
+      });
     });
   }
 
@@ -150,12 +152,42 @@
    * @type {Record<string, { icon: string, swatch: string, activeBg: string, activeText: string }>}
    */
   const TINTS = {
-    teal: { icon: 'text-binder-teal', swatch: 'bg-binder-teal', activeBg: 'bg-binder-teal/10', activeText: 'text-foreground' },
-    primary: { icon: 'text-binder-clay', swatch: 'bg-binder-clay', activeBg: 'bg-binder-clay/10', activeText: 'text-foreground' },
-    info: { icon: 'text-binder-slate', swatch: 'bg-binder-slate', activeBg: 'bg-binder-slate/10', activeText: 'text-foreground' },
-    success: { icon: 'text-binder-sage', swatch: 'bg-binder-sage', activeBg: 'bg-binder-sage/10', activeText: 'text-foreground' },
-    warning: { icon: 'text-binder-ochre', swatch: 'bg-binder-ochre', activeBg: 'bg-binder-ochre/10', activeText: 'text-foreground' },
-    accent: { icon: 'text-binder-plum', swatch: 'bg-binder-plum', activeBg: 'bg-binder-plum/10', activeText: 'text-foreground' },
+    teal: {
+      icon: 'text-binder-teal',
+      swatch: 'bg-binder-teal',
+      activeBg: 'bg-binder-teal/10',
+      activeText: 'text-foreground',
+    },
+    primary: {
+      icon: 'text-binder-clay',
+      swatch: 'bg-binder-clay',
+      activeBg: 'bg-binder-clay/10',
+      activeText: 'text-foreground',
+    },
+    info: {
+      icon: 'text-binder-slate',
+      swatch: 'bg-binder-slate',
+      activeBg: 'bg-binder-slate/10',
+      activeText: 'text-foreground',
+    },
+    success: {
+      icon: 'text-binder-sage',
+      swatch: 'bg-binder-sage',
+      activeBg: 'bg-binder-sage/10',
+      activeText: 'text-foreground',
+    },
+    warning: {
+      icon: 'text-binder-ochre',
+      swatch: 'bg-binder-ochre',
+      activeBg: 'bg-binder-ochre/10',
+      activeText: 'text-foreground',
+    },
+    accent: {
+      icon: 'text-binder-plum',
+      swatch: 'bg-binder-plum',
+      activeBg: 'bg-binder-plum/10',
+      activeText: 'text-foreground',
+    },
     muted: {
       icon: 'text-muted-foreground',
       swatch: 'bg-muted-foreground/50',
@@ -217,7 +249,11 @@
 </script>
 
 {#snippet searchField(onSelect)}
-  <button type="button" onclick={() => openSearch(onSelect)} class="field w-full text-left hover:text-foreground transition-colors">
+  <button
+    type="button"
+    onclick={() => openSearch(onSelect)}
+    class="field w-full text-left hover:text-foreground transition-colors"
+  >
     <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
     <span class="flex-1 truncate">Search</span>
     <kbd class="font-sans text-xs text-muted-foreground shrink-0">{shortcut('K')}</kbd>
@@ -227,7 +263,7 @@
 {#snippet binderPanel(onSelect)}
   <ScrollFade class="min-h-0 flex-1" fade={16}>
     <ScrollArea type="scroll" class="h-full">
-      <nav aria-label="Library" class="flex flex-col pb-2">
+      <nav aria-label="Library" class="flex flex-col pb-3">
         <div class="sb-head">Library</div>
         <button
           type="button"
@@ -256,7 +292,12 @@
         </button>
 
         <div class="sb-head">
-          <button type="button" onclick={goToManageBinders} class="hover:text-foreground transition-colors" title="Manage binders">
+          <button
+            type="button"
+            onclick={goToManageBinders}
+            class="hover:text-foreground transition-colors"
+            title="Manage binders"
+          >
             Binders
           </button>
           <Tooltip.Root>
@@ -347,19 +388,32 @@
                   </ContextMenu.SubTrigger>
                   <ContextMenu.SubContent class="w-40">
                     {#each BINDER_COLOURS as colour (colour)}
-                      <ContextMenu.Item class="" inset={false} onclick={() => appState.setBinderColour(binder, colour)}>
+                      <ContextMenu.Item
+                        class=""
+                        inset={false}
+                        onclick={() => appState.setBinderColour(binder, colour)}
+                      >
                         <span class="binder-dot {TINTS[colour].swatch}"></span>
                         <span class="flex-1">{BINDER_COLOUR_NAMES[colour]}</span>
                       </ContextMenu.Item>
                     {/each}
                     <ContextMenu.Separator class="" />
-                    <ContextMenu.Item class="" inset={false} onclick={() => appState.setBinderColour(binder, null)}>
+                    <ContextMenu.Item
+                      class=""
+                      inset={false}
+                      onclick={() => appState.setBinderColour(binder, null)}
+                    >
                       From the name
                     </ContextMenu.Item>
                   </ContextMenu.SubContent>
                 </ContextMenu.Sub>
                 <ContextMenu.Separator class="" />
-                <ContextMenu.Item class="" inset={false} variant="destructive" onclick={() => (binderToDelete = binder)}>
+                <ContextMenu.Item
+                  class=""
+                  inset={false}
+                  variant="destructive"
+                  onclick={() => (binderToDelete = binder)}
+                >
                   <Trash2Icon class="size-3.5" strokeWidth={1.5} />
                   Delete binder
                 </ContextMenu.Item>
@@ -379,7 +433,10 @@
                 class="sb-row h-6 text-xs text-muted-foreground hover:text-foreground"
                 style="padding-left: {10 + folder.depth * 12}px"
               >
-                <CornerDownRightIcon strokeWidth={1.5} class="size-3 shrink-0 text-muted-foreground/50" />
+                <CornerDownRightIcon
+                  strokeWidth={1.5}
+                  class="size-3 shrink-0 text-muted-foreground/50"
+                />
                 <span class="truncate flex-1">{folder.label}</span>
               </button>
             {/each}
@@ -391,7 +448,7 @@
 
   <!-- Bottom of the panel: where a deleted writing is looked for, whether the
        work has left the machine, and the way into settings. -->
-  <div class="flex flex-col gap-px pt-1 shrink-0">
+  <div class="flex flex-col gap-px pt-2 shrink-0">
     <button
       type="button"
       class="sb-row"
@@ -405,7 +462,13 @@
     </button>
     {#if target.provider !== 'none'}
       {#if target.ready && target.pending > 0}
-        <button type="button" class="sb-row" onclick={publish} disabled={target.busy} title="Publish to {target.label}">
+        <button
+          type="button"
+          class="sb-row"
+          onclick={publish}
+          disabled={target.busy}
+          title="Publish to {target.label}"
+        >
           <UploadCloudIcon strokeWidth={1.7} />
           <span class="truncate flex-1">{target.busy ? 'Publishing…' : 'Publish'}</span>
           <span class="sb-count">{target.pending}</span>
@@ -413,7 +476,9 @@
       {:else}
         <div class="sb-row hover:bg-transparent" role="status">
           <CloudIcon strokeWidth={1.7} />
-          <span class="truncate flex-1">{target.ready ? `Synced to ${target.label}` : `${target.label} not set up`}</span>
+          <span class="truncate flex-1"
+            >{target.ready ? `Synced to ${target.label}` : `${target.label} not set up`}</span
+          >
         </div>
       {/if}
     {/if}
@@ -432,7 +497,7 @@
 {#snippet panel(onSelect)}
   {#if onMacOS}
     <!-- The traffic lights sit here; the strip moves the window. -->
-    <div data-tauri-drag-region class="h-9 shrink-0 -mt-2 -mx-2 mb-1"></div>
+    <div data-tauri-drag-region class="h-9 shrink-0 -mt-3 -mx-3 mb-2"></div>
   {/if}
   {@render searchField(onSelect)}
   {@render binderPanel(onSelect)}
@@ -442,19 +507,19 @@
   <!-- From 1024px the library sidebar is a glass panel floating on the frame. -->
   <aside
     aria-label="Library"
-    class="glass hidden lg:flex flex-col w-59 shrink-0 m-2 mr-0 p-2 rounded-group min-h-0 h-[calc(100%-16px)]"
+    class="well hidden lg:flex flex-col w-66 shrink-0 p-3 rounded-group min-h-0 h-full"
   >
     {@render panel()}
   </aside>
 {/if}
 
 <Sheet.Root bind:open={sheetOpen}>
-  <Sheet.Content side="left" class="w-64 p-2 gap-0 flex flex-col" portalProps={{}}>
+  <Sheet.Content side="left" class="well w-72 p-3 gap-0 flex flex-col" portalProps={{}}>
     <Sheet.Title class="sr-only">Library</Sheet.Title>
     {#if onMacOS}
-      <div class="h-9 shrink-0 -mt-2"></div>
+      <div class="h-9 shrink-0 -mt-3"></div>
     {/if}
-    <div class="pr-8 pb-1">
+    <div class="pr-8 pb-2">
       {@render searchField(() => (sheetOpen = false))}
     </div>
     {@render binderPanel(() => (sheetOpen = false))}
@@ -463,7 +528,12 @@
 
 <!-- Deleting a binder takes everything in it, so it asks first and says how
      much — then sends the lot to the trash rather than off the disk. -->
-<Dialog.Root open={binderToDelete !== null} onOpenChange={(v) => { if (!v) binderToDelete = null; }}>
+<Dialog.Root
+  open={binderToDelete !== null}
+  onOpenChange={(v) => {
+    if (!v) binderToDelete = null;
+  }}
+>
   <Dialog.Content class="sm:max-w-[420px]" portalProps={{}}>
     <Dialog.Header class="">
       <Dialog.Title class="text-title font-semibold">Move binder to trash?</Dialog.Title>
@@ -479,7 +549,9 @@
     </Dialog.Header>
     <Dialog.Footer class="mt-4 flex gap-2">
       <Button variant="ghost" onclick={() => (binderToDelete = null)} class="flex-1">Cancel</Button>
-      <Button variant="destructive" onclick={confirmDeleteBinder} class="flex-1">Move to trash</Button>
+      <Button variant="destructive" onclick={confirmDeleteBinder} class="flex-1"
+        >Move to trash</Button
+      >
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

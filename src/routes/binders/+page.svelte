@@ -120,12 +120,20 @@
   });
 </script>
 
-<div class="relative flex w-full h-full overflow-hidden">
+<div class="relative flex w-full h-full overflow-hidden gap-3 p-3">
   <BinderSidebar bind:activeBinder={appState.ui.activeBinder} bind:sheetOpen={sidebarOpen} />
 
-  <main class="flex-1 min-w-0 h-full flex flex-col bg-paper shadow-[-1px_0_0_var(--hair)]">
-    <header data-tauri-drag-region class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]">
-      <button type="button" class="tb-btn lg:hidden -ml-2" aria-label="Show library sidebar" onclick={() => (sidebarOpen = true)}>
+  <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
+    <header
+      data-tauri-drag-region
+      class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]"
+    >
+      <button
+        type="button"
+        class="tb-btn lg:hidden -ml-2"
+        aria-label="Show library sidebar"
+        onclick={() => (sidebarOpen = true)}
+      >
         <PanelLeftIcon strokeWidth={1.7} />
       </button>
       <h1 class="toolbar-title" data-tauri-drag-region>Binders</h1>
@@ -139,7 +147,7 @@
 
     <ScrollFade class="flex-1 min-h-0">
       <ScrollArea type="scroll" class="w-full h-full">
-        <div class="mx-auto max-w-160 flex flex-col gap-6 px-5 pt-2 pb-8">
+        <div class="mx-auto max-w-160 flex flex-col gap-8 px-8 pt-3 pb-16">
           <p class="text-sm text-muted-foreground mt-2 mx-1">
             A binder is a folder of writings: a book, a collection, a project.
           </p>
@@ -169,20 +177,32 @@
                           {...props}
                           type="button"
                           aria-label="Colour for {binder}"
-                          class="size-7 shrink-0 rounded-[8px] {binderDot(binder)} hover:ring-2 hover:ring-hair transition-shadow"
+                          class="size-7 shrink-0 rounded-[8px] {binderDot(
+                            binder
+                          )} hover:ring-2 hover:ring-hair transition-shadow"
                         ></button>
                       {/snippet}
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content class="w-40" align="start" portalProps={{}}>
                       {#each BINDER_COLOURS as colour (colour)}
-                        <DropdownMenu.Item class="" inset={false} onclick={() => appState.setBinderColour(binder, colour)}>
+                        <DropdownMenu.Item
+                          class=""
+                          inset={false}
+                          onclick={() => appState.setBinderColour(binder, colour)}
+                        >
                           <span class="binder-dot {BINDER_DOT[colour]}"></span>
                           <span class="flex-1">{BINDER_COLOUR_NAMES[colour]}</span>
-                          {#if appState.binderColours[binder] === colour}<CheckIcon class="size-3.5" />{/if}
+                          {#if appState.binderColours[binder] === colour}<CheckIcon
+                              class="size-3.5"
+                            />{/if}
                         </DropdownMenu.Item>
                       {/each}
                       <DropdownMenu.Separator />
-                      <DropdownMenu.Item class="" inset={false} onclick={() => appState.setBinderColour(binder, null)}>
+                      <DropdownMenu.Item
+                        class=""
+                        inset={false}
+                        onclick={() => appState.setBinderColour(binder, null)}
+                      >
                         From the name
                       </DropdownMenu.Item>
                     </DropdownMenu.Content>
@@ -205,8 +225,12 @@
                       />
                       <div class="meta mt-0.5">{binderMeta(binder)}</div>
                     </div>
-                    <button type="button" class="tb-btn bg-fill" onclick={cancelRename}>Cancel</button>
-                    <button type="button" class="tb-btn tb-primary px-3" onclick={confirmRename}>Save</button>
+                    <button type="button" class="tb-btn bg-fill" onclick={cancelRename}
+                      >Cancel</button
+                    >
+                    <button type="button" class="tb-btn tb-primary px-3" onclick={confirmRename}
+                      >Save</button
+                    >
                   {:else}
                     <button
                       type="button"
@@ -230,18 +254,32 @@
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger>
                         {#snippet child({ props })}
-                          <button {...props} type="button" class="tb-btn text-muted-foreground hover:text-foreground" aria-label="More for {binder}">
+                          <button
+                            {...props}
+                            type="button"
+                            class="tb-btn text-muted-foreground hover:text-foreground"
+                            aria-label="More for {binder}"
+                          >
                             <EllipsisIcon strokeWidth={1.7} />
                           </button>
                         {/snippet}
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Content class="w-44" align="end" portalProps={{}}>
-                        <DropdownMenu.Item class="" inset={false} onclick={() => startRename(binder)}>
+                        <DropdownMenu.Item
+                          class=""
+                          inset={false}
+                          onclick={() => startRename(binder)}
+                        >
                           <PencilIcon class="size-3.5" strokeWidth={1.5} />
                           Rename
                         </DropdownMenu.Item>
                         <DropdownMenu.Separator />
-                        <DropdownMenu.Item class="" inset={false} variant="destructive" onclick={() => handleDeleteClick(binder)}>
+                        <DropdownMenu.Item
+                          class=""
+                          inset={false}
+                          variant="destructive"
+                          onclick={() => handleDeleteClick(binder)}
+                        >
                           <Trash2Icon class="size-3.5" strokeWidth={1.5} />
                           Delete binder
                         </DropdownMenu.Item>
@@ -254,7 +292,10 @@
               {#if isCreating || fileManager.binders.length === 0}
                 <!-- The new binder is typed in place, as the next row of the list. -->
                 <div class="inset-row min-h-16">
-                  <span aria-hidden="true" class="size-7 shrink-0 rounded-[8px] bg-fill flex items-center justify-center text-muted-foreground">
+                  <span
+                    aria-hidden="true"
+                    class="size-7 shrink-0 rounded-[8px] bg-fill flex items-center justify-center text-muted-foreground"
+                  >
                     <PlusIcon class="size-3.5" strokeWidth={1.8} />
                   </span>
                   <label class="flex-1 min-w-0">
@@ -273,9 +314,16 @@
                     />
                   </label>
                   {#if fileManager.binders.length > 0}
-                    <button type="button" class="tb-btn bg-fill" onclick={cancelCreate}>Cancel</button>
+                    <button type="button" class="tb-btn bg-fill" onclick={cancelCreate}
+                      >Cancel</button
+                    >
                   {/if}
-                  <button type="button" class="tb-btn tb-primary px-3" onclick={handleCreateBinder} disabled={!newBinderName.trim()}>Create</button>
+                  <button
+                    type="button"
+                    class="tb-btn tb-primary px-3"
+                    onclick={handleCreateBinder}
+                    disabled={!newBinderName.trim()}>Create</button
+                  >
                 </div>
               {/if}
             </div>
@@ -296,7 +344,9 @@
                 <div class="flex-1 min-w-0">
                   <div class="text-[13.5px] font-medium">Not in a binder</div>
                   <div class="meta">
-                    {looseCount} writing{looseCount === 1 ? '' : 's'}{looseCount ? ' · move one into a binder to file it' : ''}
+                    {looseCount} writing{looseCount === 1 ? '' : 's'}{looseCount
+                      ? ' · move one into a binder to file it'
+                      : ''}
                   </div>
                 </div>
               </button>
@@ -314,15 +364,22 @@
       <Dialog.Title class="text-title font-semibold">Delete binder</Dialog.Title>
       <Dialog.Description class="text-sm text-muted-foreground pt-1">
         {#if binderToDelete && binderWritingCount(binderToDelete) > 0}
-          <span class="font-medium text-foreground">"{binderToDelete}"</span> still has {binderWritingCount(binderToDelete)}
+          <span class="font-medium text-foreground">"{binderToDelete}"</span> still has {binderWritingCount(
+            binderToDelete
+          )}
           writing{binderWritingCount(binderToDelete) === 1 ? '' : 's'} in it. Move or delete
           {binderWritingCount(binderToDelete) === 1 ? 'it' : 'them'} first before deleting this binder.
         {:else if binderToDelete && binderCodexCount(binderToDelete) > 0}
-          <span class="font-medium text-foreground">"{binderToDelete}"</span> still has {binderCodexCount(binderToDelete)}
+          <span class="font-medium text-foreground">"{binderToDelete}"</span> still has {binderCodexCount(
+            binderToDelete
+          )}
           codex entr{binderCodexCount(binderToDelete) === 1 ? 'y' : 'ies'}. Delete
-          {binderCodexCount(binderToDelete) === 1 ? 'it' : 'them'} from the codex first before deleting this binder.
+          {binderCodexCount(binderToDelete) === 1 ? 'it' : 'them'} from the codex first before deleting
+          this binder.
         {:else}
-          Are you sure you want to delete <span class="font-medium text-foreground">"{binderToDelete}"</span>?
+          Are you sure you want to delete <span class="font-medium text-foreground"
+            >"{binderToDelete}"</span
+          >?
           <br />This action cannot be undone.
         {/if}
       </Dialog.Description>
@@ -333,8 +390,7 @@
         variant="destructive"
         onclick={confirmDelete}
         class="flex-1"
-        disabled={binderToDelete ? binderBlocked(binderToDelete) : false}
-        >Delete binder</Button
+        disabled={binderToDelete ? binderBlocked(binderToDelete) : false}>Delete binder</Button
       >
     </Dialog.Footer>
   </Dialog.Content>

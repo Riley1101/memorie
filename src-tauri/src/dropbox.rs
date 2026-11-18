@@ -116,37 +116,58 @@ static ACCESS_TOKEN: Mutex<Option<(String, Instant)>> = Mutex::new(None);
  *  Token storage
  */
 
+/// What the keyring holds, as far as this run knows: `None` means "not read
+/// yet", `Some(None)` means "read, and there is no token".
+///
+/// macOS asks the user to allow every keychain read, so reading the refresh
+/// token on each mount and each sync stacks up prompts. It is read once per
+/// run and kept here; it never touches disk, and quitting drops it.
+static REFRESH_TOKEN_CACHE: Mutex<Option<Option<String>>> = Mutex::new(None);
+
 fn token_entry() -> Result<Entry, DropboxError> {
     Ok(Entry::new(KEYRING_SERVICE, KEYRING_USER)?)
 }
 
+fn cache_refresh_token(value: Option<String>) {
+    if let Ok(mut cached) = REFRESH_TOKEN_CACHE.lock() {
+        *cached = Some(value);
+    }
+}
+
 pub fn save_refresh_token(token: &str) -> Result<(), DropboxError> {
     token_entry()?.set_password(token)?;
+    cache_refresh_token(Some(token.to_string()));
     Ok(())
 }
 
 pub fn load_refresh_token() -> Result<Option<String>, DropboxError> {
-    match token_entry()?.get_password() {
-        Ok(token) => Ok(Some(token)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.into()),
+    if let Ok(cached) = REFRESH_TOKEN_CACHE.lock() {
+        if let Some(token) = cached.as_ref() {
+            return Ok(token.clone());
+        }
     }
+
+    let token = match token_entry()?.get_password() {
+        Ok(token) => Some(token),
+        Err(keyring::Error::NoEntry) => None,
+        Err(e) => return Err(e.into()),
+    };
+
+    cache_refresh_token(token.clone());
+    Ok(token)
 }
 
 pub fn clear_refresh_token() -> Result<(), DropboxError> {
     if let Ok(mut cached) = ACCESS_TOKEN.lock() {
         *cached = None;
     }
+    cache_refresh_token(None);
     // The next account may have a same-named folder with different contents.
     clear_sync_state();
     match token_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.into()),
     }
-}
-
-pub fn is_logged_in() -> bool {
-    matches!(load_refresh_token(), Ok(Some(_)))
 }
 
 /**
@@ -574,11 +595,15 @@ async fn fetch_account(token: &str) -> Result<DropboxAccount, DropboxError> {
 }
 
 /// The logged-in account, or `None` when there is no stored session.
+///
+/// `access_token` already reports a missing refresh token as `NotLoggedIn`, so
+/// there is no separate `is_logged_in` check to read the keyring twice.
 pub async fn current_account() -> Result<Option<DropboxAccount>, DropboxError> {
-    if !is_logged_in() {
-        return Ok(None);
-    }
-    let token = access_token().await?;
+    let token = match access_token().await {
+        Ok(token) => token,
+        Err(DropboxError::NotLoggedIn) => return Ok(None),
+        Err(e) => return Err(e),
+    };
     Ok(Some(fetch_account(&token).await?))
 }
 

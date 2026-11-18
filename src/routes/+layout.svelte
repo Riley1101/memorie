@@ -143,6 +143,9 @@
     if (localStorage.getItem('outlineOpen') === 'true') {
       appState.toggleOutline(true);
     }
+    if (localStorage.getItem('libraryOpen') === 'true') {
+      appState.toggleLibrary(true);
+    }
     // The listings have to be in before the welcome writing can tell whether
     // this is a first run or an existing library.
     Promise.all([fileManager.getRecents(), fileManager.getBinders(), fileManager.getFolders()])

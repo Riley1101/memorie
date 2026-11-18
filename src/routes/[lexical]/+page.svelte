@@ -20,6 +20,9 @@
   import HistoryIcon from '@lucide/svelte/icons/history';
   import ShareIcon from '@lucide/svelte/icons/share';
   import BinderSidebar from '$lib/components/binder-sidebar.svelte';
+  import EditorAssistant from '$lib/components/editor-assistant.svelte';
+  import PanelResizer from '$lib/components/panel-resizer.svelte';
+  import { IsMobile } from '$lib/hooks/is-mobile.svelte.js';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import { shortcut } from '$lib/keyboard.svelte.js';
   import { appState } from '$lib/runes/app.svelte.js';
@@ -32,7 +35,7 @@
   import { fileManager, dirOf, baseOf } from '$lib/runes/fs.svelte';
   import { configManager } from '$lib/runes/config.svelte.js';
   import { writingState } from '$lib/runes/writing.svelte.js';
-  import { syncTarget, publish, refreshSyncStatus } from '$lib/runes/sync.svelte.js';
+  import { refreshSyncStatus } from '$lib/runes/sync.svelte.js';
   import { getCurrentWindow } from '@tauri-apps/api/window';
 
   let { data } = $props();
@@ -121,17 +124,6 @@
     if (file) goto(resolve(`/${encodeURIComponent(file.name)}`));
   }
 
-  // 0 means no saved version yet; "v0" read as a bug, not a state.
-  let versionLabel = $derived(
-    isDraft
-      ? 'Draft'
-      : appState.ui.isHistoryOpen
-        ? 'History'
-        : history?.current
-          ? `Version ${history.current}`
-          : ''
-  );
-
   let saveLabel = $derived.by(() => {
     // `now` is read so the label recomputes on every tick.
     void now;
@@ -152,30 +144,52 @@
     }
   });
 
-  // Where this writing stands with the cloud, if the writer turned it on.
-  let sync = $derived(syncTarget());
-  let syncLabel = $derived.by(() => {
-    if (sync.provider === 'none') return '';
-    if (sync.busy) return 'Publishing…';
-    if (!sync.ready) return `${sync.label} not set up`;
-    if (sync.pending === 0) return `Published to ${sync.label}`;
-    return `${sync.pending} to publish`;
-  });
-
-  async function publishNow() {
-    if (editorState.flushSave) await editorState.flushSave();
-    await publish();
-  }
-
   // Colour is kept for the one state that needs the writer: a failed save.
   let saveTone = $derived(
     editorState.saveStatus.status === 'error' ? 'text-destructive' : 'text-muted-foreground'
   );
 
-  let binderLabel = $derived(dirOf(fileName));
-
   /** The library sidebar, opened over the page from the toolbar. */
   let librarySheetOpen = $state(false);
+
+  /**
+   * Below the docked breakpoint there is no room for the library beside the
+   * writing, so the toolbar button opens it as a sheet instead of docking it.
+   */
+  const narrow = new IsMobile(1024);
+
+  const SCENE_MIN = 240;
+  const SCENE_MAX = 720;
+  /** Untouched, the panel takes this share of the window. */
+  const SCENE_SHARE = 0.3;
+
+  /** The scene panel's width, dragged on its inner edge and remembered. */
+  let sceneWidth = $state(readSceneWidth());
+
+  function readSceneWidth() {
+    try {
+      const saved = Number(localStorage.getItem('scenePanelWidth'));
+      if (Number.isFinite(saved) && saved > 0) {
+        return Math.min(SCENE_MAX, Math.max(SCENE_MIN, saved));
+      }
+    } catch {
+      // Not remembered; the share below stands.
+    }
+    if (typeof window === 'undefined') return 360;
+    return Math.round(
+      Math.min(SCENE_MAX, Math.max(SCENE_MIN, window.innerWidth * SCENE_SHARE))
+    );
+  }
+
+  /** @param {number} next */
+  function setSceneWidth(next) {
+    sceneWidth = next;
+    try {
+      localStorage.setItem('scenePanelWidth', String(next));
+    } catch {
+      // Not remembered; fine.
+    }
+  }
 
   let focusMode = $derived(writingState.focusMode);
 
@@ -232,17 +246,22 @@
   </Tooltip.Root>
 {/snippet}
 
-<div class="flex flex-col h-dvh w-full bg-paper" class:focus-mode={focusMode}>
+<div class="flex flex-col h-dvh w-full bg-frame" class:focus-mode={focusMode}>
   <!-- One toolbar across the window (and its drag region): the way back and
        the library on the left, the writing's title in the middle, its panels
        and export on the right. -->
   <header
     data-tauri-drag-region
-    class="focus-chrome toolbar relative z-20 gap-2 pl-[max(18px,var(--titlebar-inset-left,0px))] pr-3"
+    class="focus-chrome toolbar relative z-20 gap-3 pl-[max(22px,var(--titlebar-inset-left,0px))] pr-5"
   >
     <div class="capsule glass">
       {@render iconButton({ label: 'Back to library', tip: `Back to library · ${shortcut('B')}`, onclick: () => goto(resolve('/')), icon: HouseIcon })}
-      {@render iconButton({ label: 'Show library sidebar', tip: 'Library', onclick: () => (librarySheetOpen = true), icon: PanelLeftIcon })}
+      {@render iconButton({
+        label: 'Show library sidebar',
+        tip: 'Library',
+        onclick: () => (narrow.current ? (librarySheetOpen = true) : appState.toggleLibrary()),
+        icon: PanelLeftIcon,
+      })}
     </div>
 
     <div class="flex-1 min-w-0 flex items-center justify-center gap-1 pointer-events-none" data-tauri-drag-region>
@@ -261,34 +280,6 @@
         <h1 class="m-0 max-w-[40ch] truncate text-sm font-semibold text-foreground" data-tauri-drag-region>
           {editorState.name || 'Untitled'}
         </h1>
-        <!-- One line for the state of the work: where it lives, which version,
-             saved on disk, and whether it has left the machine. -->
-        <span class="meta flex items-center gap-1 max-w-[56ch] truncate pointer-events-auto" aria-live="polite">
-          {#if binderLabel}<span class="truncate">{binderLabel.replaceAll('/', ' / ')}</span><span aria-hidden="true">·</span>{/if}
-          {#if versionLabel}
-            <span title={isDraft ? undefined : `Saved versions are in the history panel (${shortcut('U')})`}>{versionLabel}</span>
-            {#if saveLabel}<span aria-hidden="true">·</span>{/if}
-          {/if}
-          {#if editorState.saveStatus.status === 'error'}
-            <button type="button" onclick={() => editorState.flushSave?.()} class="{saveTone} hover:underline underline-offset-2">
-              {saveLabel}
-            </button>
-          {:else if saveLabel}
-            <span class="{saveTone} transition-colors">{saveLabel}</span>
-          {/if}
-          {#if syncLabel}
-            <span aria-hidden="true">·</span>
-            <button
-              type="button"
-              onclick={publishNow}
-              disabled={sync.busy}
-              title="Publish to {sync.label}"
-              class="transition-colors hover:text-foreground disabled:opacity-60 {sync.pending ? 'text-foreground' : ''}"
-            >
-              {syncLabel}
-            </button>
-          {/if}
-        </span>
       </div>
       {#if siblings.length > 1}
         <span class="pointer-events-auto">
@@ -302,6 +293,22 @@
         </span>
       {/if}
     </div>
+
+    {#if saveLabel}
+      <span class="meta max-w-[28ch] truncate" aria-live="polite">
+        {#if editorState.saveStatus.status === 'error'}
+          <button
+            type="button"
+            onclick={() => editorState.flushSave?.()}
+            class="{saveTone} hover:underline underline-offset-2"
+          >
+            {saveLabel}
+          </button>
+        {:else}
+          <span class="{saveTone} transition-colors">{saveLabel}</span>
+        {/if}
+      </span>
+    {/if}
 
     <div class="capsule glass">
       {@render iconButton({
@@ -331,10 +338,16 @@
     </div>
   </header>
 
-  <div class="flex flex-1 min-h-0">
+  <div class="flex flex-1 min-h-0 gap-3 px-3 pb-3">
+    <BinderSidebar
+      docked={appState.ui.isLibraryOpen && !focusMode}
+      bind:activeBinder={appState.ui.activeBinder}
+      bind:sheetOpen={librarySheetOpen}
+    />
+
     {#if appState.ui.isHistoryOpen && !focusMode}
-      <aside aria-label="History" class="glass flex flex-col w-60 shrink-0 ml-2 mb-2 rounded-group overflow-hidden">
-        <div class="flex items-center justify-between gap-2 px-3.5 pt-3 pb-2">
+      <aside aria-label="History" class="well flex flex-col w-60 shrink-0 rounded-group overflow-hidden">
+        <div class="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
           <h2 class="text-xs font-semibold text-muted-foreground">History</h2>
           <span class="meta truncate" title={baseOf(fileName)}>{formatFileName(baseOf(fileName))}</span>
         </div>
@@ -350,7 +363,7 @@
       </aside>
     {/if}
 
-    <main class="relative h-full flex-1 min-w-0 overflow-hidden">
+    <main class="lifted relative h-full flex-1 min-w-0 overflow-hidden rounded-group">
       <EditorFind />
       <ReviseBar />
       <ScrollFade class="h-full" fade={24}>
@@ -368,7 +381,18 @@
 
     {#if appState.ui.isOutlineOpen && !focusMode}
       <!-- The scene panel: an inspector floating at the window's right edge. -->
-      <aside aria-label="Scene" class="glass flex flex-col w-66 shrink-0 mr-2 mb-2 rounded-group overflow-hidden">
+      <aside
+        aria-label="Scene"
+        class="well relative flex flex-col shrink-0 rounded-group overflow-hidden"
+        style="width: {sceneWidth}px"
+      >
+        <PanelResizer
+          width={sceneWidth}
+          min={SCENE_MIN}
+          max={SCENE_MAX}
+          label="Resize the scene panel"
+          onresize={setSceneWidth}
+        />
         <ScrollFade class="flex-1 min-h-0">
           <ScrollArea class="h-full" type="scroll">
             <div class="pb-3">
@@ -391,10 +415,14 @@
         </ScrollFade>
       </aside>
     {/if}
+
+    {#if configManager.config?.ai_enabled && appState.ui.isChatOpen}
+      <EditorAssistant />
+    {/if}
   </div>
 </div>
 
-<BinderSidebar docked={false} bind:activeBinder={appState.ui.activeBinder} bind:sheetOpen={librarySheetOpen} />
+
 
 <style>
   .inspector-head {

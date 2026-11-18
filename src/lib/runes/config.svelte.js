@@ -31,6 +31,12 @@ class ConfigManager {
 
   isLoadingOpenRouterModels = $state(false);
 
+  /** Whether the stored-key check already ran this run. */
+  _keyChecked = false;
+
+  /** The in-flight key check, shared by callers that arrive together. */
+  _keyPromise = null;
+
   async getConfig() {
     this.isLoading = true;
     this.error = null;
@@ -137,6 +143,7 @@ class ConfigManager {
     try {
       await invoke('set_openrouter_api_key', { key });
       this.hasOpenRouterApiKey = true;
+      this._keyChecked = true;
     } catch (err) {
       console.error('Failed to save OpenRouter API key:', err);
       this.error = err;
@@ -149,6 +156,7 @@ class ConfigManager {
     try {
       await invoke('clear_openrouter_api_key');
       this.hasOpenRouterApiKey = false;
+      this._keyChecked = true;
       this.openRouterModels = [];
     } catch (err) {
       console.error('Failed to clear OpenRouter API key:', err);
@@ -156,12 +164,32 @@ class ConfigManager {
     }
   }
 
-  /** Refreshes whether an OpenRouter API key is currently stored. */
-  async checkOpenRouterApiKey() {
+  /**
+   * Refreshes whether an OpenRouter API key is currently stored. Reading it
+   * reaches into the OS keyring, which prompts the user on macOS, and the
+   * layout, Settings and the provider switch all ask — so the answer is read
+   * once per run unless `force` is passed.
+   * @param {{ force?: boolean }} [options]
+   */
+  async checkOpenRouterApiKey({ force = false } = {}) {
+    if (!force) {
+      if (this._keyPromise) return this._keyPromise;
+      if (this._keyChecked) return;
+    }
+
+    this._keyPromise = (async () => {
+      try {
+        this.hasOpenRouterApiKey = await invoke('has_openrouter_api_key');
+        this._keyChecked = true;
+      } catch (err) {
+        console.error('Failed to check OpenRouter API key:', err);
+      }
+    })();
+
     try {
-      this.hasOpenRouterApiKey = await invoke('has_openrouter_api_key');
-    } catch (err) {
-      console.error('Failed to check OpenRouter API key:', err);
+      await this._keyPromise;
+    } finally {
+      this._keyPromise = null;
     }
   }
 

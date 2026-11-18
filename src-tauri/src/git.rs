@@ -3,6 +3,7 @@ use git2::{Cred, PushOptions, RemoteCallbacks, Repository, Signature};
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::sync::Mutex;
 
 /// Public GitHub OAuth App client id (device flow, no client secret needed).
 /// Register one at https://github.com/settings/developers with "Enable Device Flow" checked.
@@ -49,24 +50,50 @@ pub struct GitFileStatus {
     pub status: String,
 }
 
+/// What the keyring holds, as far as this run knows: `None` means "not read
+/// yet", `Some(None)` means "read, and there is no token".
+///
+/// Every `get_password` is a separate keychain item access, and macOS asks the
+/// user to allow each one, so a run that reads on each mount and each push
+/// stacks up prompts. The token is read once per run and kept here instead;
+/// it never touches disk, and quitting drops it.
+static TOKEN_CACHE: Mutex<Option<Option<String>>> = Mutex::new(None);
+
 fn token_entry() -> Result<Entry, GitError> {
     Ok(Entry::new(KEYRING_SERVICE, KEYRING_USER)?)
 }
 
+fn cache_token(value: Option<String>) {
+    if let Ok(mut cached) = TOKEN_CACHE.lock() {
+        *cached = Some(value);
+    }
+}
+
 pub fn save_token(token: &str) -> Result<(), GitError> {
     token_entry()?.set_password(token)?;
+    cache_token(Some(token.to_string()));
     Ok(())
 }
 
 pub fn load_token() -> Result<Option<String>, GitError> {
-    match token_entry()?.get_password() {
-        Ok(token) => Ok(Some(token)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.into()),
+    if let Ok(cached) = TOKEN_CACHE.lock() {
+        if let Some(token) = cached.as_ref() {
+            return Ok(token.clone());
+        }
     }
+
+    let token = match token_entry()?.get_password() {
+        Ok(token) => Some(token),
+        Err(keyring::Error::NoEntry) => None,
+        Err(e) => return Err(e.into()),
+    };
+
+    cache_token(token.clone());
+    Ok(token)
 }
 
 pub fn clear_token() -> Result<(), GitError> {
+    cache_token(None);
     match token_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.into()),

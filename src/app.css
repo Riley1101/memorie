@@ -125,15 +125,39 @@ body,
 [class*='style-'] {
   --paper: var(--background);
   --frame: color-mix(in oklch, var(--background), oklch(0.45 0.03 70) 11%);
+  /* The plane a screen's content sits on, between the frame and a well. In the
+     light theme it is the paper itself; the dark theme lifts it off the window
+     background so a well cut into it still reads. */
+  --page: var(--paper);
   --glass: color-mix(in oklch, var(--popover) 68%, transparent);
   --glass-solid: var(--popover);
   --hair: color-mix(in oklch, var(--foreground) 10%, transparent);
   --fill: color-mix(in oklch, var(--foreground) 5.5%, transparent);
   --selection: color-mix(in oklch, var(--primary) 15%, transparent);
   --glass-rim: color-mix(in oklch, white 72%, transparent);
+  /* A well is a panel cut into the frame rather than floating on it: a floor
+     darker than the frame, a shade under its top edge, a carved hairline rim
+     and a light lip along the bottom. `--riser` is what rises back out of a
+     well (a current row, a field's value), so it is always lighter than the
+     floor in both themes. */
+  --well: color-mix(in oklch, var(--background), black 6%);
+  --well-shade: color-mix(in oklch, var(--foreground) 13%, transparent);
+  --well-rim: color-mix(in oklch, var(--foreground) 7%, transparent);
+  --well-lip: color-mix(in oklch, white 90%, transparent);
+  --riser: var(--paper);
 }
 .dark {
-  --frame: color-mix(in oklch, var(--background), white 6%);
+  /* Dark depth comes from lifting the frame, not from digging the floor: a
+     well is the window background itself, the chrome around it rises, and the
+     shade over it stays off pure black. Anything darker than the window reads
+     as a hole punched through the app. */
+  --frame: color-mix(in oklch, var(--background), oklch(0.8 0.025 70) 11%);
+  --page: var(--card);
+  --well: var(--background);
+  --well-shade: color-mix(in oklch, black 35%, transparent);
+  --well-rim: color-mix(in oklch, white 4%, transparent);
+  --well-lip: color-mix(in oklch, white 7%, transparent);
+  --riser: var(--secondary);
   --glass: color-mix(in oklch, color-mix(in oklch, var(--popover), white 8%) 66%, transparent);
   --glass-solid: color-mix(in oklch, var(--popover), white 6%);
   --hair: color-mix(in oklch, white 9%, transparent);
@@ -372,6 +396,8 @@ body,
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-paper: var(--paper);
+  --color-page: var(--page);
+  --color-riser: var(--riser);
   --color-frame: var(--frame);
   --color-glass: var(--glass);
   --color-hair: var(--hair);
@@ -414,7 +440,29 @@ body,
   --writer-surface-shadow: none;
   --writer-prose-leading: 1.75;
   /* App-wide (overridden by .style-* flavour) */
-  --app-page-padding: 2rem;
+  --app-page-padding: 2.5rem;
+
+  /* Interface rhythm. The chrome is sized in pixels, so this is the one place
+     that makes the whole app roomier or tighter: toolbars, sidebar rows,
+     fields, inset groups and section heads all read from these. Compact
+     density pulls them back in (see `.density-compact`), except for the
+     control height, which stays 32px at both so icons and hit targets keep
+     one native size and only the space around them moves. */
+  --chrome-gap: 14px;
+  --toolbar-height: 60px;
+  --toolbar-pad-left: 26px;
+  --toolbar-pad-right: 20px;
+  --control-height: 32px;
+  --control-pad-x: 12px;
+  --control-gap: 8px;
+  --row-height: 34px;
+  --row-pad-x: 10px;
+  --row-gap: 10px;
+  --section-pad-top: 22px;
+  --field-height: 34px;
+  --inset-row-min-height: 48px;
+  --inset-row-pad-y: 12px;
+  --inset-row-pad-x: 18px;
 }
 
 /* Stylistic themes. Apply .style-{name} on root layout. Affects entire app. */
@@ -447,7 +495,9 @@ body,
   font-weight: 600;
 }
 
-/* Density: .density-{default|compact} on root. Default = spacious, Typora-like. Compact = dense. */
+/* Density: .density-{default|compact} on root. Default = spacious, Typora-like.
+   Compact = dense, and the only mode that tightens the chrome back to the
+   smaller rhythm the interface used before. */
 .density-default {
   --writer-padding-x: 2.5rem;
   --writer-padding-y: 3rem;
@@ -456,7 +506,7 @@ body,
   --writer-prose-leading: 1.85;
   --writer-title-size: 2.25rem;
   --writer-title-size-md: 3rem;
-  --app-page-padding: 3rem;
+  --app-page-padding: 3.5rem;
 }
 .density-compact {
   --writer-padding-x: 1.5rem;
@@ -467,6 +517,21 @@ body,
   --writer-title-size: 1.75rem;
   --writer-title-size-md: 2rem;
   --app-page-padding: 2rem;
+
+  --chrome-gap: 10px;
+  --toolbar-height: 52px;
+  --toolbar-pad-left: 20px;
+  --toolbar-pad-right: 14px;
+  --control-pad-x: 9px;
+  --control-gap: 6px;
+  --row-height: 28px;
+  --row-pad-x: 8px;
+  --row-gap: 8px;
+  --section-pad-top: 14px;
+  --field-height: 28px;
+  --inset-row-min-height: 40px;
+  --inset-row-pad-y: 8px;
+  --inset-row-pad-x: 14px;
 }
 
 /* Paper: a printed page sitting on a desk. Light = cream page on a warm
@@ -781,12 +846,14 @@ body [data-slot="sheet-content"] {
 }
 
 /* macOS overlay title bar. The traffic lights are placed (tauri.conf.json,
-   trafficLightPosition) to centre on the 52px toolbar band; this is the room
-   they take at the top-left, kept clear by the sidebar and by a toolbar that
-   starts at the window's left edge. */
+   trafficLightPosition) to centre on the toolbar band, which is 60px at the
+   default interface rhythm; this is the room they take at the top-left, kept
+   clear by the sidebar and by a toolbar that starts at the window's left edge.
+   The band follows `--toolbar-height`, so compact density shortens it while
+   the native lights stay where macOS puts them. */
 .platform-mac {
   --titlebar-inset-left: 84px;
-  --titlebar-height: 52px;
+  --titlebar-height: var(--toolbar-height, 60px);
 }
 
 @layer base {
@@ -935,12 +1002,8 @@ body [data-slot="sheet-content"] {
     scrollbar-color: var(--border) transparent;
   }
 
-  /* Writing surface: single container for editor page */
-  /* The measure is capped in characters of the writing font, so it holds at any
-     font size or density. `ch` is the width of a zero, wider than an average
-     letter, so 66ch of the surface font comes to about 75 characters of prose. */
   .writing-surface {
-    max-width: min(54rem, calc(66ch + 2 * var(--writer-padding-x)));
+    max-width: min(54rem, calc(100ch + 2 * var(--writer-padding-x)));
     margin-inline: auto;
     padding-inline: var(--writer-padding-x);
     padding-block: var(--writer-padding-y);
@@ -1034,14 +1097,15 @@ body [data-slot="sheet-content"] {
       0 10px 28px -8px color-mix(in oklch, black 45%, transparent);
   }
 
-  /* Toolbar: 52px, the window's drag region. Title left, capsules right. */
+  /* Toolbar: the window's drag region. Title left, capsules right. Its height
+     and insets follow the interface rhythm (`--toolbar-*`). */
   .toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    height: 52px;
+    gap: var(--chrome-gap);
+    height: var(--toolbar-height);
     flex-shrink: 0;
-    padding-inline: 20px 14px;
+    padding-inline: var(--toolbar-pad-left) var(--toolbar-pad-right);
   }
   .toolbar-title {
     margin: 0;
@@ -1059,19 +1123,26 @@ body [data-slot="sheet-content"] {
   .capsule {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    padding: 2px;
+    gap: 3px;
+    padding: 3px;
     border-radius: 999px;
     flex-shrink: 0;
+  }
+  /* A capsule sits flat in the toolbar: the rim and its own fill are enough to
+     read as a group, so it drops the drop shadow a floating pane needs. One
+     less edge per control group. */
+  .capsule.glass,
+  .dark .capsule.glass {
+    box-shadow: inset 0 1px 0 0 var(--glass-rim);
   }
   .tb-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    height: 30px;
-    min-width: 30px;
-    padding-inline: 9px;
+    gap: var(--control-gap);
+    height: var(--control-height);
+    min-width: var(--control-height);
+    padding-inline: var(--control-pad-x);
     border-radius: 999px;
     font-family: var(--font-ui);
     font-size: 13px;
@@ -1095,7 +1166,7 @@ body [data-slot="sheet-content"] {
   .tb-btn[aria-selected='true'],
   .tb-btn.is-on {
     background: var(--paper);
-    box-shadow: 0 1px 2px color-mix(in oklch, black 14%, transparent);
+    box-shadow: 0 1px 2px color-mix(in oklch, black 9%, transparent);
   }
   /* The primary action: the one solid accent on a screen. */
   .tb-primary {
@@ -1117,7 +1188,7 @@ body [data-slot="sheet-content"] {
   .sb-head {
     display: flex;
     align-items: center;
-    padding: 14px 8px 4px;
+    padding: var(--section-pad-top) var(--row-pad-x) 6px;
     font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 600;
@@ -1126,10 +1197,10 @@ body [data-slot="sheet-content"] {
   .sb-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--row-gap);
     width: 100%;
-    height: 28px;
-    padding-inline: 8px;
+    height: var(--row-height);
+    padding-inline: var(--row-pad-x);
     border-radius: 7px;
     font-family: var(--font-ui);
     font-size: 13px;
@@ -1140,10 +1211,16 @@ body [data-slot="sheet-content"] {
   .sb-row:hover {
     background: var(--fill);
   }
+  /* In a well the current row is the thing that rises, so it is a chip rather
+     than a tint; the accent stays on its icon. */
   .sb-row[aria-current='page'],
   .sb-row[aria-current='true'],
   .sb-row.is-on {
-    background: var(--selection);
+    background: var(--riser);
+    box-shadow:
+      0 1px 2px color-mix(in oklch, black 12%, transparent),
+      inset 0 1px 0 var(--well-lip);
+    font-weight: 500;
   }
   .sb-row > svg {
     width: 16px;
@@ -1169,11 +1246,12 @@ body [data-slot="sheet-content"] {
   .field {
     display: flex;
     align-items: center;
-    gap: 6px;
-    height: 28px;
-    padding-inline: 8px;
+    gap: var(--control-gap);
+    height: var(--field-height);
+    padding-inline: var(--row-pad-x);
     border-radius: var(--radius-field);
     background: var(--fill);
+    box-shadow: inset 0 1px 2px var(--well-shade);
     color: var(--muted-foreground);
     font-family: var(--font-ui);
     font-size: 13px;
@@ -1202,15 +1280,15 @@ body [data-slot="sheet-content"] {
   .inset-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-height: 40px;
-    padding: 8px 14px;
+    gap: var(--chrome-gap);
+    min-height: var(--inset-row-min-height);
+    padding: var(--inset-row-pad-y) var(--inset-row-pad-x);
     font-family: var(--font-ui);
     font-size: 13px;
   }
   .group-head {
     margin: 0;
-    padding: 18px 12px 6px;
+    padding: var(--section-pad-top) 12px 8px;
     font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 600;
@@ -1225,7 +1303,7 @@ body [data-slot="sheet-content"] {
   .seg > button[aria-selected='true'] {
     background: var(--paper);
     color: var(--foreground);
-    box-shadow: 0 1px 2px color-mix(in oklch, black 14%, transparent);
+    box-shadow: 0 1px 2px color-mix(in oklch, black 9%, transparent);
   }
 
   /* A small section label above an inset group. */
@@ -1241,9 +1319,9 @@ body [data-slot="sheet-content"] {
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 26px;
-    padding-inline: 10px;
+    gap: var(--control-gap);
+    height: calc(var(--control-height) - 4px);
+    padding-inline: var(--control-pad-x);
     border-radius: 999px;
     background: var(--fill);
     color: var(--foreground);
@@ -1258,6 +1336,115 @@ body [data-slot="sheet-content"] {
   .chip.is-on {
     background: var(--foreground);
     color: var(--paper);
+  }
+
+  /* One writing row, shared by the library list and a binder's tree so both
+     read the same: a colour marker, the title, and one relative time that
+     steps aside for the row's actions on hover. The marker is the binder's
+     colour on the library screen and the scene's status inside a binder. */
+  .wrow {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+    padding-inline: 12px;
+    border-radius: 10px;
+    transition: background-color 120ms ease;
+  }
+  .wrow:hover,
+  .wrow.is-open {
+    background: var(--fill);
+  }
+  .wrow-mark {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .wrow-title {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-ui);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* A folder names a part of the manuscript, so it carries more weight. */
+  .wrow-title--folder {
+    font-weight: 600;
+  }
+  .wrow-meta {
+    flex-shrink: 0;
+    font-family: var(--font-ui);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    transition: opacity 120ms ease;
+  }
+
+  /* The grid both card views sit in. Shared so the column count can never
+     drift between the library and a binder: 8px of side padding here was
+     enough to cost the library a whole column at the content width. */
+  .wgrid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    padding-inline: 4px;
+  }
+
+  /* One writing card, shared by the library grid and a binder's corkboard: a
+     page preview with the opening lines (or the synopsis), the title under it.
+     No colour stripe — the binder reads from the dot on the meta line. */
+  .wcard {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    border-radius: var(--radius-group);
+    background: var(--fill);
+    transition: background-color 120ms ease;
+  }
+  .wcard:hover {
+    background: var(--selection);
+  }
+  /* The page: a sheet of the writing itself, clipped and faded at the foot. */
+  .wcard-page {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 132px;
+    overflow: hidden;
+    padding: 14px 14px 0;
+    border-radius: 7px;
+    background: var(--card);
+    color: var(--card-foreground);
+    text-align: left;
+    box-shadow: 0 0 0 1px var(--hair), 0 1px 4px -2px color-mix(in oklch, black 14%, transparent);
+  }
+  .wcard-fade {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 52px;
+    background: linear-gradient(to bottom, transparent, var(--card));
+    pointer-events: none;
+  }
+  .wcard-body {
+    min-width: 0;
+    padding: 12px 4px 4px;
+  }
+  .wcard-title {
+    font-family: var(--font-ui);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* Small grey metadata beside a title. */
@@ -1300,11 +1487,44 @@ body [data-slot="sheet-content"] {
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   border: 1px solid var(--hair);
   font-family: var(--font-ui);
+  /* A dialog sits over a dimmed window, so it cannot read as carved — a well
+     needs a frame around it to sink into. It keeps its glass and its rim and
+     gives up most of the lift instead, so it stops hovering over the page. */
   box-shadow:
     inset 0 1px 0 0 var(--glass-rim),
     0 1px 2px color-mix(in oklch, black 6%, transparent),
-    0 12px 32px -10px color-mix(in oklch, black 26%, transparent);
+    0 4px 12px -8px color-mix(in oklch, black 18%, transparent);
   --tw-ring-shadow: 0 0 #0000;
+}
+
+/* A well: a panel cut into the frame. Unlayered and after the overlay rules
+   above, so a sheet that carries `.well` is a well and not glass. */
+.well {
+  background: var(--well);
+  border: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    inset 0 2px 3px var(--well-shade),
+    inset 0 0 0 1px var(--well-rim),
+    0 1px 0 var(--well-lip);
+}
+
+/* The content surface as a card lifted off the frame — the plane opposite a
+   well, used where panels sit beside it (the editor's writing column). */
+.lifted {
+  background: var(--page);
+  box-shadow:
+    0 1px 2px color-mix(in oklch, black 10%, transparent),
+    inset 0 1px 0 var(--well-lip);
+}
+
+/* What rises back out of a well: a current row, a field's value. */
+.raised {
+  background: var(--riser);
+  box-shadow:
+    0 1px 2px color-mix(in oklch, black 12%, transparent),
+    inset 0 1px 0 var(--well-lip);
 }
 :is(
     [data-slot='popover-content'],

@@ -71,7 +71,7 @@
   });
 </script>
 
-<div class="px-3 pb-4">
+<div class="px-4 pb-6">
   {#if headings.length > 0}
     <nav aria-label="Table of contents" class="space-y-0.5">
       <!-- Keyed by index: positions shift on every edit above a heading. -->

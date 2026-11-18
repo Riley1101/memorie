@@ -54,7 +54,8 @@
   /** Text fields and popups in a row: an 8px fill well, like the sidebar search. */
   const FIELD =
     'h-7 min-w-0 rounded-field bg-fill px-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50';
-  const NOTICE = 'rounded-field px-3 py-2 text-sm wrap-anywhere max-h-40 overflow-y-auto overscroll-contain';
+  const NOTICE =
+    'rounded-field px-3 py-2 text-sm wrap-anywhere max-h-40 overflow-y-auto overscroll-contain';
 
   const PARAGRAPH_STYLES = /** @type {const} */ ([
     { id: 'spaced', name: 'Spaced' },
@@ -238,7 +239,8 @@
 {/snippet}
 
 {#snippet spinner()}
-  <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+  <span class="size-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"
+  ></span>
 {/snippet}
 
 {#snippet paneNav(row)}
@@ -256,11 +258,14 @@
 {/snippet}
 
 <!-- System Settings layout: a sidebar of panes and one pane at a time on paper. -->
-<div class="relative flex w-full h-full overflow-hidden">
-  <aside aria-label="Settings" class="glass hidden md:flex flex-col w-52 shrink-0 m-2 mr-0 p-2 rounded-group h-[calc(100%-16px)]">
+<div class="relative flex w-full h-full overflow-hidden gap-3 p-3">
+  <aside
+    aria-label="Settings"
+    class="well hidden md:flex flex-col w-60 shrink-0 p-3 rounded-group h-full"
+  >
     {#if onMacOS}
       <!-- The traffic lights sit here; the strip moves the window. -->
-      <div data-tauri-drag-region class="h-9 shrink-0 -mt-2 -mx-2 mb-1"></div>
+      <div data-tauri-drag-region class="h-9 shrink-0 -mt-3 -mx-3 mb-2"></div>
     {/if}
     <a href={resolve('/')} class="sb-row text-muted-foreground">
       <ArrowLeftIcon strokeWidth={1.75} />
@@ -272,8 +277,11 @@
     </nav>
   </aside>
 
-  <main class="flex-1 min-w-0 h-full flex flex-col bg-paper md:shadow-[-1px_0_0_var(--hair)]">
-    <header data-tauri-drag-region class="toolbar max-md:pl-[max(20px,var(--titlebar-inset-left,0px))]">
+  <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
+    <header
+      data-tauri-drag-region
+      class="toolbar max-md:pl-[max(20px,var(--titlebar-inset-left,0px))]"
+    >
       <a href={resolve('/')} class="tb-btn md:hidden -ml-2" aria-label="Back to writings">
         <ArrowLeftIcon strokeWidth={1.7} />
       </a>
@@ -281,13 +289,15 @@
     </header>
 
     <!-- Below 768px the panes wrap as chips instead of a sidebar, so every pane stays in sight. -->
-    <nav aria-label="Settings panes" class="md:hidden flex flex-wrap gap-1.5 px-5 pb-2">
-      {@render paneNav('chip [&>svg]:size-3.5 aria-[current=page]:bg-foreground aria-[current=page]:text-paper')}
+    <nav aria-label="Settings panes" class="md:hidden flex flex-wrap gap-2 px-8 pb-3">
+      {@render paneNav(
+        'chip [&>svg]:size-3.5 aria-[current=page]:bg-foreground aria-[current=page]:text-paper'
+      )}
     </nav>
 
     <ScrollFade class="flex-1 min-h-0">
       <ScrollArea type="scroll" class="w-full h-full">
-        <div class="mx-auto max-w-160 flex flex-col px-5 pt-1 pb-8">
+        <div class="mx-auto max-w-160 flex flex-col px-8 pt-2 pb-16">
           {#if activeSection === 'writing'}
             <h2 class="group-head">Editor</h2>
             <div class="inset-group">
@@ -311,7 +321,11 @@
               </div>
               <div class="inset-row">
                 {@render label('Spellcheck', 'Underline misspelled words while you write.')}
-                {@render toggle(writingState.spellcheck, () => writingState.setSpellcheck(!writingState.spellcheck), 'Spellcheck')}
+                {@render toggle(
+                  writingState.spellcheck,
+                  () => writingState.setSpellcheck(!writingState.spellcheck),
+                  'Spellcheck'
+                )}
               </div>
               <div class="inset-row">
                 {@render label(
@@ -325,8 +339,15 @@
                 )}
               </div>
               <div class="inset-row">
-                {@render label('Auto-close brackets', 'Typing an opening bracket adds its closing pair; with text selected, it wraps the selection.')}
-                {@render toggle(writingState.autoPair, () => writingState.setAutoPair(!writingState.autoPair), 'Auto-close brackets')}
+                {@render label(
+                  'Auto-close brackets',
+                  'Typing an opening bracket adds its closing pair; with text selected, it wraps the selection.'
+                )}
+                {@render toggle(
+                  writingState.autoPair,
+                  () => writingState.setAutoPair(!writingState.autoPair),
+                  'Auto-close brackets'
+                )}
               </div>
               <div class="inset-row">
                 {@render label(
@@ -416,7 +437,8 @@
                       aria-label={palette}
                       aria-pressed={appState.ui.themePalette === palette}
                       onclick={() => appState.setThemePalette(palette)}
-                      class="size-5.5 rounded-full {PALETTE_DOT[palette] ?? 'bg-muted-foreground'} ring-offset-2 ring-offset-card transition-shadow hover:ring-2 hover:ring-hair aria-pressed:ring-2 aria-pressed:ring-foreground/60"
+                      class="size-5.5 rounded-full {PALETTE_DOT[palette] ??
+                        'bg-muted-foreground'} ring-offset-2 ring-offset-card transition-shadow hover:ring-2 hover:ring-hair aria-pressed:ring-2 aria-pressed:ring-foreground/60"
                     ></button>
                   {/each}
                 </div>
@@ -474,7 +496,11 @@
                   'Enable AI',
                   'Turns on AI chat, autocomplete, and model downloads. Off by default so Memoire starts as a plain writing app.'
                 )}
-                {@render toggle(configManager.config?.ai_enabled ?? false, handleToggleAiEnabled, 'Enable AI')}
+                {@render toggle(
+                  configManager.config?.ai_enabled ?? false,
+                  handleToggleAiEnabled,
+                  'Enable AI'
+                )}
               </div>
               {#if configManager.config?.ai_enabled}
                 <div class="inset-row">
@@ -505,20 +531,27 @@
                   {#if configManager.hasOpenRouterApiKey}
                     <div class="inset-row">
                       {@render label('API key', 'Saved on this machine.')}
-                      <Button variant="ghost" size="sm" onclick={() => configManager.clearOpenRouterApiKey()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onclick={() => configManager.clearOpenRouterApiKey()}
+                      >
                         Remove key
                       </Button>
                     </div>
                     <div class="inset-row">
                       {#if configManager.isLoadingOpenRouterModels}
                         {@render label('Model')}
-                        <span class="meta flex items-center gap-2">{@render spinner()} Loading models…</span>
+                        <span class="meta flex items-center gap-2"
+                          >{@render spinner()} Loading models…</span
+                        >
                       {:else if configManager.openRouterModels.length > 0}
                         {@render label('Model', undefined, 'settings-openrouter-model')}
                         <select
                           id="settings-openrouter-model"
                           class="{FIELD} w-56 max-w-[50%]"
-                          value={configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free'}
+                          value={configManager.config?.openrouter_model ??
+                            'meta-llama/llama-3.1-8b-instruct:free'}
                           onchange={(e) => configManager.setOpenRouterModel(e.currentTarget.value)}
                         >
                           {#each configManager.openRouterModels as m (m.id)}
@@ -526,15 +559,26 @@
                           {/each}
                         </select>
                       {:else}
-                        {@render label('Model', configManager.config?.openrouter_model ?? 'meta-llama/llama-3.1-8b-instruct:free')}
-                        <Button variant="secondary" size="sm" onclick={() => configManager.fetchOpenRouterModels()}>
+                        {@render label(
+                          'Model',
+                          configManager.config?.openrouter_model ??
+                            'meta-llama/llama-3.1-8b-instruct:free'
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onclick={() => configManager.fetchOpenRouterModels()}
+                        >
                           Load model list
                         </Button>
                       {/if}
                     </div>
                   {:else}
                     <div class="inset-row flex-col items-stretch gap-2">
-                      {@render label('API key', 'Enter an OpenRouter API key to use remote models for chat, autocomplete, and grammar checks.')}
+                      {@render label(
+                        'API key',
+                        'Enter an OpenRouter API key to use remote models for chat, autocomplete, and grammar checks.'
+                      )}
                       <div class="flex gap-2">
                         <input
                           type="password"
@@ -543,7 +587,11 @@
                           placeholder="sk-or-..."
                           bind:value={openRouterKeyInput}
                         />
-                        <Button size="sm" onclick={handleSaveOpenRouterKey} disabled={!openRouterKeyInput.trim()}>
+                        <Button
+                          size="sm"
+                          onclick={handleSaveOpenRouterKey}
+                          disabled={!openRouterKeyInput.trim()}
+                        >
                           Save
                         </Button>
                       </div>
@@ -553,10 +601,13 @@
               {/if}
 
               {#if (configManager.config?.provider ?? 'local') === 'local'}
-                {@const defaultId = configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct'}
+                {@const defaultId =
+                  configManager.config?.default_llm_model_id ?? 'qwen_2_5_1_5b_instruct'}
                 <h2 class="group-head">Local models</h2>
                 {#if llmManager.error}
-                  <div class="{NOTICE} mb-2 bg-destructive/10 text-destructive">{llmManager.error}</div>
+                  <div class="{NOTICE} mb-2 bg-destructive/10 text-destructive">
+                    {llmManager.error}
+                  </div>
                 {/if}
                 <div class="inset-group">
                   {#if llmManager.supportedModels.length > 0}
@@ -574,7 +625,11 @@
                             </span>
                           {:else}
                             <span class="meta">Downloaded</span>
-                            <Button variant="ghost" size="sm" onclick={() => configManager.setDefaultLlmModel(model.id)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onclick={() => configManager.setDefaultLlmModel(model.id)}
+                            >
                               Set as default
                             </Button>
                           {/if}
@@ -601,7 +656,8 @@
                   {/if}
                 </div>
                 <p class="meta mt-2 mx-3">
-                  Models are stored in your app directory. Only downloaded models can be set as default.
+                  Models are stored in your app directory. Only downloaded models can be set as
+                  default.
                 </p>
               {/if}
 
@@ -615,20 +671,23 @@
                           ? `Indexing ${memoryManager.indexProgress.done} of ${memoryManager.indexProgress.total} notes…`
                           : 'Preparing to index…'}
                       {:else if memoryManager.indexStatus}
-                        {memoryManager.indexStatus.documents} notes · {memoryManager.indexStatus.passages} passages indexed
+                        {memoryManager.indexStatus.documents} notes · {memoryManager.indexStatus
+                          .passages} passages indexed
                       {:else}
                         Checking index…
                       {/if}
                     </p>
                     <p class="meta mt-0.5 leading-snug">
-                      Notes are indexed on this device so the assistant can search them. Saved changes are
-                      picked up automatically; reindex after importing notes from elsewhere.
+                      Notes are indexed on this device so the assistant can search them. Saved
+                      changes are picked up automatically; reindex after importing notes from
+                      elsewhere.
                     </p>
                     {#if memoryManager.indexProgress?.total}
                       <div class="mt-2 h-1 w-full rounded-full bg-fill overflow-hidden">
                         <div
                           class="h-full w-full origin-left bg-primary transition-transform duration-200 ease-out"
-                          style="transform: scaleX({memoryManager.indexProgress.done / memoryManager.indexProgress.total})"
+                          style="transform: scaleX({memoryManager.indexProgress.done /
+                            memoryManager.indexProgress.total})"
                         ></div>
                       </div>
                     {/if}
@@ -648,19 +707,23 @@
               <div class="inset-group">
                 <textarea
                   aria-label="System prompt"
-                  class="block min-h-30 w-full resize-y bg-transparent px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:bg-fill"
+                  class="block min-h-30 w-full resize-y bg-transparent px-5 py-3.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:bg-fill"
                   placeholder="e.g. You are a helpful AI assistant..."
                   value={configManager.config?.system_prompt ?? ''}
-                  onchange={(e) => configManager.setSystemPrompt(e.currentTarget.value)}
-                ></textarea>
+                  onchange={(e) => configManager.setSystemPrompt(e.currentTarget.value)}></textarea>
               </div>
-              <p class="meta mt-2 mx-3">The instructions that guide the assistant in the chat panel.</p>
+              <p class="meta mt-2 mx-3">
+                The instructions that guide the assistant in the chat panel.
+              </p>
             {/if}
           {:else if activeSection === 'sync'}
             <h2 class="group-head">Sync</h2>
             <div class="inset-group">
               <div class="inset-row flex-wrap">
-                {@render label('Preferred storage', 'One backend is active at a time; the other keeps its settings and stays idle.')}
+                {@render label(
+                  'Preferred storage',
+                  'One backend is active at a time; the other keeps its settings and stays idle.'
+                )}
                 <div class="seg flex shrink-0 gap-0.5 rounded-full bg-fill p-0.5">
                   {#each SYNC_PROVIDERS as { id, name, icon: Icon } (id)}
                     <button
@@ -677,8 +740,8 @@
               </div>
               {#if syncProvider === 'none'}
                 <div class="inset-row meta leading-snug">
-                  Nothing leaves your machine. Pick GitHub or Dropbox to sync your writing; whichever
-                  you've already set up stays configured.
+                  Nothing leaves your machine. Pick GitHub or Dropbox to sync your writing;
+                  whichever you've already set up stays configured.
                 </div>
               {/if}
             </div>
@@ -687,7 +750,9 @@
               <h2 class="group-head">GitHub account</h2>
               {#if gitManager.error}
                 <div class="{NOTICE} mb-2 bg-destructive/10 text-destructive">
-                  {typeof gitManager.error === 'string' ? gitManager.error : 'Something went wrong.'}
+                  {typeof gitManager.error === 'string'
+                    ? gitManager.error
+                    : 'Something went wrong.'}
                 </div>
               {/if}
               <div class="inset-group">
@@ -699,16 +764,26 @@
                       <img src={gitManager.user.avatar_url} alt="" class="size-8 rounded-full" />
                     {/if}
                     <div class="flex-1 min-w-0">
-                      <p class="font-medium truncate">{gitManager.user.name || gitManager.user.login}</p>
+                      <p class="font-medium truncate">
+                        {gitManager.user.name || gitManager.user.login}
+                      </p>
                       <p class="meta truncate">@{gitManager.user.login}</p>
                     </div>
-                    <Button variant="secondary" size="sm" onclick={() => gitManager.logout()}>Disconnect</Button>
+                    <Button variant="secondary" size="sm" onclick={() => gitManager.logout()}
+                      >Disconnect</Button
+                    >
                   </div>
                   <div class="inset-row">
-                    {@render label('Auto-push on exit', 'Commit and push any pending changes to GitHub when you close Memoire.')}
+                    {@render label(
+                      'Auto-push on exit',
+                      'Commit and push any pending changes to GitHub when you close Memoire.'
+                    )}
                     {@render toggle(
                       configManager.config?.auto_push_on_exit ?? false,
-                      () => configManager.setAutoPushOnExit(!(configManager.config?.auto_push_on_exit ?? false)),
+                      () =>
+                        configManager.setAutoPushOnExit(
+                          !(configManager.config?.auto_push_on_exit ?? false)
+                        ),
                       'Auto-push on exit'
                     )}
                   </div>
@@ -716,19 +791,36 @@
                   <div class="inset-row flex-col items-start gap-2">
                     <p class="meta">
                       Enter this code at
-                      <span class="font-mono text-primary">{gitManager.deviceCode.verification_uri}</span>
+                      <span class="font-mono text-primary"
+                        >{gitManager.deviceCode.verification_uri}</span
+                      >
                       (opened in your browser):
                     </p>
-                    <span class="text-2xl font-mono tracking-widest font-medium">{gitManager.deviceCode.user_code}</span>
+                    <span class="text-2xl font-mono tracking-widest font-medium"
+                      >{gitManager.deviceCode.user_code}</span
+                    >
                     <div class="flex w-full items-center gap-2 meta">
                       {@render spinner()} Waiting for approval…
-                      <Button variant="ghost" size="sm" class="ml-auto" onclick={() => gitManager.cancelLogin()}>Cancel</Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="ml-auto"
+                        onclick={() => gitManager.cancelLogin()}>Cancel</Button
+                      >
                     </div>
                   </div>
                 {:else}
                   <div class="inset-row">
-                    {@render label('Not connected', 'Sign in to sync your content directory with a GitHub repository.')}
-                    <Button variant="secondary" size="sm" onclick={() => gitManager.startLogin()} disabled={gitManager.isConnecting}>
+                    {@render label(
+                      'Not connected',
+                      'Sign in to sync your content directory with a GitHub repository.'
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onclick={() => gitManager.startLogin()}
+                      disabled={gitManager.isConnecting}
+                    >
                       <GithubIcon strokeWidth={1.75} />
                       Login with GitHub
                     </Button>
@@ -745,9 +837,20 @@
                       'Writing in your content directory is committed and pushed here. Already have writing on GitHub? Import pulls it into this content directory.'
                     )}
                     <div class="flex flex-wrap items-center gap-2">
-                      <input type="text" aria-label="GitHub repository" bind:value={repoInput} placeholder="owner/repo" class="{FIELD} flex-1 basis-40" />
+                      <input
+                        type="text"
+                        aria-label="GitHub repository"
+                        bind:value={repoInput}
+                        placeholder="owner/repo"
+                        class="{FIELD} flex-1 basis-40"
+                      />
                       <Button variant="secondary" size="sm" onclick={handleSaveRepo}>Save</Button>
-                      <Button variant="secondary" size="sm" onclick={handleImport} disabled={gitManager.isImporting || !repoInput.trim()}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onclick={handleImport}
+                        disabled={gitManager.isImporting || !repoInput.trim()}
+                      >
                         {#if gitManager.isImporting}
                           {@render spinner()} Importing…
                         {:else}
@@ -759,7 +862,9 @@
                       <div class="{NOTICE} bg-success/10 text-success">Imported from GitHub.</div>
                     {:else if gitManager.importResult === 'error'}
                       <div class="{NOTICE} bg-destructive/10 text-destructive">
-                        Import failed: {typeof gitManager.error === 'string' ? gitManager.error : 'unknown error'}
+                        Import failed: {typeof gitManager.error === 'string'
+                          ? gitManager.error
+                          : 'unknown error'}
                       </div>
                     {/if}
                   </div>
@@ -767,7 +872,12 @@
 
                 <div class="flex items-end">
                   <h2 class="group-head flex-1">Changes</h2>
-                  <Button variant="ghost" size="sm" class="mb-1" onclick={() => gitManager.refreshStatus()}>Refresh</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="mb-1"
+                    onclick={() => gitManager.refreshStatus()}>Refresh</Button
+                  >
                 </div>
                 <div class="inset-group">
                   {#if gitManager.isLoadingStatus}
@@ -777,7 +887,7 @@
                   {:else}
                     <div class="max-h-40 overflow-y-auto">
                       {#each gitManager.status as file (file.path)}
-                        <div class="flex items-center justify-between gap-2 px-3.5 py-1 text-xs">
+                        <div class="flex items-center justify-between gap-3 px-5 py-1.5 text-xs">
                           <span class="font-mono truncate">{file.path}</span>
                           <span class="meta shrink-0">{file.status}</span>
                         </div>
@@ -786,15 +896,18 @@
                   {/if}
                   <textarea
                     aria-label="Commit message"
-                    class="block min-h-20 w-full resize-y bg-transparent px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:bg-fill"
+                    class="block min-h-20 w-full resize-y bg-transparent px-5 py-3.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:bg-fill"
                     placeholder="Commit message"
-                    bind:value={commitMessage}
-                  ></textarea>
+                    bind:value={commitMessage}></textarea>
                   <div class="inset-row justify-end">
                     {#if gitManager.pushResult === 'success'}
                       <span class="meta text-success! mr-auto">Pushed to GitHub.</span>
                     {/if}
-                    <Button size="sm" onclick={handleCommitPush} disabled={gitManager.isPushing || !commitMessage.trim()}>
+                    <Button
+                      size="sm"
+                      onclick={handleCommitPush}
+                      disabled={gitManager.isPushing || !commitMessage.trim()}
+                    >
                       {#if gitManager.isPushing}
                         {@render spinner()} Pushing…
                       {:else}
@@ -808,7 +921,9 @@
               <h2 class="group-head">Dropbox account</h2>
               {#if dropboxManager.error}
                 <div class="{NOTICE} mb-2 bg-destructive/10 text-destructive">
-                  {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'Something went wrong.'}
+                  {typeof dropboxManager.error === 'string'
+                    ? dropboxManager.error
+                    : 'Something went wrong.'}
                 </div>
               {/if}
               <div class="inset-group">
@@ -817,7 +932,11 @@
                 {:else if dropboxManager.account}
                   <div class="inset-row">
                     {#if dropboxManager.account.photo_url}
-                      <img src={dropboxManager.account.photo_url} alt="" class="size-8 rounded-full" />
+                      <img
+                        src={dropboxManager.account.photo_url}
+                        alt=""
+                        class="size-8 rounded-full"
+                      />
                     {/if}
                     <div class="flex-1 min-w-0">
                       <p class="font-medium truncate">{dropboxManager.account.name}</p>
@@ -825,13 +944,21 @@
                         <p class="meta truncate">{dropboxManager.account.email}</p>
                       {/if}
                     </div>
-                    <Button variant="secondary" size="sm" onclick={() => dropboxManager.logout()}>Disconnect</Button>
+                    <Button variant="secondary" size="sm" onclick={() => dropboxManager.logout()}
+                      >Disconnect</Button
+                    >
                   </div>
                   <div class="inset-row">
-                    {@render label('Auto-push on exit', 'Upload any changed writing to Dropbox when you close Memoire.')}
+                    {@render label(
+                      'Auto-push on exit',
+                      'Upload any changed writing to Dropbox when you close Memoire.'
+                    )}
                     {@render toggle(
                       configManager.config?.dropbox_auto_push_on_exit ?? false,
-                      () => configManager.setDropboxAutoPushOnExit(!(configManager.config?.dropbox_auto_push_on_exit ?? false)),
+                      () =>
+                        configManager.setDropboxAutoPushOnExit(
+                          !(configManager.config?.dropbox_auto_push_on_exit ?? false)
+                        ),
                       'Auto-push to Dropbox on exit'
                     )}
                   </div>
@@ -839,14 +966,25 @@
                   <div class="inset-row">
                     <div class="flex-1 min-w-0">
                       <p>Approve Memoire in the Dropbox page that opened in your browser.</p>
-                      <p class="meta mt-0.5 flex items-center gap-2">{@render spinner()} Waiting for approval…</p>
+                      <p class="meta mt-0.5 flex items-center gap-2">
+                        {@render spinner()} Waiting for approval…
+                      </p>
                     </div>
-                    <Button variant="ghost" size="sm" onclick={() => dropboxManager.cancelLogin()}>Cancel</Button>
+                    <Button variant="ghost" size="sm" onclick={() => dropboxManager.cancelLogin()}
+                      >Cancel</Button
+                    >
                   </div>
                 {:else}
                   <div class="inset-row">
-                    {@render label('Not connected', 'Connect to sync your content directory with a Dropbox folder.')}
-                    <Button variant="secondary" size="sm" onclick={() => dropboxManager.startLogin()}>
+                    {@render label(
+                      'Not connected',
+                      'Connect to sync your content directory with a Dropbox folder.'
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onclick={() => dropboxManager.startLogin()}
+                    >
                       <DropboxIcon strokeWidth={1.75} />
                       Connect Dropbox
                     </Button>
@@ -863,9 +1001,22 @@
                       "Writing in your content directory is uploaded here; the folder is created if it doesn't exist yet. Pull brings writing from Dropbox down into this content directory."
                     )}
                     <div class="flex flex-wrap items-center gap-2">
-                      <input type="text" aria-label="Dropbox folder" bind:value={dropboxFolderInput} placeholder="/Memoire" class="{FIELD} flex-1 basis-40" />
-                      <Button variant="secondary" size="sm" onclick={handleSaveDropboxFolder}>Save</Button>
-                      <Button variant="secondary" size="sm" onclick={handleDropboxPull} disabled={dropboxManager.isPulling || !dropboxFolderInput.trim()}>
+                      <input
+                        type="text"
+                        aria-label="Dropbox folder"
+                        bind:value={dropboxFolderInput}
+                        placeholder="/Memoire"
+                        class="{FIELD} flex-1 basis-40"
+                      />
+                      <Button variant="secondary" size="sm" onclick={handleSaveDropboxFolder}
+                        >Save</Button
+                      >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onclick={handleDropboxPull}
+                        disabled={dropboxManager.isPulling || !dropboxFolderInput.trim()}
+                      >
                         {#if dropboxManager.isPulling}
                           {@render spinner()} Pulling…
                         {:else}
@@ -877,13 +1028,15 @@
                       <div class="{NOTICE} bg-success/10 text-success">
                         Pulled {dropboxManager.lastSync?.downloaded ?? 0} file(s) from Dropbox.
                         {#if dropboxManager.lastSync?.conflicts}
-                          {dropboxManager.lastSync.conflicts} file(s) changed on both sides — Dropbox's version
-                          was saved beside yours as "(Dropbox conflict)".
+                          {dropboxManager.lastSync.conflicts} file(s) changed on both sides — Dropbox's
+                          version was saved beside yours as "(Dropbox conflict)".
                         {/if}
                       </div>
                     {:else if dropboxManager.pullResult === 'error'}
                       <div class="{NOTICE} bg-destructive/10 text-destructive">
-                        Pull failed: {typeof dropboxManager.error === 'string' ? dropboxManager.error : 'unknown error'}
+                        Pull failed: {typeof dropboxManager.error === 'string'
+                          ? dropboxManager.error
+                          : 'unknown error'}
                       </div>
                     {/if}
                   </div>
@@ -891,7 +1044,12 @@
 
                 <div class="flex items-end">
                   <h2 class="group-head flex-1">Changes</h2>
-                  <Button variant="ghost" size="sm" class="mb-1" onclick={() => dropboxManager.refreshStatus()}>Refresh</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="mb-1"
+                    onclick={() => dropboxManager.refreshStatus()}>Refresh</Button
+                  >
                 </div>
                 <div class="inset-group">
                   {#if dropboxManager.isLoadingStatus}
@@ -901,9 +1059,13 @@
                   {:else}
                     <div class="max-h-40 overflow-y-auto">
                       {#each dropboxManager.status as file (file.path)}
-                        <div class="flex items-center justify-between gap-2 px-3.5 py-1 text-xs">
+                        <div class="flex items-center justify-between gap-3 px-5 py-1.5 text-xs">
                           <span class="font-mono truncate">{file.path}</span>
-                          <span class="meta shrink-0 {file.status === 'conflict' ? 'text-destructive!' : ''}">{file.status.replace('_', ' ')}</span>
+                          <span
+                            class="meta shrink-0 {file.status === 'conflict'
+                              ? 'text-destructive!'
+                              : ''}">{file.status.replace('_', ' ')}</span
+                          >
                         </div>
                       {/each}
                     </div>
@@ -913,11 +1075,16 @@
                       <span class="meta text-success! mr-auto">
                         Pushed {dropboxManager.lastSync?.uploaded ?? 0} file(s) to Dropbox.
                         {#if dropboxManager.lastSync?.conflicts}
-                          Skipped {dropboxManager.lastSync.conflicts} file(s) changed on both sides — pull to keep both versions.
+                          Skipped {dropboxManager.lastSync.conflicts} file(s) changed on both sides —
+                          pull to keep both versions.
                         {/if}
                       </span>
                     {/if}
-                    <Button size="sm" onclick={() => dropboxManager.push()} disabled={dropboxManager.isPushing || !configManager.config?.dropbox_folder}>
+                    <Button
+                      size="sm"
+                      onclick={() => dropboxManager.push()}
+                      disabled={dropboxManager.isPushing || !configManager.config?.dropbox_folder}
+                    >
                       {#if dropboxManager.isPushing}
                         {@render spinner()} Pushing…
                       {:else}
@@ -942,7 +1109,12 @@
                     Restart to update
                   </Button>
                 {:else}
-                  <Button variant="secondary" size="sm" onclick={() => updaterManager.check()} disabled={updaterManager.isBusy}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onclick={() => updaterManager.check()}
+                    disabled={updaterManager.isBusy}
+                  >
                     {#if updaterManager.status === 'checking'}
                       {@render spinner()} Checking…
                     {:else if updaterManager.status === 'downloading'}
@@ -971,7 +1143,9 @@
                 <div class="inset-row flex-col items-start gap-1">
                   <p class="font-medium">Version {updaterManager.available.version}</p>
                   {#if updaterManager.available.notes}
-                    <p class="meta whitespace-pre-line max-h-40 overflow-y-auto">{updaterManager.available.notes}</p>
+                    <p class="meta whitespace-pre-line max-h-40 overflow-y-auto">
+                      {updaterManager.available.notes}
+                    </p>
                   {/if}
                 </div>
               {:else if updaterManager.status === 'up-to-date'}
@@ -983,7 +1157,9 @@
               {/if}
             </div>
             {#if updaterManager.lastChecked}
-              <p class="meta mt-2 mx-3">Last checked {updaterManager.lastChecked.toLocaleString()}</p>
+              <p class="meta mt-2 mx-3">
+                Last checked {updaterManager.lastChecked.toLocaleString()}
+              </p>
             {/if}
           {/if}
         </div>

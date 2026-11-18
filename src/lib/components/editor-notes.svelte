@@ -22,9 +22,9 @@
   let shown = $derived(notesState.marginVisible ? notesState.detached : ordered);
 </script>
 
-<div class="px-3 pb-4">
+<div class="px-4 pb-6">
   {#if shown.length > 0}
-    <ul class="flex flex-col gap-2">
+    <ul class="flex flex-col gap-3">
       {#each shown as note (note.id)}
         <li>
           <NoteCard

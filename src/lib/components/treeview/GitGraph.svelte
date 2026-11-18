@@ -175,7 +175,7 @@
             type="button"
             onclick={() => compareWithVersion(fileName, row.id, stamp ? `v${row.id} (${stamp})` : `v${row.id}`)}
             aria-label="Compare the page with v{row.id}"
-            class="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-2 rounded-full text-meta text-muted-foreground bg-paper shadow-[0_0_0_1px_var(--hair)] hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            class="absolute right-1 top-1/2 -translate-y-1/2 h-6 px-2 rounded-full text-meta text-muted-foreground bg-riser shadow-[0_0_0_1px_var(--hair)] hover:text-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
           >
             Compare
           </button>

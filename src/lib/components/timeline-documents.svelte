@@ -55,9 +55,9 @@
   /**
    * `view` is chosen in the home toolbar: `list` is the dated list (or a
    * binder's chapter tree), `cards` the page-preview grid (or a binder's
-   * corkboard). `header` renders at the top of the scrolling content.
+   * corkboard).
    */
-  let { activeBinder = null, view = 'list', header = undefined } = $props();
+  let { activeBinder = null, view = 'list' } = $props();
 
   // Fills the shared scene cache so tree rows can show status and word count.
   // Unchanged writings cost nothing, so this is safe to re-run on any change.
@@ -493,7 +493,6 @@
         ondrop={handleRootDrop}
         class="min-h-full pb-24 rounded-group transition-colors {isRootDragOver ? 'bg-selection/40 ring-1 ring-inset ring-primary/30' : ''}"
       >
-        {@render header?.()}
         <div class="flex items-center justify-between gap-2 mt-2 mb-2 px-1 h-8">
           <span class="meta">
             {filteredFiles.length} writing{filteredFiles.length === 1 ? '' : 's'}{#if isRootDragOver}
@@ -579,7 +578,6 @@
       </div>
     {:else}
     <div class="pb-24">
-      {@render header?.()}
       <!-- The list was always by date; the other orders are the ones a writer
            reaches for when triaging rather than picking up where they left. -->
       <div class="flex items-center justify-end h-8 mt-2 -mb-6 relative z-10 pointer-events-none">
@@ -610,12 +608,12 @@
       {/if}
       {#each groupedFiles as group (group.id)}
         <section class="relative">
-          <h3 class="group-head sticky top-0 z-[5] bg-paper">{group.label}</h3>
+          <h3 class="group-head sticky top-0 z-[5] bg-page">{group.label}</h3>
 
           {#if view === 'cards'}
-            <!-- Grid (C4): a page preview with the opening lines and the binder's
-                 colour down its edge; under it only the title and the binder. -->
-            <div class="grid gap-3.5 grid-cols-[repeat(auto-fill,minmax(190px,1fr))] px-1">
+            <!-- Grid (C4): the shared card — a page preview with the opening
+                 lines, and under it the title and the binder. -->
+            <div class="wgrid">
               {#each group.files as item (item.path)}
                 {@const tint = folderTint(item.folder)}
                 {@const title = formatFileName(item.name.split('/').pop())}
@@ -630,15 +628,14 @@
                           startRename(item);
                         }
                       }}
-                      class="flex flex-col rounded-group p-2 bg-fill hover:bg-selection transition-colors"
+                      class="wcard"
                     >
-                      <div aria-hidden="true" class="relative h-33 overflow-hidden rounded-[7px] bg-card px-3.5 pt-3.5 text-card-foreground shadow-[0_0_0_1px_var(--hair),0_2px_6px_-2px_rgb(0_0_0/0.25)]">
-                        <span class="absolute inset-y-0 left-0 w-1 {tint.dot}"></span>
+                      <div aria-hidden="true" class="wcard-page">
                         <div class="font-serif text-xs font-medium mb-1.5 truncate">{title}</div>
                         <div class="font-serif text-xs leading-normal opacity-80 line-clamp-5">{sceneCache.get(item.name)?.excerpt ?? ''}</div>
-                        <span class="absolute inset-x-0 bottom-0 h-13 bg-linear-to-b from-transparent to-card"></span>
+                        <span class="wcard-fade"></span>
                       </div>
-                      <div class="px-1 pt-2.5 pb-0.5 min-w-0">
+                      <div class="wcard-body">
                         {#if renamingItem === item}
                           <!-- svelte-ignore a11y_autofocus -->
                           <input
@@ -655,7 +652,7 @@
                             class="block w-full min-w-0 bg-transparent text-[13.5px] font-medium outline-none shadow-[0_1px_0_0_var(--ring)]"
                           />
                         {:else}
-                          <div class="truncate text-[13.5px] font-medium">{title}</div>
+                          <div class="wcard-title">{title}</div>
                         {/if}
                         <div class="meta flex items-center gap-1.5 mt-0.5 min-w-0">
                           <span class="binder-dot size-2 rounded-[2px] {tint.dot}"></span>
@@ -671,41 +668,34 @@
               {/each}
             </div>
           {:else}
-          <div class="[&>*+*]:shadow-[0_-1px_0_var(--hair)]">
+          <div>
           {#each group.files as item (item.path)}
             {@const tint = folderTint(item.folder)}
             {@const meta = rowMeta(item)}
             <ContextMenu.Root>
             <ContextMenu.Trigger>
-            <!-- A row (C1): binder-coloured tile, the title, "binder · words"
-                 under it, the time on the right. No excerpt. -->
-            <div
-              class="group/item relative flex items-center gap-3.5 px-3 py-2.5 rounded-[10px] transition-colors hover:bg-fill {menuOpenFor === item.name ? 'bg-fill' : ''}"
-            >
+            <!-- One shared row: the binder's colour, the title, and the time.
+                  Binder and length are in the row's tooltip and its menu. -->
+            <div class="wrow group/item {menuOpenFor === item.name ? 'is-open' : ''}">
               {#if renamingItem === item}
-                <!-- Same box as the row it replaces: the title becomes the field and the
-                     metadata line stays, so nothing below moves while renaming. -->
-                <div class="flex items-center gap-3.5 flex-1 min-w-0">
-                  <div class="size-8.5 rounded-[9px] {tint.tile} flex items-center justify-center shrink-0">
-                    <FileIcon class="size-4" strokeWidth={1.7} />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
-                    <!-- svelte-ignore a11y_autofocus -->
-                    <input
-                      value={renameValue}
-                      oninput={(e) => (renameValue = e.currentTarget.value)}
-                      onkeydown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
-                        if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
-                      }}
-                      onblur={confirmRename}
-                      autofocus
-                      aria-label="Rename writing"
-                      class="block w-full min-w-0 p-0 m-0 border-0 bg-transparent text-[13.5px] font-medium leading-normal text-foreground outline-none rounded-none shadow-[0_1px_0_0_var(--ring)]"
-                    />
-                    <div class="meta truncate">{meta || ' '}</div>
-                  </div>
+                <!-- Same box as the row it replaces: the title becomes the field,
+                     so nothing below moves while renaming. -->
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                  <span class="wrow-mark {tint.dot}"></span>
+                  <!-- These fields only appear because the writer asked to type in one (rename, new folder, new binder), so focus belongs here. -->
+                  <!-- svelte-ignore a11y_autofocus -->
+                  <input
+                    value={renameValue}
+                    oninput={(e) => (renameValue = e.currentTarget.value)}
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); confirmRename(); }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                    }}
+                    onblur={confirmRename}
+                    autofocus
+                    aria-label="Rename writing"
+                    class="block w-full min-w-0 p-0 m-0 border-0 bg-transparent text-[13.5px] font-medium leading-normal text-foreground outline-none rounded-none shadow-[0_1px_0_0_var(--ring)]"
+                  />
                 </div>
               {:else}
                 <a
@@ -717,20 +707,12 @@
                       startRename(item);
                     }
                   }}
-                  class="flex items-center gap-3.5 flex-1 min-w-0"
+                  class="flex items-center gap-3 flex-1 min-w-0"
+                  title={meta || undefined}
                 >
-                  <div class="size-8.5 rounded-[9px] {tint.tile} flex items-center justify-center shrink-0">
-                    <FileIcon class="size-4" strokeWidth={1.7} />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="truncate text-[13.5px] font-medium text-foreground">
-                      {formatFileName(item.name.split('/').pop())}
-                    </div>
-                    {#if meta}
-                      <div class="meta truncate">{meta}</div>
-                    {/if}
-                  </div>
-                  <span class="meta w-16 text-right whitespace-nowrap group-hover/item:opacity-0 group-focus-within/item:opacity-0 transition-opacity {menuOpenFor === item.name ? 'opacity-0' : ''}">
+                  <span class="wrow-mark {tint.dot}"></span>
+                  <span class="wrow-title">{formatFileName(item.name.split('/').pop())}</span>
+                  <span class="wrow-meta group-hover/item:opacity-0 group-focus-within/item:opacity-0 {menuOpenFor === item.name ? 'opacity-0' : ''}">
                     {whenLabel(group.id, item.last_modified)}
                   </span>
                 </a>

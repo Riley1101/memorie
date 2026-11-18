@@ -3,6 +3,7 @@ use super::utils::ChatTurn;
 use futures_util::StreamExt;
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use tokio::sync::mpsc;
 
 /// Which backend serves chat/autocomplete/grammar requests. RAG embeddings and search
@@ -22,24 +23,49 @@ const OPENROUTER_API_BASE: &str = "https://openrouter.ai/api/v1";
 /// Default model used until the user picks one in Settings.
 pub const DEFAULT_OPENROUTER_MODEL: &str = "meta-llama/llama-3.1-8b-instruct:free";
 
+/// What the keyring holds, as far as this run knows: `None` means "not read
+/// yet", `Some(None)` means "read, and there is no key".
+///
+/// macOS asks the user to allow every keychain read, and a key that is read
+/// again on each chat, autocomplete and grammar request would ask again each
+/// time. The key is read once per run and kept here; it never touches disk.
+static KEY_CACHE: Mutex<Option<Option<String>>> = Mutex::new(None);
+
 fn key_entry() -> Result<Entry, ProviderError> {
     Ok(Entry::new(KEYRING_SERVICE, KEYRING_USER)?)
 }
 
+fn cache_api_key(value: Option<String>) {
+    if let Ok(mut cached) = KEY_CACHE.lock() {
+        *cached = Some(value);
+    }
+}
+
 pub fn save_api_key(key: &str) -> Result<(), ProviderError> {
     key_entry()?.set_password(key)?;
+    cache_api_key(Some(key.to_string()));
     Ok(())
 }
 
 pub fn load_api_key() -> Result<Option<String>, ProviderError> {
-    match key_entry()?.get_password() {
-        Ok(key) => Ok(Some(key)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.into()),
+    if let Ok(cached) = KEY_CACHE.lock() {
+        if let Some(key) = cached.as_ref() {
+            return Ok(key.clone());
+        }
     }
+
+    let key = match key_entry()?.get_password() {
+        Ok(key) => Some(key),
+        Err(keyring::Error::NoEntry) => None,
+        Err(e) => return Err(e.into()),
+    };
+
+    cache_api_key(key.clone());
+    Ok(key)
 }
 
 pub fn clear_api_key() -> Result<(), ProviderError> {
+    cache_api_key(None);
     match key_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.into()),
