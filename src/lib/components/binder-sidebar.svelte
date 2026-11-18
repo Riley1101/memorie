@@ -20,7 +20,7 @@
   import { appState } from '$lib/runes/app.svelte.js';
   import { shortcut, isMac } from '$lib/keyboard.svelte.js';
   import { page } from '$app/state';
-  import ListIcon from '@lucide/svelte/icons/list';
+  import HomeIcon from '@lucide/svelte/icons/house';
   import CloudIcon from '@lucide/svelte/icons/cloud';
   import { openCodex } from '$lib/runes/codex.svelte.js';
   import { offerUndo } from '$lib/runes/trash.svelte.js';
@@ -57,6 +57,8 @@
 
   let onCodex = $derived(page.url.pathname.startsWith('/codex'));
   let onHome = $derived(page.url.pathname === '/');
+  /** The binder whose codex is open, '' for the shared codex on its own. */
+  let codexBinder = $derived(onCodex ? (page.url.searchParams.get('binder') ?? '') : null);
 
   function binderCount(name) {
     return fileManager.files.filter((f) => f.folder === name).length;
@@ -249,15 +251,44 @@
 </script>
 
 {#snippet searchField(onSelect)}
-  <button
-    type="button"
-    onclick={() => openSearch(onSelect)}
-    class="field w-full text-left hover:text-foreground transition-colors"
-  >
-    <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
-    <span class="flex-1 truncate">Search</span>
-    <kbd class="font-sans text-xs text-muted-foreground shrink-0">{shortcut('K')}</kbd>
-  </button>
+  <!-- Home and search share the top row: the way back to every writing sits
+       beside the way to find one. -->
+  <div class="flex items-center gap-1.5">
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <button
+            {...props}
+            type="button"
+            aria-label="All writings"
+            aria-current={onHome && activeBinder === null ? 'page' : undefined}
+            onclick={() => {
+              showInLibrary(null);
+              onSelect?.();
+            }}
+            class="field w-(--field-height) shrink-0 justify-center px-0 transition-colors {onHome &&
+            activeBinder === null
+              ? 'raised text-foreground'
+              : 'hover:text-foreground'}"
+          >
+            <HomeIcon strokeWidth={1.7} class="size-4" />
+          </button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Content side="right" portalProps={{}}
+        >All writings · {fileManager.files.length}</Tooltip.Content
+      >
+    </Tooltip.Root>
+    <button
+      type="button"
+      onclick={() => openSearch(onSelect)}
+      class="field flex-1 min-w-0 text-left hover:text-foreground transition-colors"
+    >
+      <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
+      <span class="flex-1 truncate">Search</span>
+      <kbd class="font-sans text-xs text-muted-foreground shrink-0">{shortcut('K')}</kbd>
+    </button>
+  </div>
 {/snippet}
 
 {#snippet binderPanel(onSelect)}
@@ -265,30 +296,19 @@
     <ScrollArea type="scroll" class="h-full">
       <nav aria-label="Library" class="flex flex-col pb-3">
         <div class="sb-head">Library</div>
+        <!-- The shared codex: entries every binder can see. A binder's own
+             codex hangs under that binder instead. -->
         <button
           type="button"
           class="sb-row"
-          aria-current={onHome && activeBinder === null ? 'page' : undefined}
-          onclick={() => {
-            showInLibrary(null);
-            onSelect?.();
-          }}
-        >
-          <ListIcon strokeWidth={1.7} />
-          <span class="truncate flex-1">All writings</span>
-          <span class="sb-count">{fileManager.files.length}</span>
-        </button>
-        <button
-          type="button"
-          class="sb-row"
-          aria-current={onCodex ? 'page' : undefined}
+          aria-current={codexBinder === '' ? 'page' : undefined}
           onclick={() => {
             onSelect?.();
-            openCodex(activeBinder ? { binder: activeBinder } : {});
+            openCodex({});
           }}
         >
           <BookUserIcon strokeWidth={1.7} />
-          <span class="truncate flex-1">Codex</span>
+          <span class="truncate flex-1">Shared codex</span>
         </button>
 
         <div class="sb-head">
@@ -420,6 +440,22 @@
               </ContextMenu.Content>
             </ContextMenu.Root>
           {/if}
+          {#if activeBinder === binder || codexBinder === binder}
+            <!-- This binder's codex: its characters, places and factions, plus
+                 the shared ones. Sits under the binder it belongs to. -->
+            <button
+              type="button"
+              onclick={() => {
+                openCodex({ binder });
+                onSelect?.();
+              }}
+              aria-current={codexBinder === binder ? 'true' : undefined}
+              class="sb-row h-7 pl-5.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <BookUserIcon strokeWidth={1.6} class="size-3.5! text-muted-foreground/70!" />
+              <span class="truncate flex-1">Codex</span>
+            </button>
+          {/if}
           {#if onHome && activeBinder === binder && binderFolders.length}
             <!-- Chapters and scenes of the open binder: click jumps the tree to that folder. -->
             {#each binderFolders as folder (folder.path)}
@@ -497,7 +533,10 @@
 {#snippet panel(onSelect)}
   {#if onMacOS}
     <!-- The traffic lights sit here; the strip moves the window. -->
-    <div data-tauri-drag-region class="h-9 shrink-0 -mt-3 -mx-3 mb-2"></div>
+    <div
+      data-tauri-drag-region="deep"
+      class="h-[var(--titlebar-strip,28px)] shrink-0 -mt-3 -mx-3 mb-2"
+    ></div>
   {/if}
   {@render searchField(onSelect)}
   {@render binderPanel(onSelect)}
@@ -517,7 +556,10 @@
   <Sheet.Content side="left" class="well w-72 p-3 gap-0 flex flex-col" portalProps={{}}>
     <Sheet.Title class="sr-only">Library</Sheet.Title>
     {#if onMacOS}
-      <div class="h-9 shrink-0 -mt-3"></div>
+      <div
+        data-tauri-drag-region="deep"
+        class="h-[var(--titlebar-strip,28px)] shrink-0 -mt-3"
+      ></div>
     {/if}
     <div class="pr-8 pb-2">
       {@render searchField(() => (sheetOpen = false))}

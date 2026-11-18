@@ -265,7 +265,10 @@
   >
     {#if onMacOS}
       <!-- The traffic lights sit here; the strip moves the window. -->
-      <div data-tauri-drag-region class="h-9 shrink-0 -mt-3 -mx-3 mb-2"></div>
+      <div
+        data-tauri-drag-region="deep"
+        class="h-[var(--titlebar-strip,28px)] shrink-0 -mt-3 -mx-3 mb-2"
+      ></div>
     {/if}
     <a href={resolve('/')} class="sb-row text-muted-foreground">
       <ArrowLeftIcon strokeWidth={1.75} />
@@ -279,13 +282,13 @@
 
   <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
     <header
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       class="toolbar max-md:pl-[max(20px,var(--titlebar-inset-left,0px))]"
     >
       <a href={resolve('/')} class="tb-btn md:hidden -ml-2" aria-label="Back to writings">
         <ArrowLeftIcon strokeWidth={1.7} />
       </a>
-      <h1 class="toolbar-title" data-tauri-drag-region>{activeLabel}</h1>
+      <h1 class="toolbar-title">{activeLabel}</h1>
     </header>
 
     <!-- Below 768px the panes wrap as chips instead of a sidebar, so every pane stays in sight. -->

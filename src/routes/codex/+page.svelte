@@ -32,6 +32,18 @@
 
   /** @typedef {import('$lib/runes/codex.svelte.js').Entity} Entity */
 
+  /**
+   * A kind's colour as a dot, so an entry row reads like a writing row: one
+   * marker, the name, one number. Written out because Tailwind needs the class.
+   * @type {Record<string, string>}
+   */
+  const KIND_DOT = {
+    character: 'bg-binder-clay',
+    location: 'bg-binder-teal',
+    faction: 'bg-binder-plum',
+    item: 'bg-binder-ochre',
+  };
+
   /** '' is the shared codex on its own. Set from the URL in `afterNavigate`. */
   let binder = $state(appState.ui.activeBinder ?? '');
   let tab = $state('entries');
@@ -314,7 +326,7 @@
 
   <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
     <header
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]"
     >
       <button
@@ -325,7 +337,7 @@
       >
         <PanelLeftIcon strokeWidth={1.7} />
       </button>
-      <h1 class="toolbar-title shrink-0" data-tauri-drag-region>Codex</h1>
+      <h1 class="toolbar-title shrink-0">Codex</h1>
       {@render binderSelect()}
       <div class="capsule glass ml-auto" role="tablist" aria-label="Codex view">
         {#each [{ id: 'entries', label: 'Sheets' }, { id: 'mentions', label: 'Mentions' }] as t (t.id)}
@@ -361,15 +373,16 @@
       </DropdownMenu.Root>
     </header>
 
-    <div class="flex-1 min-h-0 flex">
-      <!-- Entries, grouped by kind. Narrow windows show the list or the sheet, not both. -->
+    <div class="flex-1 min-h-0 flex gap-3 p-3">
+      <!-- Entries, grouped by kind: a well beside the sheet, as the binder rail
+           is on the library screen. Narrow windows show the list or the sheet. -->
       <nav
         aria-label="Entries"
-        class="min-h-0 w-full md:w-60 shrink-0 flex-col gap-1 pl-3 pr-2 pt-1 shadow-[1px_0_0_var(--hair)] {selected
+        class="well min-h-0 w-full md:w-60 shrink-0 flex-col gap-1 rounded-group px-1.5 pt-2 {selected
           ? 'hidden md:flex'
           : 'flex'}"
       >
-        <label class="field shrink-0">
+        <label class="field shrink-0 mx-1">
           <SearchIcon strokeWidth={1.8} class="size-3.5 shrink-0" />
           <input bind:value={search} placeholder="Find an entry" aria-label="Find an entry" />
         </label>
@@ -378,9 +391,7 @@
             <div class="flex flex-col pb-4">
               {#each groups as group (group.kind.id)}
                 <div class="flex flex-col gap-px">
-                  <div
-                    class="flex items-center gap-1 px-2.5 pt-4 pb-1.5 text-xs font-semibold text-muted-foreground"
-                  >
+                  <div class="sb-head gap-1">
                     {group.kind.plural}
                     <span class="ml-auto font-normal tabular-nums">{group.items.length || ''}</span>
                     <button
@@ -398,18 +409,17 @@
                       type="button"
                       onclick={() => open(entity)}
                       aria-current={on ? 'true' : undefined}
-                      class="flex items-center gap-2 h-7.5 px-2.5 rounded-[7px] text-sm text-left transition-colors
-                        {on
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-foreground hover:bg-fill'}"
+                      class="sb-row"
                     >
+                      <span class="binder-dot {KIND_DOT[entity.kind] ?? KIND_DOT.character}"></span>
                       <span class="truncate flex-1">{entity.name}</span>
                       {#if !entity.scope && binder}
-                        <span class="text-xs opacity-70" title="Shared by every binder">shared</span
+                        <span class="text-xs text-muted-foreground" title="Shared by every binder"
+                          >shared</span
                         >
                       {/if}
                       {#if mentionCounts[entity.path]}
-                        <span class="text-xs tabular-nums opacity-75" title="Mentions in {binder}"
+                        <span class="sb-count" title="Mentions in {binder}"
                           >{mentionCounts[entity.path]}</span
                         >
                       {/if}

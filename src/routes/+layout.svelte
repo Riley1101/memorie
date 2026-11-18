@@ -222,7 +222,20 @@
   >
     <!-- The window frame. Each screen puts its floating sidebar and its paper
          on it; their toolbars are the drag region (on macOS the traffic lights
-         sit over the sidebar's top row or the toolbar's left edge). -->
+         sit in the sidebar's top strip, or the toolbar indents for them). -->
+    {#if onMacOS}
+      <!-- The notch the traffic lights sit in: a bite out of the frame's
+           top-left corner, over whatever panel is beneath, plus the frame's
+           bare top edge beside it. Both drag the window, as a title bar does. -->
+      <div
+        data-tauri-drag-region="deep"
+        class="pointer-events-auto absolute top-0 left-0 z-30 h-[var(--notch-height,42px)] w-[var(--notch-width,96px)] rounded-br-window bg-frame shadow-[inset_-1px_-1px_0_var(--hair)]"
+      ></div>
+      <div
+        data-tauri-drag-region="deep"
+        class="pointer-events-auto absolute inset-x-0 top-0 z-0 h-3"
+      ></div>
+    {/if}
     {@render children()}
     {#if isClosing}
       <div

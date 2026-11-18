@@ -46,7 +46,7 @@
 
   <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
     <header
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]"
     >
       <button
@@ -57,7 +57,7 @@
       >
         <PanelLeftIcon strokeWidth={1.7} />
       </button>
-      <h1 class="toolbar-title" data-tauri-drag-region>
+      <h1 class="toolbar-title">
         {appState.ui.activeBinder ?? 'All writings'}
       </h1>
       <div class="ml-auto flex items-center gap-2">

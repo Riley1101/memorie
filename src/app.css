@@ -145,6 +145,9 @@ body,
   --well-rim: color-mix(in oklch, var(--foreground) 7%, transparent);
   --well-lip: color-mix(in oklch, white 90%, transparent);
   --riser: var(--paper);
+  /* The notch under the traffic lights: cut deeper than the desk, so it reads
+     as window shell rather than as another panel. */
+  --notch: color-mix(in oklch, var(--frame), black 9%);
 }
 .dark {
   /* Dark depth comes from lifting the frame, not from digging the floor: a
@@ -164,6 +167,9 @@ body,
   --fill: color-mix(in oklch, white 7%, transparent);
   --selection: color-mix(in oklch, var(--primary) 32%, transparent);
   --glass-rim: color-mix(in oklch, white 12%, transparent);
+  /* Darker than the window background, which is the darkest surface the app
+     otherwise draws: the notch is meant to read as a hole in the shell. */
+  --notch: color-mix(in oklch, var(--background), black 55%);
 }
 
 .dark {
@@ -399,6 +405,7 @@ body,
   --color-page: var(--page);
   --color-riser: var(--riser);
   --color-frame: var(--frame);
+  --color-notch: var(--notch);
   --color-glass: var(--glass);
   --color-hair: var(--hair);
   --color-fill: var(--fill);
@@ -556,7 +563,9 @@ body,
   --writer-title-size: 2.25rem;
   --writer-title-size-md: 2.75rem;
   --writer-surface-bg: var(--paper-page);
-  --writer-surface-shadow: 0 0 0 1px oklch(0.3 0.03 60 / 0.06), 0 1px 2px oklch(0.3 0.03 60 / 0.06), 0 12px 32px -10px oklch(0.3 0.03 60 / 0.16);
+  --writer-surface-shadow:
+    0 0 0 1px oklch(0.3 0.03 60 / 0.06), 0 1px 2px oklch(0.3 0.03 60 / 0.06),
+    0 12px 32px -10px oklch(0.3 0.03 60 / 0.16);
   --writer-placeholder-color: var(--paper-meta);
   --app-page-padding: 2.25rem;
 }
@@ -784,7 +793,7 @@ body,
 
 /* Sheets are glass panels (see the overlay rules at the end); a side sheet
    floats inset from the window edge like the sidebar does. */
-body [data-slot="sheet-content"] {
+body [data-slot='sheet-content'] {
   border-radius: var(--radius-group);
 }
 
@@ -845,15 +854,27 @@ body [data-slot="sheet-content"] {
   outline: none;
 }
 
-/* macOS overlay title bar. The traffic lights are placed (tauri.conf.json,
-   trafficLightPosition) to centre on the toolbar band, which is 60px at the
-   default interface rhythm; this is the room they take at the top-left, kept
-   clear by the sidebar and by a toolbar that starts at the window's left edge.
-   The band follows `--toolbar-height`, so compact density shortens it while
-   the native lights stay where macOS puts them. */
+/* macOS overlay title bar: a notch, not a band. macOS draws the three buttons
+   itself at the one offset `trafficLightPosition` gives (24/15, so their 12px
+   row sits at 15–27px); all we decide is what lies under them. A shallow bite
+   out of the frame's top-left corner — `--notch-width` by `--notch-height`, a
+   shade darker than the desk, rounded into the window's own corner — puts them
+   outside every panel instead of on one, and costs the window 42px at one
+   corner rather than a 72px strip across the whole top.
+
+   Three measurements follow from it, for whatever sits beneath the notch:
+   `--titlebar-strip` is the empty height a panel keeps at its top (the frame's
+   12px gutter and an 8px gap are already counted, so 28 clears the notch by
+   6px), and `--titlebar-inset-left` is the padding a toolbar at the frame's
+   left edge needs so its first control clears the notch across (96 wide, 8
+   clear, less that 12px gutter). Both stay fixed: the lights do not follow
+   interface density, so neither does the room kept for them. */
 .platform-mac {
-  --titlebar-inset-left: 84px;
-  --titlebar-height: var(--toolbar-height, 60px);
+  --notch-width: 96px;
+  --notch-height: 28px;
+  --titlebar-strip: 28px;
+  --titlebar-inset-left: 92px;
+  --titlebar-height: var(--notch-height);
 }
 
 @layer base {
@@ -1020,10 +1041,7 @@ body [data-slot="sheet-content"] {
     padding: var(--app-page-padding, 2rem);
     /* The macOS overlay title bar sits over the top of the window; a flavour
        with tight padding (Technical) would tuck the page heading under it. */
-    padding-top: max(
-      var(--app-page-padding, 2rem),
-      calc(var(--titlebar-height, 0px) + 0.75rem)
-    );
+    padding-top: max(var(--app-page-padding, 2rem), calc(var(--notch-height, 0px) + 0.75rem));
     max-width: 48rem;
     margin-inline: auto;
   }
@@ -1148,7 +1166,9 @@ body [data-slot="sheet-content"] {
     font-size: 13px;
     color: var(--foreground);
     white-space: nowrap;
-    transition: background-color 120ms ease, color 120ms ease;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
   }
   .tb-btn:hover:not(:disabled) {
     background: var(--fill);
@@ -1423,7 +1443,9 @@ body [data-slot="sheet-content"] {
     background: var(--card);
     color: var(--card-foreground);
     text-align: left;
-    box-shadow: 0 0 0 1px var(--hair), 0 1px 4px -2px color-mix(in oklch, black 14%, transparent);
+    box-shadow:
+      0 0 0 1px var(--hair),
+      0 1px 4px -2px color-mix(in oklch, black 14%, transparent);
   }
   .wcard-fade {
     position: absolute;
@@ -1473,15 +1495,15 @@ body [data-slot="sheet-content"] {
    dialog, sheet, popover and menu in the app gets it at once. Unlayered, so
    it wins over each primitive's own bg-popover. */
 :is(
-    [data-slot='dialog-content'],
-    [data-slot='sheet-content'],
-    [data-slot='popover-content'],
-    [data-slot='dropdown-menu-content'],
-    [data-slot='dropdown-menu-sub-content'],
-    [data-slot='context-menu-content'],
-    [data-slot='context-menu-sub-content'],
-    [data-slot='select-content']
-  ) {
+  [data-slot='dialog-content'],
+  [data-slot='sheet-content'],
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='context-menu-content'],
+  [data-slot='context-menu-sub-content'],
+  [data-slot='select-content']
+) {
   background: var(--glass);
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
@@ -1527,13 +1549,13 @@ body [data-slot="sheet-content"] {
     inset 0 1px 0 var(--well-lip);
 }
 :is(
-    [data-slot='popover-content'],
-    [data-slot='dropdown-menu-content'],
-    [data-slot='dropdown-menu-sub-content'],
-    [data-slot='context-menu-content'],
-    [data-slot='context-menu-sub-content'],
-    [data-slot='select-content']
-  ) {
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='context-menu-content'],
+  [data-slot='context-menu-sub-content'],
+  [data-slot='select-content']
+) {
   border-radius: var(--radius-field);
 }
 [data-slot='dialog-content'] {
@@ -1541,16 +1563,16 @@ body [data-slot="sheet-content"] {
 }
 /* Menu rows: 13px, highlighted with the selection tint. */
 :is(
-    [data-slot='dropdown-menu-item'],
-    [data-slot='dropdown-menu-sub-trigger'],
-    [data-slot='dropdown-menu-checkbox-item'],
-    [data-slot='dropdown-menu-radio-item'],
-    [data-slot='context-menu-item'],
-    [data-slot='context-menu-sub-trigger'],
-    [data-slot='context-menu-checkbox-item'],
-    [data-slot='context-menu-radio-item'],
-    [data-slot='select-item']
-  ) {
+  [data-slot='dropdown-menu-item'],
+  [data-slot='dropdown-menu-sub-trigger'],
+  [data-slot='dropdown-menu-checkbox-item'],
+  [data-slot='dropdown-menu-radio-item'],
+  [data-slot='context-menu-item'],
+  [data-slot='context-menu-sub-trigger'],
+  [data-slot='context-menu-checkbox-item'],
+  [data-slot='context-menu-radio-item'],
+  [data-slot='select-item']
+) {
   font-size: 13px;
   border-radius: 5px;
 }

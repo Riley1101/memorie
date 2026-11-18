@@ -125,7 +125,7 @@
 
   <main class="lifted flex-1 min-w-0 h-full flex flex-col rounded-group overflow-hidden">
     <header
-      data-tauri-drag-region
+      data-tauri-drag-region="deep"
       class="toolbar max-lg:pl-[max(20px,var(--titlebar-inset-left,0px))]"
     >
       <button
@@ -136,7 +136,7 @@
       >
         <PanelLeftIcon strokeWidth={1.7} />
       </button>
-      <h1 class="toolbar-title" data-tauri-drag-region>Binders</h1>
+      <h1 class="toolbar-title">Binders</h1>
       <div class="capsule tb-primary p-0 ml-auto">
         <button type="button" class="tb-btn px-3" onclick={() => (isCreating = true)}>
           <PlusIcon strokeWidth={2} class="size-[15px]!" />
