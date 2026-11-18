@@ -5,7 +5,7 @@
 	let { class: className = undefined, children = undefined, ...props } = $props();
 </script>
 
-<Select.Content class={cn(className)} {...props}>
+<Select.Content class={cn("surface-solid", className)} {...props}>
 	{#if children}
 		{@render children()}
 	{/if}

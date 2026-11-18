@@ -1572,6 +1572,33 @@ body [data-slot='sheet-content'] {
 [data-slot='dialog-content'] {
   border-radius: var(--radius-window);
 }
+
+/* The editor's inline AI card (the suggestion that streams over the page).
+   It floats over live text, so it is opaque and lifted, never a tinted fill —
+   on `--fill` the words underneath read straight through it. */
+.ai-inline-card {
+  background: var(--glass-solid);
+  color: var(--popover-foreground);
+  border: 1px solid var(--hair);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-rim),
+    0 1px 2px color-mix(in oklch, black 8%, transparent),
+    0 12px 32px -12px color-mix(in oklch, black 30%, transparent);
+}
+
+/* Opt out of glass: a floating surface that must stay fully opaque. Used by
+   the AI model picker, where translucent rows let the text behind bleed
+   through the model names. Unlayered and after the overlay rules, so it wins
+   over `--glass`. */
+:is(
+  [data-slot='select-content'],
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content']
+).surface-solid {
+  background: var(--glass-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 /* Menu rows: 13px, highlighted with the selection tint. */
 :is(
   [data-slot='dropdown-menu-item'],

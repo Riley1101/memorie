@@ -63,9 +63,9 @@
   ];
 
   const toolButton =
-    'flex size-8 items-center justify-center rounded-field text-white/80 transition-colors hover:bg-white/14 hover:text-white focus-visible:outline-2 focus-visible:outline-white/60';
+    'flex size-8 items-center justify-center rounded-field text-muted-foreground transition-colors hover:bg-fill hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring';
   const toolLabel =
-    'flex h-8 items-center gap-1.5 rounded-field px-2.5 text-sm font-medium text-white/90 transition-colors hover:bg-white/14 hover:text-white focus-visible:outline-2 focus-visible:outline-white/60';
+    'flex h-8 items-center gap-1.5 rounded-field px-2.5 text-sm font-medium text-foreground/85 transition-colors hover:bg-fill hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring';
 
   function addLink() {
     if (view) editLink(view);
@@ -167,7 +167,9 @@
 <div class="w-max max-w-md flex flex-col gap-2 not-prose select-none animate-in fade-in duration-150 motion-reduce:animate-none group-data-[placement=below]/box:flex-col-reverse">
   
   {#if aiEnabled && (llmManager.editActionContent || llmManager.editActionInProgress)}
-    <div class="group relative bg-fill rounded-group p-4 transition-colors">
+    <div
+      class="ai-inline-card group relative rounded-group p-4 transition-colors"
+    >
       <div class="flex items-start gap-4">
         <div class="mt-1 p-1.5 rounded-full bg-primary/10 text-primary">
           <SparklesIcon strokeWidth={1.5} class={cn("size-4", llmManager.editActionInProgress ? "animate-pulse" : "")} />
@@ -225,7 +227,7 @@
   <div
     role="toolbar"
     aria-label="Selection"
-    class="glass-dark flex items-center gap-0.5 self-start rounded-group p-1 font-sans"
+    class="ai-inline-card flex items-center gap-0.5 self-start rounded-group p-1 font-sans"
   >
     {#each markButtons as { label, markName, icon: Icon, keys } (markName)}
       <button
@@ -249,7 +251,7 @@
     >
       <LinkIcon strokeWidth={1.75} class="size-4" />
     </button>
-    <span class="mx-1 h-4 w-px bg-white/20" aria-hidden="true"></span>
+    <span class="mx-1 h-4 w-px bg-foreground/15" aria-hidden="true"></span>
     <button
       type="button"
       title="Leave a note ({shortcut('alt', 'M')})"
@@ -288,7 +290,7 @@
             </button>
           {/snippet}
         </DropdownMenu.Trigger>
-        <DropdownMenu.Content portalProps={{}} class="w-72 {appState.ui.theme} p-2" align="start">
+        <DropdownMenu.Content portalProps={{}} class="surface-solid w-72 {appState.ui.theme} p-2" align="start">
           <div class="flex flex-col gap-2.5 p-1">
             <div class="relative group">
               <Textarea
